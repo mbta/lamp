@@ -7,6 +7,7 @@ Run the following:
 ```sh
 asdf plugin-add poetry
 asdf plugin-add python
+asdf plugin-add pyarrow
 asdf install
 ```
 
