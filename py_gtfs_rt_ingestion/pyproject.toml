@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "py_gtfs_rt_ingestion"
+version = "0.1.0"
+description = "Ingest JSON Data and Convert it to Parquet Data"
+authors = ["MBTA CTD <developer@mbta.com>",
+           "Mike Zappitello <mzappitello@mbta.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
