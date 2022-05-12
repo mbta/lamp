@@ -1,8 +1,17 @@
 from datetime import datetime
 import pyarrow as pa
+from typing import Dict
 
-def get_datetime_from_header(t:pa.Int64Scalar) -> datetime:
-    return datetime.utcfromtimestamp(t.as_py())
+def get_datetime_from_header(d:Dict) -> datetime:
+    """
+    Provide GTFS-FT dictionary object, from JSON loads
+    
+    Returns UTC datetime from 'timestamp' in 'header'
+    """
+    if 'timestamp' not in d['header']:
+        raise KeyError("Missing 'timestamp' key in 'header'.")
+
+    return datetime.utcfromtimestamp(d['header']['timestamp'])
 
 
 def get_vehicle_schema() -> pa.schema:
