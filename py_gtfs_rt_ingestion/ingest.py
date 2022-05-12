@@ -34,7 +34,6 @@ def run() -> None:
         feed_dt = get_datetime_from_header(json_data)
         
         for ent in json_data['entity']:
-            print(ent)
             v = ent['vehicle']
             r = {
                 'year': feed_dt.year,
