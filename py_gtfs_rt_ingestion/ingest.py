@@ -6,8 +6,8 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from lib.helpers import get_datetime_from_header
-from lib.helpers import get_vehicle_schema
+from py_gtfs_rt_ingestion.helpers import get_datetime_from_header
+from py_gtfs_rt_ingestion.helpers import get_vehicle_schema
 
 def run() -> None:
     """
