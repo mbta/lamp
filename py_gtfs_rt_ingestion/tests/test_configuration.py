@@ -1,5 +1,6 @@
 import pytest
 
+from datetime import datetime
 from py_gtfs_rt_ingestion import Configuration
 
 def test_filname_parsing():
@@ -30,3 +31,37 @@ def test_get_schema():
         unimpled_config = Configuration.RT_ALERTS
         unimpled_schema = unimpled_config.get_schema()
 
+def test_create_record():
+    config = Configuration.RT_VEHICLE_POSITIONS
+
+    entity = {
+      "id": "y1628",
+      "vehicle": {
+        "current_status": "IN_TRANSIT_TO",
+        "current_stop_sequence": 11,
+        "occupancy_status": "FEW_SEATS_AVAILABLE",
+        "position": {
+          "bearing": 192,
+          "latitude": 42.27057097,
+          "longitude": -71.120609509
+        },
+        "stop_id": "16498",
+        "timestamp": 1640995191,
+        "trip": {
+          "direction_id": 0,
+          "route_id": "32",
+          "schedule_relationship": "SCHEDULED",
+          "start_date": "20211231",
+          "start_time": "18:50:00",
+          "trip_id": "50419562"
+        },
+        "vehicle": {
+          "id": "y1628",
+          "label": "1628"
+        }
+      }
+    }
+
+    # for now just test that we can do the conversion. we can do validation
+    # later on.
+    record = config.record_from_entity(entity=entity)

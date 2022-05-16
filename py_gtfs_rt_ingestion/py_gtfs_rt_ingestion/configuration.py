@@ -57,3 +57,27 @@ class Configuration(Enum):
             ])
 
         raise Exception("No Current Schema for %s" % self.name)
+
+    def record_from_entity(self, entity: dict) -> dict:
+        if self == self.__class__.RT_VEHICLE_POSITIONS:
+            vehicle = entity['vehicle']
+            record = {
+                'vehicle_timestamp': vehicle.get('timestamp'),
+                'vehicle_id': entity.get('id'),
+                'vehicle_label': vehicle["vehicle"].get('label'),
+                'current_status': vehicle.get('current_status'),
+                'current_stop_sequence': vehicle.get("current_stop_sequence"),
+                'stop_id': vehicle.get("stop_id"),
+                'position': vehicle.get('position'),
+                'trip': vehicle.get("trip"),
+                'consist_labels': [],
+            }
+            if vehicle['vehicle'].get('consist') is not None:
+                record['consist_labels'] = [consist["label"]
+                                            for consist
+                                            in vehicle["vehicle"].get("consist")]
+
+            return record
+
+        raise Exception("No Current Schema for %s" % self.name)
+
