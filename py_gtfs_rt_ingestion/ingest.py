@@ -46,10 +46,9 @@ def convert_json_to_parquet(input_filename: str, output_dir: str) -> None:
     * append to the table for each element the entities list in the json file
     * write the table
     """
-    config = Configuration.from_filename(input_filename)
+    config = Configuration(input_filename)
 
-    schema = config.get_schema()
-    table = {key.name:[] for key in schema}
+    table = {key.name:[] for key in config.export_schema}
 
     with gzip.open(Path(input_filename), 'rb') as f:
         json_data = json.loads(f.read())
@@ -74,7 +73,7 @@ def convert_json_to_parquet(input_filename: str, output_dir: str) -> None:
                 table[key].append(record[key])
 
     pq.write_to_dataset(
-        pa.table(table, schema=schema),
+        pa.table(table, schema=config.export_schema),
         root_path=output_dir,
         partition_cols=['year','month','day','hour']
     )
