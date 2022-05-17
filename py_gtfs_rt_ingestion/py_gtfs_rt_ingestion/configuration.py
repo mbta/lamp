@@ -1,36 +1,12 @@
-from abc import ABC
-from abc import abstractmethod
-
-from enum import Enum
-from enum import auto
 from pathlib import Path
+
 import pyarrow
 
-from py_gtfs_rt_ingestion.config_rt_vehicle_pos import RtVehiclePositionDetails
+from .config_base import ConfigType
 
-class ConfigType(Enum):
-    RT_ALERTS = auto()
-    RT_TRIP_UPDATES = auto()
-    RT_VEHICLE_POSITIONS = auto()
-    BUS_TRIP_UPDATES = auto()
-    BUS_VEHICLE_POSITIONS = auto()
-    VEHICLE_COUNT = auto()
-
-"""
-All configuation details classes must be configured 
-in same format as ConfigDetails.
-"""
-class ConfigDetails(ABC):
-    @property
-    @abstractmethod
-    def config_type(self) -> ConfigType: ...
-
-    @property
-    @abstractmethod
-    def export_schema(self) -> pyarrow.schema: ...
-
-    @abstractmethod
-    def record_from_entity(self, entity: dict) -> dict: ...
+from .config_rt_vehicle import RtVehicleDetails
+from .config_rt_alerts import RtAlertsDetails
+from .config_rt_trip import RtTripDetails
 
 class Configuration:
     """
@@ -47,11 +23,11 @@ class Configuration:
         self.file_path = Path(filename)
 
         if 'mbta.com_realtime_Alerts_enhanced' in self.file_path.name:
-            self.details = RtVehiclePositionDetails()
-        # if 'mbta.com_realtime_TripUpdates_enhanced' in filename:
-        #     self.import_type = ImportType.RT_TRIP_UPDATES
-        # if 'mbta.com_realtime_VehiclePositions_enhanced' in filename:
-        #     self.import_type = ImportType.RT_VEHICLE_POSITIONS
+            self.details = RtAlertsDetails()
+        elif 'mbta.com_realtime_TripUpdates_enhanced' in filename:
+            self.details = RtTripDetails()
+        elif 'mbta.com_realtime_VehiclePositions_enhanced' in filename:
+            self.details = RtVehicleDetails()
         else:
             raise Exception("Bad Configuration from filename %s" % filename)
 

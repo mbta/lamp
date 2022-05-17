@@ -9,19 +9,17 @@ def test_filname_parsing():
     Check that we are able to get the correct Configuration type for multiple
     filenames
     """
-    # Requires full implemenation of ConfigDetails for ConfigType
-    # trip_updates_type = Configuration(
-    #     '2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz')
-    # assert trip_updates_type.config_type == ConfigType.RT_TRIP_UPDATES
+    trip_updates_type = Configuration(
+        '2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz')
+    assert trip_updates_type.config_type == ConfigType.RT_TRIP_UPDATES
 
     vehicle_positions_type = Configuration(
         '2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz')
     assert vehicle_positions_type.config_type == ConfigType.RT_VEHICLE_POSITIONS
 
-    # Requires full implemenation of ConfigDetails for ConfigType
-    # alerts_type = Configuration(
-    #     '2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz')
-    # assert alerts_type.config_type == ConfigType.RT_ALERTS
+    alerts_type = Configuration(
+        '2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz')
+    assert alerts_type.config_type == ConfigType.RT_ALERTS
 
     with pytest.raises(Exception):
         Configuration('this.is.a.bad.filename.json.gz')

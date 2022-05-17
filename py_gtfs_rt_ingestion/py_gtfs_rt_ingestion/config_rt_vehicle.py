@@ -1,8 +1,9 @@
 import pyarrow
-from py_gtfs_rt_ingestion.configuration import ConfigType
-from py_gtfs_rt_ingestion.configuration import ConfigDetails
 
-class RtVehiclePositionDetails(ConfigDetails):
+from .config_base import ConfigDetails
+from .config_base import ConfigType
+
+class RtVehicleDetails(ConfigDetails):
     @property
     def config_type(self) -> ConfigType:
         return ConfigType.RT_VEHICLE_POSITIONS
