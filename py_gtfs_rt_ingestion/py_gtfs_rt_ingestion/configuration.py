@@ -1,3 +1,4 @@
+from ipaddress import v4_int_to_packed
 from pathlib import Path
 
 import pyarrow
@@ -20,13 +21,11 @@ class Configuration:
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
     def __init__(self, filename: str) -> None:
-        self.file_path = Path(filename)
-
         """
         Depending on filename, assign self.details to correct implementation of 
         ConfigDetail class. 
         """
-        if 'mbta.com_realtime_Alerts_enhanced' in self.file_path.name:
+        if 'mbta.com_realtime_Alerts_enhanced' in filename:
             self.detail = RtAlertsDetail()
         elif 'mbta.com_realtime_TripUpdates_enhanced' in filename:
             self.detail = RtTripDetail()

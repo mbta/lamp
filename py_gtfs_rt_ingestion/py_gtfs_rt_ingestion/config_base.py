@@ -23,7 +23,7 @@ class ConfigDetail(ABC):
     """
     Abstract Base Class for all ConfigDetail implementations.
 
-    ConfigDetails classes must implement all methods and properties that are defined.
+    ConfigDetail classes must implement all methods and properties that are defined.
     """
     @property
     @abstractmethod
