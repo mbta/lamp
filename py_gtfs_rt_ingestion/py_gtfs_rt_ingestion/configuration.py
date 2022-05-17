@@ -22,6 +22,10 @@ class Configuration:
     def __init__(self, filename: str) -> None:
         self.file_path = Path(filename)
 
+        """
+        Depending on filename, assign self.details to correct implementation of 
+        ConfigDetails class. 
+        """
         if 'mbta.com_realtime_Alerts_enhanced' in self.file_path.name:
             self.details = RtAlertsDetails()
         elif 'mbta.com_realtime_TripUpdates_enhanced' in filename:

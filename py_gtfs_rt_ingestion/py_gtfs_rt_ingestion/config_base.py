@@ -8,8 +8,8 @@ import pyarrow
 
 class ConfigType(Enum):
     """
-    ConfigType is and Enumaration taht is inclusive of all 
-    configurations types to be processed by this library
+    ConfigType is an Enumuration that is inclusive of all 
+    configuration types to be processed by this library
 
     """
     RT_ALERTS = auto()
@@ -21,10 +21,9 @@ class ConfigType(Enum):
 
 class ConfigDetails(ABC):
     """
-    Abstract Base Class for all Configuration Details implementations.
+    Abstract Base Class for all ConfigDetail implementations.
 
-    Configuration Details classes must implement all methods and properties
-    as defined by ConfigDetails.
+    ConfigDetails classes must implement all methods and properties that are defined.
     """
     @property
     @abstractmethod
