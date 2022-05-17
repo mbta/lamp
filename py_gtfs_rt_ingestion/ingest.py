@@ -11,7 +11,7 @@ import pyarrow.parquet as pq
 from datetime import datetime
 from pathlib import Path
 
-from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion.configuration import Configuration
 
 DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 

@@ -6,7 +6,7 @@ from enum import auto
 from pathlib import Path
 import pyarrow
 
-from config_rt_vehicle_pos import RtVehiclePositionDetails
+from py_gtfs_rt_ingestion.config_rt_vehicle_pos import RtVehiclePositionDetails
 
 class ConfigType(Enum):
     RT_ALERTS = auto()
