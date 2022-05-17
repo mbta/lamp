@@ -24,7 +24,7 @@ class Configuration:
 
         """
         Depending on filename, assign self.details to correct implementation of 
-        ConfigDetails class. 
+        ConfigDetail class. 
         """
         if 'mbta.com_realtime_Alerts_enhanced' in self.file_path.name:
             self.detail = RtAlertsDetail()

@@ -29,7 +29,7 @@ def test_get_schema():
         '2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz')
     schema = config.export_schema
 
-    # Requires full implemenation of ConfigDetails for ConfigType
+    # Requires full implemenation of ConfigDetail for ConfigType
     # with pytest.raises(Exception):
     #     unimpled_config = Configuration.RT_ALERTS
     #     unimpled_schema = unimpled_config.get_schema()
