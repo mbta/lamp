@@ -19,7 +19,7 @@ class ConfigType(Enum):
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
 
-class ConfigDetails(ABC):
+class ConfigDetail(ABC):
     """
     Abstract Base Class for all ConfigDetail implementations.
 

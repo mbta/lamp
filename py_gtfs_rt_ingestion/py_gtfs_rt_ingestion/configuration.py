@@ -4,9 +4,9 @@ import pyarrow
 
 from .config_base import ConfigType
 
-from .config_rt_vehicle import RtVehicleDetails
-from .config_rt_alerts import RtAlertsDetails
-from .config_rt_trip import RtTripDetails
+from .config_rt_vehicle import RtVehicleDetail
+from .config_rt_alerts import RtAlertsDetail
+from .config_rt_trip import RtTripDetail
 
 class Configuration:
     """
@@ -27,24 +27,24 @@ class Configuration:
         ConfigDetails class. 
         """
         if 'mbta.com_realtime_Alerts_enhanced' in self.file_path.name:
-            self.details = RtAlertsDetails()
+            self.detail = RtAlertsDetail()
         elif 'mbta.com_realtime_TripUpdates_enhanced' in filename:
-            self.details = RtTripDetails()
+            self.detail = RtTripDetail()
         elif 'mbta.com_realtime_VehiclePositions_enhanced' in filename:
-            self.details = RtVehicleDetails()
+            self.detail = RtVehicleDetail()
         else:
             raise Exception("Bad Configuration from filename %s" % filename)
 
     @property
     def config_type(self) -> ConfigType:
-        return self.details.config_type
+        return self.detail.config_type
 
     @property
     def export_schema(self) -> pyarrow.schema:
-        return self.details.export_schema
+        return self.detail.export_schema
 
     def record_from_entity(self, entity: dict) -> dict:
-        return self.details.record_from_entity(entity)
+        return self.detail.record_from_entity(entity)
 
 
 

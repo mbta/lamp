@@ -1,9 +1,9 @@
 import pyarrow
 
-from .config_base import ConfigDetails
+from .config_base import ConfigDetail
 from .config_base import ConfigType
 
-class RtTripDetails(ConfigDetails):
+class RtTripDetail(ConfigDetail):
     @property
     def config_type(self) -> ConfigType:
         return ConfigType.RT_TRIP_UPDATES

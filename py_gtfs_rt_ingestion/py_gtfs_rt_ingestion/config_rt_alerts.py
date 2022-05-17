@@ -1,9 +1,9 @@
 import pyarrow
 
-from .config_base import ConfigDetails
+from .config_base import ConfigDetail
 from .config_base import ConfigType
 
-class RtAlertsDetails(ConfigDetails):
+class RtAlertsDetail(ConfigDetail):
     @property
     def config_type(self) -> ConfigType:
         return ConfigType.RT_ALERTS
