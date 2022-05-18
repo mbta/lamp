@@ -27,18 +27,17 @@ def batch_files(list_of_files, threshold) -> list:
     ongoing_batches = {
         ConfigType.RT_ALERTS: Batch(ConfigType.RT_ALERTS),
         ConfigType.RT_TRIP_UPDATES: Batch(ConfigType.RT_TRIP_UPDATES),
-        ConfigType.RT_VEHICLE_POSITIONS: Batch(ConfigType.RT_VEHICLE_POSITIONS)
+        ConfigType.RT_VEHICLE_POSITIONS: Batch(ConfigType.RT_VEHICLE_POSITIONS),
+        ConfigType.BUS_TRIP_UPDATES: Batch(ConfigType.BUS_TRIP_UPDATES),
+        ConfigType.BUS_VEHICLE_POSITIONS: Batch(ConfigType.BUS_VEHICLE_POSITIONS),
+        ConfigType.VEHICLE_COUNT: Batch(ConfigType.VEHICLE_COUNT)
     }
 
     for file_info in list_of_files:
         (date, time, size, filename) = file_info.split()
 
-        try:
-            config_type = ConfigType.from_filename(filename)
-            batch = ongoing_batches[config_type]
-        except:
-            # unable to figure out config type, continue _for now_
-            continue
+        config_type = ConfigType.from_filename(filename)
+        batch = ongoing_batches[config_type]
 
         if batch.total_size + int(size) > threshold:
             complete_batches.append(batch)

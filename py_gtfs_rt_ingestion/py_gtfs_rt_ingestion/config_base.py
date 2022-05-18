@@ -27,6 +27,12 @@ class ConfigType(Enum):
             return cls.RT_TRIP_UPDATES
         if 'mbta.com_realtime_VehiclePositions_enhanced' in filename:
             return cls.RT_VEHICLE_POSITIONS
+        if 'com_prod_TripUpdates_enhanced' in filename:
+            return cls.BUS_TRIP_UPDATES
+        if 'com_prod_VehiclePositions_enhanced' in filename:
+            return cls.BUS_VEHICLE_POSITIONS
+        if 'net_vehicleCount' in filename:
+            return cls.VEHICLE_COUNT
 
         raise Exception("Bad Configuration Type from filename %s" % filename)
 
