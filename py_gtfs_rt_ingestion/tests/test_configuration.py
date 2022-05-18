@@ -4,29 +4,34 @@ from datetime import datetime
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import ConfigType
 
+update_filename = \
+    '2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz'
+
+vehicle_positions_filename = \
+    '2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz'
+
+alerts_filename = \
+    '2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz'
+
 def test_filname_parsing():
     """
     Check that we are able to get the correct Configuration type for multiple
     filenames
     """
-    trip_updates_type = Configuration(
-        '2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz')
-    assert trip_updates_type.config_type == ConfigType.RT_TRIP_UPDATES
+    trip_updates_type = ConfigType.from_filename(update_filename)
+    assert trip_updates_type == ConfigType.RT_TRIP_UPDATES
 
-    vehicle_positions_type = Configuration(
-        '2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz')
-    assert vehicle_positions_type.config_type == ConfigType.RT_VEHICLE_POSITIONS
+    vehicle_positions_type = ConfigType.from_filename(vehicle_positions_filename)
+    assert vehicle_positions_type == ConfigType.RT_VEHICLE_POSITIONS
 
-    alerts_type = Configuration(
-        '2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz')
-    assert alerts_type.config_type == ConfigType.RT_ALERTS
+    alerts_type = ConfigType.from_filename(alerts_filename)
+    assert alerts_type == ConfigType.RT_ALERTS
 
     with pytest.raises(Exception):
-        Configuration('this.is.a.bad.filename.json.gz')
+        ConfigType.from_filename('this.is.a.bad.filename.json.gz')
 
 def test_get_schema():
-    config = Configuration(
-        '2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz')
+    config = Configuration(filename=vehicle_positions_filename)
     schema = config.export_schema
 
     # Requires full implemenation of ConfigDetail for ConfigType
@@ -35,8 +40,7 @@ def test_get_schema():
     #     unimpled_schema = unimpled_config.get_schema()
 
 def test_create_record():
-    config = Configuration(
-        '2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz')
+    config = Configuration(filename=vehicle_positions_filename)
 
     entity = {
       "id": "y1628",

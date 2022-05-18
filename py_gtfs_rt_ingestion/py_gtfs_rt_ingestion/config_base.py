@@ -19,6 +19,18 @@ class ConfigType(Enum):
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
 
+    @classmethod
+    def from_filename(cls, filename: str):
+        if 'mbta.com_realtime_Alerts_enhanced' in filename:
+            return cls.RT_ALERTS
+        if 'mbta.com_realtime_TripUpdates_enhanced' in filename:
+            return cls.RT_TRIP_UPDATES
+        if 'mbta.com_realtime_VehiclePositions_enhanced' in filename:
+            return cls.RT_VEHICLE_POSITIONS
+
+        raise Exception("Bad Configuration Type from filename %s" % filename)
+
+
 class ConfigDetail(ABC):
     """
     Abstract Base Class for all ConfigDetail implementations.

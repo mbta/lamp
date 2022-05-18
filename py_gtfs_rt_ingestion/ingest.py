@@ -46,7 +46,7 @@ def convert_json_to_parquet(input_filename: Path, output_dir: Path) -> None:
     * append to the table for each element the entities list in the json file
     * write the table
     """
-    config = Configuration(input_filename.name)
+    config = Configuration(filename=input_filename.name)
 
     table = {key.name:[] for key in config.export_schema}
 
