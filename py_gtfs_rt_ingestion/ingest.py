@@ -36,7 +36,7 @@ def parseArgs(args) -> dict:
     return parsed_args
 
 
-def convert_json_to_parquet(input_filename: str, output_dir: str) -> None:
+def convert_json_to_parquet(input_filename: Path, output_dir: Path) -> None:
     """
     convert in input *.json.gz file into a parquet file
 
@@ -46,11 +46,11 @@ def convert_json_to_parquet(input_filename: str, output_dir: str) -> None:
     * append to the table for each element the entities list in the json file
     * write the table
     """
-    config = Configuration(input_filename)
+    config = Configuration(input_filename.name)
 
     table = {key.name:[] for key in config.export_schema}
 
-    with gzip.open(Path(input_filename), 'rb') as f:
+    with gzip.open(input_filename, 'rb') as f:
         json_data = json.loads(f.read())
 
         # parse timestamp info out of the header
@@ -81,5 +81,5 @@ def convert_json_to_parquet(input_filename: str, output_dir: str) -> None:
 
 if __name__ == '__main__':
     args = parseArgs(sys.argv[1:])
-    convert_json_to_parquet(input_filename=args.input_file,
-                            output_dir=args.output_dir)
+    convert_json_to_parquet(input_filename=Path(args.input_file),
+                            output_dir=Path(args.output_dir))
