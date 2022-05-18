@@ -1,4 +1,3 @@
-from asyncio import TimerHandle
 import pyarrow
 
 from .config_base import ConfigDetail
