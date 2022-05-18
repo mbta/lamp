@@ -82,12 +82,9 @@ class RtVehicleDetail(ConfigDetail):
             )
         }
 
-        def drill_entity(f):
+        def drill_entity(f:str) -> dict:
             ret_dict = entity
-            f_list = f.split(',')
-            if len(f_list) == 1:
-                return ret_dict
-            for k in f_list[1:]:
+            for k in f.split(',')[1:]:
                 if ret_dict.get(k) is None:
                     return None
                 ret_dict = ret_dict.get(k)
