@@ -11,47 +11,92 @@ class RtVehicleDetail(ConfigDetail):
     @property
     def export_schema(self) -> pyarrow.schema:
         return pyarrow.schema([
+                # header -> timestamp
                 ('year', pyarrow.int16()),
                 ('month', pyarrow.int8()),
                 ('day', pyarrow.int8()),
                 ('hour', pyarrow.int8()),
                 ('feed_timestamp', pyarrow.int64()),
-                ('vehicle_timestamp', pyarrow.int64()),
-                ('vehicle_id', pyarrow.string()),
-                ('vehicle_label', pyarrow.string()),
+                # entity
+                ('entity_id', pyarrow.string()), # actual lable: id
+                # entity -> vehicle
                 ('current_status', pyarrow.string()),
-                ('current_stop_sequence', pyarrow.int16()),
+                ('current_stop_sequence', pyarrow.int64()),
+                ('occupancy_percentage', pyarrow.int64()),
+                ('occupancy_status', pyarrow.string()),
                 ('stop_id', pyarrow.string()),
-                ('position', pyarrow.struct([
-                    ('latitude', pyarrow.float64()),
-                    ('longitude', pyarrow.float64()),
-                    ('bearing', pyarrow.float32()),])),
-                ('trip', pyarrow.struct([
-                    ('trip_id', pyarrow.string()),
-                    ('route_id', pyarrow.string()),
-                    ('direction_id', pyarrow.int8()),
-                    ('schedule_relationship', pyarrow.string()),
-                    ('start_date', pyarrow.string()),
-                    ('start_time', pyarrow.string())])),
-                ('consist_labels', pyarrow.list_(pyarrow.string()))
+                ('vehicle_timestamp', pyarrow.int64()), # actual label: timestamp
+                # entity -> vehicle -> position
+                ('bearing', pyarrow.int64()),
+                ('latitude', pyarrow.float64()),
+                ('longitude', pyarrow.float64()),
+                ('speed', pyarrow.float64()),
+                # entity -> vehicle -> trip
+                ('direction_id', pyarrow.int64()),
+                ('route_id', pyarrow.string()),
+                ('schedule_relationship', pyarrow.string()),
+                ('start_date', pyarrow.string()),
+                ('start_time', pyarrow.string()),
+                ('trip_id', pyarrow.string()), # actual label: id
+                # entity -> vehicle -> vehicle
+                ('vehicle_id', pyarrow.string()), # actual label: id
+                ('vehicle_label', pyarrow.string()), # actual label: label
+                ('vehicle_consist', pyarrow.list_(
+                                        pyarrow.struct(
+                                            [pyarrow.field('label',pyarrow.string()),]
+                                        )
+                                    )), # actual label: consist
             ])
     
     def record_from_entity(self, entity: dict) -> dict:
-        vehicle = entity['vehicle']
-        record = {
-            'vehicle_timestamp': vehicle.get('timestamp'),
-            'vehicle_id': entity.get('id'),
-            'vehicle_label': vehicle["vehicle"].get('label'),
-            'current_status': vehicle.get('current_status'),
-            'current_stop_sequence': vehicle.get("current_stop_sequence"),
-            'stop_id': vehicle.get("stop_id"),
-            'position': vehicle.get('position'),
-            'trip': vehicle.get("trip"),
-            'consist_labels': [],
+        transform_schema = {
+            'entity': (
+                ('id','entity_id'),
+            ),
+            'entity,vehicle': (
+                ('current_status',),
+                ('current_stop_sequence',),
+                ('occupancy_percentage',),
+                ('occupancy_status',),
+                ('stop_id',),
+                ('timestamp','vehicle_timestamp'),
+            ),
+            'entity,vehicle,position': (
+                ('bearing',),
+                ('latitude',),
+                ('longitude',),
+                ('speed',),
+            ),
+            'entity,vehicle,trip': (
+                ('direction_id',),
+                ('route_id',),
+                ('schedule_relationship',),
+                ('start_date',),
+                ('start_time',),
+                ('id','trip_id'),
+            ),
+            'entity,vehicle,vehicle': (
+                ('id','vehicle_id',),
+                ('label','vehicle_label',),
+                ('consist','vehicle_consist',),
+            )
         }
-        if vehicle['vehicle'].get('consist') is not None:
-            record['consist_labels'] = [consist["label"]
-                                        for consist
-                                        in vehicle["vehicle"].get("consist")]
+
+        def drill_entity(f:str) -> dict:
+            ret_dict = entity
+            for k in f.split(',')[1:]:
+                if ret_dict.get(k) is None:
+                    return None
+                ret_dict = ret_dict.get(k)
+            return ret_dict
+
+        record = {}
+        for drill_keys in transform_schema.keys():
+            pull_dict = drill_entity(drill_keys)
+            for get_field in transform_schema[drill_keys]:
+                if pull_dict is None:
+                    record[get_field[-1]] = None
+                else:
+                    record[get_field[-1]] = pull_dict.get(get_field[0])
 
         return record
