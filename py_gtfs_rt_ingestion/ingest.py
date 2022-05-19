@@ -21,12 +21,13 @@ MULTIPROCESSING_POOL_SIZE = 4
 
 def gz_to_pyarrow(filename: str, config: Configuration, return_queue: Queue) -> None:
     """
-    Accepts filename as string for gzip json to pyarrow table parsing. 
+    Accepts filename as string. Converts gzipped json -> pyarrow table. 
 
-    Converted pyarrow table sent back to main process using return_queue.
-    If conversion failes, returns filename of failed conversion.
+    parrow table sent back to main process using return_queue.
+    If conversion fails, returns filename.
     """
     # Enclose entire function in try block, Process can't fail silently.
+    # Must return either pyarrow table or filename
     try:
         with gzip.open(filename, 'rb') as f:
             json_data = json.loads(f.read())
@@ -55,13 +56,13 @@ def gz_to_pyarrow(filename: str, config: Configuration, return_queue: Queue) -> 
 
         ret_obj = pa.table(ret_obj, schema=config.export_schema)
 
-    # Catch Process failure, send back filename for handling
+    # Catch failure, send back filename for handling
     except Exception as e:
         print(e, flush=True)
         ret_obj = filename
 
-    # Send pyarrow table or None back to main Process for concatenation
-    Queue.put(ret_obj)
+    # Send pyarrow table or filename back to main Process for concatenation
+    return_queue.put(ret_obj)
     return_queue.close()
 
 def lambda_handler(event: dict, context) -> None:
@@ -82,7 +83,7 @@ def lambda_handler(event: dict, context) -> None:
     batch files should all be of same ConfigType
     """
     if 'file_batch' not in event:
-        raise Exception("Lambda event missing 'file_batch' keys.")
+        raise Exception("Lambda event missing 'file_batch' key.")
 
     file_batch = event['file_batch']
 
@@ -112,12 +113,12 @@ def lambda_handler(event: dict, context) -> None:
     pool.join()
 
     # TODO:
-    # 1. Implement output direction as environmental variable for lamda function.
-    # 2. Do something with failed conversion files.
+    # 1. Implement output directory as env variable for lamda function.
+    # 2. Do something with failed conversion filenames.
     OUTPUT_DIR = ''
 
     pq.write_to_dataset(
-        pa.table(pa_table, schema=config.export_schema),
+        pa_table,
         root_path=OUTPUT_DIR,
         partition_cols=['year','month','day','hour']
     )
