@@ -20,19 +20,24 @@ class Configuration:
     https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
-    def __init__(self, filename: str) -> None:
+    def __init__(self,
+                 config_type: ConfigType=None,
+                 filename: str=None) -> None:
         """
         Depending on filename, assign self.details to correct implementation of 
         ConfigDetail class. 
         """
-        if 'mbta.com_realtime_Alerts_enhanced' in filename:
+        if config_type is None:
+            config_type = ConfigType.from_filename(filename)
+
+        if config_type == ConfigType.RT_ALERTS:
             self.detail = RtAlertsDetail()
-        elif 'mbta.com_realtime_TripUpdates_enhanced' in filename:
+        elif config_type == ConfigType.RT_TRIP_UPDATES:
             self.detail = RtTripDetail()
-        elif 'mbta.com_realtime_VehiclePositions_enhanced' in filename:
+        elif config_type == ConfigType.RT_VEHICLE_POSITIONS:
             self.detail = RtVehicleDetail()
         else:
-            raise Exception("Bad Configuration from filename %s" % filename)
+            raise Exception("Bad Configuration Type %s" % config_type)
 
     @property
     def config_type(self) -> ConfigType:
