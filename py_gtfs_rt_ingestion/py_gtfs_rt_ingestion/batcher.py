@@ -1,5 +1,7 @@
-from collections.abc import Iterable
 from .config_base import ConfigType
+from collections.abc import Iterable
+from pathlib import Path
+
 
 class Batch(object):
     """
@@ -22,6 +24,12 @@ class Batch(object):
 
     def trigger_lambda(self) -> None:
         raise Exception("not impled yet")
+
+    def create_event(self) -> dict:
+        return {
+            'bucket':'mbta-gtfs-s3',
+            's3_files': self.filenames,
+        }
 
 def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
     """
