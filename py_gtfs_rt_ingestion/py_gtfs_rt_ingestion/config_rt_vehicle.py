@@ -18,7 +18,7 @@ class RtVehicleDetail(ConfigDetail):
                 ('hour', pyarrow.int8()),
                 ('feed_timestamp', pyarrow.int64()),
                 # entity
-                ('entity_id', pyarrow.string()), # actual lable: id
+                ('entity_id', pyarrow.string()), # actual label: id
                 # entity -> vehicle
                 ('current_status', pyarrow.string()),
                 ('current_stop_sequence', pyarrow.int64()),
