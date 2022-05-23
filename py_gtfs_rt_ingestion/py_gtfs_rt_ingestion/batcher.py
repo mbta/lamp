@@ -1,4 +1,7 @@
+import logging
+
 from .config_base import ConfigType
+from .error import ConfigTypeFromFilenameException, NoImplException
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -14,16 +17,16 @@ class Batch(object):
         self.total_size = 0
 
     def __str__(self) -> None:
-        return "%d bytes across %d files of type %s" % (self.total_size,
-                                                        len(self.filenames),
-                                                        self.config_type)
+        return "Batch of %d bytes in %d %s files" % (self.total_size,
+                                                     len(self.filenames),
+                                                     self.config_type)
 
     def add_file(self, filename: str, filesize: int) -> None:
         self.filenames.append(filename)
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
-        raise Exception("not impled yet")
+        raise NoImplException("Cannot Trigger Lambda on a Batch")
 
     def create_event(self) -> dict:
         return {
@@ -50,17 +53,21 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
     # iterate over file tuples, and add them to the ongoing batches. if a batch
     # is going to go past the threshold limit, move it to complete batches, and
     # create a new batch.
+    logging.info("Organizing files into batches.")
     for (filename, size) in files:
         try:
             config_type = ConfigType.from_filename(filename)
-        except:
-            # for now just print out the error.
-            print("Encontered Unknown File Type: %s" % filename)
+        except ConfigTypeFromFilenameException as config_exception:
+            logging.warning(config_exception)
+            continue
+        except Exception as exception:
+            loging.excption(exception)
             continue
 
         batch = ongoing_batches[config_type]
 
         if batch.total_size + int(size) > threshold:
+            logging.info(batch)
             complete_batches.append(batch)
             ongoing_batches[config_type] = Batch(config_type)
             batch = ongoing_batches[config_type]
@@ -69,6 +76,8 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
 
     # add the ongoing batches too complete ones and return.
     for (_, batch) in ongoing_batches.items():
-        complete_batches.append(batch)
+        if batch.total_size > 0:
+            logging.info(batch)
+            complete_batches.append(batch)
 
     return complete_batches

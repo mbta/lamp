@@ -6,6 +6,8 @@ from enum import Enum
 
 import pyarrow
 
+from .error import ConfigTypeFromFilenameException
+
 class ConfigType(Enum):
     """
     ConfigType is an Enumuration that is inclusive of all 
@@ -18,6 +20,9 @@ class ConfigType(Enum):
     BUS_TRIP_UPDATES = auto()
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
+
+    def __str__(self):
+        return self.name
 
     @classmethod
     def from_filename(cls, filename: str):
@@ -34,14 +39,15 @@ class ConfigType(Enum):
         if 'net_vehicleCount' in filename:
             return cls.VEHICLE_COUNT
 
-        raise Exception("Bad Configuration Type from filename %s" % filename)
+        raise ConfigTypeFromFilenameException(filename)
 
 
 class ConfigDetail(ABC):
     """
     Abstract Base Class for all ConfigDetail implementations.
 
-    ConfigDetail classes must implement all methods and properties that are defined.
+    ConfigDetail classes must implement all methods and properties that are
+    defined.
     """
     @property
     @abstractmethod
