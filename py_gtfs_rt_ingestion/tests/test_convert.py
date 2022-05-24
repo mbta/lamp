@@ -1,5 +1,4 @@
 from pathlib import Path
-import numpy as np
 
 from py_gtfs_rt_ingestion import Configuration, convert_files
 
