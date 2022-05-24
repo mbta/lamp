@@ -4,10 +4,10 @@ from pathlib import Path
 import pyarrow
 
 from .config_base import ConfigType
-
 from .config_rt_vehicle import RtVehicleDetail
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_trip import RtTripDetail
+from .error import NoImplException
 
 class Configuration:
     """
@@ -24,8 +24,8 @@ class Configuration:
                  config_type: ConfigType=None,
                  filename: str=None) -> None:
         """
-        Depending on filename, assign self.details to correct implementation of 
-        ConfigDetail class. 
+        Depending on filename, assign self.details to correct implementation of
+        ConfigDetail class.
         """
         if config_type is None:
             config_type = ConfigType.from_filename(filename)
@@ -37,7 +37,7 @@ class Configuration:
         elif config_type == ConfigType.RT_VEHICLE_POSITIONS:
             self.detail = RtVehicleDetail()
         else:
-            raise Exception("Bad Configuration Type %s" % config_type)
+            raise NoImplException("No Specialization for %s" % config_type)
 
     @property
     def config_type(self) -> ConfigType:
@@ -49,6 +49,3 @@ class Configuration:
 
     def record_from_entity(self, entity: dict) -> dict:
         return self.detail.record_from_entity(entity)
-
-
-

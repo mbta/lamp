@@ -9,7 +9,12 @@ import tempfile
 
 from pathlib import Path
 
-from py_gtfs_rt_ingestion import Configuration, convert_files, download_file_from_s3
+from py_gtfs_rt_ingestion import (Configuration,
+                                  convert_files,
+                                  download_file_from_s3)
+
+import logging
+logging.basicConfig(level=logging.INFO)
 
 DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 
@@ -64,12 +69,20 @@ def lambda_handler(event: dict, context) -> None:
              an HTTP response. The 'statusCode' field is the HTTP status code
              and the 'body' field is the body of the response.
 
-    expected event structure:
+    expected event structure is either
     {
-        file_batch: [file_name_1, file_name_2, ...],
+        files: [file_name_1, file_name_2, ...],
     }
+
+    or
+    {
+        s3_files: [file_name_1, file_name_2, ...],
+        bucket: bucket_name
+    }
+
     batch files should all be of same ConfigType
     """
+    logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
     temp_dir = None
     if 'files' not in event:
         temp_dir = tempfile.TemporaryDirectory()
@@ -84,9 +97,7 @@ def lambda_handler(event: dict, context) -> None:
     pa_table = convert_files(files, config)
 
     if pa_table is not None:
-        # TODO:
-        # 1. Implement output directory as env variable for lamda function.
-        # 2. Do something with failed conversion filenames.
+        logging.info("Writing Table for %s" % config.config_type)
         pq.write_to_dataset(
             pa_table,
             root_path=os.environ['OUTPUT_DIR'],

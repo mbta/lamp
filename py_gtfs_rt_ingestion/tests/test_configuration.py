@@ -3,6 +3,7 @@ import pytest
 from datetime import datetime
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import ConfigType
+from py_gtfs_rt_ingestion.error import ConfigTypeFromFilenameException
 
 update_filename = \
     '2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz'
@@ -27,7 +28,7 @@ def test_filname_parsing():
     alerts_type = ConfigType.from_filename(alerts_filename)
     assert alerts_type == ConfigType.RT_ALERTS
 
-    with pytest.raises(Exception):
+    with pytest.raises(ConfigTypeFromFilenameException):
         ConfigType.from_filename('this.is.a.bad.filename.json.gz')
 
 def test_get_schema():

@@ -9,6 +9,9 @@ from collections.abc import Iterable
 
 from py_gtfs_rt_ingestion import batch_files, file_list_from_s3
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 DESCRIPTION = "Generate batches of json files that should be processesd"
 
 def parseArgs(args) -> dict:
@@ -33,11 +36,16 @@ def parseArgs(args) -> dict:
         help='filesize threshold for batch sizes')
 
     parser.add_argument(
+        '--pretty',
+        dest='pretty',
+        action='store_true',
+        help='print out a pretty summary of the batches')
+
+    parser.add_argument(
         '--output',
-        dest='output_dir',
+        dest='output',
         type=str,
-        required=True,
-        help='provide a directory to output')
+        help='filepath to dump out batches as event json list')
 
     parsed_args = parser.parse_args(args)
 
@@ -70,4 +78,19 @@ if __name__ == '__main__':
     file_list = make_file_list(args)
     batches = batch_files(file_list, args.filesize_threshold)
 
-    print(json.dumps([b.create_event() for b in batches], indent=2))
+    if args.pretty:
+        total_bytes = 0
+        total_files = 0
+        for batch in batches:
+            total_bytes += batch.total_size
+            total_files += len(batch.filenames)
+
+        total_gigs = total_bytes / 1000000000
+        logging.info("Batched %d gigs across %d files" % (total_gigs,
+                                                          total_files))
+
+    if args.output:
+        with open(args.output, 'w') as output_file:
+            json.dump([b.create_event() for b in batches],
+                      output_file,
+                      indent=2)
