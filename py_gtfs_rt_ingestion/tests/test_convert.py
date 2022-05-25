@@ -12,7 +12,7 @@ def test_vehicle_positions_file_conversion(tmpdir):
     rt_vehicle_positions_file = TEST_FILE_DIR.joinpath(
         "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz")
     config = Configuration(filename=rt_vehicle_positions_file.name)
-    table = gz_to_pyarrow(filename=rt_vehicle_positions_file, config=config)
+    table = gz_to_pyarrow(filename=str(rt_vehicle_positions_file), config=config)
     np_df = table.to_pandas()
 
     # tuple(na count, dtype, min, max)
@@ -71,7 +71,7 @@ def test_rt_alert_file_conversion(tmpdir):
         "2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz")
 
     config = Configuration(filename=alerts_file.name)
-    table = gz_to_pyarrow(filename=alerts_file, config=config)
+    table = gz_to_pyarrow(filename=str(alerts_file), config=config)
     np_df = table.to_pandas()
 
     # tuple(na count, dtype, min, max)
@@ -135,7 +135,7 @@ def test_rt_trip_file_conversion(tmpdir):
         "2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz")
 
     config = Configuration(filename=trip_updates_file.name)
-    table = gz_to_pyarrow(filename=trip_updates_file, config=config)
+    table = gz_to_pyarrow(filename=str(trip_updates_file), config=config)
     np_df = table.to_pandas()
 
     # tuple(na count, dtype, min, max)
