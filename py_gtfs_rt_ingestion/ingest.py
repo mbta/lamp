@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import pyarrow as pa
+import pyarrow.parquet as pq
 import sys
 
 from multiprocessing import Pool
@@ -93,7 +94,8 @@ def lambda_handler(event: dict, context) -> None:
         files = event['s3_files']
         conversion_func = s3_to_pyarrow
     else:
-        raise Exception("poorly formatted event")
+        raise ArgumentException(
+            "Unable to find 'files' or 's3_files' in event json")
 
     config = Configuration(filename=files[0])
 
@@ -107,10 +109,7 @@ def lambda_handler(event: dict, context) -> None:
 
     for result in workers.get():
         if isinstance(result, pa.Table):
-            if pa_table is not None:
-                pa_table = pa.concat_tables([pa_table, result])
-            else:
-                pa_table = result
+            pa_table = pa.concat_tables([pa_table, result])
         else:
             failed_ingestion.append(result)
 
@@ -121,10 +120,8 @@ def lambda_handler(event: dict, context) -> None:
     if len(failed_ingestion) > 0:
         logging.warning("Unable to process %d files" % len(failed_ingestion))
 
-    return (pa_table, failed_ingestion)
-
     logging.info("Writing Table to %s" % os.environ['OUTPUT_DIR'])
-    pa.parquet.write_to_dataset(
+    pq.write_to_dataset(
         pa_table,
         root_path=os.environ['OUTPUT_DIR'],
         partition_cols=['year','month','day','hour']

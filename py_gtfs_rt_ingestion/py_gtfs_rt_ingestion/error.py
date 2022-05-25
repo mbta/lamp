@@ -13,6 +13,9 @@ class ConfigTypeFromFilenameException(GTFSIngestException):
         self.message = \
             "Unable to deduce Configuration Type from filename %s" % filename
 
+class ArgumentException(GTFSIngestException):
+    pass
+
 class NoImplException(GTFSIngestException):
     """
     General Error for things we haven't done yet.

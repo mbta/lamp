@@ -8,7 +8,7 @@ from pyarrow import fs
 
 from .configuration import Configuration
 
-def gz_to_pyarrow(filename: str, config: Configuration) -> pa.Table:
+def gz_to_pyarrow(filename: str, config: Configuration):
     """
     Accepts filename as string. Converts gzipped json -> pyarrow table.
     """
@@ -25,7 +25,7 @@ def gz_to_pyarrow(filename: str, config: Configuration) -> pa.Table:
         return filename
 
 
-def s3_to_pyarrow(filename: str, config: Configuration) -> pa.Table:
+def s3_to_pyarrow(filename: str, config: Configuration):
     logging.info("Converting %s to Parquet Table" % filename)
     try:
         s3_fs = fs.S3FileSystem()
