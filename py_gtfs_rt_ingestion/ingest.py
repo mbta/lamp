@@ -3,20 +3,21 @@
 import argparse
 import json
 import os
+import pyarrow as pa
 import pyarrow.parquet as pq
 import sys
-import tempfile
 
-from pathlib import Path
+from multiprocessing import Pool
 
-from py_gtfs_rt_ingestion import (Configuration,
-                                  convert_files,
-                                  download_file_from_s3)
+from py_gtfs_rt_ingestion import Configuration, gz_to_pyarrow, s3_to_pyarrow
 
 import logging
 logging.basicConfig(level=logging.INFO)
 
 DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
+
+# TODO this is fine for now, but maybe an environ variable?
+MULTIPROCESSING_POOL_SIZE = 4
 
 def parseArgs(args) -> dict:
     """
@@ -55,7 +56,7 @@ def parseArgs(args) -> dict:
         return events
 
     return {
-        'files': [Path(parsed_args.input_file)]
+        'files': [(parsed_args.input_file)]
     }
 
 def lambda_handler(event: dict, context) -> None:
@@ -83,26 +84,48 @@ def lambda_handler(event: dict, context) -> None:
     batch files should all be of same ConfigType
     """
     logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
-    temp_dir = None
-    if 'files' not in event:
-        temp_dir = tempfile.TemporaryDirectory()
-        files = [download_file_from_s3(event['bucket'], file, temp_dir.name)
-                 for file in event['s3_files']]
 
-    else:
+    # get files and function to read them based on the event. for local files,
+    # use gzip reading, for s3 files use pyarrow to read directly from s3
+    if 'files' in event:
         files = event['files']
+        conversion_func = gz_to_pyarrow
+    elif 's3_files' in event:
+        files = event['s3_files']
+        conversion_func = s3_to_pyarrow
+    else:
+        raise ArgumentException(
+            "Unable to find 'files' or 's3_files' in event json")
 
-    config = Configuration(filename=files[0].name)
+    config = Configuration(filename=files[0])
 
-    pa_table = convert_files(files, config)
+    logging.info("Creating pool with %d threads" % MULTIPROCESSING_POOL_SIZE)
 
-    if pa_table is not None:
-        logging.info("Writing Table for %s" % config.config_type)
-        pq.write_to_dataset(
-            pa_table,
-            root_path=os.environ['OUTPUT_DIR'],
-            partition_cols=['year','month','day','hour']
-        )
+    pool = Pool(MULTIPROCESSING_POOL_SIZE)
+    workers = pool.starmap_async(conversion_func, [(f, config) for f in files])
+
+    pa_table = pa.table(config.empty_table(), schema=config.export_schema)
+    failed_ingestion = []
+
+    for result in workers.get():
+        if isinstance(result, pa.Table):
+            pa_table = pa.concat_tables([pa_table, result])
+        else:
+            failed_ingestion.append(result)
+
+    logging.info(
+        "Completed converting %d files with config %s" % (len(files),
+                                                          config.config_type))
+
+    if len(failed_ingestion) > 0:
+        logging.warning("Unable to process %d files" % len(failed_ingestion))
+
+    logging.info("Writing Table to %s" % os.environ['OUTPUT_DIR'])
+    pq.write_to_dataset(
+        pa_table,
+        root_path=os.environ['OUTPUT_DIR'],
+        partition_cols=['year','month','day','hour']
+    )
 
 if __name__ == '__main__':
     event = parseArgs(sys.argv[1:])

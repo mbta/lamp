@@ -1,12 +1,9 @@
-from ipaddress import v4_int_to_packed
-from pathlib import Path
-
 import pyarrow
 
 from .config_base import ConfigType
-from .config_rt_vehicle import RtVehicleDetail
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_trip import RtTripDetail
+from .config_rt_vehicle import RtVehicleDetail
 from .error import NoImplException
 
 class Configuration:
@@ -49,3 +46,7 @@ class Configuration:
 
     def record_from_entity(self, entity: dict) -> dict:
         return self.detail.record_from_entity(entity)
+
+    def empty_table(self) -> dict:
+        return {key.name:[] for key in self.export_schema}
+

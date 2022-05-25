@@ -13,16 +13,7 @@ class ConfigTypeFromFilenameException(GTFSIngestException):
         self.message = \
             "Unable to deduce Configuration Type from filename %s" % filename
 
-class ConversionExceptioon(GTFSIngestException):
-    """
-    General Error to be used durring Conversion Failures
-    """
-    pass
-
-class S3Exception(GTFSIngestException):
-    """
-    General Error to be chained with boto3 Errors
-    """
+class ArgumentException(GTFSIngestException):
     pass
 
 class NoImplException(GTFSIngestException):

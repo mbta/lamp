@@ -4,81 +4,63 @@ import logging
 import pyarrow as pa
 
 from datetime import datetime
-from multiprocessing import Pool
-from pathlib import Path
+from pyarrow import fs
 
 from .configuration import Configuration
 
-# TODO this is fine for now, but maybe an environ variable?
-MULTIPROCESSING_POOL_SIZE = 4
-
-def gz_to_pyarrow(filename: Path, config: Configuration):
+def gz_to_pyarrow(filename: str, config: Configuration):
     """
     Accepts filename as string. Converts gzipped json -> pyarrow table.
     """
-    logging.info("Converting %s to Parquet Table" % filename.name)
-
-    # Enclose entire function in try block, Process can't fail silently.
-    # Must return either pyarrow table or filename
+    logging.info("Converting %s to Parquet Table" % filename)
     try:
-        table = {key.name:[] for key in config.export_schema}
-
         with gzip.open(filename, 'rb') as f:
-            json_data = json.loads(f.read())
+            json_data = json.load(f)
+            pa_table = _json_to_pyarrow(json_data=json_data, config=config)
 
-            # parse timestamp info out of the header
-            header = json_data['header']
-            feed_timestamp = header['timestamp']
-            timestamp = datetime.utcfromtimestamp(feed_timestamp)
+        return pa_table
 
-            # for each entity in the list, create a record, add it to the table
-            for entity in json_data['entity']:
-                record = config.record_from_entity(entity=entity)
-                record.update({
-                    'year': timestamp.year,
-                    'month': timestamp.month,
-                    'day': timestamp.day,
-                    'hour': timestamp.hour,
-                    'feed_timestamp': feed_timestamp
-                })
+    except Exception as exception:
+        logging.exception("Error converting %s" % filename)
+        return filename
 
-                for key in record:
-                    table[key].append(record[key])
 
-        ret_obj = pa.table(table, schema=config.export_schema)
+def s3_to_pyarrow(filename: str, config: Configuration):
+    logging.info("Converting %s to Parquet Table" % filename)
+    try:
+        s3_fs = fs.S3FileSystem()
+        with s3_fs.open_input_stream(filename) as f:
+            json_data = json.load(f)
+            pa_table = _json_to_pyarrow(json_data=json_data, config=config)
 
-    except Exception as e:
-        logging.exception(
-            "Error occured converting %s to Parquet File." % filename.name)
-        ret_obj = filename
+        return pa_table
 
-    # Send pyarrow table or filename back to main Process for concatenation
-    return ret_obj
+    except Exception as exception:
+        logging.exception("Error converting %s" % filename)
+        return filename
 
-def convert_files(filepaths: list[Path], config: Configuration) -> pa.Table:
-    logging.info("Creating pool with %d threads" % MULTIPROCESSING_POOL_SIZE)
-    pool = Pool(MULTIPROCESSING_POOL_SIZE)
-    workers = pool.starmap_async(gz_to_pyarrow,
-                                 [(f, config) for f in filepaths])
 
-    # Collect pyarrow tables from Processes and concat
-    pa_table = None
-    failed_ingestion = []
+def _json_to_pyarrow(json_data: dict, config: Configuration) -> pa.Table:
+    # table = {key.name:[] for key in config.export_schema}
+    table = config.empty_table()
 
-    for ret_obj in workers.get():
-        if isinstance(ret_obj, pa.Table):
-            if pa_table is None:
-                pa_table = ret_obj
-            else:
-                pa_table = pa.concat_tables([pa_table,ret_obj])
-        else:
-            failed_ingestion.append(ret_obj)
+    # parse timestamp info out of the header
+    header = json_data['header']
+    feed_timestamp = header['timestamp']
+    timestamp = datetime.utcfromtimestamp(feed_timestamp)
 
-    logging.info(
-        "Completed converting %d files with config %s" % (len(filepaths),
-                                                          config.config_type))
+    # for each entity in the list, create a record, add it to the table
+    for entity in json_data['entity']:
+        record = config.record_from_entity(entity=entity)
+        record.update({
+            'year': timestamp.year,
+            'month': timestamp.month,
+            'day': timestamp.day,
+            'hour': timestamp.hour,
+            'feed_timestamp': feed_timestamp
+        })
 
-    if len(failed_ingestion) > 0:
-        logging.warning("Unable to process %d files" % len(failed_ingestion))
+        for key in record:
+            table[key].append(record[key])
 
-    return pa_table
+    return pa.table(table, schema=config.export_schema)
