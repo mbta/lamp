@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 from ingest import parseArgs
 
@@ -15,4 +14,4 @@ def test_argparse():
     event = parseArgs(dummy_arguments)
 
     assert os.environ['OUTPUT_DIR'] == dummy_output_dir
-    assert event['files'][0] == Path(dummy_file_path)
+    assert event['files'][0] == dummy_file_path
