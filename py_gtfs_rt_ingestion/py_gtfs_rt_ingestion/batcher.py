@@ -33,7 +33,7 @@ class Batch(object):
             'files': self.filenames,
         }
 
-def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
+def batch_files(files: Iterable[(str, int)], threshold: int) -> Iterable[Batch]:
     """
     Take a bunch of files and sort them into Batches based on their config type
     (derrived from filename). Each Batch should be under a limit in total
@@ -47,7 +47,6 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
     :return: List of Batches containing all files passed in.
     """
     ongoing_batches = {t: Batch(t) for t in ConfigType}
-    complete_batches = []
 
     # iterate over file tuples, and add them to the ongoing batches. if a batch
     # is going to go past the threshold limit, move it to complete batches, and
@@ -67,7 +66,8 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
 
         if batch.total_size + int(size) > threshold:
             logging.info(batch)
-            complete_batches.append(batch)
+            yield batch
+
             ongoing_batches[config_type] = Batch(config_type)
             batch = ongoing_batches[config_type]
 
@@ -77,6 +77,4 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
     for (_, batch) in ongoing_batches.items():
         if batch.total_size > 0:
             logging.info(batch)
-            complete_batches.append(batch)
-
-    return complete_batches
+            yield batch

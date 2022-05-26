@@ -78,13 +78,14 @@ def lambda_handler(event: dict, context) -> None:
              an HTTP response. The 'statusCode' field is the HTTP status code
              and the 'body' field is the body of the response.
 
-    expected event structure is either
+    expected event structure is
     {
         files: [file_name_1, file_name_2, ...],
     }
-    S3 files will begin with 's3://'
+    where S3 files will begin with 's3://'
 
-    batch files should all be of same ConfigType
+    batch files should all be of same ConfigType as each run of this script
+    creates a single parquet file.
     """
     logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
 
