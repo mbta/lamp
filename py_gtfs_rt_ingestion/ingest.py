@@ -8,8 +8,11 @@ import pyarrow.parquet as pq
 import sys
 
 from multiprocessing import Pool
+from typing import NamedTuple
 
-from py_gtfs_rt_ingestion import Configuration, gz_to_pyarrow, s3_to_pyarrow
+from py_gtfs_rt_ingestion import ArgumentException
+from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import gz_to_pyarrow
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +21,11 @@ DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 
 # TODO this is fine for now, but maybe an environ variable?
 MULTIPROCESSING_POOL_SIZE = 4
+
+class IngestArgs(NamedTuple):
+    input_file: str
+    event_json: str
+    output_dir: str
 
 def parseArgs(args) -> dict:
     """
@@ -44,7 +52,7 @@ def parseArgs(args) -> dict:
         required=True,
         help='provide a directory to output')
 
-    parsed_args = parser.parse_args(args)
+    parsed_args = IngestArgs(**vars(parser.parse_args(args)))
 
     if parsed_args.output_dir is not None:
         os.environ['OUTPUT_DIR'] = parsed_args.output_dir
@@ -74,12 +82,7 @@ def lambda_handler(event: dict, context) -> None:
     {
         files: [file_name_1, file_name_2, ...],
     }
-
-    or
-    {
-        s3_files: [file_name_1, file_name_2, ...],
-        bucket: bucket_name
-    }
+    S3 files will begin with 's3://'
 
     batch files should all be of same ConfigType
     """
@@ -87,22 +90,17 @@ def lambda_handler(event: dict, context) -> None:
 
     # get files and function to read them based on the event. for local files,
     # use gzip reading, for s3 files use pyarrow to read directly from s3
-    if 'files' in event:
-        files = event['files']
-        conversion_func = gz_to_pyarrow
-    elif 's3_files' in event:
-        files = event['s3_files']
-        conversion_func = s3_to_pyarrow
-    else:
+    if 'files' not in event:
         raise ArgumentException(
-            "Unable to find 'files' or 's3_files' in event json")
+            "Unable to find 'files' in event json")
+    files = event['files']
 
     config = Configuration(filename=files[0])
 
     logging.info("Creating pool with %d threads" % MULTIPROCESSING_POOL_SIZE)
 
     pool = Pool(MULTIPROCESSING_POOL_SIZE)
-    workers = pool.starmap_async(conversion_func, [(f, config) for f in files])
+    workers = pool.starmap_async(gz_to_pyarrow, [(f, config) for f in files])
 
     pa_table = pa.table(config.empty_table(), schema=config.export_schema)
     failed_ingestion = []

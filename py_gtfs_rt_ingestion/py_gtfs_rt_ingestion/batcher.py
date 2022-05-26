@@ -1,10 +1,9 @@
 import logging
+import os
 
 from .config_base import ConfigType
 from .error import ConfigTypeFromFilenameException, NoImplException
 from collections.abc import Iterable
-from pathlib import Path
-
 
 class Batch(object):
     """
@@ -15,6 +14,7 @@ class Batch(object):
         self.config_type = config_type
         self.filenames = []
         self.total_size = 0
+        self.bucket = 'mbta-gtfs-s3'
 
     def __str__(self) -> None:
         return "Batch of %d bytes in %d %s files" % (self.total_size,
@@ -22,7 +22,7 @@ class Batch(object):
                                                      self.config_type)
 
     def add_file(self, filename: str, filesize: int) -> None:
-        self.filenames.append(filename)
+        self.filenames.append(os.path.join('s3://',self.bucket,filename))
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
@@ -30,8 +30,7 @@ class Batch(object):
 
     def create_event(self) -> dict:
         return {
-            'bucket':'mbta-gtfs-s3',
-            's3_files': self.filenames,
+            'files': self.filenames,
         }
 
 def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
@@ -61,7 +60,7 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> list[Batch]:
             logging.warning(config_exception)
             continue
         except Exception as exception:
-            loging.excption(exception)
+            logging.exception(exception)
             continue
 
         batch = ongoing_batches[config_type]

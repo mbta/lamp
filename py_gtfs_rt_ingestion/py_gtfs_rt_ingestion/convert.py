@@ -1,4 +1,3 @@
-import gzip
 import json
 import logging
 import pyarrow as pa
@@ -11,42 +10,34 @@ from .configuration import Configuration
 def gz_to_pyarrow(filename: str, config: Configuration):
     """
     Accepts filename as string. Converts gzipped json -> pyarrow table.
+
+    Will handle Local or S3 filenames.
     """
     logging.info("Converting %s to Parquet Table" % filename)
     try:
-        with gzip.open(filename, 'rb') as f:
+        if str(filename).startswith('s3'):
+            active_fs = fs.S3FileSystem()
+            filename = str(filename).replace('s3://','')
+        else:
+            active_fs = fs.LocalFileSystem()
+
+        with active_fs.open_input_stream(filename) as f:
             json_data = json.load(f)
-            pa_table = _json_to_pyarrow(json_data=json_data, config=config)
+
+        pa_table = _json_to_pyarrow(json_data=json_data, config=config)
 
         return pa_table
 
     except Exception as exception:
         logging.exception("Error converting %s" % filename)
         return filename
-
-
-def s3_to_pyarrow(filename: str, config: Configuration):
-    logging.info("Converting %s to Parquet Table" % filename)
-    try:
-        s3_fs = fs.S3FileSystem()
-        with s3_fs.open_input_stream(filename) as f:
-            json_data = json.load(f)
-            pa_table = _json_to_pyarrow(json_data=json_data, config=config)
-
-        return pa_table
-
-    except Exception as exception:
-        logging.exception("Error converting %s" % filename)
-        return filename
-
 
 def _json_to_pyarrow(json_data: dict, config: Configuration) -> pa.Table:
-    # table = {key.name:[] for key in config.export_schema}
+    # Create empty 'table' as dict of lists for export schema
     table = config.empty_table()
 
     # parse timestamp info out of the header
-    header = json_data['header']
-    feed_timestamp = header['timestamp']
+    feed_timestamp = json_data['header']['timestamp']
     timestamp = datetime.utcfromtimestamp(feed_timestamp)
 
     # for each entity in the list, create a record, add it to the table

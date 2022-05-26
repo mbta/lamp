@@ -1,20 +1,27 @@
 #!/usr/bin/env python
 
 import argparse
-import boto3
 import json
 import sys
 
 from collections.abc import Iterable
+from typing import NamedTuple
 
 from py_gtfs_rt_ingestion import batch_files, file_list_from_s3
 
 import logging
 logging.basicConfig(level=logging.INFO)
 
-DESCRIPTION = "Generate batches of json files that should be processesd"
+DESCRIPTION = "Generate batches of json files that should be processed"
 
-def parseArgs(args) -> dict:
+class BatchArgs(NamedTuple):
+    input_file: str
+    s3_prefix: str
+    filesize_threshold: int
+    output: str
+    pretty: bool
+
+def parseArgs(args) -> BatchArgs:
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         '--input',
@@ -47,7 +54,7 @@ def parseArgs(args) -> dict:
         type=str,
         help='filepath to dump out batches as event json list')
 
-    parsed_args = parser.parse_args(args)
+    parsed_args = BatchArgs(**vars(parser.parse_args(args)))
 
     return parsed_args
 
@@ -58,9 +65,9 @@ def file_list_from_file(input_file: str) -> Iterable[(str, int)]:
     """
     for file_info in open(input_file):
         (date, time, size, filename) = file_info.split()
-        yield (filename, sie)
+        yield (filename, size)
 
-def make_file_list(args: dict) -> Iterable[(str, int)]:
+def make_file_list(args: BatchArgs) -> Iterable[(str, int)]:
     """
     based on args, yield out filename, filesize tuples either from a local file
     or from our s3 bucket.
