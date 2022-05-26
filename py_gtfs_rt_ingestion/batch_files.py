@@ -7,7 +7,6 @@ import sys
 from collections.abc import Iterable
 from typing import NamedTuple
 
-from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 
@@ -53,6 +52,29 @@ def parseArgs(args) -> dict:
 
     return vars(parser.parse_args(args))
 
+def main(batch_args: BatchArgs) -> None:
+    file_list = file_list_from_s3(bucket_name=batch_args.s3_bucket,
+                                  file_prefix=batch_args.s3_prefix)
+
+    batches = batch_files(file_list, batch_args.filesize_threshold)
+
+    # TODO use boto3 to launch ingestion jobs from each batch
+
+    # log out a summary of whats been batched.
+    if batch_args.pretty:
+        total_bytes = 0
+        total_files = 0
+        for batch in batches:
+            total_bytes += batch.total_size
+            total_files += len(batch.filenames)
+
+        total_gigs = total_bytes / 1000000000
+        logging.info("Batched %d gigs across %d files" % (total_gigs,
+                                                          total_files))
+    else:
+        print(json.dumps([b.create_event() for b in batches], indent=2))
+
+
 def lambda_handler(event: dict, context) -> None:
     """
     AWS Lambda Python handled function as described in AWS Developer Guide:
@@ -75,29 +97,14 @@ def lambda_handler(event: dict, context) -> None:
     batch files should all be of same ConfigType
     """
     logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
-    batch_args = BatchArgs(**event)
-    logging.info(batch_args)
-
-    file_list = file_list_from_s3(bucket_name=batch_args.s3_bucket,
-                                  file_prefix=batch_args.s3_prefix)
-
-    batches = batch_files(file_list, batch_args.filesize_threshold)
-
-    # TODO use boto3 to launch ingestion jobs from each batch
-
-    # log out a summary of whats been batched.
-    if batch_args.pretty:
-        total_bytes = 0
-        total_files = 0
-        for batch in batches:
-            total_bytes += batch.total_size
-            total_files += len(batch.filenames)
-
-        total_gigs = total_bytes / 1000000000
-        logging.info("Batched %d gigs across %d files" % (total_gigs,
-                                                          total_files))
-    else:
-        print(json.dumps([b.create_event() for b in batches], indent=2))
+    try:
+        batch_args = BatchArgs(**event)
+        logging.info(batch_args)
+        main(batch_args)
+    except Exception as e:
+        # log if something goes wrong and let lambda recatch the exception
+        logging.exception(e)
+        raise e
 
 if __name__ == '__main__':
     event = parseArgs(sys.argv[1:])
