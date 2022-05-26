@@ -11,7 +11,7 @@ def gz_to_pyarrow(filename: str, config: Configuration):
     """
     Accepts filename as string. Converts gzipped json -> pyarrow table.
 
-    Will handle Local of S3 filenames
+    Will handle Local or S3 filenames.
     """
     logging.info("Converting %s to Parquet Table" % filename)
     try:

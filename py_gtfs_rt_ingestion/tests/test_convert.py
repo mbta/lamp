@@ -1,21 +1,21 @@
-from pathlib import Path
+import os
 
 from py_gtfs_rt_ingestion import Configuration, gz_to_pyarrow
 
-TEST_FILE_DIR = Path(__file__).parent.joinpath("test_files")
+TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 def test_vehicle_positions_file_conversion(tmpdir):
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    rt_vehicle_positions_file = TEST_FILE_DIR.joinpath(
+    rt_vehicle_positions_file = os.path.join(TEST_FILE_DIR,
         "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz")
-    config = Configuration(filename=rt_vehicle_positions_file.name)
-    table = gz_to_pyarrow(filename=str(rt_vehicle_positions_file), config=config)
+    config = Configuration(filename=rt_vehicle_positions_file)
+    table = gz_to_pyarrow(filename=rt_vehicle_positions_file, config=config)
     np_df = table.to_pandas()
 
-    # tuple(na count, dtype, min, max)
+    # tuple(na count, dtype, max, min)
     file_details = {
         'year':(0,'int16','2022','2022'),
         'month':(0,'int8','1','1'),
@@ -67,14 +67,14 @@ def test_rt_alert_file_conversion(tmpdir):
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    alerts_file = TEST_FILE_DIR.joinpath(
+    alerts_file = os.path.join(TEST_FILE_DIR,
         "2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz")
 
-    config = Configuration(filename=alerts_file.name)
-    table = gz_to_pyarrow(filename=str(alerts_file), config=config)
+    config = Configuration(filename=alerts_file)
+    table = gz_to_pyarrow(filename=alerts_file, config=config)
     np_df = table.to_pandas()
 
-    # tuple(na count, dtype, min, max)
+    # tuple(na count, dtype, max, min)
     file_details = {
         'year':(0,'int16','2022','2022'),
         'month':(0,'int8','5','5'),
@@ -131,14 +131,14 @@ def test_rt_trip_file_conversion(tmpdir):
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    trip_updates_file = TEST_FILE_DIR.joinpath(
+    trip_updates_file = os.path.join(TEST_FILE_DIR,
         "2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz")
 
-    config = Configuration(filename=trip_updates_file.name)
-    table = gz_to_pyarrow(filename=str(trip_updates_file), config=config)
+    config = Configuration(filename=trip_updates_file)
+    table = gz_to_pyarrow(filename=trip_updates_file, config=config)
     np_df = table.to_pandas()
 
-    # tuple(na count, dtype, min, max)
+    # tuple(na count, dtype, max, min)
     file_details = {
         'year':(0,'int16','2022','2022'),
         'month':(0,'int8','5','5'),
