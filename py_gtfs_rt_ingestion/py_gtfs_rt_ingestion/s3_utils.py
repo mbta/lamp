@@ -3,8 +3,8 @@ import logging
 
 from collections.abc import Iterable
 
-def file_list_from_s3(bucket_name: str='mbta-gtfs-s3',
-                      file_prefix: str=None) -> Iterable[(str, int)]:
+def file_list_from_s3(bucket_name: str,
+                      file_prefix: str) -> Iterable[(str, int)]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 

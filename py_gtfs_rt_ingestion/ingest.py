@@ -67,34 +67,7 @@ def parseArgs(args) -> dict:
         'files': [(parsed_args.input_file)]
     }
 
-def lambda_handler(event: dict, context) -> None:
-    """
-    AWS Lambda Python handled function as described in AWS Developer Guide:
-    https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
-    :param event: The event dict sent by Amazon API Gateway that contains all of
-            the request data.
-    :param context: The context in which the function is called.
-    :return: A response that is sent to Amazon API Gateway, to be wrapped into
-             an HTTP response. The 'statusCode' field is the HTTP status code
-             and the 'body' field is the body of the response.
-
-    expected event structure is either
-    {
-        files: [file_name_1, file_name_2, ...],
-    }
-    S3 files will begin with 's3://'
-
-    batch files should all be of same ConfigType
-    """
-    logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
-
-    # get files and function to read them based on the event. for local files,
-    # use gzip reading, for s3 files use pyarrow to read directly from s3
-    if 'files' not in event:
-        raise ArgumentException(
-            "Unable to find 'files' in event json")
-    files = event['files']
-
+def main(files: list[str]) -> None:
     config = Configuration(filename=files[0])
 
     logging.info("Creating pool with %d threads" % MULTIPROCESSING_POOL_SIZE)
@@ -124,6 +97,36 @@ def lambda_handler(event: dict, context) -> None:
         root_path=os.environ['OUTPUT_DIR'],
         partition_cols=['year','month','day','hour']
     )
+
+def lambda_handler(event: dict, context) -> None:
+    """
+    AWS Lambda Python handled function as described in AWS Developer Guide:
+    https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
+    :param event: The event dict sent by Amazon API Gateway that contains all of
+            the request data.
+    :param context: The context in which the function is called.
+    :return: A response that is sent to Amazon API Gateway, to be wrapped into
+             an HTTP response. The 'statusCode' field is the HTTP status code
+             and the 'body' field is the body of the response.
+
+    expected event structure is
+    {
+        files: [file_name_1, file_name_2, ...],
+    }
+    where S3 files will begin with 's3://'
+
+    batch files should all be of same ConfigType as each run of this script
+    creates a single parquet file.
+    """
+    logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
+
+    try:
+        files = event['files']
+        main(files)
+    except Exception as e:
+        # log if something goes wrong and let lambda recatch the exception
+        logging.exception(e)
+        raise e
 
 if __name__ == '__main__':
     event = parseArgs(sys.argv[1:])
