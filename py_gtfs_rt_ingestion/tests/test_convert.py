@@ -19,6 +19,19 @@ def test_bad_conversion():
     assert  bad_return == 'badfile'
     assert not isinstance(bad_return, pyarrow.Table)
 
+def test_empty_files(tmpdir):
+    config = Configuration(config_type=ConfigType.RT_VEHICLE_POSITIONS)
+
+    empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
+    table = gz_to_pyarrow(filename=empty_file, config=config)
+    np_df = table.to_pandas()
+    assert np_df.shape == (0,len(config.export_schema))
+
+    one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
+    table = gz_to_pyarrow(filename=one_blank_file, config=config)
+    np_df = table.to_pandas()
+    assert np_df.shape == (1,len(config.export_schema))
+
 def test_vehicle_positions_file_conversion(tmpdir):
     """
     TODO - convert a dummy json data to parquet and check that the new file
@@ -62,7 +75,7 @@ def test_vehicle_positions_file_conversion(tmpdir):
         'vehicle_consist':(324,'object','nan','nan'),
     }
 
-    assert np_df.shape == (426,25)
+    assert np_df.shape == (426, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
 
@@ -127,7 +140,7 @@ def test_rt_alert_file_conversion(tmpdir):
         'informed_entity':(0,'object','nan','nan'),
     }
 
-    assert np_df.shape == (144,28)
+    assert np_df.shape == (144, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
 
@@ -183,7 +196,7 @@ def test_rt_trip_file_conversion(tmpdir):
         'vehicle_label':(55,'object','nan','nan'),
     }
 
-    assert np_df.shape == (79,17)
+    assert np_df.shape == (79, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
 
