@@ -20,17 +20,23 @@ def test_bad_conversion():
     assert not isinstance(bad_return, pyarrow.Table)
 
 def test_empty_files(tmpdir):
-    config = Configuration(config_type=ConfigType.RT_VEHICLE_POSITIONS)
+    configs_to_test = (
+        ConfigType.RT_VEHICLE_POSITIONS, 
+        ConfigType.RT_ALERTS, 
+        ConfigType.RT_TRIP_UPDATES,
+    )
+    for config_type in configs_to_test:
+        config = Configuration(config_type=config_type)
 
-    empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
-    table = gz_to_pyarrow(filename=empty_file, config=config)
-    np_df = table.to_pandas()
-    assert np_df.shape == (0,len(config.export_schema))
+        empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
+        table = gz_to_pyarrow(filename=empty_file, config=config)
+        np_df = table.to_pandas()
+        assert np_df.shape == (0,len(config.export_schema))
 
-    one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
-    table = gz_to_pyarrow(filename=one_blank_file, config=config)
-    np_df = table.to_pandas()
-    assert np_df.shape == (1,len(config.export_schema))
+        one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
+        table = gz_to_pyarrow(filename=one_blank_file, config=config)
+        np_df = table.to_pandas()
+        assert np_df.shape == (1,len(config.export_schema))
 
 def test_vehicle_positions_file_conversion(tmpdir):
     """
