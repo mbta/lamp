@@ -1,8 +1,23 @@
 import os
+import pyarrow
+from unittest.mock import patch
+from pyarrow import fs
 
-from py_gtfs_rt_ingestion import Configuration, gz_to_pyarrow
+from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import gz_to_pyarrow
+from py_gtfs_rt_ingestion import ConfigType
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
+
+def test_bad_conversion():
+    bad_return = gz_to_pyarrow(filename='badfile',config=None)
+    assert bad_return == 'badfile'
+    assert not isinstance(bad_return, pyarrow.Table)
+
+    with patch('pyarrow.fs.S3FileSystem', return_value=fs.LocalFileSystem):
+        bad_return = gz_to_pyarrow(filename='s3://badfile',config=None)
+    assert  bad_return == 'badfile'
+    assert not isinstance(bad_return, pyarrow.Table)
 
 def test_vehicle_positions_file_conversion(tmpdir):
     """
@@ -12,6 +27,9 @@ def test_vehicle_positions_file_conversion(tmpdir):
     rt_vehicle_positions_file = os.path.join(TEST_FILE_DIR,
         "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz")
     config = Configuration(filename=rt_vehicle_positions_file)
+
+    assert config.config_type == ConfigType.RT_VEHICLE_POSITIONS
+
     table = gz_to_pyarrow(filename=rt_vehicle_positions_file, config=config)
     np_df = table.to_pandas()
 
@@ -71,6 +89,9 @@ def test_rt_alert_file_conversion(tmpdir):
         "2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz")
 
     config = Configuration(filename=alerts_file)
+
+    assert config.config_type == ConfigType.RT_ALERTS
+
     table = gz_to_pyarrow(filename=alerts_file, config=config)
     np_df = table.to_pandas()
 
@@ -135,6 +156,9 @@ def test_rt_trip_file_conversion(tmpdir):
         "2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz")
 
     config = Configuration(filename=trip_updates_file)
+
+    assert config.config_type == ConfigType.RT_TRIP_UPDATES
+
     table = gz_to_pyarrow(filename=trip_updates_file, config=config)
     np_df = table.to_pandas()
 
