@@ -1,8 +1,42 @@
 import os
+import pyarrow
+from unittest.mock import patch
+from pyarrow import fs
 
-from py_gtfs_rt_ingestion import Configuration, gz_to_pyarrow
+from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import gz_to_pyarrow
+from py_gtfs_rt_ingestion import ConfigType
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
+
+def test_bad_conversion():
+    bad_return = gz_to_pyarrow(filename='badfile',config=None)
+    assert bad_return == 'badfile'
+    assert not isinstance(bad_return, pyarrow.Table)
+
+    with patch('pyarrow.fs.S3FileSystem', return_value=fs.LocalFileSystem):
+        bad_return = gz_to_pyarrow(filename='s3://badfile',config=None)
+    assert  bad_return == 'badfile'
+    assert not isinstance(bad_return, pyarrow.Table)
+
+def test_empty_files(tmpdir):
+    configs_to_test = (
+        ConfigType.RT_VEHICLE_POSITIONS, 
+        ConfigType.RT_ALERTS, 
+        ConfigType.RT_TRIP_UPDATES,
+    )
+    for config_type in configs_to_test:
+        config = Configuration(config_type=config_type)
+
+        empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
+        table = gz_to_pyarrow(filename=empty_file, config=config)
+        np_df = table.to_pandas()
+        assert np_df.shape == (0,len(config.export_schema))
+
+        one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
+        table = gz_to_pyarrow(filename=one_blank_file, config=config)
+        np_df = table.to_pandas()
+        assert np_df.shape == (1,len(config.export_schema))
 
 def test_vehicle_positions_file_conversion(tmpdir):
     """
@@ -12,6 +46,9 @@ def test_vehicle_positions_file_conversion(tmpdir):
     rt_vehicle_positions_file = os.path.join(TEST_FILE_DIR,
         "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz")
     config = Configuration(filename=rt_vehicle_positions_file)
+
+    assert config.config_type == ConfigType.RT_VEHICLE_POSITIONS
+
     table = gz_to_pyarrow(filename=rt_vehicle_positions_file, config=config)
     np_df = table.to_pandas()
 
@@ -44,7 +81,8 @@ def test_vehicle_positions_file_conversion(tmpdir):
         'vehicle_consist':(324,'object','nan','nan'),
     }
 
-    assert np_df.shape == (426,25)
+    # 426 records in 'entity' for 2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz
+    assert np_df.shape == (426, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
 
@@ -71,6 +109,9 @@ def test_rt_alert_file_conversion(tmpdir):
         "2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz")
 
     config = Configuration(filename=alerts_file)
+
+    assert config.config_type == ConfigType.RT_ALERTS
+
     table = gz_to_pyarrow(filename=alerts_file, config=config)
     np_df = table.to_pandas()
 
@@ -106,7 +147,8 @@ def test_rt_alert_file_conversion(tmpdir):
         'informed_entity':(0,'object','nan','nan'),
     }
 
-    assert np_df.shape == (144,28)
+    # 144 records in 'entity' for 2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz
+    assert np_df.shape == (144, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
 
@@ -135,6 +177,9 @@ def test_rt_trip_file_conversion(tmpdir):
         "2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz")
 
     config = Configuration(filename=trip_updates_file)
+
+    assert config.config_type == ConfigType.RT_TRIP_UPDATES
+
     table = gz_to_pyarrow(filename=trip_updates_file, config=config)
     np_df = table.to_pandas()
 
@@ -159,7 +204,8 @@ def test_rt_trip_file_conversion(tmpdir):
         'vehicle_label':(55,'object','nan','nan'),
     }
 
-    assert np_df.shape == (79,17)
+    # 79 records in 'entity' for 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
+    assert np_df.shape == (79, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
 

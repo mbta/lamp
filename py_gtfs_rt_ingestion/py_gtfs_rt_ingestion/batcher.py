@@ -64,7 +64,7 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> Iterable[Batch]:
 
         batch = ongoing_batches[config_type]
 
-        if batch.total_size + int(size) > threshold:
+        if batch.total_size + int(size) > threshold and len(batch.filenames) > 0:
             logging.info(batch)
             yield batch
 

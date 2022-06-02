@@ -13,6 +13,7 @@ boto3 = "^1.23.3"
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 pandas = "^1.4.2"
+pytest-cov = "^3.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

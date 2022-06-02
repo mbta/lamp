@@ -3,6 +3,9 @@ import logging
 
 from collections.abc import Iterable
 
+def get_s3_client():
+    return boto3.client('s3')
+
 def file_list_from_s3(bucket_name: str,
                       file_prefix: str) -> Iterable[(str, int)]:
     """
@@ -15,8 +18,14 @@ def file_list_from_s3(bucket_name: str,
     """
     logging.info("Getting files with prefix %s from %s" % (file_prefix,
                                                            bucket_name))
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(bucket_name)
-
-    for bucket_object in bucket.objects.filter(Prefix=file_prefix):
-        yield (bucket_object.key, bucket_object.size)
+    s3_client = get_s3_client()
+    paginator = s3_client.get_paginator('list_objects_v2')
+    pages = paginator.paginate(
+        Bucket=bucket_name,
+        Prefix=file_prefix,
+    )
+    for page in pages:
+        if page['KeyCount'] == 0:
+            continue
+        for obj in page['Contents']:
+            yield (obj['Key'], obj['Size'])

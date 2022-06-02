@@ -4,6 +4,7 @@ from datetime import datetime
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion.error import ConfigTypeFromFilenameException
+from py_gtfs_rt_ingestion.error import NoImplException
 
 update_filename = \
     '2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz'
@@ -31,14 +32,12 @@ def test_filname_parsing():
     with pytest.raises(ConfigTypeFromFilenameException):
         ConfigType.from_filename('this.is.a.bad.filename.json.gz')
 
+    with pytest.raises(NoImplException):
+        Configuration('this.is.a.bad.filename.json.gz')
+
 def test_get_schema():
     config = Configuration(filename=vehicle_positions_filename)
     schema = config.export_schema
-
-    # Requires full implemenation of ConfigDetail for ConfigType
-    # with pytest.raises(Exception):
-    #     unimpled_config = Configuration.RT_ALERTS
-    #     unimpled_schema = unimpled_config.get_schema()
 
 def test_create_record():
     config = Configuration(filename=vehicle_positions_filename)
