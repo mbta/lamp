@@ -81,6 +81,7 @@ def test_vehicle_positions_file_conversion(tmpdir):
         'vehicle_consist':(324,'object','nan','nan'),
     }
 
+    # 426 records in 'entity' for 2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz
     assert np_df.shape == (426, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
@@ -146,6 +147,7 @@ def test_rt_alert_file_conversion(tmpdir):
         'informed_entity':(0,'object','nan','nan'),
     }
 
+    # 144 records in 'entity' for 2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz
     assert np_df.shape == (144, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
@@ -202,6 +204,7 @@ def test_rt_trip_file_conversion(tmpdir):
         'vehicle_label':(55,'object','nan','nan'),
     }
 
+    # 79 records in 'entity' for 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
     assert np_df.shape == (79, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
