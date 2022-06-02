@@ -91,9 +91,16 @@ def test_batch_files(s3_stub):
     with s3_stub:
         files = [file for file in file_list_from_s3('mbta-gtfs-s3','')]
 
-    batches = [b for b in batch_files(files=files, threshold=threshold)]
-    # Verify expected number of batches produced
-    assert len(batches) == 20
-    # Verify each batch total_size respects threshold
-    for b in batches:
-        assert b.total_size <= threshold
+    # Verify count of batches produced increases as threshold size decreases
+    expected_batches = 0
+    thresholds = (100_000, 50_000, 1_000)
+    for threshold in thresholds:
+        batches = [b for b in batch_files(files=files, threshold=threshold)]
+        # Verify count of batches in increasing
+        assert len(batches) > expected_batches
+        expected_batches = len(batches)
+        # Verify each batch total_size respects threshold
+        # total_size could be greater than threshold if only 1 file in batch
+        for b in batches:
+            if len(b.filenames) > 1:
+                assert b.total_size <= threshold
