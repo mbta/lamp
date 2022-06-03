@@ -6,3 +6,4 @@ from .configuration import Configuration
 from .convert import gz_to_pyarrow
 from .error import ArgumentException
 from .s3_utils import file_list_from_s3
+from .s3_utils import move_3s_objects

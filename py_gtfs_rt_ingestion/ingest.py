@@ -13,6 +13,7 @@ from typing import NamedTuple
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import gz_to_pyarrow
+from py_gtfs_rt_ingestion import move_3s_objects
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -90,6 +91,7 @@ def main(files: list[str]) -> None:
 
     if len(failed_ingestion) > 0:
         logging.warning("Unable to process %d files" % len(failed_ingestion))
+        move_3s_objects(failed_ingestion, os.environ['ingest_bucket'], os.environ['error_bucket'])
 
     logging.info("Writing Table to %s" % os.environ['OUTPUT_DIR'])
     pq.write_to_dataset(
@@ -97,6 +99,8 @@ def main(files: list[str]) -> None:
         root_path=os.environ['OUTPUT_DIR'],
         partition_cols=['year','month','day','hour']
     )
+    files_to_archive = list(set(files) - set(failed_ingestion))
+    move_3s_objects(files_to_archive, os.environ['ingest_bucket'], os.environ['archive_bucket'])
 
 def lambda_handler(event: dict, context) -> None:
     """

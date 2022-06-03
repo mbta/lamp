@@ -12,12 +12,10 @@ TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 def test_bad_conversion():
     bad_return = gz_to_pyarrow(filename='badfile',config=None)
     assert bad_return == 'badfile'
-    assert not isinstance(bad_return, pyarrow.Table)
 
     with patch('pyarrow.fs.S3FileSystem', return_value=fs.LocalFileSystem):
         bad_return = gz_to_pyarrow(filename='s3://badfile',config=None)
-    assert  bad_return == 'badfile'
-    assert not isinstance(bad_return, pyarrow.Table)
+    assert  bad_return == 's3://badfile'
 
 def test_empty_files(tmpdir):
     configs_to_test = (
