@@ -21,3 +21,9 @@ class NoImplException(GTFSIngestException):
     General Error for things we haven't done yet.
     """
     pass
+
+class AWSException(GTFSIngestException):
+    """
+    Error to throw when something goes wrong interacting with s3 or lambda
+    """
+    pass
