@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 
 from collections.abc import Iterable
@@ -19,7 +20,8 @@ class BatchArgs(NamedTuple):
     s3_prefix: str
     s3_bucket: str
     filesize_threshold: int
-    pretty: bool
+    print_events: bool = False
+    dry_run: bool = False
 
 def parseArgs(args) -> dict:
     parser = argparse.ArgumentParser(description=DESCRIPTION)
@@ -45,10 +47,16 @@ def parseArgs(args) -> dict:
         help='filesize threshold for batch sizes')
 
     parser.add_argument(
-        '--pretty',
-        dest='pretty',
+        '--dry-run',
+        dest='dry_run',
         action='store_true',
-        help='print out a pretty summary of the batches')
+        help='do not invoke ingest lambda function')
+
+    parser.add_argument(
+        '--print-events',
+        dest='print_events',
+        action='store_true',
+        help='print out each event as json to stdout')
 
     return vars(parser.parse_args(args))
 
@@ -56,24 +64,27 @@ def main(batch_args: BatchArgs) -> None:
     file_list = file_list_from_s3(bucket_name=batch_args.s3_bucket,
                                   file_prefix=batch_args.s3_prefix)
 
-    batches = batch_files(file_list, batch_args.filesize_threshold)
 
-    # TODO use boto3 to launch ingestion jobs from each batch
+    total_bytes = 0
+    total_files = 0
+    events = []
+    for batch in batch_files(file_list, batch_args.filesize_threshold):
+        total_bytes += batch.total_size
+        total_files += len(batch.filenames)
+        events.append(batch.create_event())
 
-    # log out a summary of whats been batched.
-    if batch_args.pretty:
-        total_bytes = 0
-        total_files = 0
-        for batch in batches:
-            total_bytes += batch.total_size
-            total_files += len(batch.filenames)
+        if not batch_args.dry_run:
+            try:
+                batch.trigger_lambda()
+            except Exception as e:
+                logging.exception("Unable to trigger ingest lambda.\n%s" % e)
 
-        total_gigs = total_bytes / 1000000000
-        logging.info("Batched %d gigs across %d files" % (total_gigs,
-                                                          total_files))
-    else:
-        print(json.dumps([b.create_event() for b in batches], indent=2))
+    total_gigs = total_bytes / 1000000000
+    logging.info("Batched %d gigs across %d files" % (total_gigs,
+                                                      total_files))
 
+    if batch_args.print_events:
+        print(json.dumps(events, indent=2))
 
 def lambda_handler(event: dict, context) -> None:
     """
@@ -91,12 +102,12 @@ def lambda_handler(event: dict, context) -> None:
         s3_prefix: str
         s3_bucket: str
         filesize_threshold: int
-        pretty: bool
     }
 
     batch files should all be of same ConfigType
     """
     logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
+    logging.info("Context:\n%s" % json.dumps(context, indent=2))
     try:
         batch_args = BatchArgs(**event)
         logging.info(batch_args)

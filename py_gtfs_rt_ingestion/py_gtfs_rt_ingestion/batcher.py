@@ -2,7 +2,11 @@ import logging
 import os
 
 from .config_base import ConfigType
-from .error import ConfigTypeFromFilenameException, NoImplException
+from .error import (AWSException,
+                    NoImplException,
+                    ArgumentException,
+                    ConfigTypeFromFilenameException)
+from .s3_utils import invoke_async_lambda
 from collections.abc import Iterable
 
 class Batch(object):
@@ -26,7 +30,14 @@ class Batch(object):
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
-        raise NoImplException("Cannot Trigger Lambda on a Batch")
+        try:
+            function_arn = os.environ["INGEST_FUNCTION_ARN"]
+            invoke_async_lambda(function_arn=function_arn,
+                                event=self.create_event())
+        except KeyError as e:
+            raise ArgumentException("Ingest Func Arn not Defined") from e
+        except Exception as e:
+            raise AWSException("Unable To Trigger Ingest Lambda") from e
 
     def create_event(self) -> dict:
         return {

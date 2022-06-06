@@ -29,3 +29,10 @@ def file_list_from_s3(bucket_name: str,
             continue
         for obj in page['Contents']:
             yield (obj['Key'], obj['Size'])
+
+def invoke_async_lambda(function_arn: str, event: dict) -> None:
+    lambda_client = boto3.client('lambda')
+    logging.info("Invoking Lambda: %s" % function_arn)
+    lambda_client.invoke(FunctionName=function_arn,
+                         InvocationType='Event',
+                         Payload=json.dumps(event))

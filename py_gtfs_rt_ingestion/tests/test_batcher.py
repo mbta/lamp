@@ -7,7 +7,7 @@ from botocore.stub import ANY
 from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion.batcher import Batch
 from py_gtfs_rt_ingestion.batcher import batch_files
-from py_gtfs_rt_ingestion.error import NoImplException
+from py_gtfs_rt_ingestion.error import ArgumentException
 from py_gtfs_rt_ingestion.s3_utils import file_list_from_s3
 
 from .test_s3_utils import s3_stub
@@ -39,7 +39,7 @@ def test_batch_class(capfd):
     assert out == f"Batch of {sum(files.values())} bytes in {len(files)} {config_type} files\n" 
 
     # Calling `trigger_lambda` method raises exception
-    with pytest.raises(NoImplException):
+    with pytest.raises(ArgumentException):
         Batch(ConfigType.RT_VEHICLE_POSITIONS).trigger_lambda()
 
 def test_bad_file_names():
