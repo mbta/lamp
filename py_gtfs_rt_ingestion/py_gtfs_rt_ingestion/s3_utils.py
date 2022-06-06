@@ -43,9 +43,9 @@ def move_3s_objects(obj_list: list[str],
                     src_bucket: str,
                     dest_bucket: str) -> None:
     """
-    move list of S3 objects for src_bucket to dest_bucket
+    Move list of S3 objects from src_bucket to dest_bucket.
 
-    :param obj_list: list of S3 object paths
+    :param obj_list: list of S3 object paths (paths must start with src_bucket)
     :param src_bucket: S3 bucket to move from
     :param dest_bucket: S3 bucket to move to
 
