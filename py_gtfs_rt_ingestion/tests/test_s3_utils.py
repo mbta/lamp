@@ -1,5 +1,6 @@
 import boto3
 import json
+import logging
 import os
 import pytest
 
@@ -8,6 +9,7 @@ from botocore.stub import ANY
 from unittest.mock import patch
 
 from py_gtfs_rt_ingestion.s3_utils import file_list_from_s3
+from py_gtfs_rt_ingestion.s3_utils import move_3s_objects
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
@@ -77,4 +79,19 @@ def test_file_list_s3(s3_stub):
 
     assert len(files) == page_obj_response['KeyCount']
     assert files == [(d['Key'], d['Size']) for d in page_obj_response['Contents']]
+
+def test_move_bad_objects(s3_stub, caplog):
+    bad_file_list = [
+        'bad_file1',
+        'bad_file2',
+    ]
+    src_bucket = 'bad_src_bucket'
+    dest_bucket = 'bad_dest_bucket'
+    
+    caplog.set_level(logging.WARNING)
+    with s3_stub:
+        move_3s_objects(bad_file_list, src_bucket, dest_bucket)
+    assert f"{src_bucket} bucket not found in bad_file1 path" in caplog.text
+    assert f"{src_bucket} bucket not found in bad_file2 path" in caplog.text
+
 

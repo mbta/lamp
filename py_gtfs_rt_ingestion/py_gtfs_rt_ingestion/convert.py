@@ -17,11 +17,12 @@ def gz_to_pyarrow(filename: str, config: Configuration):
     try:
         if str(filename).startswith('s3://'):
             active_fs = fs.S3FileSystem()
-            filename = str(filename).replace('s3://','')
+            file_to_load = str(filename).replace('s3://','')
         else:
             active_fs = fs.LocalFileSystem()
+            file_to_load = filename
 
-        with active_fs.open_input_stream(filename) as f:
+        with active_fs.open_input_stream(file_to_load) as f:
             json_data = json.load(f)
 
         pa_table = _json_to_pyarrow(json_data=json_data, config=config)
