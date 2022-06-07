@@ -15,7 +15,7 @@ def gz_to_pyarrow(filename: str, config: Configuration):
     """
     logging.info("Converting %s to Parquet Table" % filename)
     try:
-        if str(filename).startswith('s3://'):
+        if filename.startswith('s3://'):
             active_fs = fs.S3FileSystem()
             file_to_load = str(filename).replace('s3://','')
         else:
