@@ -6,12 +6,24 @@ def test_argparse():
     """
     Test that the custom argparse is working as expected
     """
-    dummy_file_path = 'my/fake/path'
-    dummy_output_dir = 'my/fake/output_dir/'
+    filepath = 'my/fake/path.json.gz'
 
-    dummy_arguments = ['--input', dummy_file_path,
-                       '--output', dummy_output_dir]
-    event = parseArgs(dummy_arguments)
+    export_bucket = 'fake_dataplatform_springboard'
+    error_bucket = 'fake_dataplatform_error'
+    archive_bucket = 'fake_dataplatform_archive'
 
-    assert os.environ['OUTPUT_DIR'] == dummy_output_dir
-    assert event['files'][0] == dummy_file_path
+    arguments = ['--input', filepath,
+                 '--export', export_bucket,
+                 '--archive', archive_bucket,
+                 '--error', error_bucket]
+
+    event = parseArgs(arguments)
+
+    # check that argparse assigns env vars correctly
+    assert os.environ['EXPORT_BUCKET'] == export_bucket
+    assert os.environ['ARCHIVE_BUCKET'] == archive_bucket
+    assert os.environ['ERROR_BUCKET'] == error_bucket
+
+    # check that argparse creates the correct event
+    assert len(event['files']) == 1
+    assert event['files'][0] == filepath

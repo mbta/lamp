@@ -8,6 +8,7 @@ import sys
 from collections.abc import Iterable
 from typing import NamedTuple
 
+from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 
@@ -17,9 +18,9 @@ logging.basicConfig(level=logging.INFO)
 DESCRIPTION = "Generate batches of json files that should be processed"
 
 class BatchArgs(NamedTuple):
-    s3_prefix: str
     s3_bucket: str
     filesize_threshold: int
+    s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
 
@@ -29,7 +30,7 @@ def parseArgs(args) -> dict:
         '--s3-prefix',
         dest='s3_prefix',
         type=str,
-        default='',
+        default=DEFAULT_S3_PREFIX,
         help='prefix to files in the mbta-gtfs-s3 bucket')
 
     parser.add_argument(

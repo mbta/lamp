@@ -1,9 +1,11 @@
 import boto3
 import json
 import logging
+import os
 import re
 
 from collections.abc import Iterable
+from pyarrow import fs
 
 def get_s3_client():
     return boto3.client('s3')
@@ -22,15 +24,14 @@ def file_list_from_s3(bucket_name: str,
                                                            bucket_name))
     s3_client = get_s3_client()
     paginator = s3_client.get_paginator('list_objects_v2')
-    pages = paginator.paginate(
-        Bucket=bucket_name,
-        Prefix=file_prefix,
-    )
+    pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
     for page in pages:
         if page['KeyCount'] == 0:
             continue
         for obj in page['Contents']:
-            yield (obj['Key'], obj['Size'])
+            uri = os.path.join('s3://', bucket_name, obj['Key'])
+            logging.info(uri)
+            yield (uri, obj['Size'])
 
 def invoke_async_lambda(function_arn: str, event: dict) -> None:
     lambda_client = boto3.client('lambda')
@@ -39,37 +40,31 @@ def invoke_async_lambda(function_arn: str, event: dict) -> None:
                          InvocationType='Event',
                          Payload=json.dumps(event))
 
-def move_3s_objects(obj_list: list[str], 
-                    src_bucket: str,
-                    dest_bucket: str) -> None:
+def move_s3_objects(file_list: list[str],
+                    destination: str) -> None:
     """
     Move list of S3 objects from src_bucket to dest_bucket.
 
-    :param obj_list: list of S3 object paths (paths must start with src_bucket)
-    :param src_bucket: S3 bucket to move from
-    :param dest_bucket: S3 bucket to move to
+    :param file_list: list of s3 filepath uris
+    :param dest_bucket: directory or S3 bucket to move to
 
     No return value.
     """
-    s3_client = get_s3_client()
-    for obj in obj_list:
-        # Check if source bucket is in obj path, should skip local files???
-        if src_bucket not in obj:
-            logging.warning("%s bucket not found in %s path" % (src_bucket, 
-                                                             obj))
-            continue
-        # strip 's3://' and bucket name from obj path
-        copy_key = re.sub(rf"({src_bucket}/|s3://)","",obj)
-        copy_source = {
-                'Bucket': src_bucket,
-                'Key': copy_key,
-            }
+    file_system = fs.S3FileSystem()
+    logging.info("Moving %s files to %s" % (len(file_list), destination))
+
+    for filename in file_list:
         try:
-            s3_client.copy(copy_source, dest_bucket, copy_key)
-            s3_client.delete(copy_source)
+            logging.info("Moving %s to %s" % (filename, destination))
+            filename = filename.replace('s3://', '')
+            src_path = filename.split("/")
+            dest_path = [destination] + src_path[-2:]
+            dest_filename = os.path.join(*dest_path)
+
+            file_system.move(src=filename, dest=dest_filename)
+
         except Exception as e:
+            logging.error("Unable to move %s to %s" % (filename, destination))
             logging.exception(e)
         else:
-            logging.info("Moved %s from %s to %s" % (obj,
-                                                     src_bucket,
-                                                     dest_bucket))
+            logging.info("Moved %s to %s" % (filename, destination))

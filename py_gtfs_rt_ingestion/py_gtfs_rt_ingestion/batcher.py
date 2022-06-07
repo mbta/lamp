@@ -18,7 +18,6 @@ class Batch(object):
         self.config_type = config_type
         self.filenames = []
         self.total_size = 0
-        self.bucket = 'mbta-gtfs-s3'
 
     def __str__(self) -> None:
         return "Batch of %d bytes in %d %s files" % (self.total_size,
@@ -26,7 +25,7 @@ class Batch(object):
                                                      self.config_type)
 
     def add_file(self, filename: str, filesize: int) -> None:
-        self.filenames.append(os.path.join('s3://',self.bucket,filename))
+        self.filenames.append(filename)
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
