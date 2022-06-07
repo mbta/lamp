@@ -55,7 +55,8 @@ def move_3s_objects(obj_list: list[str],
     for obj in obj_list:
         # Check if source bucket is in obj path, should skip local files???
         if src_bucket not in obj:
-            logging.warn(f"{src_bucket} bucket not found in {obj} path")
+            logging.warning("%s bucket not found in %s path" % (src_bucket, 
+                                                             obj))
             continue
         # strip 's3://' and bucket name from obj path
         copy_key = re.sub(rf"({src_bucket}/|s3://)","",obj)
@@ -69,4 +70,6 @@ def move_3s_objects(obj_list: list[str],
         except Exception as e:
             logging.exception(e)
         else:
-            logging.info(f"Moved {obj} from {src_bucket} to {dest_bucket}")
+            logging.info("Moved %s from %s to %s" % (obj,
+                                                     src_bucket,
+                                                     dest_bucket))

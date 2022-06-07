@@ -71,6 +71,14 @@ def parseArgs(args) -> dict:
 def main(files: list[str]) -> None:
     config = Configuration(filename=files[0])
 
+    try:
+        INGEST_BUCKET = os.environ['ingest_bucket']
+        OUTPUT_BUCKET = os.environ['OUTPUT_DIR']
+        ARCHIVE_BUCKET = os.environ['archive_bucket']
+        ERROR_BUCKET = os.environ['error_bucket']
+    except KeyError as e:
+        raise ArgumentException("Missing S3 Bucket environment variable") from e
+
     logging.info("Creating pool with %d threads" % MULTIPROCESSING_POOL_SIZE)
 
     pool = Pool(MULTIPROCESSING_POOL_SIZE)
@@ -91,16 +99,16 @@ def main(files: list[str]) -> None:
 
     if len(failed_ingestion) > 0:
         logging.warning("Unable to process %d files" % len(failed_ingestion))
-        move_3s_objects(failed_ingestion, os.environ['ingest_bucket'], os.environ['error_bucket'])
+        move_3s_objects(failed_ingestion, INGEST_BUCKET, ERROR_BUCKET)
 
-    logging.info("Writing Table to %s" % os.environ['OUTPUT_DIR'])
+    logging.info("Writing Table to %s" % OUTPUT_BUCKET)
     pq.write_to_dataset(
         pa_table,
-        root_path=os.environ['OUTPUT_DIR'],
+        root_path=OUTPUT_BUCKET,
         partition_cols=['year','month','day','hour']
     )
     files_to_archive = list(set(files) - set(failed_ingestion))
-    move_3s_objects(files_to_archive, os.environ['ingest_bucket'], os.environ['archive_bucket'])
+    move_3s_objects(files_to_archive, INGEST_BUCKET, ARCHIVE_BUCKET)
 
 def lambda_handler(event: dict, context) -> None:
     """
