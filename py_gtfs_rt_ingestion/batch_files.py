@@ -13,13 +13,13 @@ from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.getLogger().setLevel('INFO')
 
 DESCRIPTION = "Generate batches of json files that should be processed"
 
 class BatchArgs(NamedTuple):
-    s3_bucket: str
     filesize_threshold: int
+    s3_bucket: str = ''
     s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
@@ -59,12 +59,18 @@ def parseArgs(args) -> dict:
         action='store_true',
         help='print out each event as json to stdout')
 
+    parsed_args = parser.parse_args(args)
+    event = vars(parsed_args)
+
+    if parsed_args.s3_bucket is not None:
+        os.environ['IMPORT_BUCKET'] = parsed_args.s3_bucket
+        del event['s3_bucket']
+
     return vars(parser.parse_args(args))
 
 def main(batch_args: BatchArgs) -> None:
     file_list = file_list_from_s3(bucket_name=batch_args.s3_bucket,
                                   file_prefix=batch_args.s3_prefix)
-
 
     total_bytes = 0
     total_files = 0
@@ -101,16 +107,16 @@ def lambda_handler(event: dict, context) -> None:
     expected event structure is
     {
         s3_prefix: str
-        s3_bucket: str
         filesize_threshold: int
     }
 
     batch files should all be of same ConfigType
     """
     logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
-    logging.info("Context:\n%s" % json.dumps(context, indent=2))
+
     try:
         batch_args = BatchArgs(**event)
+        batch_args.s3_bucket = os.path.join(os.environ['IMPORT_BUCKET'])
         logging.info(batch_args)
         main(batch_args)
     except Exception as e:

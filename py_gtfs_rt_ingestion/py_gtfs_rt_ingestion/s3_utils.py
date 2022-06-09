@@ -43,26 +43,46 @@ def invoke_async_lambda(function_arn: str, event: dict) -> None:
 def move_s3_objects(file_list: list[str],
                     destination: str) -> None:
     """
-    Move list of S3 objects from src_bucket to dest_bucket.
+    Move list of S3 objects from source to destination.
 
     :param file_list: list of s3 filepath uris
-    :param dest_bucket: directory or S3 bucket to move to
+    :param destination: directory or S3 bucket to move to formatted without
+        leading 's3://'
 
     No return value.
     """
-    file_system = fs.S3FileSystem()
+    s3_client = get_s3_client()
+    destination = destination.split("/")[0]
     logging.info("Moving %s files to %s" % (len(file_list), destination))
 
     for filename in file_list:
+        # filename is expected as 's3://my_bucket/the/path/to/the/file.json
         try:
             logging.info("Moving %s to %s" % (filename, destination))
-            filename = filename.replace('s3://', '')
-            src_path = filename.split("/")
-            dest_path = [destination] + src_path[-2:]
-            dest_filename = os.path.join(*dest_path)
 
-            file_system.move(src=filename, dest=dest_filename)
+            # trim off leading s3://
+            copy_key = filename.replace('s3://', '')
+            logging.debug("copy key 0: %s" % copy_key)
 
+            # string before first delimiter is the bucket name
+            source = copy_key.split("/")[0]
+            logging.debug("source %s" % source)
+
+            # trim off bucket name
+            copy_key = copy_key.replace(f'{source}/', '')
+            logging.debug("copy key 1: %s" % copy_key)
+
+            # json args for cop
+            copy_source = {
+                    'Bucket': source,
+                    'Key': copy_key,
+                }
+            logging.info("Copying")
+            s3_client.copy(copy_source, destination, copy_key)
+
+            # delete the source object
+            logging.info("Deleting")
+            s3_client.delete_object(**copy_source)
         except Exception as e:
             logging.error("Unable to move %s to %s" % (filename, destination))
             logging.exception(e)

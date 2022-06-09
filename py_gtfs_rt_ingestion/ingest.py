@@ -7,23 +7,24 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import sys
 
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 from pyarrow import fs
-from typing import NamedTuple
 
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import ConfigTypeFromFilenameException
+from py_gtfs_rt_ingestion import NoImplException
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import gz_to_pyarrow
 from py_gtfs_rt_ingestion import move_s3_objects
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.getLogger().setLevel('INFO')
 
 DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 
 # TODO this is fine for now, but maybe an environ variable?
-MULTIPROCESSING_POOL_SIZE = 4
+POOL_SIZE = 4
 
 def parseArgs(args) -> dict:
     """
@@ -81,8 +82,6 @@ def parseArgs(args) -> dict:
     }
 
 def main(files: list[str]) -> None:
-    config = Configuration(filename=files[0])
-
     try:
         EXPORT_BUCKET = os.path.join(os.environ['EXPORT_BUCKET'],
                                      DEFAULT_S3_PREFIX)
@@ -93,36 +92,48 @@ def main(files: list[str]) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
-    logging.info("Creating pool with %d threads" % MULTIPROCESSING_POOL_SIZE)
+    logging.info(
+        "Creating pool with %d threads, %d cores available" % (POOL_SIZE,
+                                                               os.cpu_count()))
 
-    pool = Pool(MULTIPROCESSING_POOL_SIZE)
-    workers = pool.starmap_async(gz_to_pyarrow, [(f, config) for f in files])
-
-    pa_table = pa.table(config.empty_table(), schema=config.export_schema)
+    # list of files to move to error bucket to be inspected and processed later
     failed_ingestion = []
 
-    for result in workers.get():
-        if isinstance(result, pa.Table):
-            pa_table = pa.concat_tables([pa_table, result])
-        else:
-            failed_ingestion.append(result)
+    try:
+        config = Configuration(filename=files[0])
 
-    logging.info(
-        "Completed converting %d files with config %s" % (len(files),
-                                                          config.config_type))
+        pa_table = pa.table(config.empty_table(), schema=config.export_schema)
+
+        with ThreadPoolExecutor(max_workers=POOL_SIZE) as executor:
+            for result in executor.map(lambda x: gz_to_pyarrow(*x),
+                                       [(f, config) for f in files]):
+                if isinstance(result, pa.Table):
+                    pa_table = pa.concat_tables([pa_table, result])
+                else:
+                    failed_ingestion.append(result)
+
+        logging.info(
+            "Completed converting %d files with config %s" % (len(files),
+                                                              config.config_type))
+
+        logging.info("Writing Table to %s" % EXPORT_BUCKET)
+        s3 = fs.S3FileSystem()
+        pq.write_to_dataset(
+            table=pa_table,
+            root_path=os.path.join(EXPORT_BUCKET, str(config.config_type)),
+            filesystem=s3,
+            partition_cols=['year','month','day','hour'],
+        )
+
+    except (ConfigTypeFromFilenameException, NoImplException) as e:
+        # if unable to determine config from filename, or not implemented yet,
+        # all files are marked as failed ingestion
+        logging.error(e)
+        failed_ingestion = files
 
     if len(failed_ingestion) > 0:
         logging.warning("Unable to process %d files" % len(failed_ingestion))
         move_s3_objects(failed_ingestion, ERROR_BUCKET)
-
-    logging.info("Writing Table to %s" % EXPORT_BUCKET)
-    s3 = fs.S3FileSystem()
-    pq.write_to_dataset(
-        table=pa_table,
-        root_path=EXPORT_BUCKET,
-        filesystem=s3,
-        partition_cols=['year','month','day','hour'],
-    )
 
     files_to_archive = list(set(files) - set(failed_ingestion))
     move_s3_objects(files_to_archive, ARCHIVE_BUCKET)
