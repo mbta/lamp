@@ -8,12 +8,14 @@ import pyarrow.parquet as pq
 import sys
 
 from multiprocessing import Pool
+from pyarrow import fs
 from typing import NamedTuple
 
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import gz_to_pyarrow
-from py_gtfs_rt_ingestion import move_3s_objects
+from py_gtfs_rt_ingestion import move_s3_objects
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -22,11 +24,6 @@ DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 
 # TODO this is fine for now, but maybe an environ variable?
 MULTIPROCESSING_POOL_SIZE = 4
-
-class IngestArgs(NamedTuple):
-    input_file: str
-    event_json: str
-    output_dir: str
 
 def parseArgs(args) -> dict:
     """
@@ -47,16 +44,31 @@ def parseArgs(args) -> dict:
         help='lambda event json file')
 
     parser.add_argument(
-        '--output',
-        dest='output_dir',
+        '--export',
+        dest='export_dir',
         type=str,
-        required=True,
-        help='provide a directory to output')
+        help='where to export to')
 
-    parsed_args = IngestArgs(**vars(parser.parse_args(args)))
+    parser.add_argument(
+        '--archive',
+        dest='archive_dir',
+        type=str,
+        help='where to archive ingested files to')
 
-    if parsed_args.output_dir is not None:
-        os.environ['OUTPUT_DIR'] = parsed_args.output_dir
+    parser.add_argument(
+        '--error',
+        dest='error_dir',
+        type=str,
+        help='where to move unconverted files to')
+
+    parsed_args = parser.parse_args(args)
+
+    if parsed_args.export_dir is not None:
+        os.environ['EXPORT_BUCKET'] = parsed_args.export_dir
+    if parsed_args.archive_dir is not None:
+        os.environ['ARCHIVE_BUCKET'] = parsed_args.archive_dir
+    if parsed_args.error_dir is not None:
+        os.environ['ERROR_BUCKET'] = parsed_args.error_dir
 
     if parsed_args.event_json is not None:
         with open(parsed_args.event_json) as event_json_file:
@@ -72,10 +84,12 @@ def main(files: list[str]) -> None:
     config = Configuration(filename=files[0])
 
     try:
-        INGEST_BUCKET = os.environ['ingest_bucket']
-        OUTPUT_BUCKET = os.environ['OUTPUT_DIR']
-        ARCHIVE_BUCKET = os.environ['archive_bucket']
-        ERROR_BUCKET = os.environ['error_bucket']
+        EXPORT_BUCKET = os.path.join(os.environ['EXPORT_BUCKET'],
+                                     DEFAULT_S3_PREFIX)
+        ARCHIVE_BUCKET = os.path.join(os.environ['ARCHIVE_BUCKET'],
+                                      DEFAULT_S3_PREFIX)
+        ERROR_BUCKET = os.path.join(os.environ['ERROR_BUCKET'],
+                                    DEFAULT_S3_PREFIX)
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
@@ -99,16 +113,19 @@ def main(files: list[str]) -> None:
 
     if len(failed_ingestion) > 0:
         logging.warning("Unable to process %d files" % len(failed_ingestion))
-        move_3s_objects(failed_ingestion, INGEST_BUCKET, ERROR_BUCKET)
+        move_s3_objects(failed_ingestion, ERROR_BUCKET)
 
-    logging.info("Writing Table to %s" % OUTPUT_BUCKET)
+    logging.info("Writing Table to %s" % EXPORT_BUCKET)
+    s3 = fs.S3FileSystem()
     pq.write_to_dataset(
-        pa_table,
-        root_path=OUTPUT_BUCKET,
-        partition_cols=['year','month','day','hour']
+        table=pa_table,
+        root_path=EXPORT_BUCKET,
+        filesystem=s3,
+        partition_cols=['year','month','day','hour'],
     )
+
     files_to_archive = list(set(files) - set(failed_ingestion))
-    move_3s_objects(files_to_archive, INGEST_BUCKET, ARCHIVE_BUCKET)
+    move_s3_objects(files_to_archive, ARCHIVE_BUCKET)
 
 def lambda_handler(event: dict, context) -> None:
     """
