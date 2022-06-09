@@ -8,6 +8,7 @@ from typing import NamedTuple
 import os
 import boto3
 import random
+from multiprocessing import Pool
 
 from py_gtfs_rt_ingestion import file_list_from_s3
 
@@ -53,6 +54,21 @@ def parseArgs(args) -> dict:
 
     return SetupArgs(**vars(parser.parse_args(args)))
 
+def del_objs(delete_chunk, bucket):
+    s3_client = boto3.client('s3')
+    delete_objs = {
+        'Objects':[{'Key':uri.replace(f"s3://{bucket}/",'')} for uri in delete_chunk]
+    }
+    try:
+        s3_client.delete_objects(
+            Bucket=bucket,
+            Delete=delete_objs,
+        )
+    except Exception as e:
+        return 0
+    return len(delete_chunk)
+
+
 def clear_dev_buckets(args:SetupArgs):
     bucket_list = (
         DEV_INGEST_BUCKET,
@@ -74,22 +90,50 @@ def clear_dev_buckets(args:SetupArgs):
                     for uri in files_to_delete:
                         print(str(uri).replace(f"s3://{os.path.join(bucket,args.dev_prefix)}",""))
                 elif action in ('y','yes'):
-                    s3_client = boto3.client('s3')
-                    delete_objs = {
-                        'Objects':[{'Key':uri.replace(f"s3://{bucket}/",'')} for uri in files_to_delete]
-                    }
-                    s3_client.delete_objects(
-                        Bucket=bucket,
-                        Delete=delete_objs,
-                    )
+                    chunk_size = 750
+                    pool = Pool(os.cpu_count())
+                    results = pool.starmap_async(del_objs, [(files_to_delete[i:i+chunk_size], bucket) for i in range(0, len(files_to_delete), chunk_size)])
+                    delete_count = sum([r for r in results.get()])
+                    print(f"{delete_count} of {len(files_to_delete)}  deleted")
                     break
                 print(f"{len(files_to_delete)} objects found, delete?\nyes(y) / no(n) / list(ls)")
                 action = input()
 
+def copy_obj(obj, args):
+    s3_client = boto3.client('s3')
+    key = str(obj).replace(f"s3://{GTFS_BUCKET}/",'')
+    copy_source = {
+        'Bucket':GTFS_BUCKET,
+        'Key': key,
+    }
+    try:
+        s3_client.copy(
+            copy_source,
+            DEV_INGEST_BUCKET,
+            os.path.join(args.dev_prefix,key),
+        )
+    except Exception as e:
+        print(copy_source, e, flush=True)
+        return 0
+    return 1
+
+def enumerate_s3_folders(client:boto3.client, bucket:str, prefix:str):
+    response = client.list_objects_v2(Bucket=bucket, Delimiter = '/', Prefix=prefix, MaxKeys=45)
+    if 'CommonPrefixes' not in response:
+        yield prefix
+    else:
+        for new_prefix in response['CommonPrefixes']:
+            yield from enumerate_s3_folders(client, bucket, new_prefix['Prefix'])
+
 def copy_gfts_to_ingest(args:SetupArgs):
-    count_objs_to_pull = args.objs_to_copy * 10
+    count_objs_to_pull = max(args.objs_to_copy * 10, 10_000)
     src_uri_root = f"s3://{os.path.join(GTFS_BUCKET, args.src_prefix)}"
     dest_urc_root = f"s3://{os.path.join(DEV_INGEST_BUCKET, args.dev_prefix)}"
+
+    print(f"Enumerating folders in {src_uri_root}...")
+    s3_client = boto3.client('s3')
+    bucket_folders = list(enumerate_s3_folders(s3_client, GTFS_BUCKET, args.src_prefix))
+    print(f"{len(bucket_folders)} folders found.")
 
     print(f"Pulling list of {count_objs_to_pull:,} objects from {src_uri_root} for random sample...")
     list_of_objs_to_copy = []
@@ -104,18 +148,17 @@ def copy_gfts_to_ingest(args:SetupArgs):
     action = None
     while action is None or action not in ('n','no'):
         if action in ('y','yes'):
-            s3_client = boto3.client('s3')
-            for obj in random.sample(list_of_objs_to_copy, args.objs_to_copy):
-                key = str(obj).replace(f"s3://{GTFS_BUCKET}/",'')
-                copy_source = {
-                    'Bucket':GTFS_BUCKET,
-                    'Key': key,
-                }
-                s3_client.copy(
-                    copy_source,
-                    DEV_INGEST_BUCKET,
-                    os.path.join(args.dev_prefix,key),
-                )
+            print(f"Starting copy of {len(list_of_objs_to_copy):,} objects...", flush=True)
+            pool = Pool(os.cpu_count())
+            results = pool.starmap_async(copy_obj, [(obj, args) for obj in random.sample(list_of_objs_to_copy, args.objs_to_copy)])
+            success_count = 0
+            error_count = 0
+            for result in results.get():
+                if result == 1:
+                    success_count += 1
+                else:
+                    error_count += 1
+            print(f"{success_count:,} objects copied, {error_count:,} errors.")
             break
 
         print(f"Copy random selection of {args.objs_to_copy:,} objects from {src_uri_root} to {dest_urc_root} ?\nyes(y) / no(n)")
