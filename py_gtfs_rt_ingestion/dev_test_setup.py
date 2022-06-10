@@ -78,6 +78,7 @@ def clear_dev_buckets(args:SetupArgs):
         for (uri,size) in file_list_from_s3(bucket, LAMP_PREFIX):
             files_to_delete.append(uri)
         files_to_delete.remove(uri_root)
+        files_to_delete.sort()
         if len(files_to_delete) == 0:
             print(f"No objects found... skipping bucket.")
         else: 
