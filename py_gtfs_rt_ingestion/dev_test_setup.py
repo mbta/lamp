@@ -103,14 +103,14 @@ def copy_obj(prefix:str, num_to_copy:int):
     src_uri_root = f"s3://{os.path.join(GTFS_BUCKET, prefix)}"
     print(f"Pulling list of {count_objs_to_pull:,} objects from {src_uri_root} for random sample...", flush=True)
     for (uri,size) in file_list_from_s3(GTFS_BUCKET, prefix):
-        if size > 0:
+        if size > 0 and 'https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced' not in uri:
             uri_copy_set.add(uri)
         if len(uri_copy_set) == count_objs_to_pull:
             break
 
     s3_client = boto3.client('s3')
     success_count = 0
-    print(f"Starting copy of {num_to_copy:,} objects from {src_uri_root} ...", flush=True)
+    print(f"Starting copy of {num_to_copy:,} random objects from {src_uri_root} ...", flush=True)
     for uri in random.sample(tuple(uri_copy_set), num_to_copy):
         key = str(uri).replace(f"s3://{GTFS_BUCKET}/",'')
         copy_source = {
@@ -147,7 +147,7 @@ def copy_gfts_to_ingest(args:SetupArgs):
     bucket_folders = list(enumerate_s3_folders(s3_client, GTFS_BUCKET, args.src_prefix))
     per_folder = args.objs_to_copy // len(bucket_folders)
     remain = args.objs_to_copy % len(bucket_folders)
-    print(f"{len(bucket_folders)} folders found, will copy about {per_folder} objects from each folder.")
+    print(f"{len(bucket_folders)} folders found, will copy ~{per_folder} objects from each folder.")
 
     # Get number of files to pull per folder
     bucket_folders = tuple(zip(
