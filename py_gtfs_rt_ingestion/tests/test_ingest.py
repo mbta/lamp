@@ -3,7 +3,7 @@ import os
 from ingest import parseArgs
 
 
-def test_argparse():
+def test_argparse() -> None:
     """
     Test that the custom argparse is working as expected
     """
@@ -26,11 +26,12 @@ def test_argparse():
 
     event = parseArgs(arguments)
 
+    # check that argparse creates a single event correctly
+    assert type(event) is dict
+    assert len(event["files"]) == 1
+    assert event["files"][0] == filepath
+
     # check that argparse assigns env vars correctly
     assert os.environ["EXPORT_BUCKET"] == export_bucket
     assert os.environ["ARCHIVE_BUCKET"] == archive_bucket
     assert os.environ["ERROR_BUCKET"] == error_bucket
-
-    # check that argparse creates the correct event
-    assert len(event["files"]) == 1
-    assert event["files"][0] == filepath

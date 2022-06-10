@@ -7,10 +7,13 @@ import sys
 
 from collections.abc import Iterable
 from typing import NamedTuple
+from lambda_types import LambdaDict, LambdaContext
 
+from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
+
 
 import logging
 
@@ -21,13 +24,12 @@ DESCRIPTION = "Generate batches of json files that should be processed"
 
 class BatchArgs(NamedTuple):
     filesize_threshold: int
-    s3_bucket: str = ""
     s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
 
 
-def parseArgs(args) -> dict:
+def parseArgs(args: list[str]) -> dict:
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         "--s3-prefix",
@@ -78,8 +80,13 @@ def parseArgs(args) -> dict:
 
 
 def main(batch_args: BatchArgs) -> None:
+    try:
+        s3_bucket = os.path.join(os.environ["IMPORT_BUCKET"])
+    except KeyError as e:
+        raise ArgumentException("Missing S3 Bucket environment variable") from e
+
     file_list = file_list_from_s3(
-        bucket_name=batch_args.s3_bucket, file_prefix=batch_args.s3_prefix
+        bucket_name=s3_bucket, file_prefix=batch_args.s3_prefix
     )
 
     total_bytes = 0
@@ -103,7 +110,7 @@ def main(batch_args: BatchArgs) -> None:
         print(json.dumps(events, indent=2))
 
 
-def lambda_handler(event: dict, context) -> None:
+def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     """
     AWS Lambda Python handled function as described in AWS Developer Guide:
     https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
@@ -126,7 +133,6 @@ def lambda_handler(event: dict, context) -> None:
 
     try:
         batch_args = BatchArgs(**event)
-        batch_args.s3_bucket = os.path.join(os.environ["IMPORT_BUCKET"])
         logging.info(batch_args)
         main(batch_args)
     except Exception as e:
@@ -137,4 +143,5 @@ def lambda_handler(event: dict, context) -> None:
 
 if __name__ == "__main__":
     event = parseArgs(sys.argv[1:])
-    lambda_handler(event, None)
+    context = LambdaContext()
+    lambda_handler(event, context)

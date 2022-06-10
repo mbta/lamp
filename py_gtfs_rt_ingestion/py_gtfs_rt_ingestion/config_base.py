@@ -1,3 +1,7 @@
+# use annotations to type hint a method with the type of the enclosing class
+# https://stackoverflow.com/a/33533514
+from __future__ import annotations
+
 from abc import ABC
 from abc import abstractmethod
 
@@ -23,11 +27,11 @@ class ConfigType(Enum):
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     @classmethod
-    def from_filename(cls, filename: str):
+    def from_filename(cls, filename: str) -> ConfigType:
         if "mbta.com_realtime_Alerts_enhanced" in filename:
             return cls.RT_ALERTS
         if "mbta.com_realtime_TripUpdates_enhanced" in filename:

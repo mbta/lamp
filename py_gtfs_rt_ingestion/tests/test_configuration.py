@@ -6,20 +6,16 @@ from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion.error import ConfigTypeFromFilenameException
 from py_gtfs_rt_ingestion.error import NoImplException
 
-update_filename = (
-    "2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz"
-)
+update_filename = "2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz"
 
-vehicle_positions_filename = (
-    "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz"
-)
+vehicle_positions_filename = "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz"
 
 alerts_filename = (
     "2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz"
 )
 
 
-def test_filname_parsing():
+def test_filname_parsing() -> None:
     """
     Check that we are able to get the correct Configuration type for multiple
     filenames
@@ -27,7 +23,9 @@ def test_filname_parsing():
     trip_updates_type = ConfigType.from_filename(update_filename)
     assert trip_updates_type == ConfigType.RT_TRIP_UPDATES
 
-    vehicle_positions_type = ConfigType.from_filename(vehicle_positions_filename)
+    vehicle_positions_type = ConfigType.from_filename(
+        vehicle_positions_filename
+    )
     assert vehicle_positions_type == ConfigType.RT_VEHICLE_POSITIONS
 
     alerts_type = ConfigType.from_filename(alerts_filename)
@@ -36,16 +34,13 @@ def test_filname_parsing():
     with pytest.raises(ConfigTypeFromFilenameException):
         ConfigType.from_filename("this.is.a.bad.filename.json.gz")
 
-    with pytest.raises(NoImplException):
-        Configuration("this.is.a.bad.filename.json.gz")
 
-
-def test_get_schema():
+def test_get_schema() -> None:
     config = Configuration(filename=vehicle_positions_filename)
     schema = config.export_schema
 
 
-def test_create_record():
+def test_create_record() -> None:
     config = Configuration(filename=vehicle_positions_filename)
 
     entity = {

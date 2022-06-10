@@ -9,7 +9,9 @@ from .error import (
     ConfigTypeFromFilenameException,
 )
 from .s3_utils import invoke_async_lambda
+
 from collections.abc import Iterable
+from typing import List
 
 
 class Batch(object):
@@ -20,10 +22,10 @@ class Batch(object):
 
     def __init__(self, config_type: ConfigType) -> None:
         self.config_type = config_type
-        self.filenames = []
+        self.filenames: List[str] = []
         self.total_size = 0
 
-    def __str__(self) -> None:
+    def __str__(self) -> str:
         return "Batch of %d bytes in %d %s files" % (
             self.total_size,
             len(self.filenames),
@@ -37,7 +39,9 @@ class Batch(object):
     def trigger_lambda(self) -> None:
         try:
             function_arn = os.environ["INGEST_FUNCTION_ARN"]
-            invoke_async_lambda(function_arn=function_arn, event=self.create_event())
+            invoke_async_lambda(
+                function_arn=function_arn, event=self.create_event()
+            )
         except KeyError as e:
             raise ArgumentException("Ingest Func Arn not Defined") from e
         except Exception as e:
@@ -49,7 +53,9 @@ class Batch(object):
         }
 
 
-def batch_files(files: Iterable[(str, int)], threshold: int) -> Iterable[Batch]:
+def batch_files(
+    files: Iterable[tuple[str, int]], threshold: int
+) -> Iterable[Batch]:
     """
     Take a bunch of files and sort them into Batches based on their config type
     (derrived from filename). Each Batch should be under a limit in total
@@ -80,7 +86,10 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> Iterable[Batch]:
 
         batch = ongoing_batches[config_type]
 
-        if batch.total_size + int(size) > threshold and len(batch.filenames) > 0:
+        if (
+            batch.total_size + int(size) > threshold
+            and len(batch.filenames) > 0
+        ):
             logging.info(batch)
             yield batch
 

@@ -15,7 +15,7 @@ from .test_s3_utils import s3_stub
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 
-def test_batch_class(capfd):
+def test_batch_class(capfd) -> None:  # type: ignore
     # Batch object works for each ConfigType
     for each_config in ConfigType:
         batch = Batch(each_config)
@@ -47,27 +47,27 @@ def test_batch_class(capfd):
         Batch(ConfigType.RT_VEHICLE_POSITIONS).trigger_lambda()
 
 
-def test_bad_file_names():
+def test_bad_file_names() -> None:
     # Check `batch_files` handling of bad filenames
-    files = [("test1", 0), ("test2", 1), (None, 0), (None, 1)]
+    files = [("test1", 0), ("test2", 1), ("test3", 0), ("test4", 1)]
     assert [b for b in batch_files(files=files, threshold=100)] == []
 
     # Check mix of good and bad filenames:
     files = [
         ("test1", 0),
-        (None, 100),
+        ("test2", 100),
         ("https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz", 100),
     ]
     batches = [b for b in batch_files(files=files, threshold=100)]
     assert len(batches) == 1
 
 
-def test_empty_batch():
+def test_empty_batch() -> None:
     # Check `batch_files` handling of empty iterator
     assert [b for b in batch_files(files=[], threshold=100)] == []
 
 
-def test_batch_files(s3_stub):
+def test_batch_files(s3_stub) -> None:  # type: ignore
     threshold = 100_000
 
     files = [
@@ -96,7 +96,9 @@ def test_batch_files(s3_stub):
 
     # Process large page_obj_response from json file 'test_files/large_page_obj_response.json'
     # large json file contains 1,000 Contents records.
-    large_response_file = os.path.join(TEST_FILE_DIR, "large_page_obj_response.json")
+    large_response_file = os.path.join(
+        TEST_FILE_DIR, "large_page_obj_response.json"
+    )
     page_obj_params = {
         "Bucket": "mbta-gtfs-s3",
         "Prefix": ANY,

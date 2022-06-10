@@ -11,9 +11,11 @@ class ConfigTypeFromFilenameException(GTFSIngestException):
     Unable to derrive config type from a filename
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename: str):
         self.filename = filename
-        self.message = "Unable to deduce Configuration Type from filename %s" % filename
+        self.message = (
+            "Unable to deduce Configuration Type from filename %s" % filename
+        )
 
 
 class ArgumentException(GTFSIngestException):

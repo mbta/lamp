@@ -4,11 +4,12 @@ import pyarrow as pa
 
 from datetime import datetime
 from pyarrow import fs
+from typing import Union
 
 from .configuration import Configuration
 
 
-def gz_to_pyarrow(filename: str, config: Configuration):
+def gz_to_pyarrow(filename: str, config: Configuration) -> Union[str, pa.Table]:
     """
     Accepts filename as string. Converts gzipped json -> pyarrow table.
 

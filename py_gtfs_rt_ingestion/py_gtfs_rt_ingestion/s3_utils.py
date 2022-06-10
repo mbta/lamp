@@ -8,11 +8,13 @@ from collections.abc import Iterable
 from pyarrow import fs
 
 
-def get_s3_client():
+def get_s3_client() -> boto3.client:
     return boto3.client("s3")
 
 
-def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[(str, int)]:
+def file_list_from_s3(
+    bucket_name: str, file_prefix: str
+) -> Iterable[tuple[str, int]]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 
@@ -21,7 +23,9 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[(str, int)
 
     :yield filename, filesize tuples from inside of the bucket
     """
-    logging.info("Getting files with prefix %s from %s" % (file_prefix, bucket_name))
+    logging.info(
+        "Getting files with prefix %s from %s" % (file_prefix, bucket_name)
+    )
     s3_client = get_s3_client()
     paginator = s3_client.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)

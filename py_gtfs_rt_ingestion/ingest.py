@@ -9,6 +9,8 @@ import sys
 
 from concurrent.futures import ThreadPoolExecutor
 from pyarrow import fs
+from typing import Union
+from lambda_types import LambdaDict, LambdaContext
 
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import Configuration
@@ -28,7 +30,7 @@ DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 POOL_SIZE = 4
 
 
-def parseArgs(args) -> dict:
+def parseArgs(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
     """
     parse input args from the command line and generate an event dict in the
     format the lambda handler is expecting
@@ -77,7 +79,7 @@ def parseArgs(args) -> dict:
 
     if parsed_args.event_json is not None:
         with open(parsed_args.event_json) as event_json_file:
-            events = json.load(event_json_file)
+            events: dict = json.load(event_json_file)
 
         return events
 
@@ -86,15 +88,22 @@ def parseArgs(args) -> dict:
 
 def main(files: list[str]) -> None:
     try:
-        EXPORT_BUCKET = os.path.join(os.environ["EXPORT_BUCKET"], DEFAULT_S3_PREFIX)
-        ARCHIVE_BUCKET = os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX)
-        ERROR_BUCKET = os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX)
+        EXPORT_BUCKET = os.path.join(
+            os.environ["EXPORT_BUCKET"], DEFAULT_S3_PREFIX
+        )
+        ARCHIVE_BUCKET = os.path.join(
+            os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
+        )
+        ERROR_BUCKET = os.path.join(
+            os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX
+        )
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
     logging.info(
-        "Creating pool with %d threads, %d cores available"
-        % (POOL_SIZE, os.cpu_count())
+        "Creating pool with %d threads, %d cores available",
+        POOL_SIZE,
+        os.cpu_count(),
     )
 
     # list of files to move to error bucket to be inspected and processed later
@@ -142,7 +151,7 @@ def main(files: list[str]) -> None:
     move_s3_objects(files_to_archive, ARCHIVE_BUCKET)
 
 
-def lambda_handler(event: dict, context) -> None:
+def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     """
     AWS Lambda Python handled function as described in AWS Developer Guide:
     https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
@@ -175,9 +184,12 @@ def lambda_handler(event: dict, context) -> None:
 
 if __name__ == "__main__":
     event = parseArgs(sys.argv[1:])
+    context = LambdaContext()
 
     if type(event) == list:
         for e in event:
-            lambda_handler(e, {})
+            lambda_handler(e, context)
+    elif type(event) == LambdaDict:
+        lambda_handler(event, context)
     else:
-        lambda_handler(event, {})
+        raise Exception("parsed event is not a lambda dict")

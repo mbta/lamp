@@ -2,6 +2,7 @@ import os
 import pyarrow
 from unittest.mock import patch
 from pyarrow import fs
+from py._path.local import LocalPath
 
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import gz_to_pyarrow
@@ -10,16 +11,19 @@ from py_gtfs_rt_ingestion import ConfigType
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 
-def test_bad_conversion():
-    bad_return = gz_to_pyarrow(filename="badfile", config=None)
+def test_bad_conversion() -> None:
+    # dummy config to avoid mypy errors
+    config = Configuration(config_type=ConfigType.RT_ALERTS)
+
+    bad_return = gz_to_pyarrow(filename="badfile", config=config)
     assert bad_return == "badfile"
 
     with patch("pyarrow.fs.S3FileSystem", return_value=fs.LocalFileSystem):
-        bad_return = gz_to_pyarrow(filename="s3://badfile", config=None)
+        bad_return = gz_to_pyarrow(filename="s3://badfile", config=config)
     assert bad_return == "s3://badfile"
 
 
-def test_empty_files(tmpdir):
+def test_empty_files() -> None:
     configs_to_test = (
         ConfigType.RT_VEHICLE_POSITIONS,
         ConfigType.RT_ALERTS,
@@ -30,16 +34,16 @@ def test_empty_files(tmpdir):
 
         empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
         table = gz_to_pyarrow(filename=empty_file, config=config)
-        np_df = table.to_pandas()
+        np_df = table.to_pandas()  # type: ignore
         assert np_df.shape == (0, len(config.export_schema))
 
         one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
         table = gz_to_pyarrow(filename=one_blank_file, config=config)
-        np_df = table.to_pandas()
+        np_df = table.to_pandas()  # type: ignore
         assert np_df.shape == (1, len(config.export_schema))
 
 
-def test_vehicle_positions_file_conversion(tmpdir):
+def test_vehicle_positions_file_conversion(tmpdir: LocalPath) -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
@@ -53,7 +57,7 @@ def test_vehicle_positions_file_conversion(tmpdir):
     assert config.config_type == ConfigType.RT_VEHICLE_POSITIONS
 
     table = gz_to_pyarrow(filename=rt_vehicle_positions_file, config=config)
-    np_df = table.to_pandas()
+    np_df = table.to_pandas()  # type: ignore
 
     # tuple(na count, dtype, max, min)
     file_details = {
@@ -104,7 +108,7 @@ def test_vehicle_positions_file_conversion(tmpdir):
             assert min == str(np_df[col].min())
 
 
-def test_rt_alert_file_conversion(tmpdir):
+def test_rt_alert_file_conversion(tmpdir: LocalPath) -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
@@ -119,7 +123,7 @@ def test_rt_alert_file_conversion(tmpdir):
     assert config.config_type == ConfigType.RT_ALERTS
 
     table = gz_to_pyarrow(filename=alerts_file, config=config)
-    np_df = table.to_pandas()
+    np_df = table.to_pandas()  # type: ignore
 
     # tuple(na count, dtype, max, min)
     file_details = {
@@ -173,7 +177,7 @@ def test_rt_alert_file_conversion(tmpdir):
             assert min == str(np_df[col].min())
 
 
-def test_rt_trip_file_conversion(tmpdir):
+def test_rt_trip_file_conversion(tmpdir: LocalPath) -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
@@ -188,7 +192,7 @@ def test_rt_trip_file_conversion(tmpdir):
     assert config.config_type == ConfigType.RT_TRIP_UPDATES
 
     table = gz_to_pyarrow(filename=trip_updates_file, config=config)
-    np_df = table.to_pandas()
+    np_df = table.to_pandas()  # type: ignore
 
     # tuple(na count, dtype, max, min)
     file_details = {

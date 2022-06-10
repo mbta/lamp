@@ -1,5 +1,7 @@
 import pyarrow
 
+from typing import Optional
+
 from .config_base import ConfigDetail
 from .config_base import ConfigType
 
@@ -32,7 +34,9 @@ class RtTripDetail(ConfigDetail):
                                     "departure",
                                     pyarrow.struct(
                                         [
-                                            pyarrow.field("time", pyarrow.int64()),
+                                            pyarrow.field(
+                                                "time", pyarrow.int64()
+                                            ),
                                             pyarrow.field(
                                                 "uncertainty", pyarrow.int64()
                                             ),
@@ -45,7 +49,9 @@ class RtTripDetail(ConfigDetail):
                                     "arrival",
                                     pyarrow.struct(
                                         [
-                                            pyarrow.field("time", pyarrow.int64()),
+                                            pyarrow.field(
+                                                "time", pyarrow.int64()
+                                            ),
                                             pyarrow.field(
                                                 "uncertainty", pyarrow.int64()
                                             ),
@@ -55,7 +61,9 @@ class RtTripDetail(ConfigDetail):
                                 pyarrow.field(
                                     "schedule_relationship", pyarrow.string()
                                 ),
-                                pyarrow.field("boarding_status", pyarrow.string()),
+                                pyarrow.field(
+                                    "boarding_status", pyarrow.string()
+                                ),
                             ]
                         )
                     ),
@@ -102,15 +110,16 @@ class RtTripDetail(ConfigDetail):
             ),
         }
 
-        def drill_entity(f: str) -> dict:
-            ret_dict = entity
-            for k in f.split(",")[1:]:
-                if ret_dict.get(k) is None:
-                    return None
-                ret_dict = ret_dict.get(k)
+        def drill_entity(f: str) -> Optional[dict]:
+            ret_dict: Optional[dict] = entity
+            try:
+                for k in f.split(",")[1:]:
+                    ret_dict = ret_dict.get(k)  # type: ignore
+            except (KeyError, AttributeError):
+                return None
             return ret_dict
 
-        record = {}
+        record: dict = {}
         for drill_keys in transform_schema.keys():
             pull_dict = drill_entity(drill_keys)
             for get_field in transform_schema[drill_keys]:

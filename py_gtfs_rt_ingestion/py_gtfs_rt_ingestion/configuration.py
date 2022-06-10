@@ -1,6 +1,8 @@
 import pyarrow
 
-from .config_base import ConfigType
+from typing import Union
+
+from .config_base import ConfigType, ConfigDetail
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_trip import RtTripDetail
 from .config_rt_vehicle import RtVehicleDetail
@@ -19,13 +21,18 @@ class Configuration:
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType = None, filename: str = None) -> None:
+    def __init__(
+        self, config_type: ConfigType = None, filename: str = None
+    ) -> None:
         """
         Depending on filename, assign self.details to correct implementation of
         ConfigDetail class.
         """
         if config_type is None:
+            assert filename is not None
             config_type = ConfigType.from_filename(filename)
+
+        self.detail: ConfigDetail
 
         if config_type == ConfigType.RT_ALERTS:
             self.detail = RtAlertsDetail()
