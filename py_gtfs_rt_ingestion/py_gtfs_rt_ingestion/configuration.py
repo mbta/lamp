@@ -6,6 +6,7 @@ from .config_rt_trip import RtTripDetail
 from .config_rt_vehicle import RtVehicleDetail
 from .error import NoImplException
 
+
 class Configuration:
     """
     Configuration that handles the specifics of each of our JSON record types.
@@ -17,9 +18,8 @@ class Configuration:
     https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
-    def __init__(self,
-                 config_type: ConfigType=None,
-                 filename: str=None) -> None:
+
+    def __init__(self, config_type: ConfigType = None, filename: str = None) -> None:
         """
         Depending on filename, assign self.details to correct implementation of
         ConfigDetail class.
@@ -48,5 +48,4 @@ class Configuration:
         return self.detail.record_from_entity(entity)
 
     def empty_table(self) -> dict:
-        return {key.name:[] for key in self.export_schema}
-
+        return {key.name: [] for key in self.export_schema}

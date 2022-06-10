@@ -13,64 +13,74 @@ from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 
 import logging
-logging.getLogger().setLevel('INFO')
+
+logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = "Generate batches of json files that should be processed"
 
+
 class BatchArgs(NamedTuple):
     filesize_threshold: int
-    s3_bucket: str = ''
+    s3_bucket: str = ""
     s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
 
+
 def parseArgs(args) -> dict:
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
-        '--s3-prefix',
-        dest='s3_prefix',
+        "--s3-prefix",
+        dest="s3_prefix",
         type=str,
         default=DEFAULT_S3_PREFIX,
-        help='prefix to files in the mbta-gtfs-s3 bucket')
+        help="prefix to files in the mbta-gtfs-s3 bucket",
+    )
 
     parser.add_argument(
-        '--s3-bucket',
-        dest='s3_bucket',
+        "--s3-bucket",
+        dest="s3_bucket",
         type=str,
-        default='mbta-gtfs-s3',
-        help='prefix to files in the mbta-gtfs-s3 bucket')
+        default="mbta-gtfs-s3",
+        help="prefix to files in the mbta-gtfs-s3 bucket",
+    )
 
     parser.add_argument(
-        '--threshold',
-        dest='filesize_threshold',
+        "--threshold",
+        dest="filesize_threshold",
         type=int,
         default=100000,
-        help='filesize threshold for batch sizes')
+        help="filesize threshold for batch sizes",
+    )
 
     parser.add_argument(
-        '--dry-run',
-        dest='dry_run',
-        action='store_true',
-        help='do not invoke ingest lambda function')
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="do not invoke ingest lambda function",
+    )
 
     parser.add_argument(
-        '--print-events',
-        dest='print_events',
-        action='store_true',
-        help='print out each event as json to stdout')
+        "--print-events",
+        dest="print_events",
+        action="store_true",
+        help="print out each event as json to stdout",
+    )
 
     parsed_args = parser.parse_args(args)
     event = vars(parsed_args)
 
     if parsed_args.s3_bucket is not None:
-        os.environ['IMPORT_BUCKET'] = parsed_args.s3_bucket
-        del event['s3_bucket']
+        os.environ["IMPORT_BUCKET"] = parsed_args.s3_bucket
+        del event["s3_bucket"]
 
     return vars(parser.parse_args(args))
 
+
 def main(batch_args: BatchArgs) -> None:
-    file_list = file_list_from_s3(bucket_name=batch_args.s3_bucket,
-                                  file_prefix=batch_args.s3_prefix)
+    file_list = file_list_from_s3(
+        bucket_name=batch_args.s3_bucket, file_prefix=batch_args.s3_prefix
+    )
 
     total_bytes = 0
     total_files = 0
@@ -87,11 +97,11 @@ def main(batch_args: BatchArgs) -> None:
                 logging.exception("Unable to trigger ingest lambda.\n%s" % e)
 
     total_gigs = total_bytes / 1000000000
-    logging.info("Batched %d gigs across %d files" % (total_gigs,
-                                                      total_files))
+    logging.info("Batched %d gigs across %d files" % (total_gigs, total_files))
 
     if batch_args.print_events:
         print(json.dumps(events, indent=2))
+
 
 def lambda_handler(event: dict, context) -> None:
     """
@@ -116,7 +126,7 @@ def lambda_handler(event: dict, context) -> None:
 
     try:
         batch_args = BatchArgs(**event)
-        batch_args.s3_bucket = os.path.join(os.environ['IMPORT_BUCKET'])
+        batch_args.s3_bucket = os.path.join(os.environ["IMPORT_BUCKET"])
         logging.info(batch_args)
         main(batch_args)
     except Exception as e:
@@ -124,7 +134,7 @@ def lambda_handler(event: dict, context) -> None:
         logging.exception(e)
         raise e
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     event = parseArgs(sys.argv[1:])
     lambda_handler(event, None)
-

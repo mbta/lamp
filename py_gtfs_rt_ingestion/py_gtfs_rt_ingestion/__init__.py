@@ -1,4 +1,4 @@
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 
 DEFAULT_S3_PREFIX = "lamp"
 from .batcher import batch_files
