@@ -78,7 +78,7 @@ def clear_dev_buckets(args:SetupArgs):
         for (uri,size) in file_list_from_s3(bucket, LAMP_PREFIX):
             files_to_delete.append(uri)
         files_to_delete.remove(uri_root)
-        files_to_delete.sort()
+        files_to_delete.sort(reverse=True)
         if len(files_to_delete) == 0:
             print(f"No objects found... skipping bucket.")
         else: 
@@ -103,11 +103,15 @@ def copy_obj(prefix:str, num_to_copy:int):
     uri_copy_set = set()
     src_uri_root = f"s3://{os.path.join(GTFS_BUCKET, prefix)}"
     print(f"Pulling list of {count_objs_to_pull:,} objects from {src_uri_root} for random sample...", flush=True)
-    for (uri,size) in file_list_from_s3(GTFS_BUCKET, prefix):
-        if size > 0 and 'https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced' not in uri:
-            uri_copy_set.add(uri)
-        if len(uri_copy_set) == count_objs_to_pull:
-            break
+    try:
+        for (uri,size) in file_list_from_s3(GTFS_BUCKET, prefix):
+            if size > 0 and 'https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced' not in uri:
+                uri_copy_set.add(uri)
+            if len(uri_copy_set) == count_objs_to_pull:
+                break
+    except Exception as e:
+        print(f"Unable to pull file list from {src_uri_root}")
+        return 0
 
     s3_client = boto3.client('s3')
     success_count = 0
@@ -159,7 +163,7 @@ def copy_gfts_to_ingest(args:SetupArgs):
     action = None
     while action is None or action not in ('n','no'):
         if action in ('y','yes'):
-            pool = Pool(os.cpu_count())
+            pool = Pool(os.cpu_count()*2)
             results = pool.starmap_async(copy_obj, bucket_folders)
             success_count = 0
             for result in results.get():
