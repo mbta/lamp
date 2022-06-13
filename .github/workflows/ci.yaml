@@ -46,7 +46,7 @@ jobs:
       # custom mbta action to reshim asdf without reinstall
       - uses: mbta/actions/reshim-asdf@v1
 
-      # if cance was not found, exit
+      # if cache was not found, exit
       - run: exit 1
         if: steps.asdf-cache.outputs.cache-hit != 'true'
 
@@ -55,6 +55,14 @@ jobs:
         run: |
           poetry config virtualenvs.create false
           poetry install
+
+      # run code formatting / static typing / linting checks
+      - name: Check code formatting with Black
+        run: poetry run black . --check
+      - name: Check static typing with mypy
+        run: poetry run mypy .
+      - name: Run linting with pylint
+        run: poetry run pylint py_gtfs_rt_ingestion/
 
       - name: Run Unit Tests
         run: poetry run pytest

@@ -14,20 +14,21 @@ from .test_s3_utils import s3_stub
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
-def test_batch_class(capfd):
+
+def test_batch_class(capfd) -> None:  # type: ignore
     # Batch object works for each ConfigType
     for each_config in ConfigType:
         batch = Batch(each_config)
         # Checking Batch __str__ method
         print(batch)
         out, err = capfd.readouterr()
-        assert out == f"Batch of 0 bytes in 0 {each_config} files\n" 
-        assert batch.create_event() == {'files':[]}
+        assert out == f"Batch of 0 bytes in 0 {each_config} files\n"
+        assert batch.create_event() == {"files": []}
 
-    # `add_file` method operating correctly 
+    # `add_file` method operating correctly
     files = {
-        'test100': 100,
-        'test200': 200,
+        "test100": 100,
+        "test200": 200,
     }
     config_type = ConfigType.RT_VEHICLE_POSITIONS
     batch = Batch(config_type=config_type)
@@ -36,42 +37,57 @@ def test_batch_class(capfd):
     # Checking Batch __str__ method
     print(batch)
     out, err = capfd.readouterr()
-    assert out == f"Batch of {sum(files.values())} bytes in {len(files)} {config_type} files\n" 
+    assert (
+        out
+        == f"Batch of {sum(files.values())} bytes in {len(files)} {config_type} files\n"
+    )
 
     # Calling `trigger_lambda` method raises exception
     with pytest.raises(ArgumentException):
         Batch(ConfigType.RT_VEHICLE_POSITIONS).trigger_lambda()
 
-def test_bad_file_names():
+
+def test_bad_file_names() -> None:
     # Check `batch_files` handling of bad filenames
-    files = [('test1',0),('test2',1),(None,0),(None,1)]
+    files = [("test1", 0), ("test2", 1), ("test3", 0), ("test4", 1)]
     assert [b for b in batch_files(files=files, threshold=100)] == []
 
     # Check mix of good and bad filenames:
     files = [
-                ('test1',0),
-                (None,100),
-                ('https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz',100)
-            ]
+        ("test1", 0),
+        ("test2", 100),
+        ("https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz", 100),
+    ]
     batches = [b for b in batch_files(files=files, threshold=100)]
     assert len(batches) == 1
 
-def test_empty_batch():
+
+def test_empty_batch() -> None:
     # Check `batch_files` handling of empty iterator
     assert [b for b in batch_files(files=[], threshold=100)] == []
 
-def test_batch_files(s3_stub):
+
+def test_batch_files(s3_stub) -> None:  # type: ignore
     threshold = 100_000
 
     files = [
-        ('https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz', 100_000),
+        (
+            "https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
+            100_000,
+        ),
     ]
     batches = [b for b in batch_files(files=files, threshold=threshold)]
     assert len(batches) == len(files)
 
     files = [
-        ('https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz', threshold),
-        ('https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz', threshold),
+        (
+            "https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
+            threshold,
+        ),
+        (
+            "https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
+            threshold,
+        ),
     ]
     batches = [b for b in batch_files(files=files, threshold=threshold)]
     assert len(batches) == len(files)
@@ -80,16 +96,18 @@ def test_batch_files(s3_stub):
 
     # Process large page_obj_response from json file 'test_files/large_page_obj_response.json'
     # large json file contains 1,000 Contents records.
-    large_response_file = os.path.join(TEST_FILE_DIR,"large_page_obj_response.json")
+    large_response_file = os.path.join(
+        TEST_FILE_DIR, "large_page_obj_response.json"
+    )
     page_obj_params = {
-        "Bucket": 'mbta-gtfs-s3',
+        "Bucket": "mbta-gtfs-s3",
         "Prefix": ANY,
     }
-    with open(large_response_file, 'r') as f:
+    with open(large_response_file, "r") as f:
         page_obj_response = json.load(f)
     s3_stub.add_response("list_objects_v2", page_obj_response, page_obj_params)
     with s3_stub:
-        files = [file for file in file_list_from_s3('mbta-gtfs-s3','')]
+        files = [file for file in file_list_from_s3("mbta-gtfs-s3", "")]
 
     # Verify count of batches produced increases as threshold size decreases
     expected_batches = 0
