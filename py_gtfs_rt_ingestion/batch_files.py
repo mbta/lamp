@@ -2,10 +2,10 @@
 
 import argparse
 import json
+import logging
 import os
 import sys
 
-from collections.abc import Iterable
 from typing import NamedTuple
 from lambda_types import LambdaDict, LambdaContext
 
@@ -15,21 +15,25 @@ from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 
 
-import logging
-
 logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = "Generate batches of json files that should be processed"
 
 
 class BatchArgs(NamedTuple):
+    """wrapper for arguments to main method"""
+
     filesize_threshold: int
     s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
 
 
-def parseArgs(args: list[str]) -> dict:
+def parse_args(args: list[str]) -> dict:
+    """
+    parse input args from the command line. using them, generate an event
+    lambdadict object and set environment variables.
+    """
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         "--s3-prefix",
@@ -80,6 +84,11 @@ def parseArgs(args: list[str]) -> dict:
 
 
 def main(batch_args: BatchArgs) -> None:
+    """
+    * get all of the files and their sizes from the import s3 bucket
+    * convert them into batches of matching files
+    * trigger the ingestion lambda async
+    """
     try:
         s3_bucket = os.path.join(os.environ["IMPORT_BUCKET"])
     except KeyError as e:
@@ -101,10 +110,11 @@ def main(batch_args: BatchArgs) -> None:
             try:
                 batch.trigger_lambda()
             except Exception as e:
-                logging.exception("Unable to trigger ingest lambda.\n%s" % e)
+                logging.error("Unable to trigger ingest lambda.")
+                logging.exception(e)
 
     total_gigs = total_bytes / 1000000000
-    logging.info("Batched %d gigs across %d files" % (total_gigs, total_files))
+    logging.info("Batched %d gigs across %d files", total_gigs, total_files)
 
     if batch_args.print_events:
         print(json.dumps(events, indent=2))
@@ -129,7 +139,8 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
 
     batch files should all be of same ConfigType
     """
-    logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
+    logging.info("Processing event:\n%s", json.dumps(event, indent=2))
+    logging.info("Context:\n%s", context)
 
     try:
         batch_args = BatchArgs(**event)
@@ -142,6 +153,6 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
 
 
 if __name__ == "__main__":
-    event = parseArgs(sys.argv[1:])
-    context = LambdaContext()
-    lambda_handler(event, context)
+    parsed_event = parse_args(sys.argv[1:])
+    parsed_context = LambdaContext()
+    lambda_handler(parsed_event, parsed_context)

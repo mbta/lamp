@@ -2,16 +2,19 @@
 
 import argparse
 import json
+import logging
 import os
-import pyarrow as pa
-import pyarrow.parquet as pq
 import sys
 
 from concurrent.futures import ThreadPoolExecutor
-from pyarrow import fs
 from typing import Union
-from lambda_types import LambdaDict, LambdaContext
 
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+from pyarrow import fs
+
+from lambda_types import LambdaDict, LambdaContext
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import ConfigTypeFromFilenameException
@@ -20,20 +23,16 @@ from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import gz_to_pyarrow
 from py_gtfs_rt_ingestion import move_s3_objects
 
-import logging
-
 logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
-
-# TODO this is fine for now, but maybe an environ variable?
 POOL_SIZE = 4
 
 
-def parseArgs(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
+def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
     """
-    parse input args from the command line and generate an event dict in the
-    format the lambda handler is expecting
+    parse input args from the command line. using them, generate an event
+    lambdadict object and set environment variables.
     """
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
@@ -78,7 +77,7 @@ def parseArgs(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
         os.environ["ERROR_BUCKET"] = parsed_args.error_dir
 
     if parsed_args.event_json is not None:
-        with open(parsed_args.event_json) as event_json_file:
+        with open(parsed_args.event_json, encoding="utf8") as event_json_file:
             events: dict = json.load(event_json_file)
 
         return events
@@ -87,14 +86,20 @@ def parseArgs(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
 
 
 def main(files: list[str]) -> None:
+    """
+    * Convert a list of json files from s3 to a parquet table
+    * Write the table out to s3
+    * Archive processed json files to archive s3 bucket
+    * Move files that generated error to error s3 bucket
+    """
     try:
-        EXPORT_BUCKET = os.path.join(
+        export_bucket = os.path.join(
             os.environ["EXPORT_BUCKET"], DEFAULT_S3_PREFIX
         )
-        ARCHIVE_BUCKET = os.path.join(
+        archive_bucket = os.path.join(
             os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
         )
-        ERROR_BUCKET = os.path.join(
+        error_bucket = os.path.join(
             os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX
         )
     except KeyError as e:
@@ -124,16 +129,17 @@ def main(files: list[str]) -> None:
                     failed_ingestion.append(result)
 
         logging.info(
-            "Completed converting %d files with config %s"
-            % (len(files), config.config_type)
+            "Completed converting %d files with config %s",
+            len(files),
+            config.config_type,
         )
 
-        logging.info("Writing Table to %s" % EXPORT_BUCKET)
-        s3 = fs.S3FileSystem()
+        logging.info("Writing Table to %s", export_bucket)
+        s3_filesystem = fs.S3FileSystem()
         pq.write_to_dataset(
             table=pa_table,
-            root_path=os.path.join(EXPORT_BUCKET, str(config.config_type)),
-            filesystem=s3,
+            root_path=os.path.join(export_bucket, str(config.config_type)),
+            filesystem=s3_filesystem,
             partition_cols=["year", "month", "day", "hour"],
         )
 
@@ -144,11 +150,11 @@ def main(files: list[str]) -> None:
         failed_ingestion = files
 
     if len(failed_ingestion) > 0:
-        logging.warning("Unable to process %d files" % len(failed_ingestion))
-        move_s3_objects(failed_ingestion, ERROR_BUCKET)
+        logging.warning("Unable to process %d files", len(failed_ingestion))
+        move_s3_objects(failed_ingestion, error_bucket)
 
     files_to_archive = list(set(files) - set(failed_ingestion))
-    move_s3_objects(files_to_archive, ARCHIVE_BUCKET)
+    move_s3_objects(files_to_archive, archive_bucket)
 
 
 def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
@@ -171,25 +177,26 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     batch files should all be of same ConfigType as each run of this script
     creates a single parquet file.
     """
-    logging.info("Processing event:\n%s" % json.dumps(event, indent=2))
+    logging.info("Processing event:\n%s", json.dumps(event, indent=2))
+    logging.info("Context:%s", context)
 
     try:
         files = event["files"]
         main(files)
-    except Exception as e:
+    except Exception as exception:
         # log if something goes wrong and let lambda recatch the exception
-        logging.exception(e)
-        raise e
+        logging.exception(exception)
+        raise exception
 
 
 if __name__ == "__main__":
-    event = parseArgs(sys.argv[1:])
-    context = LambdaContext()
+    parsed_events = parse_args(sys.argv[1:])
+    empty_context = LambdaContext()
 
-    if type(event) == list:
-        for e in event:
-            lambda_handler(e, context)
-    elif type(event) == LambdaDict:
-        lambda_handler(event, context)
+    if isinstance(parsed_events, list):
+        for parsed_event in parsed_events:
+            lambda_handler(parsed_event, empty_context)
+    elif isinstance(parsed_events, dict):
+        lambda_handler(parsed_events, empty_context)
     else:
         raise Exception("parsed event is not a lambda dict")
