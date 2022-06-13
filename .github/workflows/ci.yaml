@@ -62,7 +62,7 @@ jobs:
       - name: Check static typing with mypy
         run: poetry run mypy .
       - name: Run linting with pylint
-        run: poetry run pylint lib/ tests/
+        run: poetry run pylint py_gtfs_rt_ingestion/
 
       - name: Run Unit Tests
         run: poetry run pytest

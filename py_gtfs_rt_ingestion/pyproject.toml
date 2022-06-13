@@ -30,6 +30,17 @@ warn_unused_ignores = true
 warn_unreachable = true
 pretty = true
 
+[tool.pylint]
+disable = [
+  # disable doc string requirements
+  "missing-module-docstring",
+  # allow catching a generic exception
+  "broad-except"
+]
+good-names = ["e"]
+max-line-length = 80
+min-similarity-lines = 10
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

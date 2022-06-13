@@ -1,10 +1,11 @@
 import json
 import logging
-import pyarrow as pa
 
 from datetime import datetime
-from pyarrow import fs
 from typing import Union
+
+import pyarrow as pa
+from pyarrow import fs
 
 from .configuration import Configuration
 
@@ -15,7 +16,7 @@ def gz_to_pyarrow(filename: str, config: Configuration) -> Union[str, pa.Table]:
 
     Will handle Local or S3 filenames.
     """
-    logging.info("Converting %s to Parquet Table" % filename)
+    logging.info("Converting %s to Parquet Table", filename)
     try:
         if filename.startswith("s3://"):
             active_fs = fs.S3FileSystem()
@@ -24,15 +25,16 @@ def gz_to_pyarrow(filename: str, config: Configuration) -> Union[str, pa.Table]:
             active_fs = fs.LocalFileSystem()
             file_to_load = filename
 
-        with active_fs.open_input_stream(file_to_load) as f:
-            json_data = json.load(f)
+        with active_fs.open_input_stream(file_to_load) as file:
+            json_data = json.load(file)
 
         pa_table = _json_to_pyarrow(json_data=json_data, config=config)
 
         return pa_table
 
     except Exception as exception:
-        logging.exception("Error converting %s" % filename)
+        logging.error("Error converting %s", filename)
+        logging.exception(exception)
         return filename
 
 

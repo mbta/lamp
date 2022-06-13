@@ -1,20 +1,19 @@
 import logging
 import os
 
+from collections.abc import Iterable
+from typing import List
+
 from .config_base import ConfigType
 from .error import (
     AWSException,
-    NoImplException,
     ArgumentException,
     ConfigTypeFromFilenameException,
 )
 from .s3_utils import invoke_async_lambda
 
-from collections.abc import Iterable
-from typing import List
 
-
-class Batch(object):
+class Batch:
     """
     will store a collection of filenames that should be downloaded and converted
     from json into parquet.
@@ -26,17 +25,21 @@ class Batch(object):
         self.total_size = 0
 
     def __str__(self) -> str:
-        return "Batch of %d bytes in %d %s files" % (
-            self.total_size,
-            len(self.filenames),
-            self.config_type,
+        return (
+            f"Batch of {self.total_size} bytes in {len(self.filenames)} "
+            f"{self.config_type} files"
         )
 
     def add_file(self, filename: str, filesize: int) -> None:
+        """Add a file to this batch"""
         self.filenames.append(filename)
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
+        """
+        Invoke the ingestion lambda that will take the files in this batch and
+        convert them into a parquette file.
+        """
         try:
             function_arn = os.environ["INGEST_FUNCTION_ARN"]
             invoke_async_lambda(
@@ -48,6 +51,10 @@ class Batch(object):
             raise AWSException("Unable To Trigger Ingest Lambda") from e
 
     def create_event(self) -> dict:
+        """
+        Create an event object that will be used in the invocation of the
+        ingestion lambda
+        """
         return {
             "files": self.filenames,
         }

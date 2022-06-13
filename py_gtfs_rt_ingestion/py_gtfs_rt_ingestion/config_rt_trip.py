@@ -1,12 +1,15 @@
 import pyarrow
 
-from typing import Optional
-
 from .config_base import ConfigDetail
 from .config_base import ConfigType
 
 
 class RtTripDetail(ConfigDetail):
+    """
+    Detail for how to convert RT GTFS Trip Updates from json entries into
+    parquet tables.
+    """
+
     @property
     def config_type(self) -> ConfigType:
         return ConfigType.RT_TRIP_UPDATES
@@ -82,8 +85,9 @@ class RtTripDetail(ConfigDetail):
             ]
         )
 
-    def record_from_entity(self, entity: dict) -> dict:
-        transform_schema = {
+    @property
+    def transformation_schema(self) -> dict:
+        return {
             "entity": (("id", "entity_id"),),
             "entity,trip_update": (
                 ("timestamp",),
@@ -109,23 +113,3 @@ class RtTripDetail(ConfigDetail):
                 ),
             ),
         }
-
-        def drill_entity(f: str) -> Optional[dict]:
-            ret_dict: Optional[dict] = entity
-            try:
-                for k in f.split(",")[1:]:
-                    ret_dict = ret_dict.get(k)  # type: ignore
-            except (KeyError, AttributeError):
-                return None
-            return ret_dict
-
-        record: dict = {}
-        for drill_keys in transform_schema.keys():
-            pull_dict = drill_entity(drill_keys)
-            for get_field in transform_schema[drill_keys]:
-                if pull_dict is None:
-                    record[get_field[-1]] = None
-                else:
-                    record[get_field[-1]] = pull_dict.get(get_field[0])
-
-        return record
