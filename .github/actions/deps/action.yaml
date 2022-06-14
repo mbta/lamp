@@ -10,8 +10,7 @@ runs:
       with:
         path: | 
           ~/.cache/pypoetry
-          ~/.local/bin
-          ~/.local/lib
+          /snap/bin
         key: ${{ runner.os }}-poetry-${{ hashFiles('**/py_gtfs_rt_ingestion/poetry.lock') }}
 
     - name: Install Poetry Deps
