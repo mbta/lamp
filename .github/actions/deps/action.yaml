@@ -5,9 +5,17 @@ runs:
   steps:
     - uses: ./.github/actions/tools
 
+    - uses: actions/cache@v2
+      id: poetry-cache
+      with:
+        path: | 
+          ~/.cache/pypoetry
+          **/py_gtfs_rt_ingestion/.venv
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/py_gtfs_rt_ingestion/poetry.lock') }}
+
     - name: Install Poetry Deps
       working-directory: py_gtfs_rt_ingestion
       run: |
-        poetry config virtualenvs.create false
-        poetry install
+        poetry install -v 
       shell: bash
+      if: "!steps.poetry-cache.outputs.cache-hit"
