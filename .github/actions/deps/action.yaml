@@ -1,0 +1,22 @@
+name: Set up dependencies
+description: Loads poetry deps for a CI/CD job, install them if not cached
+defaults:
+  run:
+    shell: bash
+    working-directory: py_gtfs_rt_ingestion
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/tools
+
+    - uses: actions/cache@v2
+      id: poetry-cache
+      with:
+        path: ~/.cache/pypoetry
+        key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+
+    - run: |
+        poetry config virtualenvs.create false
+        poetry install
+      if: "!steps.poetry-cache.outputs.cache-hit"
+

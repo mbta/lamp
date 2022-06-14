@@ -1,68 +1,43 @@
-name: PyTest
+name: CI
 
 on: [push, pull_request]
 
+defaults:
+  run:
+    shell: bash
+    working-directory: py_gtfs_rt_ingestion
+
 jobs:
-  asdf:
-    name: ASDF
+  format:
+    name: Format
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
+      - uses:  actions/checkout@v2
+      - uses: ./.github/actions/deps
+      - run: poetry run black . --check
 
-      # cache the ASDF directory, using values from .tool-versions
-      - name: ASDF Cache
-        uses: actions/cache@v2
-        with:
-          path: ~/.asdf
-          key: ${{ runner.os}}-asdf-${{ hashFiles('.tool-versions') }}
-        id: asdf-cache
-
-      # run `asdf install` iff we can't find the cache
-      - uses: asdf-vm/actions/install@v1
-        if: steps.asdf-cache.outputs.cache-hit != 'true'
-
-  py_build:
-    name: Build and Test Python
+  typing:
+    name: Type Check
     runs-on: ubuntu-latest
-    needs: asdf
-    defaults:
-      run:
-        working-directory: py_gtfs_rt_ingestion
-
     steps:
-      # checkout code
-      - name: Checkout Code
-        uses: actions/checkout@v2
+      - uses:  actions/checkout@v2
+      - uses: ./.github/actions/deps
+      - run: poetry run mypy .
 
-      # check that the asdf cache was in the correct place
-      - name: ASDF Cache
-        uses: actions/cache@v2
-        with:
-          path: ~/.asdf
-          key: ${{ runner.os}}-asdf-${{ hashFiles('.tool-versions') }}
-        id: asdf-cache
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses:  actions/checkout@v2
+      - uses: ./.github/actions/deps
+      - run: poetry run pylint py_gtfs_rt_ingestion/
 
-      # custom mbta action to reshim asdf without reinstall
-      - uses: mbta/actions/reshim-asdf@v1
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses:  actions/checkout@v2
+      - uses: ./.github/actions/deps
+      - run: poetry run pytest
 
-      # if cache was not found, exit
-      - run: exit 1
-        if: steps.asdf-cache.outputs.cache-hit != 'true'
-
-      # install dependencies via poetery
-      - name: Install Dependencies
-        run: |
-          poetry config virtualenvs.create false
-          poetry install
-
-      # run code formatting / static typing / linting checks
-      - name: Check code formatting with Black
-        run: poetry run black . --check
-      - name: Check static typing with mypy
-        run: poetry run mypy .
-      - name: Run linting with pylint
-        run: poetry run pylint py_gtfs_rt_ingestion/
-
-      - name: Run Unit Tests
-        run: poetry run pytest
+ 
