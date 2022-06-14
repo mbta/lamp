@@ -8,6 +8,18 @@ defaults:
     working-directory: py_gtfs_rt_ingestion
 
 jobs:
+  deploy:
+    name: Dry-Deploy Dev
+    runs-on: ubuntu-latest
+    steps: 
+      - uses:  actions/checkout@v2
+      - uses: ./.github/actions/deploy
+        with: 
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          dry-run: "true"
+          environment: dev
+
   format:
     name: Format
     runs-on: ubuntu-latest
