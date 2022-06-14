@@ -9,7 +9,8 @@ runs:
       id: poetry-cache
       with:
         path: | 
-          ~/.poetry
+          ~/.cache/pypoetry
+          ~/.local/lib/python3.9/site-packages
         key: ${{ runner.os }}-poetry-${{ hashFiles('**/py_gtfs_rt_ingestion/poetry.lock') }}
 
     - name: Install Poetry Deps
