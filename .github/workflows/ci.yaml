@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/deps
-      - run: poetry run pylint py_gtfs_rt_ingestion/
+      - run: poetry run pylint *.py py_gtfs_rt_ingestion/ tests/
 
   tests:
     name: Tests

@@ -1,8 +1,7 @@
 import os
-import pyarrow
 from unittest.mock import patch
+
 from pyarrow import fs
-from py._path.local import LocalPath
 
 from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import gz_to_pyarrow
@@ -12,6 +11,10 @@ TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 
 def test_bad_conversion() -> None:
+    """
+    test that bad filenames are returned back as the same strings. (these
+    filepaths are going to be moved from incoming to error.)
+    """
     # dummy config to avoid mypy errors
     config = Configuration(config_type=ConfigType.RT_ALERTS)
 
@@ -24,6 +27,7 @@ def test_bad_conversion() -> None:
 
 
 def test_empty_files() -> None:
+    """test that empty files produce empty tables"""
     configs_to_test = (
         ConfigType.RT_VEHICLE_POSITIONS,
         ConfigType.RT_ALERTS,
@@ -43,7 +47,7 @@ def test_empty_files() -> None:
         assert np_df.shape == (1, len(config.export_schema))
 
 
-def test_vehicle_positions_file_conversion(tmpdir: LocalPath) -> None:
+def test_vehicle_positions_file_conversion() -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
@@ -98,17 +102,17 @@ def test_vehicle_positions_file_conversion(tmpdir: LocalPath) -> None:
     assert all_expected_paths == set(np_df.columns)
 
     # check file details
-    for col, (na_count, d_type, max, min) in file_details.items():
+    for col, (na_count, d_type, upper, lower) in file_details.items():
         print(f"checking: {col}")
         assert na_count == np_df[col].isna().sum()
         assert d_type == np_df[col].dtype
-        if max != "nan":
-            assert max == str(np_df[col].max())
-        if min != "nan":
-            assert min == str(np_df[col].min())
+        if upper != "nan":
+            assert upper == str(np_df[col].max())
+        if lower != "nan":
+            assert lower == str(np_df[col].min())
 
 
-def test_rt_alert_file_conversion(tmpdir: LocalPath) -> None:
+def test_rt_alert_file_conversion() -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
@@ -167,17 +171,17 @@ def test_rt_alert_file_conversion(tmpdir: LocalPath) -> None:
     assert all_expected_paths == set(np_df.columns)
 
     # check file details
-    for col, (na_count, d_type, max, min) in file_details.items():
+    for col, (na_count, d_type, upper, lower) in file_details.items():
         print(f"checking: {col}")
         assert na_count == np_df[col].isna().sum()
         assert d_type == np_df[col].dtype
-        if max != "nan":
-            assert max == str(np_df[col].max())
-        if min != "nan":
-            assert min == str(np_df[col].min())
+        if upper != "nan":
+            assert upper == str(np_df[col].max())
+        if lower != "nan":
+            assert lower == str(np_df[col].min())
 
 
-def test_rt_trip_file_conversion(tmpdir: LocalPath) -> None:
+def test_rt_trip_file_conversion() -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
@@ -215,7 +219,8 @@ def test_rt_trip_file_conversion(tmpdir: LocalPath) -> None:
         "vehicle_label": (55, "object", "nan", "nan"),
     }
 
-    # 79 records in 'entity' for 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
+    # 79 records in 'entity' for
+    # 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
     assert np_df.shape == (79, len(config.export_schema))
 
     all_expected_paths = set(file_details.keys())
@@ -225,11 +230,11 @@ def test_rt_trip_file_conversion(tmpdir: LocalPath) -> None:
     assert all_expected_paths == set(np_df.columns)
 
     # check file details
-    for col, (na_count, d_type, max, min) in file_details.items():
+    for col, (na_count, d_type, upper, lower) in file_details.items():
         print(f"checking: {col}")
         assert na_count == np_df[col].isna().sum()
         assert d_type == np_df[col].dtype
-        if max != "nan":
-            assert max == str(np_df[col].max())
-        if min != "nan":
-            assert min == str(np_df[col].min())
+        if upper != "nan":
+            assert upper == str(np_df[col].max())
+        if lower != "nan":
+            assert lower == str(np_df[col].min())
