@@ -10,14 +10,15 @@ runs:
       with:
         path: | 
           ~/.cache/pypoetry
-          /snap/bin
+          ~/.local/lib
+          ~/.local/bin
         key: ${{ runner.os }}-poetry-${{ hashFiles('**/py_gtfs_rt_ingestion/poetry.lock') }}
 
     - name: Install Poetry Deps
       working-directory: py_gtfs_rt_ingestion
       run: |
         poetry config virtualenvs.create false
-        poetry install
+        poetry install -vpoet
       shell: bash
       if: "!steps.poetry-cache.outputs.cache-hit"
 
