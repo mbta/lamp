@@ -1,3 +1,4 @@
+# pylint: skip-file
 """
 Note: this code is used only by the static type checker!
 https://gist.github.com/alexcasalboni/a545b68ee164b165a74a20a5fee9d133
@@ -7,12 +8,12 @@ from typing import Dict, Any
 LambdaDict = Dict[str, Any]
 
 
-class LambdaCognitoIdentity(object):
+class LambdaCognitoIdentity:
     cognito_identity_id: str
     cognito_identity_pool_id: str
 
 
-class LambdaClientContextMobileClient(object):
+class LambdaClientContextMobileClient:
     installation_id: str
     app_title: str
     app_version_name: str
@@ -20,13 +21,13 @@ class LambdaClientContextMobileClient(object):
     app_package_name: str
 
 
-class LambdaClientContext(object):
+class LambdaClientContext:
     client: LambdaClientContextMobileClient
     custom: LambdaDict
     env: LambdaDict
 
 
-class LambdaContext(object):
+class LambdaContext:
     function_name: str
     function_version: str
     invoked_function_arn: str

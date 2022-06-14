@@ -35,7 +35,9 @@ disable = [
   # disable doc string requirements
   "missing-module-docstring",
   # allow catching a generic exception
-  "broad-except"
+  "broad-except",
+  # caught by black
+  "line-too-long",
 ]
 good-names = ["e"]
 max-line-length = 80
