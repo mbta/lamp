@@ -15,4 +15,8 @@ venv
 *.ipynb
 .coverage
 htmlcov
+.DS_Store
+package
+dist
+*.zip
 *.sh

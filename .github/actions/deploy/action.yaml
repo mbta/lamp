@@ -1,0 +1,66 @@
+name: Deploy
+description: Deploys new Lambda function code
+inputs:
+  aws-access-key-id:
+    description: AWS access key
+    required: true
+  aws-secret-access-key:
+    description: AWS secret key
+    required: true
+  dry-run:
+    description: >-
+      If truthy, the deploy will be a dry run, or will not be attempted at all
+      if `aws-access-key-id` is blank (instead of erroring)
+    required: false
+    default: ""
+  environment:
+    description: Name of the environment to deploy to (dev/prod)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/deps
+
+    - name: Create build folder
+      working-directory: py_gtfs_rt_ingestion
+      run: |
+        poetry build 
+        poetry run pip install --upgrade -t package dist/*.whl 
+        cp -v batch_files.py package/batch_files.py 
+        cp -v ingest.py package/ingest.py
+      shell: bash
+
+    - name: Create zip archive
+      working-directory: py_gtfs_rt_ingestion/package
+      run: |
+        zip -r ../lamp_lambdas.zip . -x '*.pyc'
+      shell: bash
+
+    - name: Deploy Ingest Lambda
+      working-directory: py_gtfs_rt_ingestion
+      run: >-
+        aws lambda update-function-code
+        --function-name lamp-${{ inputs.environment }}-ingest
+        --zip-file fileb://lamp_lambdas.zip
+        ${{ inputs.dry-run && '--dry-run' || '' }}
+      if: ${{ !inputs.dry-run || inputs.aws-access-key-id }}
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+        AWS_REGION: us-east-1
+
+    - name: Deploy Batch Lambda
+      working-directory: py_gtfs_rt_ingestion
+      run: >-
+        aws lambda update-function-code
+        --function-name lamp-${{ inputs.environment }}-batcher
+        --zip-file fileb://lamp_lambdas.zip
+        ${{ inputs.dry-run && '--dry-run' || '' }}
+      if: ${{ !inputs.dry-run || inputs.aws-access-key-id }}
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+        AWS_REGION: us-east-1

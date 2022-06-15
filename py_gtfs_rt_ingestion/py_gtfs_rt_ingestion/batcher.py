@@ -1,49 +1,68 @@
 import logging
 import os
 
-from .config_base import ConfigType
-from .error import (AWSException,
-                    NoImplException,
-                    ArgumentException,
-                    ConfigTypeFromFilenameException)
-from .s3_utils import invoke_async_lambda
 from collections.abc import Iterable
+from typing import List
 
-class Batch(object):
+from .config_base import ConfigType
+from .error import (
+    AWSException,
+    ArgumentException,
+    ConfigTypeFromFilenameException,
+)
+from .s3_utils import invoke_async_lambda
+
+
+class Batch:
     """
     will store a collection of filenames that should be downloaded and converted
     from json into parquet.
     """
+
     def __init__(self, config_type: ConfigType) -> None:
         self.config_type = config_type
-        self.filenames = []
+        self.filenames: List[str] = []
         self.total_size = 0
 
-    def __str__(self) -> None:
-        return "Batch of %d bytes in %d %s files" % (self.total_size,
-                                                     len(self.filenames),
-                                                     self.config_type)
+    def __str__(self) -> str:
+        return (
+            f"Batch of {self.total_size} bytes in {len(self.filenames)} "
+            f"{self.config_type} files"
+        )
 
     def add_file(self, filename: str, filesize: int) -> None:
+        """Add a file to this batch"""
         self.filenames.append(filename)
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
+        """
+        Invoke the ingestion lambda that will take the files in this batch and
+        convert them into a parquette file.
+        """
         try:
             function_arn = os.environ["INGEST_FUNCTION_ARN"]
-            invoke_async_lambda(function_arn=function_arn,
-                                event=self.create_event())
+            invoke_async_lambda(
+                function_arn=function_arn, event=self.create_event()
+            )
         except KeyError as e:
             raise ArgumentException("Ingest Func Arn not Defined") from e
         except Exception as e:
             raise AWSException("Unable To Trigger Ingest Lambda") from e
 
     def create_event(self) -> dict:
+        """
+        Create an event object that will be used in the invocation of the
+        ingestion lambda
+        """
         return {
-            'files': self.filenames,
+            "files": self.filenames,
         }
 
-def batch_files(files: Iterable[(str, int)], threshold: int) -> Iterable[Batch]:
+
+def batch_files(
+    files: Iterable[tuple[str, int]], threshold: int
+) -> Iterable[Batch]:
     """
     Take a bunch of files and sort them into Batches based on their config type
     (derrived from filename). Each Batch should be under a limit in total
@@ -74,7 +93,10 @@ def batch_files(files: Iterable[(str, int)], threshold: int) -> Iterable[Batch]:
 
         batch = ongoing_batches[config_type]
 
-        if batch.total_size + int(size) > threshold and len(batch.filenames) > 0:
+        if (
+            batch.total_size + int(size) > threshold
+            and len(batch.filenames) > 0
+        ):
             logging.info(batch)
             yield batch
 
