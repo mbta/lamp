@@ -3,7 +3,6 @@ import logging
 import os
 
 from collections.abc import Iterable
-from pyarrow import fs
 
 import boto3
 
