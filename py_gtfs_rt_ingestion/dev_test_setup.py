@@ -4,6 +4,7 @@ import argparse
 import logging
 import sys
 from typing import NamedTuple
+from typing import Optional
 import os
 import random
 from multiprocessing import Pool
@@ -20,8 +21,6 @@ DEV_ARCHIVE_BUCKET = "mbta-ctd-dataplatform-dev-archive"
 DEV_ERROR_BUCKET = "mbta-ctd-dataplatform-dev-error"
 LAMP_PREFIX = "lamp/"
 
-logging.basicConfig(level=logging.WARNING)
-
 
 class SetupArgs(NamedTuple):
     """
@@ -31,6 +30,7 @@ class SetupArgs(NamedTuple):
     src_prefix: str
     objs_to_copy: int
     force_delete: bool
+    log_level: str
 
 
 def parse_args(args: list[str]) -> SetupArgs:
@@ -44,7 +44,7 @@ def parse_args(args: list[str]) -> SetupArgs:
         "--source-prefix",
         dest="src_prefix",
         type=str,
-        default="",
+        default="20",
         help="prefix of objects to move into dev environment",
     )
 
@@ -53,7 +53,7 @@ def parse_args(args: list[str]) -> SetupArgs:
         "--num",
         dest="objs_to_copy",
         type=int,
-        default=1_000,
+        default=5_000,
         help="number of objects to move into dev environment",
     )
 
@@ -63,6 +63,14 @@ def parse_args(args: list[str]) -> SetupArgs:
         default=False,
         action="store_true",
         help="delete objects from dev buckets without asking",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        dest="log_level",
+        type=str,
+        default="INFO",
+        help="logging output level to during script operation",
     )
 
     return SetupArgs(**vars(parser.parse_args(args)))
@@ -79,14 +87,14 @@ def del_objs(del_list: list[str], bucket: str) -> int:
         ]
     }
     try:
-        s3_client.delete_objects(
+        response = s3_client.delete_objects(
             Bucket=bucket,
             Delete=delete_objs,
         )
     except Exception as e:
         logging.exception(e)
         return 0
-    return len(del_list)
+    return len(response["Deleted"])
 
 
 def make_del_jobs(files: list[str], bucket: str) -> int:
@@ -95,10 +103,10 @@ def make_del_jobs(files: list[str], bucket: str) -> int:
     """
     chunk = 750
     with Pool(os.cpu_count()) as pool:
-        l_t = [
+        chunks_list = [
             (files[i : i + chunk], bucket) for i in range(0, len(files), chunk)
         ]
-        results = pool.starmap_async(del_objs, l_t)
+        results = pool.starmap_async(del_objs, chunks_list)
         del_count = sum(r for r in results.get())
     return del_count
 
@@ -107,7 +115,7 @@ def get_del_obj_list(bucket: str, uri_root: str) -> list[str]:
     """
     Return list of objects in bucket, removing uri_root object from return list
     """
-    print(f"Checking for objects to delete in {uri_root}...")
+    logging.info("Checking for objects to delete in %s...", uri_root)
     files_to_delete = []
     for (uri, _) in file_list_from_s3(bucket, LAMP_PREFIX):
         files_to_delete.append(uri)
@@ -132,7 +140,7 @@ def clear_dev_buckets(args: SetupArgs) -> None:
         uri_root = f"s3://{os.path.join(bucket, LAMP_PREFIX)}"
         files_to_delete = get_del_obj_list(bucket, uri_root)
         if len(files_to_delete) == 0:
-            print("No objects found... skipping bucket.")
+            logging.info("No objects found... skipping bucket.")
         else:
             while action not in ("n", "no"):
                 # Print list of bucket objects
@@ -146,13 +154,14 @@ def clear_dev_buckets(args: SetupArgs) -> None:
                     delete_count = make_del_jobs(files_to_delete, bucket)
                     # If not all objects deleted, retry
                     if delete_count < len(files_to_delete):
-                        print(
-                            f"Only {delete_count:,} of {len(files_to_delete):,}"
-                            " deleted... will retry."
+                        logging.info(
+                            "Only %d of %d deleted... will retry.",
+                            delete_count,
+                            len(files_to_delete),
                         )
                         files_to_delete = get_del_obj_list(bucket, uri_root)
                     else:
-                        print(f"All {len(files_to_delete)} deleted")
+                        logging.info("All %d deleted", len(files_to_delete))
                         break
 
                 print(
@@ -171,9 +180,10 @@ def copy_obj(prefix: str, num_to_copy: int) -> int:
     uri_copy_set = set()
     src_uri_root = f"s3://{os.path.join(GTFS_BUCKET, prefix)}"
     skip_uri = "https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced"
-    print(
-        f"Pulling list of {count_objs_to_pull:,} objects from "
-        f"{src_uri_root} for random sample..."
+    logging.info(
+        "Pulling list of %d objects from %s for random sample...",
+        count_objs_to_pull,
+        src_uri_root,
     )
     try:
         for (uri, size) in file_list_from_s3(GTFS_BUCKET, prefix):
@@ -189,8 +199,10 @@ def copy_obj(prefix: str, num_to_copy: int) -> int:
 
     s3_client = boto3.client("s3")
     success_count = 0
-    print(
-        f"Starting copy of {num_to_copy} random objects from {src_uri_root} ..."
+    logging.info(
+        "Starting copy of %d random objects from %s ...",
+        num_to_copy,
+        src_uri_root,
     )
     for uri in random.sample(tuple(uri_copy_set), num_to_copy):
         key = str(uri).replace(f"s3://{GTFS_BUCKET}/", "")
@@ -214,13 +226,18 @@ def copy_obj(prefix: str, num_to_copy: int) -> int:
 
 def drill_s3_folders(
     client: boto3.client, bucket: str, prefix: str
-) -> Iterable[str]:
+) -> Iterable[Optional[str]]:
     """
     Enumerate folders in specified bucket prefix combination
     """
-    response = client.list_objects_v2(
-        Bucket=bucket, Delimiter="/", Prefix=prefix, MaxKeys=45
-    )
+    try:
+        response = client.list_objects_v2(
+            Bucket=bucket, Delimiter="/", Prefix=prefix, MaxKeys=45
+        )
+    except Exception as e:
+        logging.exception(e)
+        yield None
+
     if "CommonPrefixes" not in response:
         yield prefix
     else:
@@ -236,16 +253,18 @@ def copy_gfts_to_ingest(args: SetupArgs) -> None:
     src_uri_root = f"s3://{os.path.join(GTFS_BUCKET, args.src_prefix)}"
     dest_urc_root = f"s3://{os.path.join(DEV_INGEST_BUCKET, LAMP_PREFIX)}"
 
-    print(f"Enumerating folders in ({src_uri_root})...")
+    logging.info("Enumerating folders in (%s)...", src_uri_root)
     s3_client = boto3.client("s3")
     folders = list(drill_s3_folders(s3_client, GTFS_BUCKET, args.src_prefix))
+    folders = list(filter(lambda x: x is not None, folders))
     # Get number of files to pull per folder
     per_folder = args.objs_to_copy // len(folders)
     # Number of folders that will have extra file
     remain = args.objs_to_copy % len(folders)
-    print(
-        f"{len(folders):,} folders found, "
-        f"will copy ~{per_folder} objects from each folder."
+    logging.info(
+        "%d folders found, will copy ~%d objects from each folder.",
+        len(folders),
+        per_folder,
     )
 
     # Combine list of folders and number of files to pull from each folder
@@ -272,9 +291,10 @@ def copy_gfts_to_ingest(args: SetupArgs) -> None:
                 success_count = 0
                 for result in results.get():
                     success_count += result
-            print(
-                f"{success_count:,} objects copied, "
-                f"{args.objs_to_copy - success_count} errors."
+            logging.info(
+                "%d objects copied, %d errors.",
+                success_count,
+                args.objs_to_copy - success_count,
             )
             break
 
@@ -290,6 +310,18 @@ def main(args: SetupArgs) -> None:
     """
     Run functions to clear dev buckets and copy objects to ingest bucket.
     """
+    log_levels = (
+        "CRITICAL",
+        "ERROR",
+        "WARNING",
+        "INFO",
+        "DEBUG",
+        "NOTSET",
+    )
+    if args.log_level not in log_levels:
+        raise KeyError(f"{args.log_level} not a valid log_level")
+    logging.basicConfig(level=logging.getLevelName(args.log_level))
+
     clear_dev_buckets(args)
     copy_gfts_to_ingest(args)
 

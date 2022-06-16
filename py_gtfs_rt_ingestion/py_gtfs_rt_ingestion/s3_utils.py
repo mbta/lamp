@@ -34,7 +34,7 @@ def file_list_from_s3(
             continue
         for obj in page["Contents"]:
             uri = os.path.join("s3://", bucket_name, obj["Key"])
-            logging.info(uri)
+            logging.debug(uri)
             yield (uri, obj["Size"])
 
 
