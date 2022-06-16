@@ -1,0 +1,16 @@
+name: Move Asana Ticket after PR Opened
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  move-asana-ticket-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Github-Asana Move Ticket Action
+        uses: mbta/github-asana-action@v4.3.0
+        with:
+          asana-pat: ${{ secrets.ASANA_SECRET_FOR_MOVE_ACTION }}
+          trigger-phrase: "Asana Task:"
+          target-section: "In Review"
+          task-comment: "View Pull Request Here: "
