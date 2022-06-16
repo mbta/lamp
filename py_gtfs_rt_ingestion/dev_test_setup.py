@@ -29,7 +29,7 @@ class SetupArgs(NamedTuple):
 
     src_prefix: str
     objs_to_copy: int
-    force_delete: bool
+    no_interaction: bool
     log_level: str
 
 
@@ -59,10 +59,10 @@ def parse_args(args: list[str]) -> SetupArgs:
 
     parser.add_argument(
         "-f",
-        dest="force_delete",
+        dest="no_interaction",
         default=False,
         action="store_true",
-        help="delete objects from dev buckets without asking",
+        help="automatically run script without prompts",
     )
 
     parser.add_argument(
@@ -150,7 +150,7 @@ def clear_dev_buckets(args: SetupArgs) -> None:
                         print(f"{uri.replace(uri_root, '')}")
                     print(f"/{'*' * 50}/")
                 # Proceed with object deletion
-                elif action in ("y", "yes") or args.force_delete:
+                elif action in ("y", "yes") or args.no_interaction:
                     delete_count = make_del_jobs(files_to_delete, bucket)
                     # If not all objects deleted, retry
                     if delete_count < len(files_to_delete):
@@ -280,7 +280,7 @@ def copy_gfts_to_ingest(args: SetupArgs) -> None:
 
     action = None
     while action not in ("n", "no"):
-        if action in ("y", "yes"):
+        if action in ("y", "yes") or args.no_interaction:
             pool_size = os.cpu_count()
             if pool_size is None:
                 pool_size = 4
@@ -310,15 +310,8 @@ def main(args: SetupArgs) -> None:
     """
     Run functions to clear dev buckets and copy objects to ingest bucket.
     """
-    log_levels = (
-        "CRITICAL",
-        "ERROR",
-        "WARNING",
-        "INFO",
-        "DEBUG",
-        "NOTSET",
-    )
-    if args.log_level not in log_levels:
+    # pylint: disable=W0212
+    if args.log_level not in tuple(logging._nameToLevel):
         raise KeyError(f"{args.log_level} not a valid log_level")
     logging.basicConfig(level=logging.getLevelName(args.log_level))
 
