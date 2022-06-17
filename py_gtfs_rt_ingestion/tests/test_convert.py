@@ -238,3 +238,78 @@ def test_rt_trip_file_conversion() -> None:
             assert upper == str(np_df[col].max())
         if lower != "nan":
             assert lower == str(np_df[col].min())
+
+
+def test_bus_vehicle_positions_file_conversion() -> None:
+    """
+    TODO - convert a dummy json data to parquet and check that the new file
+    matches expectations
+    """
+    rt_bus_vehicle_positions_file = os.path.join(
+        TEST_FILE_DIR,
+        "2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz",
+    )
+    config = Configuration(filename=rt_bus_vehicle_positions_file)
+
+    assert config.config_type == ConfigType.BUS_VEHICLE_POSITIONS
+
+    table = gz_to_pyarrow(filename=rt_bus_vehicle_positions_file, config=config)
+    np_df = table.to_pandas()  # type: ignore
+
+    # tuple(na count, dtype, max, min)
+    file_details = {
+        "year": (0, "int16", "2022", "2022"),
+        "month": (0, "int8", "5", "5"),
+        "day": (0, "int8", "5", "5"),
+        "hour": (0, "int8", "16", "16"),
+        "feed_timestamp": (0, "int64", "1651766414", "1651766414"),
+        "entity_id": (0, "object", "1651766413_1740", "1651764730_1426"),
+        "block_id": (484, "object", "nan", "nan"),
+        "capacity": (12, "float64", "57.0", "36.0"),
+        "current_stop_sequence": (844, "float64", "nan", "nan"),
+        "load": (569, "float64", "42.0", "0.0"),
+        "location_source": (0, "object", "transitmaster", "samsara"),
+        "occupancy_percentage": (569, "float64", "80.0", "0.0"),
+        "occupancy_status": (569, "object", "nan", "nan"),
+        "revenue": (0, "bool", "True", "False"),
+        "run_id": (484, "object", "nan", "nan"),
+        "stop_id": (844, "object", "nan", "nan"),
+        "vehicle_timestamp": (0, "int64", "1651766413", "1651764730"),
+        "bearing": (0, "int64", "356", "0"),
+        "latitude": (0, "float64", "42.65629769", "42.1069972"),
+        "longitude": (0, "float64", "-70.62653102", "-71.272446339"),
+        "speed": (163, "float64", "25.1189", "0.0"),
+        "overload_id": (844, "float64", "nan", "nan"),
+        "overload_offset": (844, "float64", "nan", "nan"),
+        "route_id": (529, "object", "nan", "nan"),
+        "schedule_relationship": (529, "object", "nan", "nan"),
+        "start_date": (779, "object", "nan", "nan"),
+        "trip_id": (529, "object", "nan", "nan"),
+        "vehicle_id": (0, "object", "y3159", "y0408"),
+        "vehicle_label": (0, "object", "3159", "0408"),
+        "assignment_status": (358, "object", "nan", "nan"),
+        "operator_id": (844, "object", "nan", "nan"),
+        "logon_time": (484, "float64", "1651766401.0", "1651740838.0"),
+        "name": (844, "object", "nan", "nan"),
+        "first_name": (844, "object", "nan", "nan"),
+        "last_name": (844, "object", "nan", "nan"),
+    }
+
+    # 844 records in 'entity' for 2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
+    assert np_df.shape == (844, len(config.export_schema))
+
+    all_expected_paths = set(file_details.keys())
+
+    # ensure all of the expected paths were found and there aren't any
+    # additional ones
+    assert all_expected_paths == set(np_df.columns)
+
+    # check file details
+    for col, (na_count, d_type, upper, lower) in file_details.items():
+        print(f"checking: {col}")
+        assert na_count == np_df[col].isna().sum()
+        assert d_type == np_df[col].dtype
+        if upper != "nan":
+            assert upper == str(np_df[col].max())
+        if lower != "nan":
+            assert lower == str(np_df[col].min())
