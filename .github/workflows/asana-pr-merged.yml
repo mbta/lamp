@@ -1,4 +1,4 @@
-name: Move Asana Ticket after PR Opened
+name: Move Asana Ticket after PR Merged
 on:
   pull_request:
     types: [closed]
