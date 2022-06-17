@@ -4,6 +4,7 @@ from .config_base import ConfigType, ConfigDetail
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_trip import RtTripDetail
 from .config_rt_vehicle import RtVehicleDetail
+from .config_rt_bus_vehicle import RtBusVehicleDetail
 from .error import NoImplException
 
 
@@ -38,6 +39,8 @@ class Configuration:
             self.detail = RtTripDetail()
         elif config_type == ConfigType.RT_VEHICLE_POSITIONS:
             self.detail = RtVehicleDetail()
+        elif config_type == ConfigType.BUS_VEHICLE_POSITIONS:
+            self.detail = RtBusVehicleDetail()
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 
