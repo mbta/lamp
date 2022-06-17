@@ -24,7 +24,7 @@ DESCRIPTION = "Generate batches of json files that should be processed"
 class BatchArgs(NamedTuple):
     """wrapper for arguments to main method"""
 
-    filesize_threshold: int
+    filesize_threshold: int = 100 * 1_000 * 1_000
     s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
@@ -144,7 +144,10 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     logging.info("Context:\n%s", context)
 
     try:
-        batch_args = BatchArgs(**event)
+        if len(set(event) - set(BatchArgs()._fields)) == 0:
+            batch_args = BatchArgs(**event)
+        else:
+            batch_args = BatchArgs()
         logging.info(batch_args)
         main(batch_args)
     except Exception as e:
