@@ -78,7 +78,7 @@ def parse_args(args: list[str]) -> dict:
     event = vars(parsed_args)
 
     if parsed_args.s3_bucket is not None:
-        os.environ["IMPORT_BUCKET"] = parsed_args.s3_bucket
+        os.environ["INGEST_BUCKET"] = parsed_args.s3_bucket
         del event["s3_bucket"]
 
     return vars(parser.parse_args(args))
@@ -91,7 +91,7 @@ def main(batch_args: BatchArgs) -> None:
     * trigger the ingestion lambda async
     """
     try:
-        s3_bucket = os.path.join(os.environ["IMPORT_BUCKET"])
+        s3_bucket = os.path.join(os.environ["INGEST_BUCKET"])
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
