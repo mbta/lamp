@@ -144,7 +144,7 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     logging.info("Context:\n%s", context)
 
     try:
-        if "filesize_threshold" in event:
+        if len(set(event) - set(BatchArgs()._fields)) == 0:
             batch_args = BatchArgs(**event)
         else:
             batch_args = BatchArgs()
