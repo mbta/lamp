@@ -7,10 +7,11 @@ import os
 import sys
 
 from typing import NamedTuple
-from lambda_types import LambdaDict, LambdaContext
 
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
+from py_gtfs_rt_ingestion import LambdaContext
+from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 

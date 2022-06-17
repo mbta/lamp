@@ -14,12 +14,13 @@ import pyarrow.parquet as pq
 
 from pyarrow import fs
 
-from lambda_types import LambdaDict, LambdaContext
 from py_gtfs_rt_ingestion import ArgumentException
-from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import ConfigTypeFromFilenameException
-from py_gtfs_rt_ingestion import NoImplException
+from py_gtfs_rt_ingestion import Configuration
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
+from py_gtfs_rt_ingestion import LambdaContext
+from py_gtfs_rt_ingestion import LambdaDict
+from py_gtfs_rt_ingestion import NoImplException
 from py_gtfs_rt_ingestion import gz_to_pyarrow
 from py_gtfs_rt_ingestion import move_s3_objects
 

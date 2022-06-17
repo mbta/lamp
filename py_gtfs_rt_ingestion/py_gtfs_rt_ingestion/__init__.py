@@ -12,6 +12,8 @@ from .error import ConfigTypeFromFilenameException
 from .error import NoImplException
 from .s3_utils import file_list_from_s3
 from .s3_utils import move_s3_objects
+from .lambda_types import LambdaDict
+from .lambda_types import LambdaContext
 
 __version__ = "0.1.0"
 
