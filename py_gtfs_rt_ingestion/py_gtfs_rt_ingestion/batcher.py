@@ -1,5 +1,7 @@
 import logging
 import os
+import sys
+import json
 
 from collections.abc import Iterable
 from typing import List
@@ -93,10 +95,15 @@ def batch_files(
 
         batch = ongoing_batches[config_type]
 
+        # lambda async even payload size is limited to 256KB
+        # https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
+        # use sys.getsizeof on batch event to get general size of payload
+        # limit estimated payload size to 245KB for now to account for
+        # additional request overhead and measurement inaccuracy
         if (
             batch.total_size + int(size) > threshold
-            and len(batch.filenames) > 0
-        ):
+            or sys.getsizeof(json.dumps(batch.create_event())) >= 245 * 1_000
+        ) and len(batch.filenames) > 0:
             logging.info(batch)
             yield batch
 
