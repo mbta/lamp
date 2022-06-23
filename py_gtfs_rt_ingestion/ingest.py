@@ -17,11 +17,13 @@ from pyarrow import fs
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import ConfigTypeFromFilenameException
 from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import NoImplException
 from py_gtfs_rt_ingestion import gz_to_pyarrow
+from py_gtfs_rt_ingestion import zip_to_pyarrow
 from py_gtfs_rt_ingestion import move_s3_objects
 
 logging.getLogger().setLevel("INFO")
@@ -106,43 +108,61 @@ def main(files: list[str]) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
-    logging.info(
-        "Creating pool with %d threads, %d cores available",
-        POOL_SIZE,
-        os.cpu_count(),
-    )
-
     # list of files to move to error bucket to be inspected and processed later
     failed_ingestion = []
 
+    # filesystem to use when writing parquet files
+    s3_filesystem = fs.S3FileSystem()
+
     try:
-        config = Configuration(filename=files[0])
+        config_type = ConfigType.from_filename(files[0])
+        if config_type == ConfigType.SCHEDULE:
+            if len(files) != 1:
+                raise ArgumentException(
+                    "Received more than one schedule GTFS zip file"
+                )
+            logging.info("Reading %s file and converting to parquet", files[0])
+            for prefix, table in zip_to_pyarrow(files[0]):
+                pq.write_to_dataset(
+                    table=table,
+                    root_path=os.path.join(export_bucket, prefix),
+                    filesystem=s3_filesystem,
+                    partition_cols=["timestamp"],
+                )
+        else:
+            config = Configuration(config_type)
+            pa_table = pa.table(
+                config.empty_table(), schema=config.export_schema
+            )
 
-        pa_table = pa.table(config.empty_table(), schema=config.export_schema)
+            logging.info(
+                "Creating pool with %d threads, %d cores available",
+                POOL_SIZE,
+                os.cpu_count(),
+            )
 
-        with ThreadPoolExecutor(max_workers=POOL_SIZE) as executor:
-            for result in executor.map(
-                lambda x: gz_to_pyarrow(*x), [(f, config) for f in files]
-            ):
-                if isinstance(result, pa.Table):
-                    pa_table = pa.concat_tables([pa_table, result])
-                else:
-                    failed_ingestion.append(result)
+            with ThreadPoolExecutor(max_workers=POOL_SIZE) as executor:
+                for result in executor.map(
+                    lambda x: gz_to_pyarrow(*x), [(f, config) for f in files]
+                ):
+                    if isinstance(result, pa.Table):
+                        pa_table = pa.concat_tables([pa_table, result])
+                    else:
+                        failed_ingestion.append(result)
 
-        logging.info(
-            "Completed converting %d files with config %s",
-            len(files),
-            config.config_type,
-        )
+            logging.info(
+                "Completed converting %d files with config %s",
+                len(files),
+                config.config_type,
+            )
 
-        logging.info("Writing Table to %s", export_bucket)
-        s3_filesystem = fs.S3FileSystem()
-        pq.write_to_dataset(
-            table=pa_table,
-            root_path=os.path.join(export_bucket, str(config.config_type)),
-            filesystem=s3_filesystem,
-            partition_cols=["year", "month", "day", "hour"],
-        )
+            logging.info("Writing Table to %s", export_bucket)
+            pq.write_to_dataset(
+                table=pa_table,
+                root_path=os.path.join(export_bucket, str(config.config_type)),
+                filesystem=s3_filesystem,
+                partition_cols=["year", "month", "day", "hour"],
+            )
 
     except (ConfigTypeFromFilenameException, NoImplException) as e:
         # if unable to determine config from filename, or not implemented yet,
