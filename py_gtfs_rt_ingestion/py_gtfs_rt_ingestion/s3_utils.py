@@ -3,6 +3,8 @@ import logging
 import os
 
 from collections.abc import Iterable
+from typing import IO
+from io import BytesIO
 
 import boto3
 
@@ -10,6 +12,25 @@ import boto3
 def get_s3_client() -> boto3.client:
     """Thin function needed for stubbing tests"""
     return boto3.client("s3")
+
+
+def get_zip_buffer(filename: str) -> tuple[IO[bytes], int]:
+    """
+    Get a buffer for a zip file from s3 so that it can be read by zipfile
+    module. filename is assumed to be the full path to the zip file without the
+    s3:// prefix. Return it along with the last modified date for this s3
+    object.
+    """
+    # inspired by
+    # https://betterprogramming.pub/unzip-and-gzip-incoming-s3-files-with-aws-lambda-f7bccf0099c9
+    (bucket, file) = filename.split("/", 1)
+    s3_resource = boto3.resource("s3")
+    zipped_file = s3_resource.Object(bucket_name=bucket, key=file)
+
+    return (
+        BytesIO(zipped_file.get()["Body"].read()),
+        zipped_file.get()["LastModified"].timestamp(),
+    )
 
 
 def file_list_from_s3(

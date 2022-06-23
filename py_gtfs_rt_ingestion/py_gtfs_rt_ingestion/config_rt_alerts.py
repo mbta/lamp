@@ -1,18 +1,13 @@
 import pyarrow
 
-from .config_base import ConfigDetail
-from .config_base import ConfigType
+from .gtfs_rt_detail import GTFSRTDetail
 
 
-class RtAlertsDetail(ConfigDetail):
+class RtAlertsDetail(GTFSRTDetail):
     """
     Detail for how to convert RT GTFS Alerts from json entries into parquet
     tables.
     """
-
-    @property
-    def config_type(self) -> ConfigType:
-        return ConfigType.RT_ALERTS
 
     @property
     def export_schema(self) -> pyarrow.schema:

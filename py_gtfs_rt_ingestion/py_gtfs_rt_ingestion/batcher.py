@@ -6,7 +6,7 @@ import json
 from collections.abc import Iterable
 from typing import List
 
-from .config_base import ConfigType
+from .converter import ConfigType
 from .error import (
     AWSException,
     ArgumentException,

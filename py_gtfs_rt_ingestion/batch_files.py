@@ -81,7 +81,7 @@ def parse_args(args: list[str]) -> dict:
         os.environ["INGEST_BUCKET"] = parsed_args.s3_bucket
         del event["s3_bucket"]
 
-    return vars(parser.parse_args(args))
+    return event
 
 
 def main(batch_args: BatchArgs) -> None:
@@ -118,7 +118,7 @@ def main(batch_args: BatchArgs) -> None:
     logging.info("Batched %d gigs across %d files", total_gigs, total_files)
 
     if batch_args.print_events:
-        print(json.dumps(events, indent=2))
+        logging.info(json.dumps(events, indent=2))
 
 
 def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
