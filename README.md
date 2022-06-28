@@ -1,164 +1,106 @@
-# lamp
+# LAMP
 Lightweight Application for Measuring Performance
 
-### Setup
+## Architecture
+![LAMP Architecture Diagram](architecture.jpg)
+[Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to
+Miro Diagram
 
-Run the following:
+### GTFS to Parquet
+Raw Real Time GTFS files are collected in an incoming S3 bucket and are
+populated by [Delta](https://github.com/mbta/delt), a small service that logs
+http files to the bucket configurably. A python based lambda collects all of the
+files in the incoming bucket and organizes them into batches of similar types.
+These batches are then processed by a second python based lambda that adds all
+of the data in each real time gtfs file into a single parquet file. These
+parquet files are then uploaded to a separate S3 bucket, with all processed
+files moved to an archive.
+
+The python module used for batching and conversions is located in
+`/py_gtfs_rt_ingestion/`, along with its tests and the scripts that are
+triggered in each of the lambda functions. This modules, its dependencies, and
+the scripts are zipped up together before being deployed to the lambda
+functions.
+
+#### Types of GTFS Files
+* Real Time Alerts
+* Real Time Bus Trip Updates
+* Real Time Bus Vehicle Positions
+* Real Time Trip Updates
+* Real Time Vehicle Count
+* Real Time Vehicle Positions
+* Schedule Data
+
+Information on the parquet table format for these file types can be found
+[here](parquet_schemas.md).
+
+### Parquet to Relational Database
+AWS Glue, or a similar service, will be used to concatenate and join the parquet
+files. This will create intermediate data representations that will be loaded
+into an RDS for low latency access.
+
+### Relational Database Analyzed in ECS
+The relational database of all the historical data will be analyzed via Elixir.
+
+
+## Developer Usage
+
+### Setup
+This repo uses [asdf](https://asdf-vm.com/) to mange runtime versions using the
+command line. Once its installed, run the following:
 ```sh
+# Add Plugins for Poetry and Python (needed by py_gtfs_rt_ingestion)
 asdf plugin-add poetry
 asdf plugin-add python
+
+# Install the correct versions of each plugin from .tool-versions
 asdf install
 ```
 
-## Import Schema
+Many of the pieces of this repo will require you to have permissions to access
+our S3 Buckets and trigger our dev instance lambda functions. First, install the
+[AWS Command Line Interface](https://aws.amazon.com/cli/). Then, from your AWS
+account,
+[create an AWS key](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds)
+to associate with your machine and configure your machine using `aws
+configure`. Finally, make sure your AWS Account is associated with the [Lamp
+Team](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213)
+User Group inside of the MBTA devops terraform repository.
 
-- https_cdn.mbta.com_realtime_VehiclePositions_enhanced
+### py_gtfs_rt_ingestion 
+Dependency management in this module is handled by [poetry](python-poetry.org),
+which is installed via asdf. It will create a virtual env with all of the
+projects dependencies in it with `poetry install`.
 
-    ```
-    entity: list<item: struct>
-        child 0, item: struct
-            child 0, id: string
-            child 1, vehicle: struct
-                child 0, current_status: string
-                child 1, current_stop_sequence: int64
-                child 2, occupancy_percentage: int64
-                child 3, occupancy_status: string
-                child 4, position: struct
-                    child 0, bearing: int64
-                    child 1, latitude: double
-                    child 2, longitude: double
-                    child 3, speed: double
-                child 5, stop_id: string
-                child 6, timestamp: int64
-                child 7, trip: struct
-                    child 0, direction_id: int64
-                    child 1, route_id: string
-                    child 2, schedule_relationship: string
-                    child 3, trip_id: string
-                    child 4, start_date: string
-                    child 5, start_time: string
-                child 8, vehicle: struct
-                    child 0, id: string
-                    child 1, label: string
-                    child 2, consist: list<item: struct>
-                        child 0, item: struct
-                            child 0, label: string
-    header: struct
-        child 0, gtfs_realtime_version: string
-        child 1, incrementality: string
-        child 2, timestamp: int64
-    ```
+There are two scripts at the top level of this directory used by the lambda
+functions and a third helper script.
 
-- https_cdn.mbta.com_realtime_TripUpdates_enhanced
-    ```
-    entity: list<item: struct>
-        child 0, item: struct
-            child 0, id: string
-            child 1, trip_update: struct
-                child 0, stop_time_update: list<item: struct>
-                    child 0, item: struct
-                        child 0, departure: struct
-                            child 0, time: int64
-                            child 1, uncertainty: int64
-                        child 1, stop_id: string
-                        child 2, stop_sequence: int64
-                        child 3, arrival: struct
-                            child 0, time: int64
-                            child 1, uncertainty: int64
-                        child 4, schedule_relationship: string
-                        child 5, boarding_status: string
-                child 1, timestamp: int64
-                child 2, trip: struct
-                    child 0, direction_id: int64
-                    child 1, route_id: string
-                    child 2, start_date: string
-                    child 3, start_time: string
-                    child 4, trip_id: string
-                    child 5, route_pattern_id: string
-                    child 6, schedule_relationship: string
-                child 3, vehicle: struct
-                    child 0, id: string
-                    child 1, label: string
-    header: struct
-        child 0, gtfs_realtime_version: string
-        child 1, incrementality: string
-        child 2, timestamp: int64
-    ```
+* `batch_files.py` - create batches of files to process out of an incoming bucket.
+  These batches can either be output as a list of lambda event dicts or the
+  ingestion lambda can be triggered directly.
+* `ingest.py` - create a parquet table out of the entries of a list of gtfs
+  files that are stored locally or on s3. s3 files are moved to an archive
+  bucket on successful conversion and an error bucket on failure. parquet tables
+  are saved to an outgoing bucket.
+* `dev_test_setup.py` - setup the s3 dev import, archive, error, and output
+  buckets to run end to end testing.
 
-- https_cdn.mbta.com_realtime_Alerts_enhanced
-    ```
-    header: struct
-        child 0, gtfs_realtime_version: string
-        child 1, incrementality: int64
-        child 2, timestamp: int64
-    entity: list<item: struct>
-        child 0, item: struct
-            child 0, id: string
-            child 1, alert: struct
-                child 0, effect: string
-                child 1, effect_detail: string
-                child 2, cause: string
-                child 3, cause_detail: string
-                child 4, header_text: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-                child 5, description_text: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-                child 6, severity_level: string
-                child 7, service_effect_text: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-                child 8, short_header_text: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-                child 9, severity: int64
-                child 10, created_timestamp: int64
-                child 11, last_modified_timestamp: int64
-                child 12, timeframe_text: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-                child 13, alert_lifecycle: string
-                child 14, duration_certainty: string
-                child 15, active_period: list<item: struct>
-                    child 0, item: struct
-                        child 0, start: int64
-                        child 1, end: int64
-                child 16, informed_entity: list<item: struct>
-                    child 0, item: struct
-                        child 0, stop_id: string
-                        child 1, facility_id: string
-                        child 2, activities: list<item: string>
-                            child 0, item: string
-                        child 3, agency_id: string
-                        child 4, route_type: int64
-                        child 5, route_id: string
-                        child 6, trip: struct
-                            child 0, route_id: string
-                            child 1, trip_id: string
-                            child 2, direction_id: int64
-                        child 7, direction_id: int64
-                child 17, url: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-                child 18, last_push_notification_timestamp: int64
-                child 19, reminder_times: list<item: int64>
-                    child 0, item: int64
-                child 20, recurrence_text: struct
-                    child 0, translation: list<item: struct>
-                        child 0, item: struct
-                            child 0, text: string
-                            child 1, language: string
-    ```
+To run these scripts, use `poetry shell` to spawn a shell within the virtual
+environment. They can then be run on the command line. See `--help` for more
+information.
+
+Run linting, type checking, static analysis, and tests (which all run on pull
+request) with:
+```sh
+# Run black for Formatting
+poetry run black .
+
+# Run mypy for Type Checking
+poetry run mypy .
+
+# Run pylint for Static Analysis
+poetry run pylint py_gtfs_ingestion tests *.py
+
+# Ru pytest to run unit tests
+poetry run pytest
+``
