@@ -313,3 +313,64 @@ def test_bus_vehicle_positions_file_conversion() -> None:
             assert upper == str(np_df[col].max())
         if lower != "nan":
             assert lower == str(np_df[col].min())
+
+
+def test_bus_trip_updates_file_conversion() -> None:
+    """
+    TODO - convert a dummy json data to parquet and check that the new file
+    matches expectations
+    """
+    rt_bus_trip_updates_file = os.path.join(
+        TEST_FILE_DIR,
+        "2022-06-28T10_03_18Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz",
+    )
+    config = Configuration(filename=rt_bus_trip_updates_file)
+
+    assert config.config_type == ConfigType.BUS_TRIP_UPDATES
+
+    table = gz_to_pyarrow(filename=rt_bus_trip_updates_file, config=config)
+    np_df = table.to_pandas()  # type: ignore
+
+    # tuple(na count, dtype, max, min)
+    file_details = {
+        "year": (0, "int16", "2022", "2022"),
+        "month": (0, "int8", "6", "6"),
+        "day": (0, "int8", "28", "28"),
+        "hour": (0, "int8", "10", "10"),
+        "feed_timestamp": (0, "int64", "1656410597", "1656410597"),
+        "entity_id": (
+            0,
+            "object",
+            "T86-136:86:52101511:495418",
+            "A19-16:19:52110036:495423",
+        ),
+        "stop_time_update": (0, "object", "nan", "nan"),
+        "direction_id": (157, "float64", "nan", "nan"),
+        "route_id": (0, "object", "93", "111"),
+        "route_pattern_id": (157, "object", "nan", "nan"),
+        "schedule_relationship": (0, "object", "SCHEDULED", "SCHEDULED"),
+        "start_date": (157, "object", "nan", "nan"),
+        "start_time": (157, "object", "nan", "nan"),
+        "trip_id": (0, "object", "52271793", "52017959"),
+        "vehicle_id": (145, "object", "nan", "nan"),
+        "vehicle_label": (145, "object", "nan", "nan"),
+    }
+
+    # 157 records in 'entity' for 2022-06-28T10_03_18Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz
+    assert np_df.shape == (157, len(config.export_schema))
+
+    all_expected_paths = set(file_details.keys())
+
+    # ensure all of the expected paths were found and there aren't any
+    # additional ones
+    assert all_expected_paths == set(np_df.columns)
+
+    # check file details
+    for col, (na_count, d_type, upper, lower) in file_details.items():
+        print(f"checking: {col}")
+        assert na_count == np_df[col].isna().sum()
+        assert d_type == np_df[col].dtype
+        if upper != "nan":
+            assert upper == str(np_df[col].max())
+        if lower != "nan":
+            assert lower == str(np_df[col].min())
