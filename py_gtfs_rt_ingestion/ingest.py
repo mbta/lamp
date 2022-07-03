@@ -6,28 +6,23 @@ import logging
 import os
 import sys
 
-from concurrent.futures import ThreadPoolExecutor
 from typing import Union
 
-import pyarrow as pa
 import pyarrow.parquet as pq
 
 from pyarrow import fs
 
 from py_gtfs_rt_ingestion import ArgumentException
-from py_gtfs_rt_ingestion import ConfigTypeFromFilenameException
-from py_gtfs_rt_ingestion import Configuration
+from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
-from py_gtfs_rt_ingestion import NoImplException
-from py_gtfs_rt_ingestion import gz_to_pyarrow
+from py_gtfs_rt_ingestion import get_converter
 from py_gtfs_rt_ingestion import move_s3_objects
 
 logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
-POOL_SIZE = 4
 
 
 def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
@@ -88,7 +83,7 @@ def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
 
 def main(files: list[str]) -> None:
     """
-    * Convert a list of json files from s3 to a parquet table
+    * Convert a list of files from s3 to a parquet table
     * Write the table out to s3
     * Archive processed json files to archive s3 bucket
     * Move files that generated error to error s3 bucket
@@ -106,56 +101,43 @@ def main(files: list[str]) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
-    logging.info(
-        "Creating pool with %d threads, %d cores available",
-        POOL_SIZE,
-        os.cpu_count(),
-    )
-
-    # list of files to move to error bucket to be inspected and processed later
-    failed_ingestion = []
+    archive_files = []
+    error_files = []
 
     try:
-        config = Configuration(filename=files[0])
+        config_type = ConfigType.from_filename(files[0])
+        converter = get_converter(config_type)
 
-        pa_table = pa.table(config.empty_table(), schema=config.export_schema)
-
-        with ThreadPoolExecutor(max_workers=POOL_SIZE) as executor:
-            for result in executor.map(
-                lambda x: gz_to_pyarrow(*x), [(f, config) for f in files]
-            ):
-                if isinstance(result, pa.Table):
-                    pa_table = pa.concat_tables([pa_table, result])
-                else:
-                    failed_ingestion.append(result)
-
-        logging.info(
-            "Completed converting %d files with config %s",
-            len(files),
-            config.config_type,
-        )
-
-        logging.info("Writing Table to %s", export_bucket)
+        # filesystem to use when writing parquet files
         s3_filesystem = fs.S3FileSystem()
-        pq.write_to_dataset(
-            table=pa_table,
-            root_path=os.path.join(export_bucket, str(config.config_type)),
-            filesystem=s3_filesystem,
-            partition_cols=["year", "month", "day", "hour"],
-        )
 
-    except (ConfigTypeFromFilenameException, NoImplException) as e:
+        for s3_prefix, table in converter.convert(files):
+            s3_path = os.path.join(export_bucket, s3_prefix)
+            logging.info("Writing Table to %s", s3_path)
+            pq.write_to_dataset(
+                table=table,
+                root_path=s3_path,
+                filesystem=s3_filesystem,
+                partition_cols=converter.partition_cols,
+            )
+
+        archive_files = converter.archive_files
+        error_files = converter.error_files
+
+    except Exception as e:
         # if unable to determine config from filename, or not implemented yet,
         # all files are marked as failed ingestion
-        logging.error(e)
-        failed_ingestion = files
+        logging.error("Encountered An Error Converting Files")
+        logging.exception(e)
+        archive_files = []
+        error_files = files
 
-    if len(failed_ingestion) > 0:
-        logging.warning("Unable to process %d files", len(failed_ingestion))
-        move_s3_objects(failed_ingestion, error_bucket)
+    finally:
+        if len(error_files) > 0:
+            move_s3_objects(error_files, error_bucket)
 
-    files_to_archive = list(set(files) - set(failed_ingestion))
-    move_s3_objects(files_to_archive, archive_bucket)
+        if len(archive_files) > 0:
+            move_s3_objects(archive_files, archive_bucket)
 
 
 def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:

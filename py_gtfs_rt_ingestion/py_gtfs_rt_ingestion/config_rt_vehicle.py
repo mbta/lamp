@@ -1,18 +1,13 @@
 import pyarrow
 
-from .config_base import ConfigDetail
-from .config_base import ConfigType
+from .gtfs_rt_detail import GTFSRTDetail
 
 
-class RtVehicleDetail(ConfigDetail):
+class RtVehicleDetail(GTFSRTDetail):
     """
     Detail for how to convert RT GTFS Vehicle Positions from json entries into
     parquet tables.
     """
-
-    @property
-    def config_type(self) -> ConfigType:
-        return ConfigType.RT_VEHICLE_POSITIONS
 
     @property
     def export_schema(self) -> pyarrow.schema:

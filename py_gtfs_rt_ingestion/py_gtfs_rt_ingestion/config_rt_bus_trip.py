@@ -1,18 +1,13 @@
 import pyarrow
 
-from .config_base import ConfigDetail
-from .config_base import ConfigType
+from .gtfs_rt_detail import GTFSRTDetail
 
 
-class RtBusTripDetail(ConfigDetail):
+class RtBusTripDetail(GTFSRTDetail):
     """
     Detail for how to convert RT GTFS Trip Updates from json entries into
     parquet tables.
     """
-
-    @property
-    def config_type(self) -> ConfigType:
-        return ConfigType.BUS_TRIP_UPDATES
 
     @property
     def export_schema(self) -> pyarrow.schema:
