@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 
+from datetime import datetime, timezone
 from typing import NamedTuple
 
 from py_gtfs_rt_ingestion import ArgumentException
@@ -95,8 +96,14 @@ def main(batch_args: BatchArgs) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
+    # filter out records created since the start of the current hour.
+    now = datetime.now(tz=timezone.utc)
+    start_of_hour = now.replace(minute=0, second=0, microsecond=0)
+
     file_list = file_list_from_s3(
-        bucket_name=s3_bucket, file_prefix=batch_args.s3_prefix
+        bucket_name=s3_bucket,
+        file_prefix=batch_args.s3_prefix,
+        until=start_of_hour,
     )
 
     total_bytes = 0

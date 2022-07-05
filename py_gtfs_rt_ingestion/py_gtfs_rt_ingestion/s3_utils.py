@@ -3,6 +3,7 @@ import logging
 import os
 
 from collections.abc import Iterable
+from datetime import datetime
 from typing import IO
 from io import BytesIO
 
@@ -34,18 +35,22 @@ def get_zip_buffer(filename: str) -> tuple[IO[bytes], int]:
 
 
 def file_list_from_s3(
-    bucket_name: str, file_prefix: str
+    bucket_name: str, file_prefix: str, until: datetime = None
 ) -> Iterable[tuple[str, int]]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 
     :param bucket_name: the name of the bucket to look inside of
     :param file_prefix: prefix for files to generate
+    :param until: filter out any files modified after this datetime
 
     :yield filename, filesize tuples from inside of the bucket
     """
     logging.info(
-        "Getting files with prefix %s from %s", file_prefix, bucket_name
+        'Getting files with prefix "%s" from %s%s',
+        file_prefix,
+        bucket_name,
+        f"until {until}" if until else "",
     )
     s3_client = get_s3_client()
     paginator = s3_client.get_paginator("list_objects_v2")
@@ -53,9 +58,12 @@ def file_list_from_s3(
     for page in pages:
         if page["KeyCount"] == 0:
             continue
+
         for obj in page["Contents"]:
             uri = os.path.join("s3://", bucket_name, obj["Key"])
-            logging.debug(uri)
+            logging.debug("URI %s last modified %s", uri, obj["LastModified"])
+            if until is not None and obj["LastModified"] > until:
+                continue
             yield (uri, obj["Size"])
 
 
