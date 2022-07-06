@@ -140,7 +140,7 @@ class GtfsRtConverter(Converter):
             # skip files that have been generated after the start of the current
             # hour. don't add them to archive or error so that they are picked
             # up next go around.
-            if timestamp > self.start_of_hour:
+            if timestamp >= self.start_of_hour:
                 logging.debug("skipping %s", filename)
                 return None
 
