@@ -2,7 +2,7 @@ import json
 import logging
 import os
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
@@ -54,6 +54,11 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusTripDetail()
         else:
             raise NoImplException(f"No Specialization for {config_type}")
+
+        # get the start of the current hour. any files written after this will
+        # not be ingested until the next go around.
+        now = datetime.now(tz=timezone.utc)
+        self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
 
     def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
         pa_table = pyarrow.table(
@@ -130,7 +135,14 @@ class GtfsRtConverter(Converter):
 
             # parse timestamp info out of the header
             feed_timestamp = json_data["header"]["timestamp"]
-            timestamp = datetime.utcfromtimestamp(feed_timestamp)
+            timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
+
+            # skip files that have been generated after the start of the current
+            # hour. don't add them to archive or error so that they are picked
+            # up next go around.
+            if timestamp > self.start_of_hour:
+                logging.debug("skipping %s", filename)
+                return None
 
             # for each entity in the list, create a record, add it to the table
             for entity in json_data["entity"]:
@@ -154,7 +166,7 @@ class GtfsRtConverter(Converter):
         except Exception as exception:
             logging.error("Error converting %s", filename)
             logging.exception(exception)
-            self.archive_files.append(filename)
+            self.error_files.append(filename)
             return None
 
     @property
