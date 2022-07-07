@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from pyarrow import fs
@@ -9,20 +10,45 @@ from py_gtfs_rt_ingestion import ConfigType
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 
-def test_bad_conversion() -> None:
+def test_bad_conversion_local() -> None:
     """
-    test that bad filenames are returned back as the same strings. (these
-    filepaths are going to be moved from incoming to error.)
+    test that a bad filename will result in an empty table and the filename will
+    be added to the error files list
     """
     # dummy config to avoid mypy errors
     converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS)
 
-    bad_return = converter.gz_to_pyarrow(filename="badfile")
-    assert bad_return is None
+    # convert should still return a single element list of prefix, table tuple
+    tables = converter.convert(["badfile"])
+    assert len(tables) == 1
 
+    # archive files should be empty, error files should have the bad file in it
+    assert len(converter.archive_files) == 0
+    assert converter.error_files == ["badfile"]
+
+    # get the table and ensure its empty
+    _, table = tables[0]
+    assert table.num_rows == 0
+
+
+def test_bad_conversion_s3() -> None:
+    """
+    test that a bad s3 filename will result in an empty table and the filename
+    will be added to the error files list
+    """
+    converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS)
     with patch("pyarrow.fs.S3FileSystem", return_value=fs.LocalFileSystem):
-        bad_return = converter.gz_to_pyarrow(filename="s3://badfile")
-    assert bad_return is None
+        tables = converter.convert(["s3://badfile"])
+
+    assert len(tables) == 1
+
+    # archive files should be empty, error files should have the bad file in it
+    assert len(converter.archive_files) == 0
+    assert converter.error_files == ["s3://badfile"]
+
+    # get the table and ensure its empty
+    _, table = tables[0]
+    assert table.num_rows == 0
 
 
 def test_empty_files() -> None:
@@ -52,17 +78,19 @@ def test_vehicle_positions_file_conversion() -> None:
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    rt_vehicle_positions_file = os.path.join(
+    gtfs_rt_file = os.path.join(
         TEST_FILE_DIR,
         "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
     )
-    config_type = ConfigType.from_filename(rt_vehicle_positions_file)
+    config_type = ConfigType.from_filename(gtfs_rt_file)
     converter = GtfsRtConverter(config_type)
 
     assert converter.config_type == ConfigType.RT_VEHICLE_POSITIONS
 
-    tables = converter.convert([rt_vehicle_positions_file])
+    tables = converter.convert([gtfs_rt_file])
     assert len(tables) == 1
+    assert converter.archive_files == [gtfs_rt_file]
+    assert len(converter.error_files) == 0
 
     prefix, table = tables[0]
     assert prefix == str(config_type)
@@ -123,17 +151,19 @@ def test_rt_alert_file_conversion() -> None:
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    alerts_file = os.path.join(
+    gtfs_rt_file = os.path.join(
         TEST_FILE_DIR,
         "2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz",
     )
 
-    config_type = ConfigType.from_filename(alerts_file)
+    config_type = ConfigType.from_filename(gtfs_rt_file)
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.RT_ALERTS
 
-    tables = converter.convert([alerts_file])
+    tables = converter.convert([gtfs_rt_file])
     assert len(tables) == 1
+    assert converter.archive_files == [gtfs_rt_file]
+    assert len(converter.error_files) == 0
 
     prefix, table = tables[0]
     assert prefix == str(config_type)
@@ -197,17 +227,19 @@ def test_rt_trip_file_conversion() -> None:
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    trip_updates_file = os.path.join(
+    gtfs_rt_file = os.path.join(
         TEST_FILE_DIR,
         "2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz",
     )
 
-    config_type = ConfigType.from_filename(trip_updates_file)
+    config_type = ConfigType.from_filename(gtfs_rt_file)
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.RT_TRIP_UPDATES
 
-    tables = converter.convert([trip_updates_file])
+    tables = converter.convert([gtfs_rt_file])
     assert len(tables) == 1
+    assert converter.archive_files == [gtfs_rt_file]
+    assert len(converter.error_files) == 0
 
     prefix, table = tables[0]
     assert prefix == str(config_type)
@@ -261,17 +293,19 @@ def test_bus_vehicle_positions_file_conversion() -> None:
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    rt_bus_vehicle_positions_file = os.path.join(
+    gtfs_rt_file = os.path.join(
         TEST_FILE_DIR,
         "2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz",
     )
 
-    config_type = ConfigType.from_filename(rt_bus_vehicle_positions_file)
+    config_type = ConfigType.from_filename(gtfs_rt_file)
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.BUS_VEHICLE_POSITIONS
 
-    tables = converter.convert([rt_bus_vehicle_positions_file])
+    tables = converter.convert([gtfs_rt_file])
     assert len(tables) == 1
+    assert converter.archive_files == [gtfs_rt_file]
+    assert len(converter.error_files) == 0
 
     prefix, table = tables[0]
     assert prefix == str(config_type)
@@ -342,17 +376,19 @@ def test_bus_trip_updates_file_conversion() -> None:
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    rt_bus_trip_updates_file = os.path.join(
+    gtfs_rt_file = os.path.join(
         TEST_FILE_DIR,
         "2022-06-28T10_03_18Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz",
     )
 
-    config_type = ConfigType.from_filename(rt_bus_trip_updates_file)
+    config_type = ConfigType.from_filename(gtfs_rt_file)
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.BUS_TRIP_UPDATES
 
-    tables = converter.convert([rt_bus_trip_updates_file])
+    tables = converter.convert([gtfs_rt_file])
     assert len(tables) == 1
+    assert converter.archive_files == [gtfs_rt_file]
+    assert len(converter.error_files) == 0
 
     prefix, table = tables[0]
     assert prefix == str(config_type)
@@ -402,3 +438,53 @@ def test_bus_trip_updates_file_conversion() -> None:
             assert upper == str(np_df[col].max())
         if lower != "nan":
             assert lower == str(np_df[col].min())
+
+
+def test_start_of_hour() -> None:
+    """
+    test that the start of hour member is set correctly and will filter out gtfs
+    rt files when converting
+    """
+    gtfs_rt_file_1 = os.path.join(
+        TEST_FILE_DIR,
+        "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
+    )
+
+    gtfs_rt_file_2 = os.path.join(
+        TEST_FILE_DIR,
+        "2022-07-05T12:35:16Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
+    )
+
+    config_type = ConfigType.from_filename(gtfs_rt_file_1)
+    converter = GtfsRtConverter(config_type)
+
+    # check that start of hour has not minutes, seconmds, or microseconds
+    assert converter.start_of_hour.minute == 0
+    assert converter.start_of_hour.second == 0
+    assert converter.start_of_hour.microsecond == 0
+    assert converter.start_of_hour.tzinfo == timezone.utc
+
+    # set start of hour to a time between 2022-07-05 and 2022-01-01
+    converter.start_of_hour = datetime(
+        year=2022, month=4, day=1, tzinfo=timezone.utc
+    )
+
+    # convert the list of files into a table
+    tables = converter.convert([gtfs_rt_file_1, gtfs_rt_file_2])
+
+    # check that only the first file was archived and error files are empty
+    assert converter.archive_files == [gtfs_rt_file_1]
+    assert len(converter.error_files) == 0
+
+    # access the table and assert that the datetime information is for the
+    # expected month and day
+    assert len(tables) == 1
+    _, table = tables[0]
+
+    month_column = table.column("month")
+    for month in month_column:
+        assert month.as_py() == 1
+
+    day_column = table.column("day")
+    for day in day_column:
+        assert day.as_py() == 1
