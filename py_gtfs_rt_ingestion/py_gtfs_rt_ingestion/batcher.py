@@ -61,6 +61,16 @@ class Batch:
             "files": self.filenames,
         }
 
+    def event_size_over_limit(self) -> bool:
+        """
+        Returns True if event size is over limit of 245kb, otherwise False
+        """
+        event_size_kb = sys.getsizeof(json.dumps(self.create_event())) / 1000
+        if event_size_kb >= 245:
+            logging.info("Event size of %d kb is over limit.", event_size_kb)
+            return True
+        return False
+
 
 def batch_files(
     files: Iterable[tuple[str, int]], threshold: int
@@ -102,7 +112,7 @@ def batch_files(
         # additional request overhead and measurement inaccuracy
         if (
             batch.total_size + int(size) > threshold
-            or sys.getsizeof(json.dumps(batch.create_event())) >= 245 * 1_000
+            or batch.event_size_over_limit()
         ) and len(batch.filenames) > 0:
             logging.info(batch)
             yield batch
