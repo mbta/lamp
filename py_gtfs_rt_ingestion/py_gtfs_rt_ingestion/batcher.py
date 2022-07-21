@@ -43,6 +43,11 @@ class Batch:
         convert them into a parquette file.
         """
         try:
+            logging.info(
+                "Invoking Ingestion Lambda (%.4f mb %s files)",
+                self.total_size / 1000000,
+                len(self.filenames),
+            )
             function_arn = os.environ["INGEST_FUNCTION_ARN"]
             invoke_async_lambda(
                 function_arn=function_arn, event=self.create_event()
