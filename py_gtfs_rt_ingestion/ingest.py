@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 
-from typing import Union
+from typing import Dict, Union
 
 import pyarrow.parquet as pq
 
@@ -19,6 +19,7 @@ from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import get_converter
 from py_gtfs_rt_ingestion import move_s3_objects
+from py_gtfs_rt_ingestion import unpack_filenames
 
 logging.getLogger().setLevel("INFO")
 
@@ -81,7 +82,7 @@ def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
     return {"files": [(parsed_args.input_file)]}
 
 
-def main(files: list[str]) -> None:
+def main(event: Dict) -> None:
     """
     * Convert a list of files from s3 to a parquet table
     * Write the table out to s3
@@ -101,6 +102,7 @@ def main(files: list[str]) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
+    files = unpack_filenames(**event)
     archive_files = []
     error_files = []
 
@@ -153,7 +155,14 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
 
     expected event structure is
     {
-        files: [file_name_1, file_name_2, ...],
+        prefix: "common_prefix_to_all_files",
+        suffix: "common_suffix_to_all_files",
+        filespaths: [
+            "unique_1",
+            "unique_2",
+            ...
+            "unique_n"
+        ]
     }
     where S3 files will begin with 's3://'
 
@@ -164,8 +173,7 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     logging.info("Context:%s", context)
 
     try:
-        files = event["files"]
-        main(files)
+        main(event)
     except Exception as exception:
         # log if something goes wrong and let lambda recatch the exception
         logging.exception(exception)
