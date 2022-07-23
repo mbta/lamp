@@ -3,7 +3,7 @@ import logging
 import os
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, cast
 from concurrent.futures import ThreadPoolExecutor
 
 import pyarrow
@@ -18,9 +18,6 @@ from .config_rt_bus_vehicle import RtBusVehicleDetail
 from .config_rt_bus_trip import RtBusTripDetail
 from .config_rt_trip import RtTripDetail
 from .config_rt_vehicle import RtVehicleDetail
-
-
-POOL_SIZE = 4
 
 
 class GtfsRtConverter(Converter):
@@ -65,13 +62,19 @@ class GtfsRtConverter(Converter):
             self.detail.empty_table(), schema=self.detail.export_schema
         )
 
+        # this is the default pool size for a ThreadPoolExecutor as of py3.8
+        cpu_count = cast(
+            int, os.cpu_count() if os.cpu_count() is not None else 1
+        )
+        pool_size = min(32, cpu_count + 4)
+
         logging.info(
             "Creating pool with %d threads, %d cores available",
-            POOL_SIZE,
+            pool_size,
             os.cpu_count(),
         )
 
-        with ThreadPoolExecutor(max_workers=POOL_SIZE) as executor:
+        with ThreadPoolExecutor(max_workers=pool_size) as executor:
             for result in executor.map(self.gz_to_pyarrow, files):
                 if result is not None:
                     pa_table = pyarrow.concat_tables([pa_table, result])
