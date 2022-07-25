@@ -4,7 +4,7 @@ import sys
 import json
 
 from collections.abc import Iterable
-from typing import List
+from typing import List, Tuple
 
 from .converter import ConfigType
 from .error import (
@@ -23,8 +23,11 @@ class Batch:
 
     def __init__(self, config_type: ConfigType) -> None:
         self.config_type = config_type
-        self.filenames: List[str] = []
         self.total_size = 0
+
+        self.prefix = ""
+        self.suffix = ""
+        self.filenames: List[str] = []
 
     def __str__(self) -> str:
         return (
@@ -34,7 +37,25 @@ class Batch:
 
     def add_file(self, filename: str, filesize: int) -> None:
         """Add a file to this batch"""
-        self.filenames.append(filename)
+        if (
+            self.prefix != ""
+            and filename.startswith(self.prefix)
+            and filename.endswith(self.suffix)
+        ):
+            filename = filename.removeprefix(self.prefix)
+            filename = filename.removesuffix(self.suffix)
+            self.filenames.append(filename)
+
+        else:
+            full_filenames = unpack_filenames(
+                prefix=self.prefix, suffix=self.suffix, filenames=self.filenames
+            )
+            full_filenames.append(filename)
+
+            self.prefix, self.suffix, self.filenames = compress_filenames(
+                full_filenames
+            )
+
         self.total_size += filesize
 
     def trigger_lambda(self) -> None:
@@ -63,7 +84,9 @@ class Batch:
         ingestion lambda
         """
         return {
-            "files": self.filenames,
+            "prefix": self.prefix,
+            "suffix": self.suffix,
+            "filenames": self.filenames,
         }
 
     def event_size_over_limit(self) -> bool:
@@ -75,6 +98,70 @@ class Batch:
             logging.info("Event size of %d kb is over limit.", event_size_kb)
             return True
         return False
+
+
+def compress_filenames(filenames: List[str]) -> Tuple[str, str, List[str]]:
+    """
+    compress a list of filenames into a dict with the prefix, suffix, and list
+    of unique components
+    """
+    if len(filenames) == 0:
+        return ("", "", [])
+
+    def longest_common(filenames: List[str], prefix: bool = True) -> str:
+        """
+        get the longest start or end string common to all files in filenames
+        """
+        first_file = filenames[0]
+
+        def get_stem(i: int) -> str:
+            """get the 0->ith or ith->-1 string from first_file"""
+            if prefix:
+                return first_file[:i]
+            # if suffix
+            return first_file[-i:]
+
+        def is_common(file: str, stem: str) -> bool:
+            """do all files start or end with this string"""
+            if prefix:
+                return file.startswith(stem)
+            # if suffix
+            return file.endswith(stem)
+
+        result = ""
+
+        for i in range(1, len(first_file)):
+            stem = get_stem(i)
+
+            for file in filenames:
+                if not is_common(file, stem):
+                    return result
+
+            result = stem
+
+        return result
+
+    prefix = longest_common(filenames=filenames, prefix=True)
+    filenames = [file.removeprefix(prefix) for file in filenames]
+
+    suffix = longest_common(filenames=filenames, prefix=False)
+    filenames = [file.removesuffix(suffix) for file in filenames]
+
+    return (prefix, suffix, filenames)
+
+
+def unpack_filenames(
+    prefix: str, suffix: str, filenames: List[str]
+) -> List[str]:
+    """
+    convert a compressed dict of directories and filenames into a list of
+    filenames for ingestion
+    """
+    combined = []
+    for unique in filenames:
+        combined.append(prefix + unique + suffix)
+
+    return combined
 
 
 def batch_files(

@@ -3,8 +3,9 @@ import logging
 import os
 
 from collections.abc import Iterable
-from typing import IO
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+from typing import IO, cast
 
 import boto3
 
@@ -78,6 +79,42 @@ def invoke_async_lambda(function_arn: str, event: dict) -> None:
     )
 
 
+def _move_s3_object(filename: str, destination: str) -> None:
+    # filename is expected as 's3://my_bucket/the/path/to/the/file.json
+    try:
+        s3_client = get_s3_client()
+        logging.info("Moving %s to %s", filename, destination)
+
+        # trim off leading s3://
+        copy_key = filename.replace("s3://", "")
+        logging.debug("copy key 0: %s", copy_key)
+
+        # string before first delimiter is the bucket name
+        source = copy_key.split("/")[0]
+        logging.debug("source %s", source)
+
+        # trim off bucket name
+        copy_key = copy_key.replace(f"{source}/", "")
+        logging.debug("copy key 1: %s", copy_key)
+
+        # json args for cop
+        copy_source = {
+            "Bucket": source,
+            "Key": copy_key,
+        }
+        logging.debug("Copying")
+        s3_client.copy(copy_source, destination, copy_key)
+
+        # delete the source object
+        logging.debug("Deleting")
+        s3_client.delete_object(**copy_source)
+    except Exception as e:
+        logging.error("Unable to move %s to %s", filename, destination)
+        logging.exception(e)
+    else:
+        logging.info("Moved %s to %s", filename, destination)
+
+
 def move_s3_objects(file_list: list[str], destination: str) -> None:
     """
     Move list of S3 objects from source to destination.
@@ -88,40 +125,19 @@ def move_s3_objects(file_list: list[str], destination: str) -> None:
 
     No return value.
     """
-    s3_client = get_s3_client()
     destination = destination.split("/")[0]
-    logging.info("Moving %s files to %s", len(file_list), destination)
 
-    for filename in file_list:
-        # filename is expected as 's3://my_bucket/the/path/to/the/file.json
-        try:
-            logging.info("Moving %s to %s", filename, destination)
+    # this is the default pool size for a ThreadPoolExecutor as of py3.8
+    cpu_count = cast(int, os.cpu_count() if os.cpu_count() is not None else 1)
+    pool_size = min(32, cpu_count + 4)
 
-            # trim off leading s3://
-            copy_key = filename.replace("s3://", "")
-            logging.debug("copy key 0: %s", copy_key)
+    logging.info(
+        "Moving %s files to %s using %d threads",
+        len(file_list),
+        destination,
+        pool_size,
+    )
 
-            # string before first delimiter is the bucket name
-            source = copy_key.split("/")[0]
-            logging.debug("source %s", source)
-
-            # trim off bucket name
-            copy_key = copy_key.replace(f"{source}/", "")
-            logging.debug("copy key 1: %s", copy_key)
-
-            # json args for cop
-            copy_source = {
-                "Bucket": source,
-                "Key": copy_key,
-            }
-            logging.debug("Copying")
-            s3_client.copy(copy_source, destination, copy_key)
-
-            # delete the source object
-            logging.debug("Deleting")
-            s3_client.delete_object(**copy_source)
-        except Exception as e:
-            logging.error("Unable to move %s to %s", filename, destination)
-            logging.exception(e)
-        else:
-            logging.info("Moved %s to %s", filename, destination)
+    with ThreadPoolExecutor(max_workers=pool_size) as executor:
+        for filename in file_list:
+            executor.submit(_move_s3_object, filename, destination)
