@@ -80,9 +80,17 @@ def invoke_async_lambda(function_arn: str, event: dict) -> None:
 
 
 def _move_s3_object(filename: str, destination: str) -> None:
-    # filename is expected as 's3://my_bucket/the/path/to/the/file.json
+    """
+    move a single s3 file to the destination bucket. break the incoming s3 path
+    intco parts that are used for copying. each execution will spin up a session
+    and get a resource from that session to avoid threading issues.
+
+    :param filename - expected as 's3://my_bucket/the/path/to/the/file.json
+    :param destination bucket name
+    """
     try:
-        s3_client = get_s3_client()
+        session = boto3.session.Session()
+        s3_resource = session.resource("s3")
         logging.info("Moving %s to %s", filename, destination)
 
         # trim off leading s3://
@@ -98,16 +106,21 @@ def _move_s3_object(filename: str, destination: str) -> None:
         logging.debug("copy key 1: %s", copy_key)
 
         # json args for cop
-        copy_source = {
-            "Bucket": source,
-            "Key": copy_key,
-        }
+        destination_bucket = s3_resource.Bucket(destination)
+        destination_object = destination_bucket.Object(copy_key)
         logging.debug("Copying")
-        s3_client.copy(copy_source, destination, copy_key)
+        destination_object.copy(
+            {
+                "Bucket": source,
+                "Key": copy_key,
+            }
+        )
 
         # delete the source object
+        source_bucket = s3_resource.Bucket(source)
+        source_object = source_bucket.Object(copy_key)
         logging.debug("Deleting")
-        s3_client.delete_object(**copy_source)
+        source_object.delete()
     except Exception as e:
         logging.error("Unable to move %s to %s", filename, destination)
         logging.exception(e)
