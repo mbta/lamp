@@ -35,13 +35,10 @@ Information on the parquet table format for these file types can be found
 [here](parquet_schemas.md).
 
 ### Parquet to Relational Database
-AWS Glue, or a similar service, will be used to concatenate and join the parquet
-files. This will create intermediate data representations that will be loaded
-into an RDS for low latency access.
-
-### Relational Database Analyzed in ECS
-The relational database of all the historical data will be analyzed via Elixir.
-
+Parquet files are analyzed by the Performance Manager application to compare
+static schedule data with the real time positioning of vehicles in the field.
+The application is run inside of python3.9 image described in a Dockerfile,
+executing code found in the performance_manager directory.
 
 ## Developer Usage
 
@@ -103,4 +100,31 @@ poetry run pylint py_gtfs_ingestion tests *.py
 
 # Ru pytest to run unit tests
 poetry run pytest
-``
+```
+
+### performance manager
+The Dockerfile describing the PerformanceManager image and the
+docker-compose.yml file used for local testing are both found in the root
+directory. The docker compose will build a postgres db and a performance manager
+image. The configuration for the database is found in `.env` located in the root
+directory.
+
+To build and images and stand up containers of each, from the root directory:
+```sh
+docker-compose up --build
+```
+
+To login into database:
+```sh
+# assuming `docker-compose up`, open up the image in bash
+docker exec -it local_rds bash
+
+# log into to the database named in `.env` using the username also in `.env`
+psql -U <db_user> -d <db_name>
+```
+
+To run a performance manager script:
+```sh
+# assuming `docker-compose up`
+docker-compose run --rm performance_manager python thing_to_run.py
+```

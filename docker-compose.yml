@@ -1,0 +1,26 @@
+
+version: '3'
+
+services:
+
+  local_rds:
+    container_name: local_rds
+    image: postgres:13.4
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+
+  performance_manager:
+    container_name: performance_manager
+    env_file: .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - local_rds 
+    working_dir: /performance_manager
+    volumes:
+      - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
