@@ -12,6 +12,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
+    command: ["postgres", "-c", "log_statement=all"]
 
   performance_manager:
     container_name: performance_manager

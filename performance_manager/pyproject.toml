@@ -12,10 +12,17 @@ boto3 = "^1.23.3"
 pandas = "^1.4.3"
 numpy = "^1.23.1"
 psycopg2 = "^2.9.3"
+SQLAlchemy = "^1.4.39"
 
 [tool.poetry.dev-dependencies]
 notebook = "^6.4.12"
+black = "^22.3.0"
+
+[tool.black]
+line-length = 80
+target-version = ['py39']
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
