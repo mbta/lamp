@@ -6,9 +6,9 @@ from .postgres_utils import (
     get_local_engine,
     get_experimental_engine,
     SqlBase,
-    StaticSubHeadway
+    StaticSubHeadway,
 )
 
-from .static_schedule import process_all_static_schedules
+from .static_schedule import process_static_schedule
 
 __version__ = "0.1.0"

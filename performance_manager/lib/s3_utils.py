@@ -1,12 +1,21 @@
-import pyarrow.parquet as pq
-from pyarrow import fs
-from collections.abc import Iterable
-import boto3
 import logging
 import os
+from collections.abc import Iterable
+from typing import Optional, List, Tuple, Union
+
+import boto3
+import pandas
+import pyarrow.parquet as pq
+from pyarrow import fs
 
 
-def read_parquet(filename, filters=None):
+def read_parquet(
+    filename: str,
+    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+) -> pandas.core.frame.DataFrame:
+    """
+    read a parquet file from s3 and return it as a pandas dataframe
+    """
     active_fs = fs.S3FileSystem()
     file_to_load = str(filename).replace("s3://", "")
 
@@ -38,6 +47,9 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[str]:
         if page["KeyCount"] == 0:
             continue
         for obj in page["Contents"]:
+            # skip if this object is a "directory"
+            if obj["Size"] == 0:
+                continue
             uri = os.path.join("s3://", bucket_name, obj["Key"])
             logging.debug(uri)
             yield uri
