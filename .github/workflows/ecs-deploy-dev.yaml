@@ -4,7 +4,9 @@ on:
   workflow_run:
     workflows: ["ECS CI"]
     types: [completed]
-    branches: [main]
+    branches:
+      - main
+      - ecs-deploy-test
   workflow_dispatch:
 
 jobs:

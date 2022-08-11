@@ -2,7 +2,9 @@ name: ECS CI
 
 on:
   push:
-    branches: main
+    branches:
+      - main
+      - ecs-deploy-test
     paths:
       - 'performance_manager/**'
   pull_request:
