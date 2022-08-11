@@ -12,10 +12,45 @@ boto3 = "^1.23.3"
 pandas = "^1.4.3"
 numpy = "^1.23.1"
 psycopg2 = "^2.9.3"
+SQLAlchemy = "^1.4.39"
 
 [tool.poetry.dev-dependencies]
 notebook = "^6.4.12"
+black = "^22.3.0"
+mypy = "^0.971"
+pylint = "^2.14.5"
+sqlalchemy-stubs = "^0.4"
+pytest = "^7.1.2"
+
+[tool.black]
+line-length = 80
+target-version = ['py39']
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pylint]
+disable = [
+  # disable doc string requirements
+  "missing-module-docstring",
+  # allow catching a generic exception
+  "broad-except",
+  # caught by black
+  "line-too-long",
+]
+good-names = ["e", "i"]
+max-line-length = 80
+min-similarity-lines = 10
+# ignore session maker as it gives pylint fits
+# https://github.com/PyCQA/pylint/issues/7090
+ignored-classes = ['sqlalchemy.orm.session.sessionmaker' ]
+
+[tool.mypy]
+python_version = 3.9
+ignore_missing_imports = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_unreachable = true
+pretty = true
+plugins = "sqlmypy"
