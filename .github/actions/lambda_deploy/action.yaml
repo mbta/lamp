@@ -1,4 +1,4 @@
-name: Deploy
+name: Lambda Deploy
 description: Deploys new Lambda function code
 inputs:
   aws-access-key-id:
@@ -20,14 +20,16 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/deps
+    - uses: ./.github/actions/poetry_deps
+      with:
+        poetry-dir: py_gtfs_rt_ingestion
 
     - name: Create build folder
       working-directory: py_gtfs_rt_ingestion
       run: |
-        poetry build 
-        poetry run pip install --upgrade -t package dist/*.whl 
-        cp -v batch_files.py package/batch_files.py 
+        poetry build
+        poetry run pip install --upgrade -t package dist/*.whl
+        cp -v batch_files.py package/batch_files.py
         cp -v ingest.py package/ingest.py
       shell: bash
 

@@ -1,0 +1,26 @@
+name: Set up dependencies
+description: Loads poetry dependencies for a CI/CD job, install them if not cached
+inputs:
+  poetry-dir:
+    description: Directory containing poetry project
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/tools
+
+    - uses: actions/cache@v2
+      id: poetry-cache
+      with:
+        path: | 
+          ~/.cache/pypoetry
+          **/${{ inputs.poetry-dir }}/.venv
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/${{ inputs.poetry-dir }}/poetry.lock') }}
+
+    - name: Install Poetry dependencies
+      working-directory: ${{ inputs.poetry-dir }}
+      run: |
+        poetry install -v 
+      shell: bash
+      if: "!steps.poetry-cache.outputs.cache-hit"
