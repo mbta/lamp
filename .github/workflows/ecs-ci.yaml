@@ -1,0 +1,60 @@
+name: ECS CI
+
+on:
+  push:
+    branches:
+      - main
+      - ecs-deploy-test
+    paths:
+      - 'performance_manager/**'
+  pull_request:
+    paths:
+      - 'performance_manager/**'
+
+defaults:
+  run:
+    shell: bash
+    working-directory: performance_manager
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: performance_manager
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: performance_manager
+      - run: poetry run black . --check
+
+  typing:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: performance_manager
+      - run: poetry run mypy .
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: performance_manager
+      - run: poetry run pylint *.py lib/ tests/

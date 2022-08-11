@@ -1,8 +1,8 @@
-name: Deploy to Dev
+name: Deploy Lambda to Dev
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["Lambda CI"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deploy
+      - uses: ./.github/actions/lambda_deploy
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

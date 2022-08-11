@@ -1,9 +1,13 @@
-name: CI
+name: Lambda CI
 
 on:
   push:
     branches: main
+    paths:
+      - 'py_gtfs_rt_ingestion/**'
   pull_request:
+    paths:
+      - 'py_gtfs_rt_ingestion/**'
 
 defaults:
   run:
@@ -16,7 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deps
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: py_gtfs_rt_ingestion
 
   deploy:
     name: Dry-Deploy
@@ -24,7 +30,7 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deploy
+      - uses: ./.github/actions/lambda_deploy
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -37,7 +43,9 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deps
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: py_gtfs_rt_ingestion
       - run: poetry run black . --check
 
   typing:
@@ -46,7 +54,9 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deps
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: py_gtfs_rt_ingestion
       - run: poetry run mypy .
 
   lint:
@@ -55,7 +65,9 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deps
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: py_gtfs_rt_ingestion
       - run: poetry run pylint *.py py_gtfs_rt_ingestion/ tests/
 
   tests:
@@ -64,7 +76,9 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/deps
+      - uses: ./.github/actions/poetry_deps
+        with:
+          poetry-dir: py_gtfs_rt_ingestion
       - run: poetry run pytest
 
  
