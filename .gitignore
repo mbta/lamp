@@ -8,6 +8,7 @@ erl_crash.dump
 *.beam
 /config/*.secret.exs
 .elixir_ls/
+/performance_manager/test.db
 
 
 __pycache__
