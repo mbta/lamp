@@ -108,8 +108,8 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     timestamp_end = sa.Column(sa.Integer, nullable=False)
     direction_id = sa.Column(sa.SmallInteger, nullable=True)
     route_id = sa.Column(sa.String(60), nullable=True)
-    start_date = sa.Column(sa.SmallInteger, nullable=True)
-    start_time = sa.Column(sa.SmallInteger, nullable=True)
+    start_date = sa.Column(sa.Integer, nullable=True)
+    start_time = sa.Column(sa.Integer, nullable=True)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     hash = sa.Column(sa.BigInteger, nullable=False)
     updated_on = sa.Column(
