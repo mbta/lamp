@@ -46,7 +46,10 @@ def get_experimental_engine(
     database to be stood up. great for testing from within the shell.
     """
     engine = sa.create_engine(
-        "sqlite+pysqlite:///:memory:", echo=echo, future=True
+        "sqlite+pysqlite:///./test.db",
+        echo=echo,
+        future=True
+        # "sqlite+pysqlite:///:memory:", echo=echo, future=True
     )
     return engine
 
@@ -90,3 +93,32 @@ class StaticSubHeadway(SqlBase):  # pylint: disable=too-few-public-methods
     def __repr__(self) -> str:
         """this is just a helper string for debugging."""
         return f"( id='{self.id}', trip_id='{self.trip_id}', arrival_time='{self.arrival_time}', departure_time='{self.departure_time}', stop_id='{self.stop_id}', stop_sequence='{self.stop_sequence}', pickup_type='{self.pickup_type}', drop_off_type='{self.drop_off_type}', timepoint='{self.timepoint}', checkpoint_id='{self.checkpoint_id}', route_type='{self.route_type}', route_id='{self.route_id}', service_id='{self.service_id}', direction_id='{self.direction_id}', parent_station='{self.parent_station}', departure_time_sec='{self.departure_time_sec}', prev_departure_time_sec='{self.prev_departure_time_sec}', head_way='{self.head_way}')"
+
+
+class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for GTFS-RT Vehicle Position Events"""
+
+    __tablename__ = "eventsVehiclePositions"
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    current_status = sa.Column(sa.Integer, nullable=False)
+    current_stop_sequence = sa.Column(sa.Integer, nullable=True)
+    stop_id = sa.Column(sa.String(60), nullable=True)
+    timestamp_start = sa.Column(sa.Integer, nullable=False)
+    timestamp_end = sa.Column(sa.Integer, nullable=False)
+    direction_id = sa.Column(sa.Integer, nullable=True)
+    route_id = sa.Column(sa.String(60), nullable=True)
+    start_date = sa.Column(sa.Integer, nullable=True)
+    start_time = sa.Column(sa.Integer, nullable=True)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
+    hash = sa.Column(sa.Integer, nullable=False)
+
+
+class MetadataLog(SqlBase):
+    """Table for keeping track of parquet files in S3"""
+
+    __tablename__ = "metadataLog"
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    processed = sa.Column(sa.Boolean, default=False)
+    path = sa.Column(sa.String(256), nullable=False, unique=True)

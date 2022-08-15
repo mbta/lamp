@@ -10,17 +10,20 @@ from pyarrow import fs
 
 
 def read_parquet(
-    filename: str,
+    filename: Union[str, List[str]],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
 ) -> pandas.core.frame.DataFrame:
     """
-    read a parquet file from s3 and return it as a pandas dataframe
+    read parquet file or files from s3 and return it as a pandas dataframe
     """
     active_fs = fs.S3FileSystem()
-    file_to_load = str(filename).replace("s3://", "")
+    if isinstance(filename, list):
+        to_load = [f.replace("s3://", "") for f in filename]
+    else:
+        to_load = [filename.replace("s3://", "")]
 
     pandas_dataframe = (
-        pq.ParquetDataset(file_to_load, filesystem=active_fs, filters=filters)
+        pq.ParquetDataset(to_load, filesystem=active_fs, filters=filters)
         .read_pandas()
         .to_pandas()
     )
