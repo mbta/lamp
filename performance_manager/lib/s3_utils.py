@@ -11,6 +11,7 @@ from pyarrow import fs
 
 def read_parquet(
     filename: Union[str, List[str]],
+    columns: Union[List[str], slice] = slice(None),
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
 ) -> pandas.core.frame.DataFrame:
     """
@@ -22,13 +23,12 @@ def read_parquet(
     else:
         to_load = [filename.replace("s3://", "")]
 
-    pandas_dataframe = (
+    return (
         pq.ParquetDataset(to_load, filesystem=active_fs, filters=filters)
         .read_pandas()
         .to_pandas()
+        .loc[:, columns]
     )
-
-    return pandas_dataframe
 
 
 def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[str]:

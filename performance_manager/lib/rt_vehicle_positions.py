@@ -6,10 +6,7 @@ import sqlalchemy
 import re
 import datetime
 
-from sqlalchemy import select
-from sqlalchemy import update
-from sqlalchemy import insert
-from sqlalchemy import delete
+import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from typing import Optional
@@ -37,7 +34,7 @@ def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
         "vehicle_id",
     ]
 
-    return read_parquet(to_load).loc[:, vehicle_position_cols]
+    return read_parquet(to_load, columns=vehicle_position_cols)
 
 
 def start_time_to_seconds(
@@ -58,9 +55,10 @@ def transform_vp_dtyes(df: pandas.DataFrame) -> pandas.DataFrame:
     column datatypes
     """
     # current_staus: 1 = MOVING, 0 = STOPPED_AT
-    df["current_status"] = numpy.where(
-        df["current_status"] != "STOPPED_AT", 1, 0
-    ).astype(numpy.byte)
+    df["is_moving"] = numpy.where(
+        df["current_status"] != "STOPPED_AT", True, False
+    ).astype(numpy.bool8)
+    df = df.drop(columns=["current_status"])
 
     # store start_date as Int64 [nullable] instead of string
     df["start_date"] = pandas.to_numeric(df["start_date"]).astype("Int64")
@@ -129,7 +127,7 @@ def transform_vp_timestamps(df: pandas.DataFrame) -> pandas.DataFrame:
     drop_last_mask = df["hash"] - df["hash"].shift(1) != 0
     df = df.loc[drop_last_mask, :].reset_index(drop=True)
 
-    df.insert(0, "id", numpy.nan)
+    df.insert(0, "pk_id", numpy.nan)
 
     # fill all dataframe na values with Python None (for DB writing)
     df = df.fillna(numpy.nan).replace([numpy.nan], [None])
@@ -165,9 +163,9 @@ def merge_vehicle_position_events(
     start_window_ts = get_utc_timestamp(folder)
     timestamp_to_pull_min = start_window_ts - 300
     timestamp_to_pull_max = start_window_ts + 300 + 3600
-    get_db_events = select(
+    get_db_events = sa.select(
         (
-            VehiclePositionEvents.id,
+            VehiclePositionEvents.pk_id,
             VehiclePositionEvents.hash,
             VehiclePositionEvents.timestamp_start,
             VehiclePositionEvents.timestamp_end,
@@ -210,11 +208,11 @@ def merge_vehicle_position_events(
     )
 
     existing_was_updated_mask = (
-        ~(merge_events["id"].isna()) & first_of_consecutive_events
+        ~(merge_events["pk_id"].isna()) & first_of_consecutive_events
     )
 
     existing_to_del_mask = (
-        ~(merge_events["id"].isna()) & last_of_consecutive_events
+        ~(merge_events["pk_id"].isna()) & last_of_consecutive_events
     )
 
     logging.info(
@@ -226,28 +224,30 @@ def merge_vehicle_position_events(
     new events that will be inserted into db table
     """
     new_to_insert_mask = (
-        merge_events["id"].isna()
+        merge_events["pk_id"].isna()
     ) & ~last_of_consecutive_events
     logging.info(f"Size of new insert df: {new_to_insert_mask.sum():,}")
 
     """
     new events that were used to update existing records, will not be used
     """
-    new_to_drop_mask = (merge_events["id"].isna()) & last_of_consecutive_events
+    new_to_drop_mask = (
+        merge_events["pk_id"].isna()
+    ) & last_of_consecutive_events
     logging.info(f"Size of new being dropped df: {new_to_drop_mask.sum():,}")
 
     """
     DB UPDATE operation
     """
     if existing_was_updated_mask.sum() > 0:
-        update_db_events = update(VehiclePositionEvents.__table__).where(
-            VehiclePositionEvents.id == sqlalchemy.bindparam("temp_id")
+        update_db_events = sa.update(VehiclePositionEvents.__table__).where(
+            VehiclePositionEvents.pk_id == sqlalchemy.bindparam("b_pk_id")
         )
         with session.begin() as s:  # type: ignore
             s.execute(
                 update_db_events,
-                merge_events.rename(columns={"id": "temp_id"})
-                .loc[existing_was_updated_mask, ["temp_id", "timestamp_end"]]
+                merge_events.rename(columns={"pk_id": "b_pk_id"})
+                .loc[existing_was_updated_mask, ["b_pk_id", "timestamp_end"]]
                 .to_dict(orient="records"),
             )
 
@@ -255,9 +255,9 @@ def merge_vehicle_position_events(
     DB DELETE operation
     """
     if existing_to_del_mask.sum() > 0:
-        delete_db_events = delete(VehiclePositionEvents.__table__).where(
-            VehiclePositionEvents.id.in_(
-                merge_events.loc[existing_to_del_mask, "id"]
+        delete_db_events = sa.delete(VehiclePositionEvents.__table__).where(
+            VehiclePositionEvents.pk_id.in_(
+                merge_events.loc[existing_to_del_mask, "pk_id"]
             )
         )
         with session.begin() as s:  # type: ignore
@@ -267,10 +267,10 @@ def merge_vehicle_position_events(
     DB INSERT operation
     """
     if new_to_insert_mask.sum() > 0:
-        insert_cols = list(set(merge_events.columns) - {"id"})
+        insert_cols = list(set(merge_events.columns) - {"pk_id"})
         with session.begin() as s:  # type: ignore
             s.execute(
-                insert(VehiclePositionEvents.__table__),
+                sa.insert(VehiclePositionEvents.__table__),
                 merge_events.loc[new_to_insert_mask, insert_cols].to_dict(
                     orient="records"
                 ),

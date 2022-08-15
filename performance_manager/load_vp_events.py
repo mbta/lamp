@@ -8,10 +8,7 @@ import pathlib
 
 from typing import List
 
-import sqlalchemy
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from lib import (
@@ -208,9 +205,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-def get_db_engine(
-    experimental: bool, seed: bool
-) -> sqlalchemy.orm.sessionmaker:
+def get_db_engine(experimental: bool, seed: bool) -> sa.orm.sessionmaker:
     """
     create database orm objects, return engine for db operations
     """
@@ -226,7 +221,7 @@ def get_db_engine(
 
     if seed:
         with db_session.begin() as cur:  # type: ignore
-            cur.execute(insert(MetadataLog.__table__), LOAD_PATHS)
+            cur.execute(sa.insert(MetadataLog.__table__), LOAD_PATHS)
             cur.commit()
 
     return db_session
@@ -243,8 +238,8 @@ if __name__ == "__main__":
     pull list of objects that need processing from metadata table
     group objects by similar hourly folders
     """
-    read_md_log = select((MetadataLog.id, MetadataLog.path)).where(
-        MetadataLog.processed == 0
+    read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+        MetadataLog.processed == False
     )
     with session.begin() as s:  # type: ignore
         paths_to_load: dict[str, dict[str, list]] = {}
@@ -255,10 +250,9 @@ if __name__ == "__main__":
             paths_to_load[path.parent]["ids"].append(path_id)
             paths_to_load[path.parent]["paths"].append(str(path))
 
-    # for folder in list(paths_to_load.keys())[:2]:
-    for folder in paths_to_load.keys():
-        ids = paths_to_load[folder]["ids"]
-        paths = paths_to_load[folder]["paths"]
+    for folder, folder_data in paths_to_load.items():
+        ids = folder_data["ids"]
+        paths = folder_data["paths"]
 
         try:
             new_events = get_vp_dataframe(paths)
@@ -281,8 +275,8 @@ if __name__ == "__main__":
             logging.exception(e)
         else:
             update_md_log = (
-                update(MetadataLog.__table__)
-                .where(MetadataLog.id.in_(ids))
+                sa.update(MetadataLog.__table__)
+                .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
             with session.begin() as s:  # type: ignore
