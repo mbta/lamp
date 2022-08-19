@@ -1,7 +1,7 @@
 import logging
 import os
 from collections.abc import Iterable
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List, Tuple, Union, Sequence
 
 import boto3
 import pandas
@@ -12,7 +12,7 @@ from pyarrow import fs
 def read_parquet(
     filename: Union[str, List[str]],
     columns: Union[List[str], slice] = slice(None),
-    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
 ) -> pandas.core.frame.DataFrame:
     """
     read parquet file or files from s3 and return it as a pandas dataframe

@@ -15,6 +15,7 @@ from typing import List
 
 from .s3_utils import read_parquet
 from .postgres_utils import VehiclePositionEvents
+from .gtfs_utils import start_time_to_seconds
 
 
 def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -35,18 +36,6 @@ def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
     ]
 
     return read_parquet(to_load, columns=vehicle_position_cols)
-
-
-def start_time_to_seconds(
-    time: Optional[str],
-) -> Optional[float]:
-    """
-    transform time string in HH:MM:SS format to seconds integer
-    """
-    if time is None:
-        return time
-    (hour, min, sec) = time.split(":")
-    return int(hour) * 3600 + int(min) * 60 + int(sec)
 
 
 def transform_vp_dtyes(df: pandas.DataFrame) -> pandas.DataFrame:

@@ -117,6 +117,27 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
 
+class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for GTFS-RT Trip Update Predicted Stop Events"""
+
+    __tablename__ = "eventsTripUpdates"
+
+    pk_id = sa.Column(sa.Integer, primary_key=True)
+    is_moving = sa.Column(sa.Boolean)
+    stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
+    stop_id = sa.Column(sa.String(60), nullable=True)
+    timestamp_start = sa.Column(sa.Integer, nullable=False)
+    direction_id = sa.Column(sa.SmallInteger, nullable=True)
+    route_id = sa.Column(sa.String(60), nullable=True)
+    start_date = sa.Column(sa.Integer, nullable=True)
+    start_time = sa.Column(sa.Integer, nullable=True)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
+    hash = sa.Column(sa.BigInteger, nullable=False)
+    updated_on = sa.Column(
+        sa.DateTime, server_default=sa.func.now(), server_onupdate=sa.func.now()
+    )
+
+
 class MetadataLog(SqlBase):
     """Table for keeping track of parquet files in S3"""
 
