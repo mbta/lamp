@@ -1,9 +1,8 @@
 import logging
 import datetime
 import re
-import pathlib
 
-from typing import Dict, List, Union
+from typing import List, Union
 
 import numpy
 import pandas
@@ -11,7 +10,11 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
-from .postgres_utils import VehiclePositionEvents, MetadataLog
+from .postgres_utils import (
+    VehiclePositionEvents,
+    MetadataLog,
+    get_unprocessed_files,
+)
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 
 
@@ -291,23 +294,7 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
     """
 
     # check metadata table for unprocessed parquet files
-    paths_to_load: Dict[str, Dict[str, List]] = {}
-    try:
-        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
-            (MetadataLog.processed == sa.false())
-            & (MetadataLog.path.contains("RT_VEHICLE_POSITIONS"))
-        )
-        with sql_session.begin() as session:  # type: ignore
-            for path_id, path in session.execute(read_md_log):
-                path = pathlib.Path(path)
-                if path.parent not in paths_to_load:
-                    paths_to_load[path.parent] = {"ids": [], "paths": []}
-                paths_to_load[path.parent]["ids"].append(path_id)
-                paths_to_load[path.parent]["paths"].append(str(path))
-
-    except Exception as e:
-        logging.error("Error searching for unprocessed events")
-        logging.exception(e)
+    paths_to_load = get_unprocessed_files("RT_VEHICLE_POSITIONS", sql_session)
 
     for folder, folder_data in paths_to_load.items():
         ids = folder_data["ids"]

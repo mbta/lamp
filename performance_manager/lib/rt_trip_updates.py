@@ -1,7 +1,6 @@
 from typing import Optional, Union, List, Dict, Any
 
 import logging
-import pathlib
 import pandas
 import numpy
 
@@ -10,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
-from .postgres_utils import TripUpdateEvents, MetadataLog
+from .postgres_utils import TripUpdateEvents, MetadataLog, get_unprocessed_files
 
 
 def get_tu_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -228,19 +227,7 @@ def process_trip_updates(sql_session: sessionmaker) -> None:
     """
 
     # pull list of objects that need processing from metadata table
-    # group objects by similar hourly folders
-    read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
-        (MetadataLog.processed == sa.false())
-        & (MetadataLog.path.contains("RT_TRIP_UPDATES"))
-    )
-    with sql_session.begin() as cursor:  # type: ignore
-        paths_to_load: dict[str, dict[str, list]] = {}
-        for path_id, path in cursor.execute(read_md_log):
-            path = pathlib.Path(path)
-            if path.parent not in paths_to_load:
-                paths_to_load[path.parent] = {"ids": [], "paths": []}
-            paths_to_load[path.parent]["ids"].append(path_id)
-            paths_to_load[path.parent]["paths"].append(str(path))
+    paths_to_load = get_unprocessed_files("RT_TRIP_UPDATES", sql_session)
 
     for folder_data in paths_to_load.values():
         ids = folder_data["ids"]

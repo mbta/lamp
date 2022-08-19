@@ -1,8 +1,9 @@
 import logging
 import os
+import pathlib
 import urllib.parse
 
-from typing import Any
+from typing import Any, Dict, List
 
 import sqlalchemy as sa
 from sqlalchemy.engine import URL as DbUrl  # type: ignore
@@ -181,3 +182,28 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
         server_onupdate=sa.func.now(),
     )
     created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
+def get_unprocessed_files(
+    path_contains: str, sql_session: sessionmaker
+) -> Dict[str, Dict[str, List]]:
+    """check metadata table for unprocessed parquet files"""
+    paths_to_load: Dict[str, Dict[str, List]] = {}
+    try:
+        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+            (MetadataLog.processed == sa.false())
+            & (MetadataLog.path.contains(path_contains))
+        )
+        with sql_session.begin() as session:  # type: ignore
+            for path_id, path in session.execute(read_md_log):
+                path = pathlib.Path(path)
+                if path.parent not in paths_to_load:
+                    paths_to_load[path.parent] = {"ids": [], "paths": []}
+                paths_to_load[path.parent]["ids"].append(path_id)
+                paths_to_load[path.parent]["paths"].append(str(path))
+
+    except Exception as e:
+        logging.error("Error searching for unprocessed events")
+        logging.exception(e)
+
+    return paths_to_load
