@@ -38,8 +38,10 @@ disable = [
   "broad-except",
   # caught by black
   "line-too-long",
+  # we're logging everything so its "ok"
+  "lost-exception"
 ]
-good-names = ["e", "i"]
+good-names = ["e", "i", "s"]
 max-line-length = 80
 min-similarity-lines = 10
 # ignore session maker as it gives pylint fits
@@ -53,4 +55,7 @@ disallow_untyped_defs = true
 warn_unused_ignores = true
 warn_unreachable = true
 pretty = true
-plugins = "sqlmypy"
+plugins = [
+  "sqlalchemy.ext.mypy.plugin"
+]
+

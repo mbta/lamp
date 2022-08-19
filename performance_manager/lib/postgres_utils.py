@@ -1,10 +1,14 @@
 import logging
 import os
+import pathlib
 import urllib.parse
+
+from typing import Any, Dict, List
 
 import sqlalchemy as sa
 from sqlalchemy.engine import URL as DbUrl  # type: ignore
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 
 def get_local_engine(
@@ -61,7 +65,33 @@ def get_aws_engine() -> sa.future.engine.Engine:  # type: ignore
     # TODO(zap) - figure out how to connect to the AWS RDS for Writing
 
 
-SqlBase = declarative_base()
+# Setup the base class that all of the SQL objects will inherit from.
+#
+# Note that the typing hint is required to be set at Any for mypy to be cool
+# with it being a base class. This should be fixed with SQLAlchemy2.0
+#
+# For more context:
+# https://docs.sqlalchemy.org/en/14/orm/extensions/mypy.html
+# https://github.com/python/mypy/issues/2477
+SqlBase: Any = declarative_base()
+
+
+def write_from_dict(
+    input_dictionary: dict,
+    sql_session: sessionmaker,
+    destination_table: sa.Table,
+) -> None:
+    """
+    try to write a dict to a table. if experimental, use the testing engine,
+    else use the local one.
+    """
+    try:
+        with sql_session.begin() as session:  # type: ignore
+            session.execute(sa.insert(destination_table), input_dictionary)
+            session.commit()
+    except Exception as e:
+        logging.error("Error Writing Dataframe to Database")
+        logging.exception(e)
 
 
 class StaticSubHeadway(SqlBase):  # pylint: disable=too-few-public-methods
@@ -152,3 +182,26 @@ class MetadataLog(SqlBase):
         server_onupdate=sa.func.now(),
     )
     created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
+def unprocessed_files(sql_session: sessionmaker) -> Dict[str, Dict[str, List]]:
+    """check metadata table for unprocessed parquet files"""
+    paths_to_load: Dict[str, Dict[str, List]] = {}
+    try:
+        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+            MetadataLog.processed == sa.false()
+        )
+        with sql_session.begin() as session:  # type: ignore
+            for path_id, path in session.execute(read_md_log):
+                path = pathlib.Path(path)
+                if path.parent not in paths_to_load:
+                    paths_to_load[path.parent] = {"ids": [], "paths": []}
+                paths_to_load[path.parent]["ids"].append(path_id)
+                paths_to_load[path.parent]["paths"].append(str(path))
+
+    except Exception as e:
+        logging.error("Error searching for unprocessed events")
+        logging.exception(e)
+
+    finally:
+        return paths_to_load
