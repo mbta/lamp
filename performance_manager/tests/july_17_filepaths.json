@@ -127,5 +127,146 @@
     },
     {
         "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_VEHICLE_POSITIONS/year=2022/month=7/day=20/hour=9/6635c9551e4b4c2ca64152bd167f751a-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=0/1733d119787145b587c5c9f4af43a02d-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=0/fce9108288f04479aff70c081e3acf30-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=1/14e07765d4ff4a33b400953ca2da2c4d-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=1/d3d6db70652743159d5d24b5051d757a-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=10/47a636842b5e4bcea154c340afd58057-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=10/eab3a7efffde425c8e67a932446f18ea-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=11/7b850e0e47f241ee87d51106503350f9-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=11/cf6e87f217174852837bc9afaa710792-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=11/f4ca565afda04b7e9dcc664281951e23-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=12/03ca995e759d4ce88204ecfd45815716-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=12/ca207bde306c40acaaca1239e3555e89-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=12/f7fc557f7a054e6ca1196be70426ad7a-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=13/1e3a711acbba4121bcf8526fb9326743-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=13/ab690b41f0754960bbd42300ccb0e220-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=14/d790604b2e1041e987c1767fb8a74771-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=14/e73679d77c4d4313b30239c6ef51bebe-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=15/44367e09024b49eb97ca0c4e99195c39-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=15/fbac0a48ef9f441b9eaf991bbaa1eaad-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=16/c94e957cd8774b85b7eb9672c5953767-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=16/e1f43187fb2b4b0abc34c2fdbab5e700-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=17/441d89f362784a578bd7aea72922a5cf-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=17/e1a0196e7a6240b78c9f611d63fbb187-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=18/6b18de85256348b295630fbf037d37b5-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=18/ce8a07e4673346598e1cae73dc886984-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=19/0e6d5601f6ab4a9a9cf67d52cf024972-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=19/4b94ac45fb9c4e78982e59de8d505b21-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=19/74ab2292e9984228ac76830dacdaa13c-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=2/3f40ae92cb4b409b9c2cef2c508be664-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=2/cebaedd9d049417eb45927201406895c-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=20/e518307356794fdc9afd14612234f855-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=20/fb5467b9824f4bb4a270be7dfcf73421-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=21/3fecebe2ad1a45cbad0905eabb8b2534-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=21/a8b249a876bb4e089ad1160e3b1b202c-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=21/f4d388a2d3c940a89ed0adfc16124656-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=22/59aa2a7d968d475f82d1c8a786ee4a25-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=22/b65e396d3fae410fb501e3c407c0ac6d-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=22/c4a35213b339420c89bda2200e788b9c-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=23/baa85730a36246b8af21ae0a7451166f-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=23/c87b0470716d48c7a0c56c098e632486-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=3/5369683ec2c2421b8da7641f1daacf20-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=4/ac92d57edf0147b38ac3dd418348752f-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=5/04afafa9f4e8445e9dab609260e14155-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=6/a6483b20d5834506bc3a71ac1cf7ba67-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=7/1f35b00d7f3a4071a46ed9dfd5e918ac-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=8/742625a8e3314dad91f9ffa89fc0e5d7-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=9/b42bd83b4f324724823e8c5853cc9a5b-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=9/d7794b75821241afbd116c4040334e28-0.parquet"
     }
 ]

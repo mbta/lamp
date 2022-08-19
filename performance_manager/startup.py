@@ -19,7 +19,7 @@ from lib import (
     get_experimental_engine,
     get_local_engine,
     process_vehicle_positions,
-    unprocessed_files,
+    process_trip_updates,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -125,8 +125,8 @@ def main(args: argparse.Namespace) -> None:
         """function to invoke on a scheduled routine"""
         logging.info("Entering Iteration")
 
-        paths = unprocessed_files(sql_session)
-        process_vehicle_positions(paths, sql_session)
+        process_vehicle_positions(sql_session)
+        process_trip_updates(sql_session)
 
         scheduler.enter(int(args.interval), 1, iteration)
 
