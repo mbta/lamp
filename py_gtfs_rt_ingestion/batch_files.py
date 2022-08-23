@@ -14,6 +14,7 @@ from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
+from py_gtfs_rt_ingestion import load_environment
 
 
 logging.getLogger().setLevel("INFO")
@@ -45,14 +46,6 @@ def parse_args(args: list[str]) -> dict:
     )
 
     parser.add_argument(
-        "--s3-bucket",
-        dest="s3_bucket",
-        type=str,
-        default="mbta-gtfs-s3",
-        help="prefix to files in the mbta-gtfs-s3 bucket",
-    )
-
-    parser.add_argument(
         "--threshold",
         dest="filesize_threshold",
         type=int,
@@ -74,14 +67,7 @@ def parse_args(args: list[str]) -> dict:
         help="print out each event as json to stdout",
     )
 
-    parsed_args = parser.parse_args(args)
-    event = vars(parsed_args)
-
-    if parsed_args.s3_bucket is not None:
-        os.environ["INGEST_BUCKET"] = parsed_args.s3_bucket
-        del event["s3_bucket"]
-
-    return event
+    return vars(parser.parse_args(args))
 
 
 def main(batch_args: BatchArgs) -> None:
@@ -157,6 +143,7 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
 
 
 if __name__ == "__main__":
+    load_environment()
     parsed_event = parse_args(sys.argv[1:])
     parsed_context = LambdaContext()
     lambda_handler(parsed_event, parsed_context)

@@ -8,9 +8,9 @@ import sys
 
 from typing import Dict, Union
 
-import pyarrow.parquet as pq
-
+import pyarrow.dataset as ds
 from pyarrow import fs
+from pyarrow.util import guid
 
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import ConfigType
@@ -18,6 +18,8 @@ from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import get_converter
+from py_gtfs_rt_ingestion import insert_metadata
+from py_gtfs_rt_ingestion import load_environment
 from py_gtfs_rt_ingestion import move_s3_objects
 from py_gtfs_rt_ingestion import unpack_filenames
 
@@ -46,32 +48,7 @@ def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
         help="lambda event json file",
     )
 
-    parser.add_argument(
-        "--export", dest="export_dir", type=str, help="where to export to"
-    )
-
-    parser.add_argument(
-        "--archive",
-        dest="archive_dir",
-        type=str,
-        help="where to archive ingested files to",
-    )
-
-    parser.add_argument(
-        "--error",
-        dest="error_dir",
-        type=str,
-        help="where to move unconverted files to",
-    )
-
     parsed_args = parser.parse_args(args)
-
-    if parsed_args.export_dir is not None:
-        os.environ["EXPORT_BUCKET"] = parsed_args.export_dir
-    if parsed_args.archive_dir is not None:
-        os.environ["ARCHIVE_BUCKET"] = parsed_args.archive_dir
-    if parsed_args.error_dir is not None:
-        os.environ["ERROR_BUCKET"] = parsed_args.error_dir
 
     if parsed_args.event_json is not None:
         with open(parsed_args.event_json, encoding="utf8") as event_json_file:
@@ -110,18 +87,41 @@ def main(event: Dict) -> None:
         config_type = ConfigType.from_filename(files[0])
         converter = get_converter(config_type)
 
-        # filesystem to use when writing parquet files
-        s3_filesystem = fs.S3FileSystem()
-
         for s3_prefix, table in converter.convert(files):
+            # output path is the springboard bucket plus the filetype
             s3_path = os.path.join(export_bucket, s3_prefix)
-            logging.info("Writing Table to %s", s3_path)
-            pq.write_to_dataset(
-                table=table,
-                root_path=s3_path,
-                filesystem=s3_filesystem,
-                partition_cols=converter.partition_cols,
+
+            # generate partitioning for this table write based on what columns
+            # we expect to be able to partition out for this input type
+            partitioning = ds.partitioning(
+                table.select(converter.partition_cols).schema, flavor="hive"
             )
+
+            # function to run on written files. pyarrow doesn't export type.
+            def post_processing(written_file) -> None:  # type: ignore
+                """
+                file run after each parquet file is wrtten out. log a statent
+                with the filepath and then add it to the metadata table in the
+                performance manager postgres db
+                """
+                logging.info(
+                    "Writing Parquet File. filepath=%s",
+                    written_file.path,
+                )
+                insert_metadata(written_file.path)
+
+            ds.write_dataset(
+                data=table,
+                base_dir=s3_path,
+                filesystem=fs.S3FileSystem(),
+                format=ds.ParquetFileFormat(),
+                partitioning=partitioning,
+                file_visitor=post_processing,
+                basename_template=guid() + "-{i}.parquet",
+                existing_data_behavior="overwrite_or_ignore",
+            )
+
+        logging.info("wrote parquet files")
 
         archive_files = converter.archive_files
         error_files = converter.error_files
@@ -181,6 +181,7 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
 
 
 if __name__ == "__main__":
+    load_environment()
     parsed_events = parse_args(sys.argv[1:])
     empty_context = LambdaContext()
 
