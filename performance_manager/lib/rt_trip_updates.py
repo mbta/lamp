@@ -1,6 +1,9 @@
 from typing import Optional, Union, List, Dict, Any
+from queue import SimpleQueue, Empty
 
 import logging
+import threading
+import psutil
 import pandas
 import numpy
 
@@ -59,6 +62,9 @@ def explode_stop_time_update(row: pandas.Series) -> Optional[List[dict]]:
             arrival_time = int(record["arrival"]["time"])
         except (TypeError, KeyError):
             continue
+        # filter out stop event predictions that are too far into the future
+        # and are unlikel to be used as a final stop event prediction
+        # (2 minutes) or predictions that go into the past (negative values)
         if (
             arrival_time - row["timestamp"] < 0
             or arrival_time - row["timestamp"] > 120
@@ -77,6 +83,22 @@ def explode_stop_time_update(row: pandas.Series) -> Optional[List[dict]]:
         return None
 
     return return_list
+
+
+def log_memory_usage(complete_queue: SimpleQueue, interval: int = 5) -> None:
+    """
+    log current amount of system memory used every 'interval' seconds
+    to be used in thread to measure work during high memory operation
+    """
+    while True:
+        mb_memory_used = int(psutil.virtual_memory().used / 1_000_000)
+        logging.info("%d MB of memory currently used", mb_memory_used)
+        try:
+            complete_queue.get(timeout=interval)
+        except Empty:
+            continue
+        else:
+            break
 
 
 def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
@@ -102,9 +124,20 @@ def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
         events["start_time"].apply(start_time_to_seconds).astype("int64")
     )
 
+    # start thread to log memory usage during apply operation
+    complete_queue: SimpleQueue = SimpleQueue()
+    log_thread = threading.Thread(
+        target=log_memory_usage, args=(complete_queue,)
+    )
+    log_thread.start()
+
     # expand and filter stop_time_update column
     # this will return a Series with values being list of dicts
     events = events.apply(explode_stop_time_update, axis=1).dropna()
+
+    # send signal to stop memory usage logging and join thread
+    complete_queue.put(True)
+    log_thread.join()
 
     # transform Series of list of dicts into dataframe
     events = pandas.json_normalize(events.explode())

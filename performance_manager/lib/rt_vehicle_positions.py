@@ -54,13 +54,14 @@ def transform_vp_dtyes(vehicle_positions: pandas.DataFrame) -> pandas.DataFrame:
         vehicle_positions["start_date"]
     ).astype("Int64")
 
-    # store current_stop_sequence as stop_sequence Int64 [nullable]
-    vehicle_positions["stop_sequence"] = pandas.to_numeric(
-        vehicle_positions["current_stop_sequence"]
-    ).astype("Int64")
-    vehicle_positions = vehicle_positions.drop(
-        columns=["current_stop_sequence"]
+    # rename current_stop_sequence as stop_sequence
+    # and convert to Int64 [nullable]
+    vehicle_positions.rename(
+        columns={"current_stop_sequence": "stop_sequence"}, inplace=True
     )
+    vehicle_positions["stop_sequence"] = pandas.to_numeric(
+        vehicle_positions["stop_sequence"]
+    ).astype("Int64")
 
     # store direction_id as Int64 [nullable]
     vehicle_positions["direction_id"] = pandas.to_numeric(
