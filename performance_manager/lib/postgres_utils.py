@@ -147,6 +147,27 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
 
+class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for GTFS-RT Trip Update Predicted Stop Events"""
+
+    __tablename__ = "eventsTripUpdates"
+
+    pk_id = sa.Column(sa.Integer, primary_key=True)
+    is_moving = sa.Column(sa.Boolean)
+    stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
+    stop_id = sa.Column(sa.String(60), nullable=True)
+    timestamp_start = sa.Column(sa.Integer, nullable=False)
+    direction_id = sa.Column(sa.SmallInteger, nullable=True)
+    route_id = sa.Column(sa.String(60), nullable=True)
+    start_date = sa.Column(sa.Integer, nullable=True)
+    start_time = sa.Column(sa.Integer, nullable=True)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
+    hash = sa.Column(sa.BigInteger, nullable=False)
+    updated_on = sa.Column(
+        sa.DateTime, server_default=sa.func.now(), server_onupdate=sa.func.now()
+    )
+
+
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
     """Table for keeping track of parquet files in S3"""
 
@@ -163,12 +184,15 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
     created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
-def unprocessed_files(sql_session: sessionmaker) -> Dict[str, Dict[str, List]]:
+def get_unprocessed_files(
+    path_contains: str, sql_session: sessionmaker
+) -> Dict[str, Dict[str, List]]:
     """check metadata table for unprocessed parquet files"""
     paths_to_load: Dict[str, Dict[str, List]] = {}
     try:
         read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
-            MetadataLog.processed == sa.false()
+            (MetadataLog.processed == sa.false())
+            & (MetadataLog.path.contains(path_contains))
         )
         with sql_session.begin() as session:  # type: ignore
             for path_id, path in session.execute(read_md_log):
@@ -182,5 +206,4 @@ def unprocessed_files(sql_session: sessionmaker) -> Dict[str, Dict[str, List]]:
         logging.error("Error searching for unprocessed events")
         logging.exception(e)
 
-    finally:
-        return paths_to_load
+    return paths_to_load

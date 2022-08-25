@@ -9,10 +9,10 @@ from .postgres_utils import (
     StaticSubHeadway,
     VehiclePositionEvents,
     MetadataLog,
-    unprocessed_files,
 )
 
 from .static_schedule import process_static_schedule
 from .rt_vehicle_positions import process_vehicle_positions
+from .rt_trip_updates import process_trip_updates
 
 __version__ = "0.1.0"

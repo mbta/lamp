@@ -13,6 +13,7 @@ pandas = "^1.4.3"
 numpy = "^1.23.1"
 psycopg2 = "^2.9.3"
 SQLAlchemy = "^1.4.39"
+psutil = "^5.9.1"
 
 [tool.poetry.dev-dependencies]
 notebook = "^6.4.12"

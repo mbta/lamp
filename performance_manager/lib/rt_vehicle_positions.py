@@ -2,7 +2,7 @@ import logging
 import datetime
 import re
 
-from typing import Dict, List, Optional, Union
+from typing import List, Union
 
 import numpy
 import pandas
@@ -10,7 +10,12 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
-from .postgres_utils import VehiclePositionEvents, MetadataLog
+from .postgres_utils import (
+    VehiclePositionEvents,
+    MetadataLog,
+    get_unprocessed_files,
+)
+from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 
 
 def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -33,18 +38,6 @@ def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
     return read_parquet(to_load, columns=vehicle_position_cols)
 
 
-def start_time_to_seconds(
-    time: Optional[str],
-) -> Optional[float]:
-    """
-    transform time string in HH:MM:SS format to seconds integer
-    """
-    if time is None:
-        return time
-    (hour, minute, second) = time.split(":")
-    return int(hour) * 3600 + int(minute) * 60 + int(second)
-
-
 def transform_vp_dtyes(vehicle_positions: pandas.DataFrame) -> pandas.DataFrame:
     """
     ingest dataframe of vehicle position data from parquet file and transform
@@ -61,9 +54,13 @@ def transform_vp_dtyes(vehicle_positions: pandas.DataFrame) -> pandas.DataFrame:
         vehicle_positions["start_date"]
     ).astype("Int64")
 
-    # store current_stop_sequence as Int64 [nullable]
-    vehicle_positions["current_stop_sequence"] = pandas.to_numeric(
-        vehicle_positions["current_stop_sequence"]
+    # rename current_stop_sequence as stop_sequence
+    # and convert to Int64 [nullable]
+    vehicle_positions.rename(
+        columns={"current_stop_sequence": "stop_sequence"}, inplace=True
+    )
+    vehicle_positions["stop_sequence"] = pandas.to_numeric(
+        vehicle_positions["stop_sequence"]
     ).astype("Int64")
 
     # store direction_id as Int64 [nullable]
@@ -81,9 +78,7 @@ def transform_vp_dtyes(vehicle_positions: pandas.DataFrame) -> pandas.DataFrame:
     # hash row data, exluding vehicle_timestamp column
     # This hash is used to identify continuous series of records with the same
     # categorical data
-    vehicle_positions["hash"] = vehicle_positions[
-        list(set(vehicle_positions.columns) - {"vehicle_timestamp"})
-    ].apply(lambda row: hash(tuple(row)), axis=1)
+    vehicle_positions = add_event_hash_column(vehicle_positions)
 
     # drop duplicates of hash and vehicle_timestamp columns (extraneous data)
     vehicle_positions = vehicle_positions.drop_duplicates(
@@ -292,14 +287,16 @@ def merge_vehicle_position_events(
             )
 
 
-def process_vehicle_positions(
-    paths_to_load: Dict[str, Dict[str, List]], sql_session: sessionmaker
-) -> None:
+def process_vehicle_positions(sql_session: sessionmaker) -> None:
     """
     process a bunch of vehicle position files
     create events for them
     merge those events with existing events
     """
+
+    # check metadata table for unprocessed parquet files
+    paths_to_load = get_unprocessed_files("RT_VEHICLE_POSITIONS", sql_session)
+
     for folder, folder_data in paths_to_load.items():
         ids = folder_data["ids"]
         paths = folder_data["paths"]
