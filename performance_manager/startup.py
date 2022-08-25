@@ -20,6 +20,7 @@ from lib import (
     get_local_engine,
     process_vehicle_positions,
     process_trip_updates,
+    process_static_tables,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -125,6 +126,7 @@ def main(args: argparse.Namespace) -> None:
         """function to invoke on a scheduled routine"""
         logging.info("Entering Iteration")
 
+        process_static_tables(sql_session)
         process_vehicle_positions(sql_session)
         process_trip_updates(sql_session)
 

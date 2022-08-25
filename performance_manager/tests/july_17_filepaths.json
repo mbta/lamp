@@ -268,5 +268,8 @@
     },
     {
         "path": "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=9/d7794b75821241afbd116c4040334e28-0.parquet"
+    },
+    {
+        "path": "mbta-ctd-dataplatform-dev-springboard/lamp/FEED_INFO/timestamp=1661219208/6ed104fd4c724faf89ebcad5c760ab62-0.parquet"
     }
 ]

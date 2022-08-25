@@ -11,10 +11,9 @@ from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
 from .postgres_utils import (
-    VehiclePositionEvents,
-    MetadataLog,
     get_unprocessed_files,
 )
+from .postgres_schema import VehiclePositionEvents, MetadataLog
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 
 
