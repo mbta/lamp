@@ -2,12 +2,20 @@ name: Lambda CI
 
 on:
   push:
-    branches: main
+    branches:
+      - main
+      - lambda_deploy_test
     paths:
       - 'py_gtfs_rt_ingestion/**'
+      - '.github/actions/lambda_deploy/action.yaml'
+      - '.github/workflows/lambda-ci.yaml'
+      - '.github/workflows/lambda-deploy-dev.yaml'
   pull_request:
     paths:
       - 'py_gtfs_rt_ingestion/**'
+      - '.github/actions/lambda_deploy/action.yaml'
+      - '.github/workflows/lambda-ci.yaml'
+      - '.github/workflows/lambda-deploy-dev.yaml'
 
 defaults:
   run:
