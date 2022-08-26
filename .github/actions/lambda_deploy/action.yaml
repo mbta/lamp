@@ -24,11 +24,24 @@ runs:
       with:
         poetry-dir: py_gtfs_rt_ingestion
 
+    - name: Download psycopg2 with libpq installed
+      uses: actions/checkout@v2
+      with:
+        # this repo has a bunch of stars and bundles psycopg with libpq
+        repository: jkehler/awslambda-psycopg2
+        path: psycopg_with_libpq
+
     - name: Create build folder
       working-directory: py_gtfs_rt_ingestion
       run: |
+        # build the ingestion modules and install its dependencies to package
         poetry build
         poetry run pip install --upgrade -t package dist/*.whl
+        # remove the shipped version of psycopg2 and replace it with the one
+        # with libpq installed
+        rm -r package/psycopg2
+        mv ../psycopg_with_libpq/psycopg2-3.9 package/psycopg2
+        # add the batch and ingest scripts to the package
         cp -v batch_files.py package/batch_files.py
         cp -v ingest.py package/ingest.py
       shell: bash
