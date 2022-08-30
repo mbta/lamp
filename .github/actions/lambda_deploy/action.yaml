@@ -24,6 +24,17 @@ runs:
       with:
         poetry-dir: py_gtfs_rt_ingestion
 
+    - name: Create build folder
+      working-directory: py_gtfs_rt_ingestion
+      run: |
+        # build the ingestion modules and install its dependencies to package
+        poetry build
+        poetry run pip install --upgrade -t package dist/*.whl
+        # add the batch and ingest scripts to the package
+        cp -v batch_files.py package/batch_files.py
+        cp -v ingest.py package/ingest.py
+      shell: bash
+
     - name: Download psycopg2 with libpq installed
       uses: actions/checkout@v2
       with:
@@ -31,19 +42,20 @@ runs:
         repository: jkehler/awslambda-psycopg2
         path: psycopg_with_libpq
 
-    - name: Create build folder
+    - name: Install psycopg2 with libpq
       working-directory: py_gtfs_rt_ingestion
       run: |
-        # build the ingestion modules and install its dependencies to package
-        poetry build
-        poetry run pip install --upgrade -t package dist/*.whl
         # remove the shipped version of psycopg2 and replace it with the one
         # with libpq installed
         rm -r package/psycopg2
         mv ../psycopg_with_libpq/psycopg2-3.9 package/psycopg2
-        # add the batch and ingest scripts to the package
-        cp -v batch_files.py package/batch_files.py
-        cp -v ingest.py package/ingest.py
+      shell: bash
+
+    - name: Install AWS SSL Cert
+      working-directory: py_gtfs_rt_ingestion/package
+      run: |
+        curl https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o aws-cert-bundle.pem
+        echo "acaf8712f8d71c05f85503c6b90fd0127e95ff0091bf094a22a650119684a08e  aws-cert-bundle.pem" | sha256sum -c -
       shell: bash
 
     - name: Create zip archive
