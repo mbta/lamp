@@ -15,6 +15,7 @@ from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 from py_gtfs_rt_ingestion import load_environment
+from py_gtfs_rt_ingestion import get_psql_conn
 
 
 logging.getLogger().setLevel("INFO")
@@ -29,6 +30,7 @@ class BatchArgs(NamedTuple):
     s3_prefix: str = DEFAULT_S3_PREFIX
     print_events: bool = False
     dry_run: bool = False
+    debug_rds_connection: bool = False
 
 
 def parse_args(args: list[str]) -> dict:
@@ -130,12 +132,13 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     logging.info("Context:\n%s", context)
 
     try:
-        if len(set(event) - set(BatchArgs()._fields)) == 0:
-            batch_args = BatchArgs(**event)
-        else:
-            batch_args = BatchArgs()
+        batch_args = BatchArgs(**event)
         logging.info(batch_args)
-        main(batch_args)
+
+        if batch_args.debug_rds_connection:
+            get_psql_conn()
+        else:
+            main(batch_args)
     except Exception as e:
         # log if something goes wrong and let lambda recatch the exception
         logging.exception(e)
