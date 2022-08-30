@@ -174,8 +174,8 @@ def get_event_overlap(
             VehiclePositionEvents.vehicle_id,
         )
     ).where(
-        (VehiclePositionEvents.timestamp_start > timestamp_to_pull_min)
-        & (VehiclePositionEvents.timestamp_end < timestamp_to_pull_max)
+        (VehiclePositionEvents.timestamp_end > timestamp_to_pull_min)
+        & (VehiclePositionEvents.timestamp_start < timestamp_to_pull_max)
     )
 
     with sql_session.begin() as session:  # type: ignore

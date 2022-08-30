@@ -44,7 +44,7 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
     is_moving = sa.Column(sa.Boolean)
-    current_stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
+    stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=True)
     timestamp_start = sa.Column(sa.Integer, nullable=False)
     timestamp_end = sa.Column(sa.Integer, nullable=False)
@@ -53,7 +53,7 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     start_date = sa.Column(sa.Integer, nullable=True)
     start_time = sa.Column(sa.Integer, nullable=True)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
-    hash = sa.Column(sa.BigInteger, nullable=False)
+    hash = sa.Column(sa.BigInteger, nullable=False, index=True, unique=False)
     updated_on = sa.Column(
         sa.DateTime, server_default=sa.func.now(), server_onupdate=sa.func.now()
     )
@@ -74,7 +74,7 @@ class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
     start_date = sa.Column(sa.Integer, nullable=True)
     start_time = sa.Column(sa.Integer, nullable=True)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
-    hash = sa.Column(sa.BigInteger, nullable=False)
+    hash = sa.Column(sa.BigInteger, nullable=False, index=True, unique=False)
     updated_on = sa.Column(
         sa.DateTime, server_default=sa.func.now(), server_onupdate=sa.func.now()
     )
