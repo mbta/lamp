@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 import boto3
 import psycopg2
@@ -41,6 +42,15 @@ def get_psql_conn() -> psycopg2.extensions.connection:
 
             assert os.path.isfile(db_ssl_cert)
 
+        logging.info(
+            "start=%s, db_name=%s, db_user=%s, db_host=%s, db_port=%s",
+            "connect_to_db",
+            db_name,
+            db_user,
+            db_host,
+            db_port,
+        )
+
         conn = psycopg2.connect(
             dbname=db_name,
             password=db_password,
@@ -50,20 +60,24 @@ def get_psql_conn() -> psycopg2.extensions.connection:
             sslrootcert=db_ssl_cert,
         )
 
-        logging.info("Connecting to %s DataBase as %s", db_name, db_user)
         return conn
-    except Exception as e:
-        logging.error("Unable to connect to DataBase")
-        logging.exception(e)
-        raise AWSException("Unable to Connect to DataBase") from e
+    except Exception as exception:
+        logging.exception(
+            "failed=%s, error_type=%s",
+            "connect_to_db",
+            type(exception).__name__,
+        )
+        raise AWSException("Unable to Connect to DataBase") from exception
 
 
-def insert_metadata(filepath: str) -> None:
+def insert_metadata(written_file) -> None:  # type: ignore
     """
     add a row to metadata table containing the filepath and its status as
     unprocessed
     """
-    logging.info("Adding Filepath to Metadata Table %s", filepath)
+    filepath = written_file.path
+    logging.info("start=%s, filepath=%s", "metadata_insert", filepath)
+    start_time = time.time()
 
     try:
         with get_psql_conn() as connection:
@@ -72,7 +86,16 @@ def insert_metadata(filepath: str) -> None:
                     'INSERT INTO "metadataLog" (processed, path) VALUES (%s, %s)',
                     (False, filepath),
                 )
-                logging.info("Added Filepath to Metadata Table %s", filepath)
-    except Exception as error:
-        logging.error("Unable to Add Filepath to Metadata Table %s", filepath)
-        logging.exception(error)
+        logging.info(
+            "complete=%s, duration=%.2f, filepath=%s",
+            "metadata_insert",
+            start_time - time.time(),
+            filepath,
+        )
+    except Exception as exception:
+        logging.exception(
+            "failed=%s, error_type=%s, filepath=%s",
+            "metadata_insert",
+            type(exception).__name__,
+            filepath,
+        )

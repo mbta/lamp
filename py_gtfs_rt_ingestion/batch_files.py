@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+import time
 
 from typing import NamedTuple
 
@@ -83,6 +84,9 @@ def main(batch_args: BatchArgs) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
+    start_time = time.time()
+    logging.info("start=%s", "batch_files_lambda")
+
     file_list = file_list_from_s3(
         bucket_name=s3_bucket, file_prefix=batch_args.s3_prefix
     )
@@ -96,20 +100,21 @@ def main(batch_args: BatchArgs) -> None:
         events.append(batch.create_event())
 
         if not batch_args.dry_run:
-            try:
-                batch.trigger_lambda()
-            except Exception as e:
-                logging.error("Unable to trigger ingest lambda.")
-                logging.exception(e)
-
-    total_gigs = total_bytes / 1000000000
-    logging.info("Batched %d gigs across %d files", total_gigs, total_files)
+            batch.trigger_lambda()
 
     if batch_args.print_events:
         logging.info(json.dumps(events, indent=2))
 
+    logging.info(
+        "complete=%s, duration=%.2f",
+        "batch_files_lambda",
+        time.time() - start_time,
+    )
 
-def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
+
+def lambda_handler(
+    event: LambdaDict, context: LambdaContext  # pylint: disable=W0613
+) -> None:
     """
     AWS Lambda Python handled function as described in AWS Developer Guide:
     https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
@@ -136,16 +141,17 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
             batch_args = BatchArgs(**event)
         else:
             batch_args = BatchArgs()
-        logging.info(batch_args)
 
         if batch_args.debug_rds_connection:
             get_psql_conn()
         else:
             main(batch_args)
-    except Exception as e:
-        # log if something goes wrong and let lambda recatch the exception
-        logging.exception(e)
-        raise e
+    except Exception as exception:
+        logging.exception(
+            "failed=%s, error_type=%s",
+            "batch_files_lambda",
+            type(exception).__name__,
+        )
 
 
 if __name__ == "__main__":

@@ -129,5 +129,8 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
     with s3_stub:
         move_s3_objects(bad_file_list, dest_bucket)
 
+    assert "failed=move_s3_object" in caplog.text
+
     for bad_file in bad_file_list:
-        assert f"Unable to move {bad_file} to {dest_bucket}" in caplog.text
+        assert f"filename={bad_file}" in caplog.text
+        assert f"destination={dest_bucket}" in caplog.text
