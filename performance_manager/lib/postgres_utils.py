@@ -1,15 +1,18 @@
 import logging
 import os
+import json
 import pathlib
 import urllib.parse
-
-from typing import Dict, List
+from typing import Dict, List, Any
+import pandas
 
 import sqlalchemy as sa
 from sqlalchemy.engine import URL as DbUrl  # type: ignore
 from sqlalchemy.orm import sessionmaker
 
-from .postgres_schema import MetadataLog
+from .postgres_schema import MetadataLog, SqlBase
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_local_engine(
@@ -76,22 +79,97 @@ def get_aws_engine() -> sa.future.engine.Engine:  # type: ignore
 # https://github.com/python/mypy/issues/2477
 
 
-def write_from_dict(
-    input_dictionary: dict,
-    sql_session: sessionmaker,
-    destination_table: sa.Table,
-) -> None:
+class DatabaseManager:
     """
-    try to write a dict to a table. if experimental, use the testing engine,
-    else use the local one.
+    manager class for rds application operations
     """
-    try:
-        with sql_session.begin() as session:  # type: ignore
-            session.execute(sa.insert(destination_table), input_dictionary)
-            session.commit()
-    except Exception as e:
-        logging.error("Error Writing Dataframe to Database")
-        logging.exception(e)
+
+    def __init__(self, experimental: bool = False, verbose: bool = False):
+        """
+        initialize db manager object, creates engine and sessionmaker
+        """
+        if experimental:
+            self.engine = get_experimental_engine(echo=verbose)
+
+            @sa.event.listens_for(sa.engine.Engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, _):  # type: ignore
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
+        else:
+            self.engine = get_local_engine(echo=verbose)
+
+        self.session = sessionmaker(bind=self.engine)
+
+        # create tables in SqlBase
+        SqlBase.metadata.create_all(self.engine)
+
+    def get_session(self) -> sessionmaker:
+        """
+        get db session for performing actions
+        """
+        return self.session
+
+    def execute(self, statement: Any) -> None:
+        """
+        execute db action without data
+        """
+        with self.session.begin() as cursor:  # type: ignore
+            cursor.execute(statement)
+
+    def insert_dataframe(
+        self, dataframe: pandas.DataFrame, insert_table: str
+    ) -> None:
+        """
+        insert data into db table from pandas dataframe
+        """
+        with self.session.begin() as cursor:  # type: ignore
+            cursor.execute(
+                sa.insert(insert_table),
+                dataframe.to_dict(orient="records"),
+            )
+
+    def select_as_dataframe(self, select_query: Any) -> pandas.DataFrame:
+        """
+        select data from db table and return pandas dataframe
+        """
+        with self.session.begin() as cursor:  # type: ignore
+            return pandas.DataFrame(
+                [row._asdict() for row in cursor.execute(select_query)]
+            )
+
+    def select_as_list(self, select_query: Any) -> List[Any]:
+        """
+        select data from db table and return list
+        """
+        with self.session.begin() as cursor:  # type: ignore
+            return [row._asdict() for row in cursor.execute(select_query)]
+
+    def truncate_table(self, table_to_truncate: Any) -> None:
+        """
+        truncate db table
+        """
+        table_to_truncate.__table__.drop(self.engine)
+        table_to_truncate.__table__.create(self.engine)
+
+    def seed_metadata(self) -> None:
+        """
+        seed metadata table for dev environment
+        """
+        try:
+            seed_file = os.path.join(
+                HERE, "..", "tests", "july_17_filepaths.json"
+            )
+            with open(seed_file, "r", encoding="utf8") as seed_json:
+                load_paths = json.load(seed_json)
+
+            with self.session.begin() as session:  # type: ignore
+                session.execute(sa.insert(MetadataLog.__table__), load_paths)
+
+        except Exception as e:
+            logging.error("Error cleaning and seeding database")
+            logging.exception(e)
 
 
 def get_unprocessed_files(

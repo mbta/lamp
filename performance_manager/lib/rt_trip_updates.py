@@ -8,11 +8,10 @@ import pandas
 import numpy
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
-from .postgres_utils import get_unprocessed_files
+from .postgres_utils import get_unprocessed_files, DatabaseManager
 from .postgres_schema import TripUpdateEvents, MetadataLog
 
 
@@ -255,13 +254,15 @@ def merge_trip_update_events(
             )
 
 
-def process_trip_updates(sql_session: sessionmaker) -> None:
+def process_trip_updates(db_manager: DatabaseManager) -> None:
     """
     process trip updates parquet files from metadataLog table
     """
 
     # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files("RT_TRIP_UPDATES", sql_session)
+    paths_to_load = get_unprocessed_files(
+        "RT_TRIP_UPDATES", db_manager.get_session()
+    )
 
     for folder_data in paths_to_load.values():
         ids = folder_data["ids"]
@@ -270,7 +271,9 @@ def process_trip_updates(sql_session: sessionmaker) -> None:
         try:
             new_events = get_tu_dataframe(paths)
             new_events = unwrap_tu_dataframe(new_events)
-            merge_trip_update_events(new_events=new_events, session=sql_session)
+            merge_trip_update_events(
+                new_events=new_events, session=db_manager.get_session()
+            )
         except Exception as e:
             logging.info("Error Processing Trip Updates")
             logging.exception(e)
@@ -280,5 +283,4 @@ def process_trip_updates(sql_session: sessionmaker) -> None:
                 .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
-            with sql_session.begin() as cursor:  # type: ignore
-                cursor.execute(update_md_log)
+            db_manager.execute(update_md_log)

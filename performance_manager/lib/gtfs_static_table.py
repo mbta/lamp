@@ -7,10 +7,9 @@ import pandas
 import numpy
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet, file_list_from_s3
-from .postgres_utils import MetadataLog, get_unprocessed_files
+from .postgres_utils import MetadataLog, get_unprocessed_files, DatabaseManager
 from .postgres_schema import (
     StaticFeedInfo,
     StaticTrips,
@@ -235,26 +234,22 @@ def transform_data_tables(static_tables: List[StaticTableDetails]) -> None:
 
 def insert_data_tables(
     static_tables: List[StaticTableDetails],
-    session: sa.orm.session.sessionmaker,
+    db_manager: DatabaseManager,
 ) -> None:
     """
     insert static gtfs data tables into rds tables
     """
     for table in static_tables:
-        with session.begin() as cursor:  # type: ignore
-            cursor.execute(
-                sa.insert(table.insert_table),
-                table.data_table.to_dict(orient="records"),
-            )
+        db_manager.insert_dataframe(table.data_table, table.insert_table)
 
 
-def process_static_tables(sql_session: sessionmaker) -> None:
+def process_static_tables(db_manager: DatabaseManager) -> None:
     """
     process gtfs static table files from metadataLog table
     """
 
     # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files("FEED_INFO", sql_session)
+    paths_to_load = get_unprocessed_files("FEED_INFO", db_manager.get_session())
 
     for folder, folder_data in paths_to_load.items():
         ids = folder_data["ids"]
@@ -265,7 +260,7 @@ def process_static_tables(sql_session: sessionmaker) -> None:
         try:
             load_parquet_files(static_tables, folder)
             transform_data_tables(static_tables)
-            insert_data_tables(static_tables, sql_session)
+            insert_data_tables(static_tables, db_manager)
         except Exception as e:
             logging.info("Error Processing Static GTFS Schedules")
             logging.exception(e)
@@ -275,5 +270,4 @@ def process_static_tables(sql_session: sessionmaker) -> None:
                 .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
-            with sql_session.begin() as cursor:  # type: ignore
-                cursor.execute(update_md_log)
+            db_manager.execute(update_md_log)

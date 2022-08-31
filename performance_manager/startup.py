@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import json
 import logging
 import os
 import sched
@@ -10,17 +9,12 @@ import time
 
 from typing import List
 
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
-
 from lib import (
-    SqlBase,
-    MetadataLog,
-    get_experimental_engine,
-    get_local_engine,
+    DatabaseManager,
     process_vehicle_positions,
     process_trip_updates,
     process_static_tables,
+    process_full_trip_events,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -83,39 +77,14 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-def seed_metadata_table(sql_session: sessionmaker) -> None:
-    """
-    add s3 filepaths to metadata table
-    TODO(team) make the filepath an input argument as well
-    """
-    try:
-        seed_file = os.path.join(HERE, "tests", "july_17_filepaths.json")
-        with open(seed_file, "r", encoding="utf8") as seed_json:
-            load_paths = json.load(seed_json)
-
-        with sql_session.begin() as session:  # type: ignore
-            session.execute(sa.insert(MetadataLog.__table__), load_paths)
-            session.commit()
-    except Exception as e:
-        logging.error("Error cleaning and seeding database")
-        logging.exception(e)
-
-
 def main(args: argparse.Namespace) -> None:
     """entrypoint into performance manager event loop"""
     # get the engine that manages sessions that read and write to the db
-    if args.experimental:
-        sql_engine = get_experimental_engine(echo=True)
-    else:
-        sql_engine = get_local_engine(echo=True)
-
-    # create a session factory and ensure that all of our tables are in place
-    sql_session = sessionmaker(bind=sql_engine)
-    SqlBase.metadata.create_all(sql_engine)
+    db_manager = DatabaseManager(experimental=args.experimental, verbose=True)
 
     # if --seed, then drop the metadata table and load in predescribed paths.
     if args.seed:
-        seed_metadata_table(sql_session)
+        db_manager.seed_metadata()
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)
@@ -126,9 +95,10 @@ def main(args: argparse.Namespace) -> None:
         """function to invoke on a scheduled routine"""
         logging.info("Entering Iteration")
 
-        process_static_tables(sql_session)
-        process_vehicle_positions(sql_session)
-        process_trip_updates(sql_session)
+        process_static_tables(db_manager)
+        process_vehicle_positions(db_manager)
+        process_trip_updates(db_manager)
+        process_full_trip_events(db_manager)
 
         scheduler.enter(int(args.interval), 1, iteration)
 

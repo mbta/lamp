@@ -191,3 +191,46 @@ class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
     start_date = sa.Column(sa.Integer, nullable=False)
     end_date = sa.Column(sa.Integer, nullable=False)
     timestamp = sa.Column(sa.Integer, nullable=False)
+
+
+class FullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for Level-1 GTFS-RT Trip Events"""
+
+    __tablename__ = "fullTripEvents"
+
+    hash = sa.Column(sa.BigInteger, primary_key=True)
+    fk_vp_moving_event = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    fk_vp_stopped_event = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    fk_tu_stopped_event = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("eventsTripUpdates.pk_id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+
+class TempFullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for loading new Level-1 GTFS-RT Trip Events"""
+
+    __tablename__ = "loadFullTripEvents"
+
+    hash = sa.Column(sa.BigInteger, primary_key=True)
+    fk_vp_moving_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    fk_vp_stopped_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    fk_tu_stopped_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )

@@ -1,24 +1,27 @@
-from typing import Optional
+from typing import Optional, List
 
 import pandas
 
 
 def add_event_hash_column(
-    df_to_hash: pandas.DataFrame, hash_column_name: str = "hash"
+    df_to_hash: pandas.DataFrame,
+    hash_column_name: str = "hash",
+    expected_hash_columns: Optional[List[str]] = None,
 ) -> pandas.DataFrame:
     """
     provide consistent hash values for category columns of gtfs-rt events
     """
-    expected_hash_columns = (
-        "is_moving",
-        "stop_sequence",
-        "stop_id",
-        "direction_id",
-        "route_id",
-        "start_date",
-        "start_time",
-        "vehicle_id",
-    )
+    if expected_hash_columns is None:
+        expected_hash_columns = [
+            "is_moving",
+            "stop_sequence",
+            "stop_id",
+            "direction_id",
+            "route_id",
+            "start_date",
+            "start_time",
+            "vehicle_id",
+        ]
     row_check = set(expected_hash_columns) - set(df_to_hash.columns)
     if len(row_check) > 0:
         raise IndexError(f"Dataframe is missing expected columns: {row_check}")

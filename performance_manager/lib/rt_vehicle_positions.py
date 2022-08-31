@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from .s3_utils import read_parquet
 from .postgres_utils import (
     get_unprocessed_files,
+    DatabaseManager,
 )
 from .postgres_schema import VehiclePositionEvents, MetadataLog
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
@@ -286,7 +287,7 @@ def merge_vehicle_position_events(
             )
 
 
-def process_vehicle_positions(sql_session: sessionmaker) -> None:
+def process_vehicle_positions(db_manager: DatabaseManager) -> None:
     """
     process a bunch of vehicle position files
     create events for them
@@ -294,7 +295,9 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
     """
 
     # check metadata table for unprocessed parquet files
-    paths_to_load = get_unprocessed_files("RT_VEHICLE_POSITIONS", sql_session)
+    paths_to_load = get_unprocessed_files(
+        "RT_VEHICLE_POSITIONS", db_manager.get_session()
+    )
 
     for folder, folder_data in paths_to_load.items():
         ids = folder_data["ids"]
@@ -316,7 +319,9 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
                 new_events.shape[0],
             )
 
-            merge_vehicle_position_events(str(folder), new_events, sql_session)
+            merge_vehicle_position_events(
+                str(folder), new_events, db_manager.get_session()
+            )
         except Exception as e:
             logging.info("Error Processing Vehicle Positions")
             logging.exception(e)
@@ -326,5 +331,4 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
                 .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
-            with sql_session.begin() as session:  # type: ignore
-                session.execute(update_md_log)
+            db_manager.execute(update_md_log)
