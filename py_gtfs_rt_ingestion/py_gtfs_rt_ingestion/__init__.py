@@ -9,6 +9,7 @@ from .converter_factory import get_converter
 from .error import ArgumentException
 from .lambda_types import LambdaContext, LambdaDict
 from .postgres_utils import get_psql_conn, insert_metadata
+from .logging_utils import ProcessLogger
 from .s3_utils import file_list_from_s3, move_s3_objects, write_parquet_file
 from .utils import load_environment
 

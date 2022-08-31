@@ -1,5 +1,3 @@
-import logging
-import time
 import zipfile
 
 from typing import IO, List, Union
@@ -9,6 +7,7 @@ from pyarrow import csv
 
 from .s3_utils import get_zip_buffer
 from .converter import Converter
+from .logging_utils import ProcessLogger
 
 
 def zip_to_pyarrow(filename: str) -> List[tuple[str, pyarrow.Table]]:
@@ -18,12 +17,8 @@ def zip_to_pyarrow(filename: str) -> List[tuple[str, pyarrow.Table]]:
     own table. info on the gtfs scheduling standard can be found at
     http://gtfs.org/schedule/
     """
-    start_time = time.time()
-    logging.info(
-        "start=%s, filename=%s",
-        "convert_single_gtfs",
-        filename,
-    )
+    process_logger = ProcessLogger("convert_single_gtfs", filename=filename)
+    process_logger.log_start()
 
     try:
         tables = []
@@ -46,20 +41,10 @@ def zip_to_pyarrow(filename: str) -> List[tuple[str, pyarrow.Table]]:
                 filename_prefix = gtfs_filename.replace(".txt", "").upper()
                 tables.append((filename_prefix, table))
 
-        logging.info(
-            "complete=%s, duration=%.2f, filename=%s",
-            "convert_single_gtfs",
-            start_time - time.time(),
-            filename,
-        )
+        process_logger.log_complete()
         return tables
     except Exception as exception:
-        logging.exception(
-            "failed=%s, error_type=%s, filename=%s",
-            "convert_single_gtfs",
-            type(exception).__name__,
-            filename,
-        )
+        process_logger.log_failure(exception)
         return []
 
 
@@ -69,12 +54,8 @@ class GtfsConverter(Converter):
     """
 
     def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
-        start_time = time.time()
-        logging.info(
-            "start=%s, filecount=%d",
-            "convert_gtfs",
-            len(files),
-        )
+        process_logger = ProcessLogger("convert_gtfs", filecount=len(files))
+        process_logger.log_start()
 
         all_tables = []
         for file in files:
@@ -86,11 +67,7 @@ class GtfsConverter(Converter):
                 self.archive_files.append(file)
                 all_tables += tables
 
-        logging.info(
-            "complete=%s, duration=%.2f",
-            "convert_gtfs",
-            start_time - time.time(),
-        )
+        process_logger.log_complete()
         return all_tables
 
     @property

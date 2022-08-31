@@ -1,7 +1,5 @@
 import json
-import logging
 import os
-import time
 
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +11,7 @@ from pyarrow.util import guid
 import boto3
 import pyarrow.dataset as ds
 
+from .logging_utils import ProcessLogger
 from .postgres_utils import insert_metadata
 
 
@@ -59,7 +58,6 @@ def file_list_from_s3(
             continue
         for obj in page["Contents"]:
             uri = os.path.join("s3://", bucket_name, obj["Key"])
-            logging.debug(uri)
             yield (uri, obj["Size"])
 
 
@@ -90,13 +88,12 @@ def _move_s3_object(filename: str, destination: str) -> None:
     :param filename - expected as 's3://my_bucket/the/path/to/the/file.json
     :param destination bucket name
     """
-    start_time = time.time()
-    logging.info(
-        "start=%s, filename=%s, destination=%s",
+    process_logger = ProcessLogger(
         "move_s3_object",
-        filename,
-        destination,
+        filename=filename,
+        destination=destination,
     )
+    process_logger.log_start()
 
     try:
         session = boto3.session.Session()
@@ -104,20 +101,16 @@ def _move_s3_object(filename: str, destination: str) -> None:
 
         # trim off leading s3://
         copy_key = filename.replace("s3://", "")
-        logging.debug("copy_key_0=%s", copy_key)
 
         # string before first delimiter is the bucket name
         source = copy_key.split("/")[0]
-        logging.debug("source=%s", source)
 
         # trim off bucket name
         copy_key = copy_key.replace(f"{source}/", "")
-        logging.debug("copy_key_1=%s", copy_key)
 
         # json args for cop
         destination_bucket = s3_resource.Bucket(destination)
         destination_object = destination_bucket.Object(copy_key)
-        logging.debug("Copying")
         destination_object.copy(
             {
                 "Bucket": source,
@@ -128,58 +121,42 @@ def _move_s3_object(filename: str, destination: str) -> None:
         # delete the source object
         source_bucket = s3_resource.Bucket(source)
         source_object = source_bucket.Object(copy_key)
-        logging.debug("Deleting")
         source_object.delete()
+
+        process_logger.log_complete()
     except Exception as exception:
-        logging.exception(
-            "failed=%s, error_type=%s, filename=%s, destination=%s",
-            "move_s3_object",
-            type(exception).__name__,
-            filename,
-            destination,
-        )
-    else:
-        logging.info(
-            "start=%s, duration=%.2f, filename=%s, destination=%s",
-            "move_s3_object",
-            start_time - time.time(),
-            filename,
-            destination,
-        )
+        process_logger.log_failure(exception)
 
 
-def move_s3_objects(file_list: list[str], destination: str) -> None:
+def move_s3_objects(files: list[str], destination: str) -> None:
     """
     Move list of S3 objects from source to destination.
 
-    :param file_list: list of s3 filepath uris
+    :param files: list of s3 filepath uris
     :param destination: directory or S3 bucket to move to formatted without
         leading 's3://'
 
     No return value.
     """
-    start_time = time.time()
     destination = destination.split("/")[0]
 
     # this is the default pool size for a ThreadPoolExecutor as of py3.8
     cpu_count = cast(int, os.cpu_count() if os.cpu_count() is not None else 1)
     pool_size = min(32, cpu_count + 4)
 
-    logging.info(
-        "start=%s, pool_size=%s, destination=%s, file_count=%s",
+    process_logger = ProcessLogger(
         "move_s3_objects",
-        pool_size,
-        destination,
-        len(file_list),
+        pool_size=pool_size,
+        destination=destination,
+        file_count=len(files),
     )
+    process_logger.log_start()
 
     with ThreadPoolExecutor(max_workers=pool_size) as executor:
-        for filename in file_list:
+        for filename in files:
             executor.submit(_move_s3_object, filename, destination)
 
-    logging.info(
-        "complete=%s, duration=%s", "move_s3_objects", start_time - time.time()
-    )
+    process_logger.log_complete()
 
 
 def write_parquet_file(
@@ -200,19 +177,16 @@ def write_parquet_file(
     dataset.write_dataset is the preferred method for writing parquet files
     going forward. https://issues.apache.org/jira/browse/ARROW-17068
     """
+    process_logger = ProcessLogger(
+        "write_parquet", filetype=filetype, number_of_rows=table.num_rows
+    )
+    process_logger.log_start()
+
     # generate partitioning for this table write based on what columns
     # we expect to be able to partition out for this input type
     partitioning = ds.partitioning(
         table.select(partition_cols).schema, flavor="hive"
     )
-
-    logging.info(
-        "start=%s, filetype=%s, number_of_rows=%d",
-        "write_parquet",
-        filetype,
-        table.num_rows,
-    )
-    write_start_time = time.time()
 
     ds.write_dataset(
         data=table,
@@ -225,8 +199,4 @@ def write_parquet_file(
         existing_data_behavior="overwrite_or_ignore",
     )
 
-    logging.info(
-        "comple=%s, duration=%.2f",
-        "write_parquet",
-        time.time() - write_start_time,
-    )
+    process_logger.log_complete()

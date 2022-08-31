@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import time
 
 from datetime import datetime, timezone
 from typing import Optional, cast
@@ -13,6 +12,7 @@ from pyarrow import fs
 from .error import NoImplException
 from .converter import Converter, ConfigType
 from .gtfs_rt_detail import GTFSRTDetail
+from .logging_utils import ProcessLogger
 
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_bus_vehicle import RtBusVehicleDetail
@@ -59,7 +59,6 @@ class GtfsRtConverter(Converter):
         self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
 
     def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
-        start_time = time.time()
         pa_table = pyarrow.table(
             self.detail.empty_table(), schema=self.detail.export_schema
         )
@@ -70,27 +69,20 @@ class GtfsRtConverter(Converter):
         )
         pool_size = min(32, cpu_count + 4)
 
-        logging.info(
-            "start=%s, config_type=%s, pool_size=%s, file_count=%s",
+        process_logger = ProcessLogger(
             "convert_gtfs_rt",
-            self.config_type,
-            pool_size,
-            len(files),
+            config_type=str(self.config_type),
+            pool_size=pool_size,
+            file_count=len(files),
         )
+        process_logger.log_start()
 
         with ThreadPoolExecutor(max_workers=pool_size) as executor:
             for result in executor.map(self.gz_to_pyarrow, files):
                 if result is not None:
                     pa_table = pyarrow.concat_tables([pa_table, result])
 
-        logging.info(
-            "complete=%s, duration=%.2f, config_type=%s, pool_size=%s, file_count=%s",
-            "convert_gtfs_rt",
-            start_time - time.time(),
-            self.config_type,
-            pool_size,
-            len(files),
-        )
+        process_logger.log_complete()
 
         # return a list with a single prefix, table tuple
         return [(str(self.config_type), pa_table)]
@@ -128,13 +120,12 @@ class GtfsRtConverter(Converter):
 
         Will handle Local or S3 filenames.
         """
-        start_time = time.time()
-        logging.info(
-            "start=%s, config_type=%s, filename=%s",
+        process_logger = ProcessLogger(
             "convert_single_gtfs_rt",
-            self.config_type,
-            filename,
+            config_type=str(self.config_type),
+            filename=filename,
         )
+        process_logger.log_start()
         try:
             if filename.startswith("s3://"):
                 active_fs = fs.S3FileSystem()
@@ -178,23 +169,12 @@ class GtfsRtConverter(Converter):
 
             self.archive_files.append(filename)
 
-            logging.info(
-                "complete=%s, duration=%s, config_type=%s, filename=%s",
-                "convert_single_gtfs_rt",
-                start_time - time.time(),
-                self.config_type,
-                filename,
-            )
+            process_logger.log_complete()
 
             return pyarrow.table(table, schema=self.detail.export_schema)
 
         except Exception as exception:
-            logging.exception(
-                "failed=%s, error_type=%s, filename=%s",
-                "convert_single_gtfs_rt",
-                type(exception).__name__,
-                filename,
-            )
+            process_logger.log_failure(exception)
             self.error_files.append(filename)
             return None
 

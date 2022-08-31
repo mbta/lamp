@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import sys
-import time
 
 from typing import NamedTuple
 
@@ -13,6 +12,7 @@ from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
+from py_gtfs_rt_ingestion import ProcessLogger
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 from py_gtfs_rt_ingestion import load_environment
@@ -84,9 +84,6 @@ def main(batch_args: BatchArgs) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
-    start_time = time.time()
-    logging.info("start=%s", "batch_files_lambda")
-
     file_list = file_list_from_s3(
         bucket_name=s3_bucket, file_prefix=batch_args.s3_prefix
     )
@@ -104,12 +101,6 @@ def main(batch_args: BatchArgs) -> None:
 
     if batch_args.print_events:
         logging.info(json.dumps(events, indent=2))
-
-    logging.info(
-        "complete=%s, duration=%.2f",
-        "batch_files_lambda",
-        time.time() - start_time,
-    )
 
 
 def lambda_handler(
@@ -133,8 +124,9 @@ def lambda_handler(
 
     batch files should all be of same ConfigType
     """
-    logging.info("Processing event:\n%s", json.dumps(event, indent=2))
-    logging.info("Context:\n%s", context)
+    logging.info("batch_event=%s", json.dumps(event))
+    process_logger = ProcessLogger("batch_files_lambda")
+    process_logger.log_start()
 
     try:
         if len(set(event) - set(BatchArgs()._fields)) == 0:
@@ -146,12 +138,10 @@ def lambda_handler(
             get_psql_conn()
         else:
             main(batch_args)
+
+        process_logger.log_complete()
     except Exception as exception:
-        logging.exception(
-            "failed=%s, error_type=%s",
-            "batch_files_lambda",
-            type(exception).__name__,
-        )
+        process_logger.log_failure(exception)
 
 
 if __name__ == "__main__":

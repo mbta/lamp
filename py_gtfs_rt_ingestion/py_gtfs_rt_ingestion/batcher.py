@@ -2,13 +2,13 @@ import json
 import logging
 import os
 import sys
-import time
 
 from collections.abc import Iterable
 from typing import List, Tuple
 
 from .converter import ConfigType
 from .error import ConfigTypeFromFilenameException
+from .logging_utils import ProcessLogger
 from .s3_utils import invoke_async_lambda
 
 
@@ -60,31 +60,22 @@ class Batch:
         Invoke the ingestion lambda that will take the files in this batch and
         convert them into a parquette file.
         """
-        start_time = time.time()
-        logging.info(
-            "start=%s, ingestion_size=%.4f, file_count=%d",
+        process_logger = ProcessLogger(
             "trigger_lambda",
-            self.total_size / 1000000,
-            len(self.filenames),
+            ingestion_size=self.total_size,
+            file_count=len(self.filenames),
         )
+        process_logger.log_start()
+
         try:
             function_arn = os.environ["INGEST_FUNCTION_ARN"]
             invoke_async_lambda(
                 function_arn=function_arn, event=self.create_event()
             )
         except Exception as exception:
-            logging.exception(
-                "failed=%s, error_type=%s",
-                "trigger_lambda",
-                type(exception).__name__,
-            )
+            process_logger.log_failure(exception)
         else:
-            logging.info(
-                "complete=%s, duration=%.2f, file_count=%d",
-                "trigger_lambda",
-                start_time - time.time(),
-                len(self.filenames),
-            )
+            process_logger.log_complete()
 
     def create_event(self) -> dict:
         """
@@ -187,19 +178,15 @@ def batch_files(
 
     :return: List of Batches containing all files passed in.
     """
+    process_logger = ProcessLogger("batch_files", threshold=threshold)
+    process_logger.log_start()
+
     ongoing_batches = {t: Batch(t) for t in ConfigType}
-    batch_count = {t: 0 for t in ConfigType}
+    batch_count = {str(t): 0 for t in ConfigType}
 
     # iterate over file tuples, and add them to the ongoing batches. if a batch
     # is going to go past the threshold limit, move it to complete batches, and
     # create a new batch.
-    start_time = time.time()
-    logging.info(
-        "start=%s, threshold=%d",
-        "batch_files",
-        threshold,
-    )
-
     filecount = 0
     for (filename, size) in files:
         try:
@@ -227,29 +214,19 @@ def batch_files(
             batch.total_size + int(size) > threshold
             or batch.event_size_over_limit()
         ) and len(batch.filenames) > 0:
-            logging.info(batch)
             yield batch
 
             ongoing_batches[config_type] = Batch(config_type)
             batch = ongoing_batches[config_type]
-            batch_count[config_type] += 1
+            batch_count[str(config_type)] += 1
 
         batch.add_file(filename, int(size))
 
     # add the ongoing batches too complete ones and return.
     for (_, batch) in ongoing_batches.items():
         if batch.total_size > 0:
-            logging.info(batch)
             yield batch
-            batch_count[config_type] += 1
+            batch_count[str(config_type)] += 1
 
-    count_string = ", ".join(
-        [f"{key}={value}" for (key, value) in batch_count.items()]
-    )
-    logging.info(
-        "complete=%s, duration=%.2f, filecount=%d, %s",
-        "batch_files",
-        start_time - time.time(),
-        filecount,
-        count_string,
-    )
+    process_logger.add_metadata(**batch_count)
+    process_logger.log_complete()
