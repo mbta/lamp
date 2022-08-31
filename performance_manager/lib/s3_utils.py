@@ -1,7 +1,6 @@
 import logging
 import os
-from collections.abc import Iterable
-from typing import Optional, List, Tuple, Union, Sequence
+from typing import Optional, List, Tuple, Union, Sequence, Iterator
 
 import boto3
 import pandas
@@ -31,7 +30,7 @@ def read_parquet(
     )
 
 
-def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[str]:
+def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterator[str]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 

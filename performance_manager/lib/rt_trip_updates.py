@@ -12,7 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
-from .postgres_utils import TripUpdateEvents, MetadataLog, get_unprocessed_files
+from .postgres_utils import get_unprocessed_files
+from .postgres_schema import TripUpdateEvents, MetadataLog
 
 
 def get_tu_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:

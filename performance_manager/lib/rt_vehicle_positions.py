@@ -11,10 +11,9 @@ from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
 from .postgres_utils import (
-    VehiclePositionEvents,
-    MetadataLog,
     get_unprocessed_files,
 )
+from .postgres_schema import VehiclePositionEvents, MetadataLog
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 
 
@@ -175,8 +174,8 @@ def get_event_overlap(
             VehiclePositionEvents.vehicle_id,
         )
     ).where(
-        (VehiclePositionEvents.timestamp_start > timestamp_to_pull_min)
-        & (VehiclePositionEvents.timestamp_end < timestamp_to_pull_max)
+        (VehiclePositionEvents.timestamp_end > timestamp_to_pull_min)
+        & (VehiclePositionEvents.timestamp_start < timestamp_to_pull_max)
     )
 
     with sql_session.begin() as session:  # type: ignore
