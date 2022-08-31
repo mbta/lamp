@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 
 from datetime import datetime, timezone
 from typing import Optional, cast
@@ -58,6 +59,7 @@ class GtfsRtConverter(Converter):
         self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
 
     def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
+        start_time = time.time()
         pa_table = pyarrow.table(
             self.detail.empty_table(), schema=self.detail.export_schema
         )
@@ -69,9 +71,11 @@ class GtfsRtConverter(Converter):
         pool_size = min(32, cpu_count + 4)
 
         logging.info(
-            "Creating pool with %d threads, %d cores available",
+            "start=%s, config_type=%s, pool_size=%s, file_count=%s",
+            "convert_gtfs_rt",
+            self.config_type,
             pool_size,
-            os.cpu_count(),
+            len(files),
         )
 
         with ThreadPoolExecutor(max_workers=pool_size) as executor:
@@ -80,9 +84,12 @@ class GtfsRtConverter(Converter):
                     pa_table = pyarrow.concat_tables([pa_table, result])
 
         logging.info(
-            "Completed converting %d files with config %s",
-            len(files),
+            "complete=%s, duration=%.2f, config_type=%s, pool_size=%s, file_count=%s",
+            "convert_gtfs_rt",
+            start_time - time.time(),
             self.config_type,
+            pool_size,
+            len(files),
         )
 
         # return a list with a single prefix, table tuple
@@ -121,7 +128,13 @@ class GtfsRtConverter(Converter):
 
         Will handle Local or S3 filenames.
         """
-        logging.info("Converting %s to Parquet Table", filename)
+        start_time = time.time()
+        logging.info(
+            "start=%s, config_type=%s, filename=%s",
+            "convert_single_gtfs_rt",
+            self.config_type,
+            filename,
+        )
         try:
             if filename.startswith("s3://"):
                 active_fs = fs.S3FileSystem()
@@ -164,11 +177,24 @@ class GtfsRtConverter(Converter):
                     table[key].append(value)
 
             self.archive_files.append(filename)
+
+            logging.info(
+                "complete=%s, duration=%s, config_type=%s, filename=%s",
+                "convert_single_gtfs_rt",
+                start_time - time.time(),
+                self.config_type,
+                filename,
+            )
+
             return pyarrow.table(table, schema=self.detail.export_schema)
 
         except Exception as exception:
-            logging.error("Error converting %s", filename)
-            logging.exception(exception)
+            logging.exception(
+                "failed=%s, error_type=%s, filename=%s",
+                "convert_single_gtfs_rt",
+                type(exception).__name__,
+                filename,
+            )
             self.error_files.append(filename)
             return None
 

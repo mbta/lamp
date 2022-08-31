@@ -1,17 +1,14 @@
+import json
 import logging
 import os
 import sys
-import json
+import time
 
 from collections.abc import Iterable
 from typing import List, Tuple
 
 from .converter import ConfigType
-from .error import (
-    AWSException,
-    ArgumentException,
-    ConfigTypeFromFilenameException,
-)
+from .error import ConfigTypeFromFilenameException
 from .s3_utils import invoke_async_lambda
 
 
@@ -63,20 +60,31 @@ class Batch:
         Invoke the ingestion lambda that will take the files in this batch and
         convert them into a parquette file.
         """
+        start_time = time.time()
+        logging.info(
+            "start=%s, ingestion_size=%.4f, file_count=%d",
+            "trigger_lambda",
+            self.total_size / 1000000,
+            len(self.filenames),
+        )
         try:
-            logging.info(
-                "Invoking Ingestion Lambda (%.4f mb %s files)",
-                self.total_size / 1000000,
-                len(self.filenames),
-            )
             function_arn = os.environ["INGEST_FUNCTION_ARN"]
             invoke_async_lambda(
                 function_arn=function_arn, event=self.create_event()
             )
-        except KeyError as e:
-            raise ArgumentException("Ingest Func Arn not Defined") from e
-        except Exception as e:
-            raise AWSException("Unable To Trigger Ingest Lambda") from e
+        except Exception as exception:
+            logging.exception(
+                "failed=%s, error_type=%s",
+                "trigger_lambda",
+                type(exception).__name__,
+            )
+        else:
+            logging.info(
+                "complete=%s, duration=%.2f, file_count=%d",
+                "trigger_lambda",
+                start_time - time.time(),
+                len(self.filenames),
+            )
 
     def create_event(self) -> dict:
         """
@@ -95,7 +103,7 @@ class Batch:
         """
         event_size_kb = sys.getsizeof(json.dumps(self.create_event())) / 1000
         if event_size_kb >= 245:
-            logging.info("Event size of %d kb is over limit.", event_size_kb)
+            logging.warning("Event size of %d kb is over limit.", event_size_kb)
             return True
         return False
 
@@ -180,11 +188,19 @@ def batch_files(
     :return: List of Batches containing all files passed in.
     """
     ongoing_batches = {t: Batch(t) for t in ConfigType}
+    batch_count = {t: 0 for t in ConfigType}
 
     # iterate over file tuples, and add them to the ongoing batches. if a batch
     # is going to go past the threshold limit, move it to complete batches, and
     # create a new batch.
-    logging.info("Organizing files into batches.")
+    start_time = time.time()
+    logging.info(
+        "start=%s, threshold=%d",
+        "batch_files",
+        threshold,
+    )
+
+    filecount = 0
     for (filename, size) in files:
         try:
             config_type = ConfigType.from_filename(filename)
@@ -192,9 +208,14 @@ def batch_files(
             logging.warning(config_exception)
             continue
         except Exception as exception:
-            logging.exception(exception)
+            logging.exception(
+                "failed=%s, error_type=%s",
+                "get_config_from_filename",
+                type(exception).__name__,
+            )
             continue
 
+        filecount += 0
         batch = ongoing_batches[config_type]
 
         # lambda async even payload size is limited to 256KB
@@ -211,6 +232,7 @@ def batch_files(
 
             ongoing_batches[config_type] = Batch(config_type)
             batch = ongoing_batches[config_type]
+            batch_count[config_type] += 1
 
         batch.add_file(filename, int(size))
 
@@ -219,3 +241,15 @@ def batch_files(
         if batch.total_size > 0:
             logging.info(batch)
             yield batch
+            batch_count[config_type] += 1
+
+    count_string = ", ".join(
+        [f"{key}={value}" for (key, value) in batch_count.items()]
+    )
+    logging.info(
+        "complete=%s, duration=%.2f, filecount=%d, %s",
+        "batch_files",
+        start_time - time.time(),
+        filecount,
+        count_string,
+    )

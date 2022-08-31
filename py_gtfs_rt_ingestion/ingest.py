@@ -5,12 +5,9 @@ import json
 import logging
 import os
 import sys
+import time
 
 from typing import Dict, Union
-
-import pyarrow.dataset as ds
-from pyarrow import fs
-from pyarrow.util import guid
 
 from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import ConfigType
@@ -18,10 +15,10 @@ from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
 from py_gtfs_rt_ingestion import get_converter
-from py_gtfs_rt_ingestion import insert_metadata
 from py_gtfs_rt_ingestion import load_environment
 from py_gtfs_rt_ingestion import move_s3_objects
 from py_gtfs_rt_ingestion import unpack_filenames
+from py_gtfs_rt_ingestion import write_parquet_file
 
 logging.getLogger().setLevel("INFO")
 
@@ -79,6 +76,8 @@ def main(event: Dict) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
+    start_time = time.time()
+    logging.info("start=%s", "ingest_files_lambda")
     files = unpack_filenames(**event)
     archive_files = []
     error_files = []
@@ -88,49 +87,24 @@ def main(event: Dict) -> None:
         converter = get_converter(config_type)
 
         for s3_prefix, table in converter.convert(files):
-            # output path is the springboard bucket plus the filetype
-            s3_path = os.path.join(export_bucket, s3_prefix)
-
-            # generate partitioning for this table write based on what columns
-            # we expect to be able to partition out for this input type
-            partitioning = ds.partitioning(
-                table.select(converter.partition_cols).schema, flavor="hive"
+            write_parquet_file(
+                table=table,
+                filetype=s3_prefix,
+                s3_path=os.path.join(export_bucket, s3_prefix),
+                partition_cols=converter.partition_cols,
             )
-
-            # function to run on written files. pyarrow doesn't export type.
-            def post_processing(written_file) -> None:  # type: ignore
-                """
-                file run after each parquet file is wrtten out. log a statent
-                with the filepath and then add it to the metadata table in the
-                performance manager postgres db
-                """
-                logging.info(
-                    "Writing Parquet File. filepath=%s",
-                    written_file.path,
-                )
-                insert_metadata(written_file.path)
-
-            ds.write_dataset(
-                data=table,
-                base_dir=s3_path,
-                filesystem=fs.S3FileSystem(),
-                format=ds.ParquetFileFormat(),
-                partitioning=partitioning,
-                file_visitor=post_processing,
-                basename_template=guid() + "-{i}.parquet",
-                existing_data_behavior="overwrite_or_ignore",
-            )
-
-        logging.info("wrote parquet files")
 
         archive_files = converter.archive_files
         error_files = converter.error_files
 
-    except Exception as e:
+    except Exception as exception:
         # if unable to determine config from filename, or not implemented yet,
         # all files are marked as failed ingestion
-        logging.error("Encountered An Error Converting Files")
-        logging.exception(e)
+        logging.exception(
+            "failed=%s, error_type=%s",
+            "ingest_files",
+            type(exception).__name__,
+        )
         archive_files = []
         error_files = files
 
@@ -141,8 +115,16 @@ def main(event: Dict) -> None:
         if len(archive_files) > 0:
             move_s3_objects(archive_files, archive_bucket)
 
+    logging.info(
+        "complete=%s, duration=%.2f",
+        "ingest_files_lambda",
+        time.time() - start_time,
+    )
 
-def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
+
+def lambda_handler(
+    event: LambdaDict, context: LambdaContext  # pylint: disable=W0613
+) -> None:
     """
     AWS Lambda Python handled function as described in AWS Developer Guide:
     https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html

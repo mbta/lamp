@@ -3,6 +3,7 @@
 # fixtures work. https://stackoverflow.com/q/59664605
 
 import json
+import logging
 import os
 import pytest
 
@@ -21,17 +22,17 @@ from .test_s3_utils import s3_stub
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 
-def test_batch_class(capfd) -> None:  # type: ignore
+def test_batch_class(caplog) -> None:  # type: ignore
     """
     test that batch class works as expected
     """
+    caplog.set_level(logging.INFO)
     # Batch object works for each ConfigType
     for each_config in ConfigType:
         batch = Batch(each_config)
         # Checking Batch __str__ method
-        print(batch)
-        out, _ = capfd.readouterr()
-        assert out == f"Batch of 0 bytes in 0 {each_config} files\n"
+        out = str(batch)
+        assert out == f"Batch of 0 bytes in 0 {each_config} files"
         assert batch.create_event() == {
             "prefix": "",
             "suffix": "",
@@ -48,16 +49,14 @@ def test_batch_class(capfd) -> None:  # type: ignore
     for filename, filesize in files.items():
         batch.add_file(filename=filename, filesize=filesize)
     # Checking Batch __str__ method
-    print(batch)
-    out, _ = capfd.readouterr()
+    out = str(batch)
     assert (
         out == f"Batch of {sum(files.values())} bytes in {len(files)} "
-        f"{config_type} files\n"
+        f"{config_type} files"
     )
 
-    # Calling `trigger_lambda` method raises exception
-    with pytest.raises(ArgumentException):
-        Batch(ConfigType.RT_VEHICLE_POSITIONS).trigger_lambda()
+    Batch(ConfigType.RT_VEHICLE_POSITIONS).trigger_lambda()
+    assert "failed=trigger_lambda" in caplog.text
 
 
 def test_bad_file_names() -> None:
