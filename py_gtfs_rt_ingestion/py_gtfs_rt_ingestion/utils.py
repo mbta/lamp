@@ -3,7 +3,13 @@ import logging
 
 
 def load_environment() -> None:
-    """boostrap .env file for local development"""
+    """
+    boostrap .env file for local development
+
+    Note: the logging doesn't matter as much in this function since its only
+    used when running scripts locally, so it should never make its way to
+    splunk.
+    """
     try:
         if int(os.environ.get("BOOTSTRAPPED", 0)) == 1:
             return
@@ -23,6 +29,5 @@ def load_environment() -> None:
                 os.environ[key] = value
 
     except Exception as exception:
-        logging.error("error while trying to bootstrap")
-        logging.exception(exception)
+        logging.exception("error while trying to bootstrap")
         raise exception

@@ -1,15 +1,15 @@
-import logging
 import os
-import time
 
 import boto3
 import psycopg2
 
 from .error import AWSException
+from .logging_utils import ProcessLogger
 
 
 def get_psql_conn() -> psycopg2.extensions.connection:
     """get a connection to the postgres db"""
+    process_logger = ProcessLogger("connect_to_db")
     try:
         db_host = os.environ.get("DB_HOST", None)
         db_name = os.environ.get("DB_NAME", None)
@@ -23,6 +23,13 @@ def get_psql_conn() -> psycopg2.extensions.connection:
         # accessed via the "0.0.0.0" ip address
         if db_host == "local_rds":
             db_host = "0.0.0.0"
+
+        process_logger.add_metadata(
+            db_name=db_name,
+            db_user=db_user,
+            db_host=db_host,
+            db_port=db_port,
+        )
 
         if db_password is None:
             # spin up a rds client to get the db password
@@ -40,16 +47,10 @@ def get_psql_conn() -> psycopg2.extensions.connection:
                 os.path.abspath(__file__), "..", "aws-cert-bundle.pem"
             )
 
+            process_logger.add_metadata(db_ssl_cert=db_ssl_cert)
             assert os.path.isfile(db_ssl_cert)
 
-        logging.info(
-            "start=%s, db_name=%s, db_user=%s, db_host=%s, db_port=%s",
-            "connect_to_db",
-            db_name,
-            db_user,
-            db_host,
-            db_port,
-        )
+        process_logger.log_start()
 
         conn = psycopg2.connect(
             dbname=db_name,
@@ -62,11 +63,7 @@ def get_psql_conn() -> psycopg2.extensions.connection:
 
         return conn
     except Exception as exception:
-        logging.exception(
-            "failed=%s, error_type=%s",
-            "connect_to_db",
-            type(exception).__name__,
-        )
+        process_logger.log_failure(exception)
         raise AWSException("Unable to Connect to DataBase") from exception
 
 
@@ -76,8 +73,8 @@ def insert_metadata(written_file) -> None:  # type: ignore
     unprocessed
     """
     filepath = written_file.path
-    logging.info("start=%s, filepath=%s", "metadata_insert", filepath)
-    start_time = time.time()
+    process_logger = ProcessLogger("metadata_insert", filepath=filepath)
+    process_logger.log_start()
 
     try:
         with get_psql_conn() as connection:
@@ -86,16 +83,6 @@ def insert_metadata(written_file) -> None:  # type: ignore
                     'INSERT INTO "metadataLog" (processed, path) VALUES (%s, %s)',
                     (False, filepath),
                 )
-        logging.info(
-            "complete=%s, duration=%.2f, filepath=%s",
-            "metadata_insert",
-            start_time - time.time(),
-            filepath,
-        )
+        process_logger.log_complete()
     except Exception as exception:
-        logging.exception(
-            "failed=%s, error_type=%s, filepath=%s",
-            "metadata_insert",
-            type(exception).__name__,
-            filepath,
-        )
+        process_logger.log_failure(exception)

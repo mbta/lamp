@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import sys
-import time
 
 from typing import Dict, Union
 
@@ -14,6 +13,7 @@ from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
+from py_gtfs_rt_ingestion import ProcessLogger
 from py_gtfs_rt_ingestion import get_converter
 from py_gtfs_rt_ingestion import load_environment
 from py_gtfs_rt_ingestion import move_s3_objects
@@ -76,8 +76,6 @@ def main(event: Dict) -> None:
     except KeyError as e:
         raise ArgumentException("Missing S3 Bucket environment variable") from e
 
-    start_time = time.time()
-    logging.info("start=%s", "ingest_files_lambda")
     files = unpack_filenames(**event)
     archive_files = []
     error_files = []
@@ -98,13 +96,15 @@ def main(event: Dict) -> None:
         error_files = converter.error_files
 
     except Exception as exception:
+        logging.exception(
+            "failed=convert_files, error_type=%s, config_type=%s, filecount=%d",
+            type(exception).__name__,
+            config_type,
+            len(files),
+        )
+
         # if unable to determine config from filename, or not implemented yet,
         # all files are marked as failed ingestion
-        logging.exception(
-            "failed=%s, error_type=%s",
-            "ingest_files",
-            type(exception).__name__,
-        )
         archive_files = []
         error_files = files
 
@@ -114,12 +114,6 @@ def main(event: Dict) -> None:
 
         if len(archive_files) > 0:
             move_s3_objects(archive_files, archive_bucket)
-
-    logging.info(
-        "complete=%s, duration=%.2f",
-        "ingest_files_lambda",
-        time.time() - start_time,
-    )
 
 
 def lambda_handler(
@@ -151,15 +145,15 @@ def lambda_handler(
     batch files should all be of same ConfigType as each run of this script
     creates a single parquet file.
     """
-    logging.info("Processing event:\n%s", json.dumps(event, indent=2))
-    logging.info("Context:%s", context)
+    logging.info("ingestion_event=%s", json.dumps(event))
+    process_logger = ProcessLogger("ingest_files_lambda")
+    process_logger.log_start()
 
     try:
         main(event)
+        process_logger.log_complete()
     except Exception as exception:
-        # log if something goes wrong and let lambda recatch the exception
-        logging.exception(exception)
-        raise exception
+        process_logger.log_failure(exception)
 
 
 if __name__ == "__main__":
