@@ -179,7 +179,7 @@ def get_event_overlap(
         & (VehiclePositionEvents.timestamp_start < timestamp_to_pull_max)
     )
 
-    with sql_session.begin() as session:  # type: ignore
+    with sql_session.begin() as session:
         # Join records from db with records from parquet db records should
         # contain 'index' column that does not exist in parquet dataset
         return pandas.concat(
@@ -257,8 +257,8 @@ def merge_vehicle_position_events(
         update_db_events = sa.update(VehiclePositionEvents.__table__).where(
             VehiclePositionEvents.pk_id == sa.bindparam("b_pk_id")
         )
-        with session.begin() as s:  # type: ignore
-            s.execute(
+        with session.begin() as cursor:
+            cursor.execute(
                 update_db_events,
                 merge_events.rename(columns={"pk_id": "b_pk_id"})
                 .loc[existing_was_updated_mask, ["b_pk_id", "timestamp_end"]]
@@ -272,14 +272,14 @@ def merge_vehicle_position_events(
                 merge_events.loc[existing_to_del_mask, "pk_id"]
             )
         )
-        with session.begin() as s:  # type: ignore
-            s.execute(delete_db_events)
+        with session.begin() as cursor:
+            cursor.execute(delete_db_events)
 
     # DB INSERT operation
     if new_to_insert_mask.sum() > 0:
         insert_cols = list(set(merge_events.columns) - {"pk_id"})
-        with session.begin() as s:  # type: ignore
-            s.execute(
+        with session.begin() as cursor:
+            cursor.execute(
                 sa.insert(VehiclePositionEvents.__table__),
                 merge_events.loc[new_to_insert_mask, insert_cols].to_dict(
                     orient="records"

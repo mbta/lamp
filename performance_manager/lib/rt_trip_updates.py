@@ -176,7 +176,7 @@ def merge_trip_update_events(
             TripUpdateEvents.timestamp_start,
         )
     ).where(TripUpdateEvents.hash.in_(hash_list))
-    with session.begin() as curosr:  # type: ignore
+    with session.begin() as curosr:
         merge_events = pandas.concat(
             [
                 pandas.DataFrame(
@@ -224,7 +224,7 @@ def merge_trip_update_events(
         update_db_events = sa.update(TripUpdateEvents.__table__).where(
             TripUpdateEvents.pk_id == sa.bindparam("b_pk_id")
         )
-        with session.begin() as cursor:  # type: ignore
+        with session.begin() as cursor:
             cursor.execute(
                 update_db_events,
                 merge_events.rename(columns={"pk_id": "b_pk_id"})
@@ -239,13 +239,13 @@ def merge_trip_update_events(
                 merge_events.loc[existing_to_del_mask, "pk_id"]
             )
         )
-        with session.begin() as cursor:  # type: ignore
+        with session.begin() as cursor:
             cursor.execute(delete_db_events)
 
     # DB INSERT operation
     if new_to_insert_mask.sum() > 0:
         insert_cols = list(set(merge_events.columns) - {"pk_id"})
-        with session.begin() as cursor:  # type: ignore
+        with session.begin() as cursor:
             cursor.execute(
                 sa.insert(TripUpdateEvents.__table__),
                 merge_events.loc[new_to_insert_mask, insert_cols].to_dict(

@@ -7,7 +7,7 @@ from typing import Dict, List, Any
 import pandas
 
 import sqlalchemy as sa
-from sqlalchemy.engine import URL as DbUrl  # type: ignore
+from sqlalchemy.engine import URL as DbUrl
 from sqlalchemy.orm import sessionmaker
 
 from .postgres_schema import MetadataLog, SqlBase
@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 def get_local_engine(
     echo: bool = False,
-) -> sa.future.engine.Engine:  # type: ignore
+) -> sa.future.engine.Engine:
     """
     Get an SQL Alchemy engine that connects to a locally Postgres RDS stood up
     via docker using env variables
@@ -26,7 +26,7 @@ def get_local_engine(
         host = os.environ["DB_HOST"]
         dbname = os.environ["DB_NAME"]
         user = os.environ["DB_USER"]
-        port = os.environ["DB_PORT"]
+        port = int(os.environ["DB_PORT"])
         password = urllib.parse.quote_plus(os.environ["DB_PASSWORD"])
 
         database_url = DbUrl.create(
@@ -48,7 +48,7 @@ def get_local_engine(
 
 def get_experimental_engine(
     echo: bool = False,
-) -> sa.future.engine.Engine:  # type: ignore
+) -> sa.future.engine.Engine:
     """
     return lightweight engine using local memeory that doens't require a
     database to be stood up. great for testing from within the shell.
@@ -62,7 +62,7 @@ def get_experimental_engine(
     return engine
 
 
-def get_aws_engine() -> sa.future.engine.Engine:  # type: ignore
+def get_aws_engine() -> sa.future.engine.Engine:
     """
     return an engine connected to our aws rds
     """
@@ -105,6 +105,15 @@ class DatabaseManager:
         # create tables in SqlBase
         SqlBase.metadata.create_all(self.engine)
 
+    def _get_schema_table(self, table: Any) -> sa.sql.schema.Table:
+        if isinstance(table, sa.sql.schema.Table):
+            return table
+        if isinstance(table, sa.orm.decl_api.DeclarativeMeta):
+            # mypy error: "DeclarativeMeta" has no attribute "__table__"
+            return table.__table__  # type: ignore
+
+        raise TypeError(f"can not pull schema table from {type(table)} type")
+
     def get_session(self) -> sessionmaker:
         """
         get db session for performing actions
@@ -115,43 +124,51 @@ class DatabaseManager:
         """
         execute db action without data
         """
-        with self.session.begin() as cursor:  # type: ignore
+        with self.session.begin() as cursor:
             cursor.execute(statement)
 
     def insert_dataframe(
-        self, dataframe: pandas.DataFrame, insert_table: str
+        self, dataframe: pandas.DataFrame, insert_table: Any
     ) -> None:
         """
         insert data into db table from pandas dataframe
         """
-        with self.session.begin() as cursor:  # type: ignore
+        insert_as = self._get_schema_table(insert_table)
+
+        with self.session.begin() as cursor:
             cursor.execute(
-                sa.insert(insert_table),
+                sa.insert(insert_as),
                 dataframe.to_dict(orient="records"),
             )
 
-    def select_as_dataframe(self, select_query: Any) -> pandas.DataFrame:
+    def select_as_dataframe(
+        self, select_query: sa.sql.selectable.Select
+    ) -> pandas.DataFrame:
         """
         select data from db table and return pandas dataframe
         """
-        with self.session.begin() as cursor:  # type: ignore
+        with self.session.begin() as cursor:
             return pandas.DataFrame(
                 [row._asdict() for row in cursor.execute(select_query)]
             )
 
-    def select_as_list(self, select_query: Any) -> List[Any]:
+    def select_as_list(
+        self, select_query: sa.sql.selectable.Select
+    ) -> List[Any]:
         """
         select data from db table and return list
         """
-        with self.session.begin() as cursor:  # type: ignore
+        with self.session.begin() as cursor:
             return [row._asdict() for row in cursor.execute(select_query)]
 
     def truncate_table(self, table_to_truncate: Any) -> None:
         """
         truncate db table
         """
-        table_to_truncate.__table__.drop(self.engine)
-        table_to_truncate.__table__.create(self.engine)
+        truncat_as = self._get_schema_table(table_to_truncate)
+
+        truncat_as.drop(self.engine)
+        truncat_as.create(self.engine)
 
     def seed_metadata(self) -> None:
         """
@@ -164,7 +181,7 @@ class DatabaseManager:
             with open(seed_file, "r", encoding="utf8") as seed_json:
                 load_paths = json.load(seed_json)
 
-            with self.session.begin() as session:  # type: ignore
+            with self.session.begin() as session:
                 session.execute(sa.insert(MetadataLog.__table__), load_paths)
 
         except Exception as e:
@@ -182,7 +199,7 @@ def get_unprocessed_files(
             (MetadataLog.processed == sa.false())
             & (MetadataLog.path.contains(path_contains))
         )
-        with sql_session.begin() as session:  # type: ignore
+        with sql_session.begin() as session:
             for path_id, path in session.execute(read_md_log):
                 path = pathlib.Path(path)
                 if path.parent not in paths_to_load:

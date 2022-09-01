@@ -11,23 +11,28 @@ def add_event_hash_column(
     """
     provide consistent hash values for category columns of gtfs-rt events
     """
-    if expected_hash_columns is None:
-        expected_hash_columns = [
-            "is_moving",
-            "stop_sequence",
-            "stop_id",
-            "direction_id",
-            "route_id",
-            "start_date",
-            "start_time",
-            "vehicle_id",
-        ]
-    row_check = set(expected_hash_columns) - set(df_to_hash.columns)
+    default_hash_columns = [
+        "is_moving",
+        "stop_sequence",
+        "stop_id",
+        "direction_id",
+        "route_id",
+        "start_date",
+        "start_time",
+        "vehicle_id",
+    ]
+
+    if isinstance(expected_hash_columns, list):
+        column_to_hash = expected_hash_columns
+    else:
+        column_to_hash = default_hash_columns
+
+    row_check = set(column_to_hash) - set(df_to_hash.columns)
     if len(row_check) > 0:
         raise IndexError(f"Dataframe is missing expected columns: {row_check}")
 
     def apply_func(record: pandas.Series) -> int:
-        return hash(tuple(record[row] for row in expected_hash_columns))
+        return hash(tuple(record[row] for row in column_to_hash))
 
     df_to_hash[hash_column_name] = df_to_hash.apply(apply_func, axis=1)
 

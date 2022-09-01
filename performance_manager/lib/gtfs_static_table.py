@@ -28,7 +28,7 @@ class StaticTableDetails:
     """
 
     table_name: str
-    insert_table: str
+    insert_table: sa.sql.schema.Table
     columns_to_pull: List[str]
     int64_cols: Optional[List[str]] = None
     bool_cols: Optional[List[str]] = None

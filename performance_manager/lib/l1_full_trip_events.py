@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import logging
-from typing import Dict, Any
+from typing import Dict
 import pandas
 import numpy
 
@@ -22,7 +22,7 @@ class EventsToMerge:
     container class for processing events that will be merged to make trip events
     """
 
-    select_query: Any
+    select_query: sa.sql.selectable.Select
     fk_rename_field: str
     merge_dataframe: pandas.DataFrame = pandas.DataFrame()
 
