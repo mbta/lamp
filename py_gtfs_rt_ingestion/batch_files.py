@@ -132,7 +132,10 @@ def lambda_handler(event: LambdaDict, context: LambdaContext) -> None:
     logging.info("Context:\n%s", context)
 
     try:
-        batch_args = BatchArgs(**event)
+        if len(set(event) - set(BatchArgs()._fields)) == 0:
+            batch_args = BatchArgs(**event)
+        else:
+            batch_args = BatchArgs()
         logging.info(batch_args)
 
         if batch_args.debug_rds_connection:
