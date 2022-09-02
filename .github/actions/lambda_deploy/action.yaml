@@ -35,27 +35,32 @@ runs:
         cp -v ingest.py package/ingest.py
       shell: bash
 
-    - name: Download psycopg2 with libpq installed
-      uses: actions/checkout@v2
-      with:
-        # this repo has a bunch of stars and bundles psycopg with libpq
-        repository: jkehler/awslambda-psycopg2
-        path: psycopg_with_libpq
+    - name: Install AWS SSL Cert
+      working-directory: py_gtfs_rt_ingestion/
+      run: |
+        curl https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o aws-cert-bundle.pem
+        echo "acaf8712f8d71c05f85503c6b90fd0127e95ff0091bf094a22a650119684a08e  aws-cert-bundle.pem" | sha256sum -c -
+        cp -v aws-cert-bundle.pem package/aws-cert-bundle.pem
+      shell: bash
+
+    - name: Download psycopg2 with SSL and Postgres installed 
+      working-directory: .
+      run: |
+        # taken from https://gitlab.com/psyhomb/aws-psycopg2
+        #
+        # probably want to roll this ourselves.
+        wget https://gitlab.com/psyhomb/aws-psycopg2/-/jobs/2001591421/artifacts/raw/target/psycopg2-2.9.3-python3.9-libpq9.6.24.tar.gz
+        tar -xf psycopg2-2.9.3-python3.9-libpq9.6.24.tar.gz
+        ls .
+        ls psycopg2
+      shell: bash
 
     - name: Install psycopg2 with libpq
       working-directory: py_gtfs_rt_ingestion
       run: |
-        # remove the shipped version of psycopg2 and replace it with the one
-        # with libpq installed
+        # remove psycopg2 and update it with our home built one
         rm -r package/psycopg2
-        mv ../psycopg_with_libpq/psycopg2-3.9 package/psycopg2
-      shell: bash
-
-    - name: Install AWS SSL Cert
-      working-directory: py_gtfs_rt_ingestion/package
-      run: |
-        curl https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o aws-cert-bundle.pem
-        echo "acaf8712f8d71c05f85503c6b90fd0127e95ff0091bf094a22a650119684a08e  aws-cert-bundle.pem" | sha256sum -c -
+        mv /home/runner/work/lamp/lamp/psycopg2 package/
       shell: bash
 
     - name: Create zip archive
