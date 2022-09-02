@@ -1,4 +1,5 @@
 import os
+import urllib.parse as urlparse
 
 import boto3
 import psycopg2
@@ -18,6 +19,7 @@ def get_psql_conn() -> psycopg2.extensions.connection:
         db_region = os.environ.get("DB_REGION", None)
         db_user = os.environ.get("DB_USER")
         db_ssl_cert = None
+        ssl_mode = "prefer"
 
         assert db_host is not None
         assert db_name is not None
@@ -29,13 +31,6 @@ def get_psql_conn() -> psycopg2.extensions.connection:
         if db_host == "local_rds":
             db_host = "0.0.0.0"
 
-        process_logger.add_metadata(
-            db_host=db_host,
-            db_name=db_name,
-            db_port=db_port,
-            db_user=db_user,
-        )
-
         if db_password is None:
             # spin up a rds client to get the db password
             client = boto3.client("rds")
@@ -46,23 +41,38 @@ def get_psql_conn() -> psycopg2.extensions.connection:
                 Region=db_region,
             )
 
+            assert db_password is not None
+            assert db_password != ""
+
             # set the ssl cert path to the file that should be added to the
             # lambda function at deploy time
-            db_ssl_cert = os.path.join(
-                os.path.abspath(__file__), "..", "aws-cert-bundle.pem"
+            db_ssl_cert = os.path.abspath(
+                os.path.join(
+                    os.path.abspath(__file__), "..", "..", "aws-cert-bundle.pem"
+                )
             )
 
-            process_logger.add_metadata(db_ssl_cert=db_ssl_cert)
             assert os.path.isfile(db_ssl_cert)
+            ssl_mode = "verify-full"
 
+            process_logger.add_metadata(db_ssl_cert=db_ssl_cert)
+
+        process_logger.add_metadata(
+            db_host=db_host,
+            db_name=db_name,
+            db_port=db_port,
+            db_user=db_user,
+            ssl_mode=ssl_mode,
+        )
         process_logger.log_start()
 
         conn = psycopg2.connect(
             dbname=db_name,
-            password=db_password,
+            password=urlparse.quote_plus(db_password),
             user=db_user,
             host=db_host,
             port=db_port,
+            sslmode=ssl_mode,
             sslrootcert=db_ssl_cert,
         )
 
