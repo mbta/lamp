@@ -3,7 +3,7 @@ import os
 import json
 import pathlib
 import urllib.parse
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 import pandas
 
 import sqlalchemy as sa
@@ -90,7 +90,8 @@ class DatabaseManager:
         """
         if experimental:
             self.engine = get_experimental_engine(echo=verbose)
-
+            # this is required for foreign key support in sqlite, per this:
+            # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#foreign-key-support
             @sa.event.listens_for(sa.engine.Engine, "connect")
             def set_sqlite_pragma(dbapi_connection, _):  # type: ignore
                 cursor = dbapi_connection.cursor()
@@ -120,12 +121,38 @@ class DatabaseManager:
         """
         return self.session
 
-    def execute(self, statement: Any) -> None:
+    def execute(
+        self,
+        statement: Union[
+            sa.sql.selectable.Select,
+            sa.sql.dml.Update,
+            sa.sql.dml.Delete,
+            sa.sql.dml.Insert,
+        ],
+    ) -> sa.engine.BaseCursorResult:
         """
-        execute db action without data
+        execute db action WITHOUT data
         """
         with self.session.begin() as cursor:
-            cursor.execute(statement)
+            result = cursor.execute(statement)
+        return result  # type: ignore
+
+    def execute_with_data(
+        self,
+        statement: Union[
+            sa.sql.selectable.Select,
+            sa.sql.dml.Update,
+            sa.sql.dml.Delete,
+            sa.sql.dml.Insert,
+        ],
+        data: pandas.DataFrame,
+    ) -> sa.engine.BaseCursorResult:
+        """
+        execute db action WITH data as pandas dataframe
+        """
+        with self.session.begin() as cursor:
+            result = cursor.execute(statement, data.to_dict(orient="records"))
+        return result  # type: ignore
 
     def insert_dataframe(
         self, dataframe: pandas.DataFrame, insert_table: Any
@@ -164,6 +191,8 @@ class DatabaseManager:
     def truncate_table(self, table_to_truncate: Any) -> None:
         """
         truncate db table
+
+        sqlalchemy has no truncate operation so this is the closest equivalent
         """
         truncat_as = self._get_schema_table(table_to_truncate)
 

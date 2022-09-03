@@ -31,6 +31,10 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
     """
     getter function for dict of merge event objects
     """
+
+    # query to remove "error" records from events going into FullTripEvents
+    # no records should have duplicate hash values unlesss something strange has
+    # happened in the gtfs-rt data stream
     dupe_hash_query = (
         sa.select(VehiclePositionEvents.hash)
         .group_by(VehiclePositionEvents.hash)
@@ -51,7 +55,9 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
             (VehiclePositionEvents.is_moving == sa.true())
             & (
                 VehiclePositionEvents.pk_id.notin_(
-                    sa.select(FullTripEvents.fk_vp_moving_event)
+                    sa.select(FullTripEvents.fk_vp_moving_event).where(
+                        FullTripEvents.fk_vp_moving_event.isnot(None)
+                    )
                 )
             )
             & (VehiclePositionEvents.hash.notin_(dupe_hash_query))
@@ -73,7 +79,9 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
             (VehiclePositionEvents.is_moving == sa.false())
             & (
                 VehiclePositionEvents.pk_id.notin_(
-                    sa.select(FullTripEvents.fk_vp_stopped_event)
+                    sa.select(FullTripEvents.fk_vp_stopped_event).where(
+                        FullTripEvents.fk_vp_stopped_event.isnot(None)
+                    )
                 )
             )
             & (VehiclePositionEvents.hash.notin_(dupe_hash_query))
@@ -94,7 +102,9 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
         ).where(
             (
                 TripUpdateEvents.pk_id.notin_(
-                    sa.select(FullTripEvents.fk_tu_stopped_event)
+                    sa.select(FullTripEvents.fk_tu_stopped_event).where(
+                        FullTripEvents.fk_tu_stopped_event.isnot(None)
+                    )
                 )
             )
         ),
@@ -108,12 +118,13 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
     }
 
 
-def load_and_transform(
+def pull_and_transform(
     events_list: Dict[str, EventsToMerge], db_manager: DatabaseManager
 ) -> None:
     """
-    load and transform each set of events from RDS L0 tables
+    pull new events from events tables and transform
     """
+    # columns to hash for FullTripEvents primary key field
     expected_hash_columns = [
         "stop_sequence",
         "stop_id",
@@ -124,21 +135,41 @@ def load_and_transform(
         "vehicle_id",
     ]
 
+    # these columns are converted to pandas Int64 type to ensure consistent hash
+    convert_to_number_columns = [
+        "stop_sequence",
+        "direction_id",
+        "start_date",
+        "start_time",
+    ]
+
     for event_type in events_list.values():
+        # get dataframe from L0 table select
         event_type.merge_dataframe = db_manager.select_as_dataframe(
             event_type.select_query
         )
 
+        # if L0 select produces no results, create empty frame with expected
+        # columns "pk_id" & "hash"
         if event_type.merge_dataframe.shape[0] == 0:
             event_type.merge_dataframe = pandas.DataFrame(
                 columns=["pk_id", "hash"]
             )
         else:
+            # if data is retrieved from L0 table, ensure number columns are
+            # Int64 type to ensure consistent hashing
+            for column in convert_to_number_columns:
+                event_type.merge_dataframe[column] = pandas.to_numeric(
+                    event_type.merge_dataframe[column]
+                ).astype("Int64")
+            # create hash column to be used as FullTripEvent primary key
+            # drop category columns after hash has been created
             event_type.merge_dataframe = add_event_hash_column(
                 event_type.merge_dataframe,
                 expected_hash_columns=expected_hash_columns,
             )[["pk_id", "hash"]]
 
+        # rename pk_id field from L0 table to L1 foreign key field name
         event_type.merge_dataframe.rename(
             columns={"pk_id": event_type.fk_rename_field}, inplace=True
         )
@@ -148,16 +179,27 @@ def merge_events(events_list: Dict[str, EventsToMerge]) -> pandas.DataFrame:
     """
     merge all unprocessed event types into single dataframe
     """
+    # left merge TRIP_UPDATE stop events with moving VEHICLE_POSITION events
+    # TRIP_UPDATE predicted stop times are only helpful as supplement to
+    # VEHICLE_POSITION moving event
     return_dataframe = events_list["moving_vp"].merge_dataframe.merge(
-        events_list["stopped_vp"].merge_dataframe, how="outer"
+        events_list["stopped_tu"].merge_dataframe, how="left", on="hash"
     )
+    # outer join VEHICLE_POSITION stop events to capture all recorded stop
+    # events, even if they do not have associated moving event
     return_dataframe = return_dataframe.merge(
-        events_list["stopped_tu"].merge_dataframe, how="left"
+        events_list["stopped_vp"].merge_dataframe, how="outer", on="hash"
     )
 
+    # merge action turns foreign key field into "float" type, this will
+    # convert foreign keys back to integer for update / insert action
     for column in return_dataframe.columns:
+        if column == "hash":
+            continue
         return_dataframe[column] = return_dataframe[column].astype("Int64")
 
+    # make sure all "na" types are replace as Python None for RDS
+    # insert / upate
     return_dataframe = return_dataframe.fillna(numpy.nan).replace(
         [numpy.nan], [None]
     )
@@ -165,25 +207,108 @@ def merge_events(events_list: Dict[str, EventsToMerge]) -> pandas.DataFrame:
     return return_dataframe
 
 
-def insert_and_update_database(
+def load_temp_table(
     insert_dataframe: pandas.DataFrame, db_manager: DatabaseManager
 ) -> None:
     """
-    update / insert full trip event rds L1 table, handled as delete and insert
+    truncate temp loading table TempFullTripEvents and insert new
+    trip event records for update / insert with FullTripEvents table
     """
-    if insert_dataframe.shape[0] == 0:
-        logging.warning("No new Full Trip Event records to load")
-        return
-
     db_manager.truncate_table(TempFullTripEvents)
 
     db_manager.insert_dataframe(insert_dataframe, TempFullTripEvents.__table__)
 
-    delete_query = sa.delete(FullTripEvents.__table__).where(
-        FullTripEvents.hash.in_(sa.select(TempFullTripEvents.hash))
-    )
-    db_manager.execute(delete_query)
 
+def update_with_new_events(
+    insert_dataframe: pandas.DataFrame, db_manager: DatabaseManager
+) -> None:
+    """
+    update FullTripEvents table if insert_dataframe has overlapping hash values
+
+    this can normally be done with and sql UPDATE-FROM query, but sqlalchemy
+    does not support that type of query with sqlite dev database
+
+    alternate approach is used here where just hashes are selected that represent
+    update records and each column is updated seperatly from insert_dataframe
+    """
+    # get dataframe of hashes represnting records in FullTripEvent table that
+    # need to be update from loading TempFullTripEvents table
+    hash_to_update_query = sa.select(TempFullTripEvents.hash).where(
+        TempFullTripEvents.hash.in_(sa.select(FullTripEvents.hash))
+    )
+    hashes_to_update = db_manager.select_as_dataframe(hash_to_update_query)
+
+    # gate to see if any records need updating
+    if hashes_to_update.shape[0] == 0:
+        logging.info("No FullTripEvents records require updating")
+        return
+
+    # mask to select records in insert_dataframe that are part of update
+    to_update_mask = insert_dataframe["hash"].isin(hashes_to_update["hash"])
+
+    # update query to be used for all FullTripEvents updates "hash" columns wil
+    # be renamed to "b_hash" because "hash" is protected in sqlalchemy
+    update_query = sa.update(FullTripEvents.__table__).where(
+        FullTripEvents.hash == sa.bindparam("b_hash")
+    )
+
+    # mask for insert dataframe and vp_moving events
+    vp_moving_mask = (~insert_dataframe["fk_vp_moving_event"].isna()) & (
+        to_update_mask
+    )
+    # if mask shows records need updating, execute update
+    if vp_moving_mask.sum() > 0:
+        result = db_manager.execute_with_data(
+            update_query,
+            insert_dataframe.loc[
+                vp_moving_mask, ["hash", "fk_vp_moving_event"]
+            ].rename(columns={"hash": "b_hash"}),
+        )
+        logging.info(
+            "%d 'fk_vp_moving_event' values updated in FullTripEvents",
+            result.rowcount,
+        )
+
+    # mask for insert dataframe and vp_stopped events
+    vp_stopped_mask = (~insert_dataframe["fk_vp_stopped_event"].isna()) & (
+        to_update_mask
+    )
+    # if mask shows records need updating, execute update
+    if vp_stopped_mask.sum() > 0:
+        result = db_manager.execute_with_data(
+            update_query,
+            insert_dataframe.loc[
+                vp_stopped_mask, ["hash", "fk_vp_stopped_event"]
+            ].rename(columns={"hash": "b_hash"}),
+        )
+        logging.info(
+            "%d 'fk_vp_stopped_event' values updated in FullTripEvents",
+            result.rowcount,
+        )
+
+    # mask for insert dataframe and tu_stopped events
+    tu_stopped_mask = (~insert_dataframe["fk_tu_stopped_event"].isna()) & (
+        to_update_mask
+    )
+    # if mask shows records need updating, execute update
+    if tu_stopped_mask.sum() > 0:
+        result = db_manager.execute_with_data(
+            update_query,
+            insert_dataframe.loc[
+                tu_stopped_mask, ["hash", "fk_tu_stopped_event"]
+            ].rename(columns={"hash": "b_hash"}),
+        )
+        logging.info(
+            "%d 'fk_tu_stopped_event' values updated in FullTripEvents",
+            result.rowcount,
+        )
+
+
+def insert_new_events(db_manager: DatabaseManager) -> None:
+    """
+    insert new events into FullTripEvents table with INSERT from SELECT operation
+    table to table insertion
+    """
     insert_cols = [
         "hash",
         "fk_vp_stopped_event",
@@ -206,18 +331,59 @@ def insert_and_update_database(
             ),
         )
     )
-    db_manager.execute(insert_query)
+    result = db_manager.execute(insert_query)
+    logging.info("%d rows inserted into FullTripEvents", result.rowcount)
 
 
 def process_full_trip_events(db_manager: DatabaseManager) -> None:
     """
-    process new events from L0 tables and insert to L1 full trip event RDS table
+    process new events from L0 tables and insert to L1 FullTripEvents RDS table
+
+    primary key and category columns will be selected from 3 data sources:
+        - RT_VEHICLE_POSITIONS (moving events)
+        - RT_VEHICLE_POSITIONS (stopped events)
+        - TRIP_UPDATES (stopped events)
+
+    primary keys from l0 tables are selected if they do not exist in their
+    corresponding foreign key column in FullTripEvents table
+
+    TRIP_UPDATE events are predictions used to backfill stop events for moving
+    events that had no associated stopped event (mostly commuter rail)
+
+    category columns from the 3 sources are hashed in the same manner and
+    events are matched together based on hashes, these hashes will function
+    as the primary key in the FullTripEvents table
+
+    all valid RT_VEHICLE_POSITIONS (moving & stopped) events are merged to create
+    records in the FullTRipEvents table (using outer join), so stop events may
+    exist without moving events and vice versa
+
+    TRIP_UPDATE stop events are only merged to a valid RT_VEHICLE_POSITIONS
+    moving event (using left join)
+
+    all merged new FullTripEvents records are inserted into temporary loading
+    table (TempFullTripEvents)
+
+    if computed hashes in TempFullTripEvents already exist in FullTripEvents
+    table, foreign key fields are updated with non-null key values
+
+    if computed hahes in TempFullTripEvents DO NOT exist in FullTripEvents,
+    full records are inserted from TempFullTripEvents into FullTripEvents
     """
     try:
         events_list = get_merge_list()
-        load_and_transform(events_list, db_manager)
+        pull_and_transform(events_list, db_manager)
         insert_dataframe = merge_events(events_list)
-        insert_and_update_database(insert_dataframe, db_manager)
+
+        # gate to check for no records needing update / insert
+        if insert_dataframe.shape[0] == 0:
+            logging.info("no new L1 FullTripEvent records to load")
+            return
+
+        load_temp_table(insert_dataframe, db_manager)
+        update_with_new_events(insert_dataframe, db_manager)
+        insert_new_events(db_manager)
+
     except Exception as e:
-        logging.info("Error loading new L1 full trip events")
+        logging.info("Error during update / insert of FullTripEvents table")
         logging.exception(e)

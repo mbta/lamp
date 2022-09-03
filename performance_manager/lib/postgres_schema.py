@@ -22,7 +22,9 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     start_date = sa.Column(sa.Integer, nullable=True)
     start_time = sa.Column(sa.Integer, nullable=True)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
-    hash = sa.Column(sa.BigInteger, nullable=False, index=True, unique=False)
+    hash = sa.Column(
+        sa.LargeBinary(16), nullable=False, index=True, unique=False
+    )
 
 
 class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
@@ -40,7 +42,9 @@ class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
     start_date = sa.Column(sa.Integer, nullable=True)
     start_time = sa.Column(sa.Integer, nullable=True)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
-    hash = sa.Column(sa.BigInteger, nullable=False, index=True, unique=False)
+    hash = sa.Column(
+        sa.LargeBinary(16), nullable=False, index=True, unique=False
+    )
 
 
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
@@ -155,7 +159,7 @@ class FullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "fullTripEvents"
 
-    hash = sa.Column(sa.BigInteger, primary_key=True)
+    hash = sa.Column(sa.LargeBinary(16), primary_key=True)
     fk_vp_moving_event = sa.Column(
         sa.Integer,
         sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
@@ -178,7 +182,7 @@ class TempFullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "loadFullTripEvents"
 
-    hash = sa.Column(sa.BigInteger, primary_key=True)
+    hash = sa.Column(sa.LargeBinary(16), primary_key=True)
     fk_vp_moving_event = sa.Column(
         sa.Integer,
         nullable=True,

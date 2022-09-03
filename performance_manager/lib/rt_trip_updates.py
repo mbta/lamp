@@ -188,12 +188,12 @@ def merge_trip_update_events(
 
     # Identify records that are continuing from existing db
     # If such records are found, update timestamp_end with latest value
-    first_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(-1) == 0
-    )
-    last_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(1) == 0
-    )
+    first_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(-1)
+    last_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(1)
     merge_events["timestamp_start"] = numpy.where(
         first_of_consecutive_events,
         merge_events["timestamp_start"].shift(-1),

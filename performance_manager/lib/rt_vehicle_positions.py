@@ -104,8 +104,8 @@ def transform_vp_timestamps(
     # result is a 'start' event and 'end' event in consecutive rows for
     # matching hash events
     first_last_mask = (
-        vehicle_positions["hash"] - vehicle_positions["hash"].shift(1) != 0
-    ) | (vehicle_positions["hash"] - vehicle_positions["hash"].shift(-1) != 0)
+        vehicle_positions["hash"] != vehicle_positions["hash"].shift(1)
+    ) | (vehicle_positions["hash"] != vehicle_positions["hash"].shift(-1))
     vehicle_positions = vehicle_positions.loc[first_last_mask, :]
 
     # transform vehicle_timestamp with matching consectuive hash events into
@@ -116,16 +116,16 @@ def transform_vp_timestamps(
         columns={"vehicle_timestamp": "timestamp_start"}, inplace=True
     )
     vehicle_positions["timestamp_end"] = numpy.where(
-        (vehicle_positions["hash"] - vehicle_positions["hash"].shift(-1) == 0),
+        (vehicle_positions["hash"] == vehicle_positions["hash"].shift(-1)),
         vehicle_positions["timestamp_start"].shift(-1),
         vehicle_positions["timestamp_start"],
     ).astype("int64")
 
     # for matching consectuive hash events, drop 2nd event because timestamp has
     # been captured in timestamp_end value of previous event
-    drop_last_mask = (
-        vehicle_positions["hash"] - vehicle_positions["hash"].shift(1) != 0
-    )
+    drop_last_mask = vehicle_positions["hash"] != vehicle_positions[
+        "hash"
+    ].shift(1)
     vehicle_positions = vehicle_positions.loc[drop_last_mask, :].reset_index(
         drop=True
     )
@@ -206,12 +206,12 @@ def merge_vehicle_position_events(
 
     # Identify records that are continuing from existing db
     # If such records are found, update timestamp_end with latest value
-    first_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(-1) == 0
-    )
-    last_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(1) == 0
-    )
+    first_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(-1)
+    last_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(1)
     merge_events["timestamp_end"] = numpy.where(
         first_of_consecutive_events,
         merge_events["timestamp_end"].shift(-1),
