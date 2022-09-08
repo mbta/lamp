@@ -2,7 +2,7 @@ import logging
 import time
 import uuid
 
-from typing import Optional, Union
+from typing import Union
 
 MdValues = Union[str, int, float]
 
@@ -12,9 +12,7 @@ class ProcessLogger:
     Class to help with logging events that happen inside of a function.
     """
 
-    def __init__(
-        self, process_name: str, **metadata: Optional[MdValues]
-    ) -> None:
+    def __init__(self, process_name: str, **metadata: MdValues) -> None:
         """
         create a process logger with a name and optional metadata. a start time
         and uuid will be created for timing and unique identification
@@ -24,7 +22,7 @@ class ProcessLogger:
         self.start_time = time.time()
         self.metadata = metadata
 
-    def add_metadata(self, **metadata: Optional[MdValues]) -> None:
+    def add_metadata(self, **metadata: MdValues) -> None:
         """add metadata to the process logger"""
         for key, value in metadata.items():
             self.metadata[key] = value
