@@ -11,13 +11,18 @@ def get_psql_conn() -> psycopg2.extensions.connection:
     """get a connection to the postgres db"""
     process_logger = ProcessLogger("connect_to_db")
     try:
-        db_host = os.environ.get("DB_HOST", None)
-        db_name = os.environ.get("DB_NAME", None)
+        db_host = os.environ.get("DB_HOST")
+        db_name = os.environ.get("DB_NAME")
         db_password = os.environ.get("DB_PASSWORD", None)
-        db_port = os.environ.get("DB_PORT", None)
-        db_user = os.environ.get("DB_USER", None)
+        db_port = os.environ.get("DB_PORT")
         db_region = os.environ.get("DB_REGION", None)
+        db_user = os.environ.get("DB_USER")
         db_ssl_cert = None
+
+        assert db_host is not None
+        assert db_name is not None
+        assert db_port is not None
+        assert db_user is not None
 
         # when using docker, the db host env var will be "local_rds" but
         # accessed via the "0.0.0.0" ip address
@@ -25,10 +30,10 @@ def get_psql_conn() -> psycopg2.extensions.connection:
             db_host = "0.0.0.0"
 
         process_logger.add_metadata(
-            db_name=db_name,
-            db_user=db_user,
             db_host=db_host,
+            db_name=db_name,
             db_port=db_port,
+            db_user=db_user,
         )
 
         if db_password is None:

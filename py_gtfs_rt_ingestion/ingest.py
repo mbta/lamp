@@ -56,7 +56,7 @@ def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
     return {"files": [(parsed_args.input_file)]}
 
 
-def main(event: Dict) -> None:
+def main(event: Dict, process_logger: ProcessLogger) -> None:
     """
     * Convert a list of files from s3 to a parquet table
     * Write the table out to s3
@@ -82,6 +82,8 @@ def main(event: Dict) -> None:
 
     try:
         config_type = ConfigType.from_filename(files[0])
+        process_logger.add_metadata(config_type=str(config_type))
+        process_logger.log_start()
         converter = get_converter(config_type)
 
         for s3_prefix, table in converter.convert(files):
@@ -147,10 +149,9 @@ def lambda_handler(
     """
     logging.info("ingestion_event=%s", json.dumps(event))
     process_logger = ProcessLogger("ingest_files_lambda")
-    process_logger.log_start()
 
     try:
-        main(event)
+        main(event, process_logger)
         process_logger.log_complete()
     except Exception as exception:
         process_logger.log_failure(exception)
