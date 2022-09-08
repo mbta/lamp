@@ -16,7 +16,7 @@ runs:
         path: | 
           ~/.cache/pypoetry
           **/${{ inputs.poetry-dir }}/.venv
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/${{ inputs.poetry-dir }}/poetry.lock') }}
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
 
     - name: Install Poetry dependencies
       working-directory: ${{ inputs.poetry-dir }}

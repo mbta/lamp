@@ -8,11 +8,10 @@ import pandas
 import numpy
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
 
 from .s3_utils import read_parquet
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
-from .postgres_utils import get_unprocessed_files
+from .postgres_utils import get_unprocessed_files, DatabaseManager
 from .postgres_schema import TripUpdateEvents, MetadataLog
 
 
@@ -177,7 +176,7 @@ def merge_trip_update_events(
             TripUpdateEvents.timestamp_start,
         )
     ).where(TripUpdateEvents.hash.in_(hash_list))
-    with session.begin() as curosr:  # type: ignore
+    with session.begin() as curosr:
         merge_events = pandas.concat(
             [
                 pandas.DataFrame(
@@ -189,12 +188,12 @@ def merge_trip_update_events(
 
     # Identify records that are continuing from existing db
     # If such records are found, update timestamp_end with latest value
-    first_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(-1) == 0
-    )
-    last_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(1) == 0
-    )
+    first_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(-1)
+    last_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(1)
     merge_events["timestamp_start"] = numpy.where(
         first_of_consecutive_events,
         merge_events["timestamp_start"].shift(-1),
@@ -225,7 +224,7 @@ def merge_trip_update_events(
         update_db_events = sa.update(TripUpdateEvents.__table__).where(
             TripUpdateEvents.pk_id == sa.bindparam("b_pk_id")
         )
-        with session.begin() as cursor:  # type: ignore
+        with session.begin() as cursor:
             cursor.execute(
                 update_db_events,
                 merge_events.rename(columns={"pk_id": "b_pk_id"})
@@ -240,13 +239,13 @@ def merge_trip_update_events(
                 merge_events.loc[existing_to_del_mask, "pk_id"]
             )
         )
-        with session.begin() as cursor:  # type: ignore
+        with session.begin() as cursor:
             cursor.execute(delete_db_events)
 
     # DB INSERT operation
     if new_to_insert_mask.sum() > 0:
         insert_cols = list(set(merge_events.columns) - {"pk_id"})
-        with session.begin() as cursor:  # type: ignore
+        with session.begin() as cursor:
             cursor.execute(
                 sa.insert(TripUpdateEvents.__table__),
                 merge_events.loc[new_to_insert_mask, insert_cols].to_dict(
@@ -255,13 +254,15 @@ def merge_trip_update_events(
             )
 
 
-def process_trip_updates(sql_session: sessionmaker) -> None:
+def process_trip_updates(db_manager: DatabaseManager) -> None:
     """
     process trip updates parquet files from metadataLog table
     """
 
     # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files("RT_TRIP_UPDATES", sql_session)
+    paths_to_load = get_unprocessed_files(
+        "RT_TRIP_UPDATES", db_manager.get_session()
+    )
 
     for folder_data in paths_to_load.values():
         ids = folder_data["ids"]
@@ -270,7 +271,9 @@ def process_trip_updates(sql_session: sessionmaker) -> None:
         try:
             new_events = get_tu_dataframe(paths)
             new_events = unwrap_tu_dataframe(new_events)
-            merge_trip_update_events(new_events=new_events, session=sql_session)
+            merge_trip_update_events(
+                new_events=new_events, session=db_manager.get_session()
+            )
         except Exception as e:
             logging.info("Error Processing Trip Updates")
             logging.exception(e)
@@ -280,5 +283,4 @@ def process_trip_updates(sql_session: sessionmaker) -> None:
                 .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
-            with sql_session.begin() as cursor:  # type: ignore
-                cursor.execute(update_md_log)
+            db_manager.execute(update_md_log)

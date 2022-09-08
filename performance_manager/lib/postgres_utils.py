@@ -1,20 +1,23 @@
 import logging
 import os
+import json
 import pathlib
 import urllib.parse
-
-from typing import Dict, List
+from typing import Dict, List, Any, Union
+import pandas
 
 import sqlalchemy as sa
-from sqlalchemy.engine import URL as DbUrl  # type: ignore
+from sqlalchemy.engine import URL as DbUrl
 from sqlalchemy.orm import sessionmaker
 
-from .postgres_schema import MetadataLog
+from .postgres_schema import MetadataLog, SqlBase
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_local_engine(
     echo: bool = False,
-) -> sa.future.engine.Engine:  # type: ignore
+) -> sa.future.engine.Engine:
     """
     Get an SQL Alchemy engine that connects to a locally Postgres RDS stood up
     via docker using env variables
@@ -23,7 +26,7 @@ def get_local_engine(
         host = os.environ["DB_HOST"]
         dbname = os.environ["DB_NAME"]
         user = os.environ["DB_USER"]
-        port = os.environ["DB_PORT"]
+        port = int(os.environ["DB_PORT"])
         password = urllib.parse.quote_plus(os.environ["DB_PASSWORD"])
 
         database_url = DbUrl.create(
@@ -45,7 +48,7 @@ def get_local_engine(
 
 def get_experimental_engine(
     echo: bool = False,
-) -> sa.future.engine.Engine:  # type: ignore
+) -> sa.future.engine.Engine:
     """
     return lightweight engine using local memeory that doens't require a
     database to be stood up. great for testing from within the shell.
@@ -59,7 +62,7 @@ def get_experimental_engine(
     return engine
 
 
-def get_aws_engine() -> sa.future.engine.Engine:  # type: ignore
+def get_aws_engine() -> sa.future.engine.Engine:
     """
     return an engine connected to our aws rds
     """
@@ -76,22 +79,143 @@ def get_aws_engine() -> sa.future.engine.Engine:  # type: ignore
 # https://github.com/python/mypy/issues/2477
 
 
-def write_from_dict(
-    input_dictionary: dict,
-    sql_session: sessionmaker,
-    destination_table: sa.Table,
-) -> None:
+class DatabaseManager:
     """
-    try to write a dict to a table. if experimental, use the testing engine,
-    else use the local one.
+    manager class for rds application operations
     """
-    try:
-        with sql_session.begin() as session:  # type: ignore
-            session.execute(sa.insert(destination_table), input_dictionary)
-            session.commit()
-    except Exception as e:
-        logging.error("Error Writing Dataframe to Database")
-        logging.exception(e)
+
+    def __init__(self, experimental: bool = False, verbose: bool = False):
+        """
+        initialize db manager object, creates engine and sessionmaker
+        """
+        if experimental:
+            self.engine = get_experimental_engine(echo=verbose)
+            # this is required for foreign key support in sqlite, per this:
+            # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#foreign-key-support
+            @sa.event.listens_for(sa.engine.Engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, _):  # type: ignore
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
+        else:
+            self.engine = get_local_engine(echo=verbose)
+
+        self.session = sessionmaker(bind=self.engine)
+
+        # create tables in SqlBase
+        SqlBase.metadata.create_all(self.engine)
+
+    def _get_schema_table(self, table: Any) -> sa.sql.schema.Table:
+        if isinstance(table, sa.sql.schema.Table):
+            return table
+        if isinstance(table, sa.orm.decl_api.DeclarativeMeta):
+            # mypy error: "DeclarativeMeta" has no attribute "__table__"
+            return table.__table__  # type: ignore
+
+        raise TypeError(f"can not pull schema table from {type(table)} type")
+
+    def get_session(self) -> sessionmaker:
+        """
+        get db session for performing actions
+        """
+        return self.session
+
+    def execute(
+        self,
+        statement: Union[
+            sa.sql.selectable.Select,
+            sa.sql.dml.Update,
+            sa.sql.dml.Delete,
+            sa.sql.dml.Insert,
+        ],
+    ) -> sa.engine.BaseCursorResult:
+        """
+        execute db action WITHOUT data
+        """
+        with self.session.begin() as cursor:
+            result = cursor.execute(statement)
+        return result  # type: ignore
+
+    def execute_with_data(
+        self,
+        statement: Union[
+            sa.sql.selectable.Select,
+            sa.sql.dml.Update,
+            sa.sql.dml.Delete,
+            sa.sql.dml.Insert,
+        ],
+        data: pandas.DataFrame,
+    ) -> sa.engine.BaseCursorResult:
+        """
+        execute db action WITH data as pandas dataframe
+        """
+        with self.session.begin() as cursor:
+            result = cursor.execute(statement, data.to_dict(orient="records"))
+        return result  # type: ignore
+
+    def insert_dataframe(
+        self, dataframe: pandas.DataFrame, insert_table: Any
+    ) -> None:
+        """
+        insert data into db table from pandas dataframe
+        """
+        insert_as = self._get_schema_table(insert_table)
+
+        with self.session.begin() as cursor:
+            cursor.execute(
+                sa.insert(insert_as),
+                dataframe.to_dict(orient="records"),
+            )
+
+    def select_as_dataframe(
+        self, select_query: sa.sql.selectable.Select
+    ) -> pandas.DataFrame:
+        """
+        select data from db table and return pandas dataframe
+        """
+        with self.session.begin() as cursor:
+            return pandas.DataFrame(
+                [row._asdict() for row in cursor.execute(select_query)]
+            )
+
+    def select_as_list(
+        self, select_query: sa.sql.selectable.Select
+    ) -> List[Any]:
+        """
+        select data from db table and return list
+        """
+        with self.session.begin() as cursor:
+            return [row._asdict() for row in cursor.execute(select_query)]
+
+    def truncate_table(self, table_to_truncate: Any) -> None:
+        """
+        truncate db table
+
+        sqlalchemy has no truncate operation so this is the closest equivalent
+        """
+        truncat_as = self._get_schema_table(table_to_truncate)
+
+        truncat_as.drop(self.engine)
+        truncat_as.create(self.engine)
+
+    def seed_metadata(self) -> None:
+        """
+        seed metadata table for dev environment
+        """
+        try:
+            seed_file = os.path.join(
+                HERE, "..", "tests", "july_17_filepaths.json"
+            )
+            with open(seed_file, "r", encoding="utf8") as seed_json:
+                load_paths = json.load(seed_json)
+
+            with self.session.begin() as session:
+                session.execute(sa.insert(MetadataLog.__table__), load_paths)
+
+        except Exception as e:
+            logging.error("Error cleaning and seeding database")
+            logging.exception(e)
 
 
 def get_unprocessed_files(
@@ -104,7 +228,7 @@ def get_unprocessed_files(
             (MetadataLog.processed == sa.false())
             & (MetadataLog.path.contains(path_contains))
         )
-        with sql_session.begin() as session:  # type: ignore
+        with sql_session.begin() as session:
             for path_id, path in session.execute(read_md_log):
                 path = pathlib.Path(path)
                 if path.parent not in paths_to_load:

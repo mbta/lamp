@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from .s3_utils import read_parquet
 from .postgres_utils import (
     get_unprocessed_files,
+    DatabaseManager,
 )
 from .postgres_schema import VehiclePositionEvents, MetadataLog
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
@@ -103,8 +104,8 @@ def transform_vp_timestamps(
     # result is a 'start' event and 'end' event in consecutive rows for
     # matching hash events
     first_last_mask = (
-        vehicle_positions["hash"] - vehicle_positions["hash"].shift(1) != 0
-    ) | (vehicle_positions["hash"] - vehicle_positions["hash"].shift(-1) != 0)
+        vehicle_positions["hash"] != vehicle_positions["hash"].shift(1)
+    ) | (vehicle_positions["hash"] != vehicle_positions["hash"].shift(-1))
     vehicle_positions = vehicle_positions.loc[first_last_mask, :]
 
     # transform vehicle_timestamp with matching consectuive hash events into
@@ -115,16 +116,16 @@ def transform_vp_timestamps(
         columns={"vehicle_timestamp": "timestamp_start"}, inplace=True
     )
     vehicle_positions["timestamp_end"] = numpy.where(
-        (vehicle_positions["hash"] - vehicle_positions["hash"].shift(-1) == 0),
+        (vehicle_positions["hash"] == vehicle_positions["hash"].shift(-1)),
         vehicle_positions["timestamp_start"].shift(-1),
         vehicle_positions["timestamp_start"],
     ).astype("int64")
 
     # for matching consectuive hash events, drop 2nd event because timestamp has
     # been captured in timestamp_end value of previous event
-    drop_last_mask = (
-        vehicle_positions["hash"] - vehicle_positions["hash"].shift(1) != 0
-    )
+    drop_last_mask = vehicle_positions["hash"] != vehicle_positions[
+        "hash"
+    ].shift(1)
     vehicle_positions = vehicle_positions.loc[drop_last_mask, :].reset_index(
         drop=True
     )
@@ -178,7 +179,7 @@ def get_event_overlap(
         & (VehiclePositionEvents.timestamp_start < timestamp_to_pull_max)
     )
 
-    with sql_session.begin() as session:  # type: ignore
+    with sql_session.begin() as session:
         # Join records from db with records from parquet db records should
         # contain 'index' column that does not exist in parquet dataset
         return pandas.concat(
@@ -205,12 +206,12 @@ def merge_vehicle_position_events(
 
     # Identify records that are continuing from existing db
     # If such records are found, update timestamp_end with latest value
-    first_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(-1) == 0
-    )
-    last_of_consecutive_events = (
-        merge_events["hash"] - merge_events["hash"].shift(1) == 0
-    )
+    first_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(-1)
+    last_of_consecutive_events = merge_events["hash"] == merge_events[
+        "hash"
+    ].shift(1)
     merge_events["timestamp_end"] = numpy.where(
         first_of_consecutive_events,
         merge_events["timestamp_end"].shift(-1),
@@ -256,8 +257,8 @@ def merge_vehicle_position_events(
         update_db_events = sa.update(VehiclePositionEvents.__table__).where(
             VehiclePositionEvents.pk_id == sa.bindparam("b_pk_id")
         )
-        with session.begin() as s:  # type: ignore
-            s.execute(
+        with session.begin() as cursor:
+            cursor.execute(
                 update_db_events,
                 merge_events.rename(columns={"pk_id": "b_pk_id"})
                 .loc[existing_was_updated_mask, ["b_pk_id", "timestamp_end"]]
@@ -271,14 +272,14 @@ def merge_vehicle_position_events(
                 merge_events.loc[existing_to_del_mask, "pk_id"]
             )
         )
-        with session.begin() as s:  # type: ignore
-            s.execute(delete_db_events)
+        with session.begin() as cursor:
+            cursor.execute(delete_db_events)
 
     # DB INSERT operation
     if new_to_insert_mask.sum() > 0:
         insert_cols = list(set(merge_events.columns) - {"pk_id"})
-        with session.begin() as s:  # type: ignore
-            s.execute(
+        with session.begin() as cursor:
+            cursor.execute(
                 sa.insert(VehiclePositionEvents.__table__),
                 merge_events.loc[new_to_insert_mask, insert_cols].to_dict(
                     orient="records"
@@ -286,7 +287,7 @@ def merge_vehicle_position_events(
             )
 
 
-def process_vehicle_positions(sql_session: sessionmaker) -> None:
+def process_vehicle_positions(db_manager: DatabaseManager) -> None:
     """
     process a bunch of vehicle position files
     create events for them
@@ -294,7 +295,9 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
     """
 
     # check metadata table for unprocessed parquet files
-    paths_to_load = get_unprocessed_files("RT_VEHICLE_POSITIONS", sql_session)
+    paths_to_load = get_unprocessed_files(
+        "RT_VEHICLE_POSITIONS", db_manager.get_session()
+    )
 
     for folder, folder_data in paths_to_load.items():
         ids = folder_data["ids"]
@@ -316,7 +319,9 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
                 new_events.shape[0],
             )
 
-            merge_vehicle_position_events(str(folder), new_events, sql_session)
+            merge_vehicle_position_events(
+                str(folder), new_events, db_manager.get_session()
+            )
         except Exception as e:
             logging.info("Error Processing Vehicle Positions")
             logging.exception(e)
@@ -326,5 +331,4 @@ def process_vehicle_positions(sql_session: sessionmaker) -> None:
                 .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
-            with sql_session.begin() as session:  # type: ignore
-                session.execute(update_md_log)
+            db_manager.execute(update_md_log)
