@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import Optional, List, Tuple, Union, Sequence, Iterator
 
@@ -39,9 +38,6 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterator[str]:
 
     :yield filename, filesize tuples from inside of the bucket
     """
-    logging.info(
-        "Getting files with prefix %s from %s", file_prefix, bucket_name
-    )
     s3_client = boto3.client("s3")
     paginator = s3_client.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
@@ -53,5 +49,4 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterator[str]:
             if obj["Size"] == 0:
                 continue
             uri = os.path.join("s3://", bucket_name, obj["Key"])
-            logging.debug(uri)
             yield uri

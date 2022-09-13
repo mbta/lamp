@@ -9,10 +9,11 @@ import numpy
 
 import sqlalchemy as sa
 
-from .s3_utils import read_parquet
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
-from .postgres_utils import get_unprocessed_files, DatabaseManager
+from .logging_utils import ProcessLogger
 from .postgres_schema import TripUpdateEvents, MetadataLog
+from .postgres_utils import get_unprocessed_files, DatabaseManager
+from .s3_utils import read_parquet
 
 
 def get_tu_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -92,7 +93,7 @@ def log_memory_usage(complete_queue: SimpleQueue, interval: int = 5) -> None:
     """
     while True:
         mb_memory_used = int(psutil.virtual_memory().used / 1_000_000)
-        logging.info("%d MB of memory currently used", mb_memory_used)
+        logging.info("performance_manager_memory_used=%d", mb_memory_used)
         try:
             complete_queue.get(timeout=interval)
         except Empty:
@@ -108,7 +109,6 @@ def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
     stop_time_update must have fields extracted and flattened to create
     predicted trip update stop events
     """
-
     # store start_date as int64
     events["start_date"] = pandas.to_numeric(events["start_date"]).astype(
         "int64"
@@ -161,13 +161,16 @@ def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
     return events
 
 
-def merge_trip_update_events(
+def merge_trip_update_events(  # pylint: disable=too-many-locals
     new_events: pandas.DataFrame, session: sa.orm.session.sessionmaker
 ) -> None:
     """
     merge new trip update evetns with existing events found in database
     merge performed on hash of records
     """
+    process_logger = ProcessLogger("merge_tu_events")
+    process_logger.log_start()
+
     hash_list = new_events["hash"].tolist()
     get_db_events = sa.select(
         (
@@ -176,6 +179,7 @@ def merge_trip_update_events(
             TripUpdateEvents.timestamp_start,
         )
     ).where(TripUpdateEvents.hash.in_(hash_list))
+
     with session.begin() as curosr:
         merge_events = pandas.concat(
             [
@@ -186,6 +190,9 @@ def merge_trip_update_events(
             ]
         ).sort_values(by=["hash", "timestamp_start"])
 
+    # pylint: disable=duplicate-code
+    # TODO(zap): the following code is duplicated in rt_vehicle_positions.py
+
     # Identify records that are continuing from existing db
     # If such records are found, update timestamp_end with latest value
     first_of_consecutive_events = merge_events["hash"] == merge_events[
@@ -194,6 +201,7 @@ def merge_trip_update_events(
     last_of_consecutive_events = merge_events["hash"] == merge_events[
         "hash"
     ].shift(1)
+
     merge_events["timestamp_start"] = numpy.where(
         first_of_consecutive_events,
         merge_events["timestamp_start"].shift(-1),
@@ -208,16 +216,18 @@ def merge_trip_update_events(
         ~(merge_events["pk_id"].isna()) & last_of_consecutive_events
     )
 
-    logging.info(
-        "Size of existing update df: %d", existing_was_updated_mask.sum()
-    )
-    logging.info("Size of existing delete df: %d", existing_to_del_mask.sum())
-
     # new events that will be inserted into db table
     new_to_insert_mask = (
         merge_events["pk_id"].isna()
     ) & ~last_of_consecutive_events
-    logging.info("Size of new insert df: %d", new_to_insert_mask.sum())
+
+    # add counts to process logger metadata
+    process_logger.add_metadata(
+        updated_count=existing_was_updated_mask.sum(),
+        deleted_count=existing_to_del_mask.sum(),
+        inserted_count=new_to_insert_mask.sum(),
+    )
+    # pylint: enable=duplicate-code
 
     # DB UPDATE operation
     if existing_was_updated_mask.sum() > 0:
@@ -253,30 +263,47 @@ def merge_trip_update_events(
                 ),
             )
 
+    process_logger.log_complete()
+
 
 def process_trip_updates(db_manager: DatabaseManager) -> None:
     """
     process trip updates parquet files from metadataLog table
     """
+    process_logger = ProcessLogger("process_tu")
+    process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
     paths_to_load = get_unprocessed_files(
         "RT_TRIP_UPDATES", db_manager.get_session()
     )
 
+    process_logger.add_metadata(paths_to_load=len(paths_to_load))
+
     for folder_data in paths_to_load.values():
         ids = folder_data["ids"]
         paths = folder_data["paths"]
 
+        subprocess_logger = ProcessLogger(
+            "process_tu_dir", file_count=len(paths)
+        )
+        subprocess_logger.log_start()
+
         try:
             new_events = get_tu_dataframe(paths)
-            new_events = unwrap_tu_dataframe(new_events)
-            merge_trip_update_events(
-                new_events=new_events, session=db_manager.get_session()
+            new_events_unwrapped = unwrap_tu_dataframe(new_events)
+
+            subprocess_logger.add_metadata(
+                new_events_size=new_events.shape[0],
+                new_events_unwrapped_size=new_events_unwrapped.shape[0],
             )
-        except Exception as e:
-            logging.info("Error Processing Trip Updates")
-            logging.exception(e)
+
+            merge_trip_update_events(
+                new_events=new_events_unwrapped,
+                session=db_manager.get_session(),
+            )
+        except Exception as exception:
+            subprocess_logger.log_failure(exception)
         else:
             update_md_log = (
                 sa.update(MetadataLog.__table__)
@@ -284,3 +311,6 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
                 .values(processed=1)
             )
             db_manager.execute(update_md_log)
+            subprocess_logger.log_complete()
+
+    process_logger.log_complete()

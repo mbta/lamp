@@ -1,4 +1,3 @@
-import logging
 import os
 import json
 import pathlib
@@ -10,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import URL as DbUrl
 from sqlalchemy.orm import sessionmaker
 
+from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, SqlBase
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -22,12 +22,18 @@ def get_local_engine(
     Get an SQL Alchemy engine that connects to a locally Postgres RDS stood up
     via docker using env variables
     """
+    process_logger = ProcessLogger("create_sql_engine")
+    process_logger.log_start()
     try:
         host = os.environ["DB_HOST"]
         dbname = os.environ["DB_NAME"]
         user = os.environ["DB_USER"]
         port = int(os.environ["DB_PORT"])
         password = urllib.parse.quote_plus(os.environ["DB_PASSWORD"])
+
+        process_logger.add_metadata(
+            host=host, database_name=dbname, user=user, port=port
+        )
 
         database_url = DbUrl.create(
             drivername="postgresql+psycopg2",
@@ -37,12 +43,12 @@ def get_local_engine(
             port=port,
             database=dbname,
         )
-        logging.info("creating engine for %s", database_url.render_as_string())
         engine = sa.create_engine(database_url, echo=echo, future=True)
+
+        process_logger.log_complete()
         return engine
     except Exception as exception:
-        logging.error("Error Creating Sql Engine")
-        logging.exception(exception)
+        process_logger.log_failure(exception)
         raise exception
 
 
@@ -203,6 +209,8 @@ class DatabaseManager:
         """
         seed metadata table for dev environment
         """
+        process_logger = ProcessLogger("seed_metadata")
+        process_logger.log_start()
         try:
             seed_file = os.path.join(
                 HERE, "..", "tests", "july_17_filepaths.json"
@@ -213,15 +221,20 @@ class DatabaseManager:
             with self.session.begin() as session:
                 session.execute(sa.insert(MetadataLog.__table__), load_paths)
 
-        except Exception as e:
-            logging.error("Error cleaning and seeding database")
-            logging.exception(e)
+            process_logger.log_complete()
+        except Exception as exception:
+            process_logger.log_failure(exception)
 
 
 def get_unprocessed_files(
     path_contains: str, sql_session: sessionmaker
 ) -> Dict[str, Dict[str, List]]:
     """check metadata table for unprocessed parquet files"""
+    process_logger = ProcessLogger(
+        "get_unprocessed_files", seed_string=path_contains
+    )
+    process_logger.log_start()
+
     paths_to_load: Dict[str, Dict[str, List]] = {}
     try:
         read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
@@ -236,8 +249,9 @@ def get_unprocessed_files(
                 paths_to_load[path.parent]["ids"].append(path_id)
                 paths_to_load[path.parent]["paths"].append(str(path))
 
-    except Exception as e:
-        logging.error("Error searching for unprocessed events")
-        logging.exception(e)
+        process_logger.log_complete()
+
+    except Exception as exception:
+        process_logger.log_failure(exception)
 
     return paths_to_load

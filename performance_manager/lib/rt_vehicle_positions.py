@@ -1,4 +1,3 @@
-import logging
 import datetime
 import re
 
@@ -9,13 +8,11 @@ import pandas
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
-from .s3_utils import read_parquet
-from .postgres_utils import (
-    get_unprocessed_files,
-    DatabaseManager,
-)
-from .postgres_schema import VehiclePositionEvents, MetadataLog
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
+from .logging_utils import ProcessLogger
+from .postgres_schema import VehiclePositionEvents, MetadataLog
+from .postgres_utils import get_unprocessed_files, DatabaseManager
+from .s3_utils import read_parquet
 
 
 def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -202,7 +199,12 @@ def merge_vehicle_position_events(
     new events will be merged with existing events in a 5 minutes window
     surrounding the year/month/day/hour value found in path of parquet files
     """
+    process_logger = ProcessLogger("merge_vp_events")
+    process_logger.log_start()
+
     merge_events = get_event_overlap(folder, new_events, session)
+
+    # pylint: disable=duplicate-code
 
     # Identify records that are continuing from existing db
     # If such records are found, update timestamp_end with latest value
@@ -212,6 +214,7 @@ def merge_vehicle_position_events(
     last_of_consecutive_events = merge_events["hash"] == merge_events[
         "hash"
     ].shift(1)
+
     merge_events["timestamp_end"] = numpy.where(
         first_of_consecutive_events,
         merge_events["timestamp_end"].shift(-1),
@@ -226,31 +229,18 @@ def merge_vehicle_position_events(
         ~(merge_events["pk_id"].isna()) & last_of_consecutive_events
     )
 
-    logging.info(
-        "Size of existing update vehicle_positions: %d",
-        existing_was_updated_mask.sum(),
-    )
-    logging.info(
-        "Size of existing delete vehicle_positions: %d",
-        existing_to_del_mask.sum(),
-    )
-
     # new events that will be inserted into db table
     new_to_insert_mask = (
         merge_events["pk_id"].isna()
     ) & ~last_of_consecutive_events
-    logging.info(
-        "Size of new insert vehicle_positions: %d", new_to_insert_mask.sum()
-    )
 
-    # new events that were used to update existing records, will not be used
-    new_to_drop_mask = (
-        merge_events["pk_id"].isna()
-    ) & last_of_consecutive_events
-    logging.info(
-        "Size of new being dropped vehicle_positions: %d",
-        new_to_drop_mask.sum(),
+    # add counts to process logger metadata
+    process_logger.add_metadata(
+        updated_count=existing_was_updated_mask.sum(),
+        deleted_count=existing_to_del_mask.sum(),
+        inserted_count=new_to_insert_mask.sum(),
     )
+    # pylint: enable=duplicate-code
 
     # DB UPDATE operation
     if existing_was_updated_mask.sum() > 0:
@@ -286,6 +276,8 @@ def merge_vehicle_position_events(
                 ),
             )
 
+    process_logger.log_complete()
+
 
 def process_vehicle_positions(db_manager: DatabaseManager) -> None:
     """
@@ -293,38 +285,41 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
     create events for them
     merge those events with existing events
     """
+    process_logger = ProcessLogger("process_vp")
+    process_logger.log_start()
 
     # check metadata table for unprocessed parquet files
     paths_to_load = get_unprocessed_files(
         "RT_VEHICLE_POSITIONS", db_manager.get_session()
     )
 
+    process_logger.add_metadata(paths_to_load=len(paths_to_load))
+
     for folder, folder_data in paths_to_load.items():
         ids = folder_data["ids"]
         paths = folder_data["paths"]
 
+        subprocess_logger = ProcessLogger(
+            "process_tu_dir", folder=folder, file_count=len(paths)
+        )
+        subprocess_logger.log_start()
+
         try:
             new_events = get_vp_dataframe(paths)
-            logging.info(
-                "Size of dataframe from %s is %d", folder, new_events.shape[0]
-            )
-            new_events = transform_vp_dtyes(new_events)
-            logging.info(
-                "Size of dataframe with updated dtypes is %d",
-                new_events.shape[0],
-            )
-            new_events = transform_vp_timestamps(new_events)
-            logging.info(
-                "Size of dataframe with transformed timestamps is %d",
-                new_events.shape[0],
+            new_events_updated = transform_vp_dtyes(new_events)
+            new_events_timestamps = transform_vp_timestamps(new_events_updated)
+
+            subprocess_logger.add_metadata(
+                new_events_size=new_events.shape[0],
+                new_events_updated_size=new_events_updated.shape[0],
+                new_events_timestamps_size=new_events_timestamps.shape[0],
             )
 
             merge_vehicle_position_events(
-                str(folder), new_events, db_manager.get_session()
+                str(folder), new_events_timestamps, db_manager.get_session()
             )
-        except Exception as e:
-            logging.info("Error Processing Vehicle Positions")
-            logging.exception(e)
+        except Exception as exception:
+            subprocess_logger.log_failure(exception)
         else:
             update_md_log = (
                 sa.update(MetadataLog.__table__)
@@ -332,3 +327,6 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
                 .values(processed=1)
             )
             db_manager.execute(update_md_log)
+            subprocess_logger.log_complete()
+
+    process_logger.log_complete()

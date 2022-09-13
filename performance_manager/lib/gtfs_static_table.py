@@ -2,12 +2,12 @@ from typing import List, Optional
 from dataclasses import dataclass
 
 import os
-import logging
 import pandas
 import numpy
 
 import sqlalchemy as sa
 
+from .logging_utils import ProcessLogger
 from .s3_utils import read_parquet, file_list_from_s3
 from .postgres_utils import MetadataLog, get_unprocessed_files, DatabaseManager
 from .postgres_schema import (
@@ -247,11 +247,17 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     """
     process gtfs static table files from metadataLog table
     """
+    process_logger = ProcessLogger("load_static_tables")
+    process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
     paths_to_load = get_unprocessed_files("FEED_INFO", db_manager.get_session())
+    process_logger.add_metadata(filecount=len(paths_to_load))
 
     for folder, folder_data in paths_to_load.items():
+        individual_logger = ProcessLogger("load_static_table", folder=folder)
+        individual_logger.log_start()
+
         ids = folder_data["ids"]
         folder = str(folder)
 
@@ -261,9 +267,8 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             load_parquet_files(static_tables, folder)
             transform_data_tables(static_tables)
             insert_data_tables(static_tables, db_manager)
-        except Exception as e:
-            logging.info("Error Processing Static GTFS Schedules")
-            logging.exception(e)
+        except Exception as exception:
+            individual_logger.log_failure(exception)
         else:
             update_md_log = (
                 sa.update(MetadataLog.__table__)
@@ -271,3 +276,6 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
                 .values(processed=1)
             )
             db_manager.execute(update_md_log)
+            individual_logger.log_complete()
+
+    process_logger.log_complete()

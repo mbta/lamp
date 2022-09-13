@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-import logging
 from typing import Dict
 import pandas
 import numpy
 
 import sqlalchemy as sa
 
+from .logging_utils import ProcessLogger
 from .postgres_utils import DatabaseManager
 from .postgres_schema import (
     VehiclePositionEvents,
@@ -31,6 +31,8 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
     """
     getter function for dict of merge event objects
     """
+    process_logger = ProcessLogger("get_merge_list")
+    process_logger.log_start()
 
     # query to remove "error" records from events going into FullTripEvents
     # no records should have duplicate hash values unlesss something strange has
@@ -111,6 +113,8 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
         fk_rename_field="fk_tu_stopped_event",
     )
 
+    process_logger.log_complete()
+
     return {
         "moving_vp": moving_vp_events,
         "stopped_vp": stopped_vp_events,
@@ -143,6 +147,9 @@ def pull_and_transform(
         "start_time",
     ]
 
+    process_logger = ProcessLogger("pull_new_events")
+    process_logger.log_start()
+
     for event_type in events_list.values():
         # get dataframe from L0 table select
         event_type.merge_dataframe = db_manager.select_as_dataframe(
@@ -174,11 +181,16 @@ def pull_and_transform(
             columns={"pk_id": event_type.fk_rename_field}, inplace=True
         )
 
+    process_logger.log_complete()
+
 
 def merge_events(events_list: Dict[str, EventsToMerge]) -> pandas.DataFrame:
     """
     merge all unprocessed event types into single dataframe
     """
+    process_logger = ProcessLogger("merge_events")
+    process_logger.log_start()
+
     # left merge TRIP_UPDATE stop events with moving VEHICLE_POSITION events
     # TRIP_UPDATE predicted stop times are only helpful as supplement to
     # VEHICLE_POSITION moving event
@@ -204,6 +216,7 @@ def merge_events(events_list: Dict[str, EventsToMerge]) -> pandas.DataFrame:
         [numpy.nan], [None]
     )
 
+    process_logger.log_complete()
     return return_dataframe
 
 
@@ -231,6 +244,9 @@ def update_with_new_events(
     alternate approach is used here where just hashes are selected that represent
     update records and each column is updated seperatly from insert_dataframe
     """
+    process_logger = ProcessLogger("merge_events")
+    process_logger.log_start()
+
     # get dataframe of hashes represnting records in FullTripEvent table that
     # need to be update from loading TempFullTripEvents table
     hash_to_update_query = sa.select(TempFullTripEvents.hash).where(
@@ -238,9 +254,11 @@ def update_with_new_events(
     )
     hashes_to_update = db_manager.select_as_dataframe(hash_to_update_query)
 
+    process_logger.add_metadata(trip_events_to_update=hashes_to_update.shape[0])
+
     # gate to see if any records need updating
     if hashes_to_update.shape[0] == 0:
-        logging.info("No FullTripEvents records require updating")
+        process_logger.log_complete()
         return
 
     # mask to select records in insert_dataframe that are part of update
@@ -264,10 +282,9 @@ def update_with_new_events(
                 vp_moving_mask, ["hash", "fk_vp_moving_event"]
             ].rename(columns={"hash": "b_hash"}),
         )
-        logging.info(
-            "%d 'fk_vp_moving_event' values updated in FullTripEvents",
-            result.rowcount,
-        )
+        process_logger.add_metadata(fk_vp_moving_events_updated=result.rowcount)
+    else:
+        process_logger.add_metadata(fk_vp_moving_events_updated=0)
 
     # mask for insert dataframe and vp_stopped events
     vp_stopped_mask = (~insert_dataframe["fk_vp_stopped_event"].isna()) & (
@@ -281,10 +298,11 @@ def update_with_new_events(
                 vp_stopped_mask, ["hash", "fk_vp_stopped_event"]
             ].rename(columns={"hash": "b_hash"}),
         )
-        logging.info(
-            "%d 'fk_vp_stopped_event' values updated in FullTripEvents",
-            result.rowcount,
+        process_logger.add_metadata(
+            fk_vp_stopped_events_updated=result.rowcount
         )
+    else:
+        process_logger.add_metadata(fk_vp_stopped_events_updated=0)
 
     # mask for insert dataframe and tu_stopped events
     tu_stopped_mask = (~insert_dataframe["fk_tu_stopped_event"].isna()) & (
@@ -298,10 +316,13 @@ def update_with_new_events(
                 tu_stopped_mask, ["hash", "fk_tu_stopped_event"]
             ].rename(columns={"hash": "b_hash"}),
         )
-        logging.info(
-            "%d 'fk_tu_stopped_event' values updated in FullTripEvents",
-            result.rowcount,
+        process_logger.add_metadata(
+            fk_tu_stopped_events_updated=result.rowcount
         )
+    else:
+        process_logger.add_metadata(fk_tu_stopped_events_updated=0)
+
+    process_logger.log_complete()
 
 
 def insert_new_events(db_manager: DatabaseManager) -> None:
@@ -316,6 +337,8 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
         "fk_tu_stopped_event",
     ]
 
+    process_logger = ProcessLogger("insert_new_events")
+    process_logger.log_start()
     insert_query = (
         FullTripEvents.metadata.tables[FullTripEvents.__tablename__]
         .insert()
@@ -332,7 +355,9 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
         )
     )
     result = db_manager.execute(insert_query)
-    logging.info("%d rows inserted into FullTripEvents", result.rowcount)
+
+    process_logger.add_metadata(rows_inserted=result.rowcount)
+    process_logger.log_complete()
 
 
 def process_full_trip_events(db_manager: DatabaseManager) -> None:
@@ -370,20 +395,25 @@ def process_full_trip_events(db_manager: DatabaseManager) -> None:
     if computed hahes in TempFullTripEvents DO NOT exist in FullTripEvents,
     full records are inserted from TempFullTripEvents into FullTripEvents
     """
+    process_logger = ProcessLogger("process_full_trip_events")
+    process_logger.log_start()
     try:
         events_list = get_merge_list()
         pull_and_transform(events_list, db_manager)
         insert_dataframe = merge_events(events_list)
+        process_logger.add_metadata(
+            new_full_trip_records=insert_dataframe.shape[0]
+        )
 
         # gate to check for no records needing update / insert
         if insert_dataframe.shape[0] == 0:
-            logging.info("no new L1 FullTripEvent records to load")
+            process_logger.log_complete()
             return
 
         load_temp_table(insert_dataframe, db_manager)
         update_with_new_events(insert_dataframe, db_manager)
         insert_new_events(db_manager)
+        process_logger.log_complete()
 
-    except Exception as e:
-        logging.info("Error during update / insert of FullTripEvents table")
-        logging.exception(e)
+    except Exception as exception:
+        process_logger.log_failure(exception)
