@@ -42,7 +42,7 @@ disable = [
   # we're logging everything so its "ok"
   "lost-exception"
 ]
-good-names = ["e", "i", "s"]
+good-names = ["i", "s"]
 max-line-length = 80
 min-similarity-lines = 10
 # ignore session maker as it gives pylint fits

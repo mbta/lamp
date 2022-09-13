@@ -11,6 +11,7 @@ from typing import List
 
 from lib import (
     DatabaseManager,
+    ProcessLogger,
     process_vehicle_positions,
     process_trip_updates,
     process_static_tables,
@@ -45,8 +46,7 @@ def load_environment() -> None:
                 os.environ[key] = value
 
     except Exception as exception:
-        logging.error("error while trying to bootstrap")
-        logging.exception(exception)
+        logging.exception("error while trying to bootstrap")
         raise exception
 
 
@@ -79,10 +79,14 @@ def parse_args(args: List[str]) -> argparse.Namespace:
 
 def main(args: argparse.Namespace) -> None:
     """entrypoint into performance manager event loop"""
+    main_process_logger = ProcessLogger("main", **vars(args))
+    main_process_logger.log_start()
+
     # get the engine that manages sessions that read and write to the db
     db_manager = DatabaseManager(experimental=args.experimental, verbose=True)
 
     # if --seed, then drop the metadata table and load in predescribed paths.
+    # TODO(zap) move this to database manager constructor
     if args.seed:
         db_manager.seed_metadata()
 
@@ -93,14 +97,20 @@ def main(args: argparse.Namespace) -> None:
     # end of each iteration
     def iteration() -> None:
         """function to invoke on a scheduled routine"""
-        logging.info("Entering Iteration")
+        process_logger = ProcessLogger("event_loop")
+        process_logger.log_start()
 
-        process_static_tables(db_manager)
-        process_vehicle_positions(db_manager)
-        process_trip_updates(db_manager)
-        process_full_trip_events(db_manager)
+        try:
+            process_static_tables(db_manager)
+            process_vehicle_positions(db_manager)
+            process_trip_updates(db_manager)
+            process_full_trip_events(db_manager)
 
-        scheduler.enter(int(args.interval), 1, iteration)
+            process_logger.log_complete()
+        except Exception as exception:
+            process_logger.log_failure(exception)
+        finally:
+            scheduler.enter(int(args.interval), 1, iteration)
 
     # schedule the inital looop and start the scheduler
     scheduler.enter(0, 1, iteration)
