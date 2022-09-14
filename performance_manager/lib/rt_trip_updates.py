@@ -168,7 +168,7 @@ def merge_trip_update_events(  # pylint: disable=too-many-locals
     merge new trip update evetns with existing events found in database
     merge performed on hash of records
     """
-    process_logger = ProcessLogger("merge_tu_events")
+    process_logger = ProcessLogger("tu_merge_events")
     process_logger.log_start()
 
     hash_list = new_events["hash"].tolist()
@@ -290,16 +290,17 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
         subprocess_logger.log_start()
 
         try:
+            sizes = {}
             new_events = get_tu_dataframe(paths)
-            new_events_unwrapped = unwrap_tu_dataframe(new_events)
+            sizes["new_events_size"] = new_events.shape[0]
 
-            subprocess_logger.add_metadata(
-                new_events_size=new_events.shape[0],
-                new_events_unwrapped_size=new_events_unwrapped.shape[0],
-            )
+            new_events = unwrap_tu_dataframe(new_events)
+            sizes["new_events_unwrapped_size"] = new_events.shape[0]
+
+            subprocess_logger.add_metadata(**sizes)
 
             merge_trip_update_events(
-                new_events=new_events_unwrapped,
+                new_events=new_events,
                 session=db_manager.get_session(),
             )
         except Exception as exception:

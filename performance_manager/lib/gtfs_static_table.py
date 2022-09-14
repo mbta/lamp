@@ -247,7 +247,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     """
     process gtfs static table files from metadataLog table
     """
-    process_logger = ProcessLogger("load_static_tables")
+    process_logger = ProcessLogger("load_static_table_sets")
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
@@ -255,7 +255,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     process_logger.add_metadata(filecount=len(paths_to_load))
 
     for folder, folder_data in paths_to_load.items():
-        individual_logger = ProcessLogger("load_static_table", folder=folder)
+        individual_logger = ProcessLogger("load_static_tables", folder=folder)
         individual_logger.log_start()
 
         ids = folder_data["ids"]
