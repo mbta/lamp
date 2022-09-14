@@ -45,6 +45,8 @@ def load_environment() -> None:
                 logging.info("setting %s to %s", key, value)
                 os.environ[key] = value
 
+    except FileNotFoundError as fnfe:
+        logging.warning("unable to find env file %s", fnfe)
     except Exception as exception:
         logging.exception("error while trying to bootstrap")
         raise exception
@@ -74,6 +76,13 @@ def parse_args(args: List[str]) -> argparse.Namespace:
         help="if set, seed metadataLog table with paths",
     )
 
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        dest="verbose",
+        help="if set, verbose sql logging",
+    )
+
     return parser.parse_args(args)
 
 
@@ -83,12 +92,9 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(experimental=args.experimental, verbose=True)
-
-    # if --seed, then drop the metadata table and load in predescribed paths.
-    # TODO(zap) move this to database manager constructor
-    if args.seed:
-        db_manager.seed_metadata()
+    db_manager = DatabaseManager(
+        experimental=args.experimental, verbose=args.verbose, seed=args.seed
+    )
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)

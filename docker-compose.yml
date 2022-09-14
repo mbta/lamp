@@ -25,4 +25,3 @@ services:
     working_dir: /performance_manager
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
-    command: ["python", "startup.py"]
