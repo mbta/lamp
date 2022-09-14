@@ -17,6 +17,8 @@ class ProcessLogger:
         create a process logger with a name and optional metadata. a start time
         and uuid will be created for timing and unique identification
         """
+        self.parent = "performance_manager"
+
         self.process_name = process_name
         self.uuid = uuid.uuid4()
         self.start_time = time.time()
@@ -29,7 +31,11 @@ class ProcessLogger:
 
     def log_start(self) -> None:
         """log the start of a proccess"""
-        logging_string = f"start={self.process_name}, uuid={self.uuid}"
+        logging_string = (
+            f"parent={self.parent}, "
+            f"start={self.process_name}, "
+            f"uuid={self.uuid}"
+        )
 
         if self.metadata:
             metadata_string = ", ".join(
@@ -42,6 +48,7 @@ class ProcessLogger:
         """log the completion of a proccess with duration"""
         duration = self.start_time - time.time()
         logging_string = (
+            f"parent={self.parent}, "
             f"complete={self.process_name}, "
             f"uuid={self.uuid}, "
             f"durration={duration:.2f}"
@@ -57,6 +64,7 @@ class ProcessLogger:
     def log_failure(self, exception: Exception) -> None:
         """log the failure of a process with exception details"""
         logging_string = (
+            f"parent={self.parent}, "
             f"failed={self.process_name}, "
             f"uuid={self.uuid}, "
             f"error_type={type(exception).__name__}"

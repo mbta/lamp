@@ -31,7 +31,7 @@ def get_merge_list() -> Dict[str, EventsToMerge]:
     """
     getter function for dict of merge event objects
     """
-    process_logger = ProcessLogger("get_merge_list")
+    process_logger = ProcessLogger("l1_get_merge_list")
     process_logger.log_start()
 
     # query to remove "error" records from events going into FullTripEvents
@@ -147,7 +147,7 @@ def pull_and_transform(
         "start_time",
     ]
 
-    process_logger = ProcessLogger("pull_new_events")
+    process_logger = ProcessLogger("l1_pull_events")
     process_logger.log_start()
 
     for event_type in events_list.values():
@@ -188,7 +188,7 @@ def merge_events(events_list: Dict[str, EventsToMerge]) -> pandas.DataFrame:
     """
     merge all unprocessed event types into single dataframe
     """
-    process_logger = ProcessLogger("merge_events")
+    process_logger = ProcessLogger("l1_merge_events")
     process_logger.log_start()
 
     # left merge TRIP_UPDATE stop events with moving VEHICLE_POSITION events
@@ -244,7 +244,7 @@ def update_with_new_events(
     alternate approach is used here where just hashes are selected that represent
     update records and each column is updated seperatly from insert_dataframe
     """
-    process_logger = ProcessLogger("merge_events")
+    process_logger = ProcessLogger("l1_update_events")
     process_logger.log_start()
 
     # get dataframe of hashes represnting records in FullTripEvent table that
@@ -337,7 +337,7 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
         "fk_tu_stopped_event",
     ]
 
-    process_logger = ProcessLogger("insert_new_events")
+    process_logger = ProcessLogger("l1_insert_events")
     process_logger.log_start()
     insert_query = (
         FullTripEvents.metadata.tables[FullTripEvents.__tablename__]
@@ -395,7 +395,7 @@ def process_full_trip_events(db_manager: DatabaseManager) -> None:
     if computed hahes in TempFullTripEvents DO NOT exist in FullTripEvents,
     full records are inserted from TempFullTripEvents into FullTripEvents
     """
-    process_logger = ProcessLogger("process_full_trip_events")
+    process_logger = ProcessLogger("process_l1_events")
     process_logger.log_start()
     try:
         events_list = get_merge_list()

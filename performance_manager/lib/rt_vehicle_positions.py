@@ -199,7 +199,7 @@ def merge_vehicle_position_events(
     new events will be merged with existing events in a 5 minutes window
     surrounding the year/month/day/hour value found in path of parquet files
     """
-    process_logger = ProcessLogger("merge_vp_events")
+    process_logger = ProcessLogger("vp_merge_events")
     process_logger.log_start()
 
     merge_events = get_event_overlap(folder, new_events, session)
@@ -300,23 +300,25 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
         paths = folder_data["paths"]
 
         subprocess_logger = ProcessLogger(
-            "process_tu_dir", folder=folder, file_count=len(paths)
+            "process_vp_dir", folder=folder, file_count=len(paths)
         )
         subprocess_logger.log_start()
 
         try:
+            sizes = {}
             new_events = get_vp_dataframe(paths)
-            new_events_updated = transform_vp_dtyes(new_events)
-            new_events_timestamps = transform_vp_timestamps(new_events_updated)
+            sizes["new_events"] = new_events.shape[0]
 
-            subprocess_logger.add_metadata(
-                new_events_size=new_events.shape[0],
-                new_events_updated_size=new_events_updated.shape[0],
-                new_events_timestamps_size=new_events_timestamps.shape[0],
-            )
+            new_events = transform_vp_dtyes(new_events)
+            sizes["new_events_updated_size"] = new_events.shape[0]
+
+            new_events = transform_vp_timestamps(new_events)
+            sizes["new_events_timestamps_size"] = new_events.shape[0]
+
+            subprocess_logger.add_metadata(**sizes)
 
             merge_vehicle_position_events(
-                str(folder), new_events_timestamps, db_manager.get_session()
+                str(folder), new_events, db_manager.get_session()
             )
         except Exception as exception:
             subprocess_logger.log_failure(exception)
