@@ -1,12 +1,13 @@
-import os
-import json
-import pathlib
-import urllib.parse
 from typing import Dict, List, Any, Union
+import json
+import os
+import pathlib
+import urllib.parse as urlparse
+
+import boto3
 import pandas
 
 import sqlalchemy as sa
-from sqlalchemy.engine import URL as DbUrl
 from sqlalchemy.orm import sessionmaker
 
 from .logging_utils import ProcessLogger
@@ -25,24 +26,61 @@ def get_local_engine(
     process_logger = ProcessLogger("create_sql_engine")
     process_logger.log_start()
     try:
-        host = os.environ["DB_HOST"]
-        dbname = os.environ["DB_NAME"]
-        user = os.environ["DB_USER"]
-        port = int(os.environ["DB_PORT"])
-        password = urllib.parse.quote_plus(os.environ["DB_PASSWORD"])
+        db_host = os.environ.get("DB_HOST")
+        db_name = os.environ.get("DB_NAME")
+        db_password = os.environ.get("DB_PASSWORD", None)
+        db_port = os.environ.get("DB_PORT")
+        db_region = os.environ.get("DB_REGION", None)
+        db_user = os.environ.get("DB_USER")
+        db_ssl_options = ""
+
+        assert db_host is not None
+        assert db_name is not None
+        assert db_port is not None
+        assert db_user is not None
 
         process_logger.add_metadata(
-            host=host, database_name=dbname, user=user, port=port
+            host=db_host, database_name=db_name, user=db_user, port=db_port
         )
 
-        database_url = DbUrl.create(
-            drivername="postgresql+psycopg2",
-            username=user,
-            password=password,
-            host=host,
-            port=port,
-            database=dbname,
+        # use presence of password as indicator of connection type.
+        #
+        # if its not provided, assume cloud database where ssl is used and
+        # passwords are generated on the fly
+        #
+        # if it is provided, assume local docker database
+        if db_password is None:
+            # spin up a rds client to get the db password
+            client = boto3.client("rds")
+            db_password = urlparse.quote_plus(
+                client.generate_db_auth_token(
+                    DBHostname=db_host,
+                    Port=db_port,
+                    DBUsername=db_user,
+                    Region=db_region,
+                )
+            )
+
+            assert db_password is not None
+            assert db_password != ""
+
+            # set the ssl cert path to the file that should be added to the
+            # lambda function at deploy time
+            db_ssl_cert = os.path.abspath(
+                os.path.join("/", "usr", "local", "share", "amazon-certs.pem")
+            )
+
+            assert os.path.isfile(db_ssl_cert)
+
+            # update the ssl options string to add to the database url
+            db_ssl_options = f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
+
+        database_url = (
+            f"postgresql+psycopg2://{db_user}:"
+            f"{db_password}@{db_host}/{db_name}"
+            f"{db_ssl_options}"
         )
+
         engine = sa.create_engine(database_url, echo=echo, future=True)
 
         process_logger.log_complete()
@@ -90,7 +128,12 @@ class DatabaseManager:
     manager class for rds application operations
     """
 
-    def __init__(self, experimental: bool = False, verbose: bool = False):
+    def __init__(
+        self,
+        experimental: bool = False,
+        verbose: bool = False,
+        seed: bool = False,
+    ):
         """
         initialize db manager object, creates engine and sessionmaker
         """
@@ -111,6 +154,9 @@ class DatabaseManager:
 
         # create tables in SqlBase
         SqlBase.metadata.create_all(self.engine)
+
+        if seed:
+            self.seed_metadata()
 
     def _get_schema_table(self, table: Any) -> sa.sql.schema.Table:
         if isinstance(table, sa.sql.schema.Table):
