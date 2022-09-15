@@ -34,6 +34,11 @@ def get_local_engine(
         db_user = os.environ.get("DB_USER")
         db_ssl_options = ""
 
+        # when using docker, the db host env var will be "local_rds" but
+        # accessed via the "0.0.0.0" ip address
+        if db_host == "local_rds":
+            db_host = "0.0.0.0"
+
         assert db_host is not None
         assert db_name is not None
         assert db_port is not None

@@ -16,7 +16,7 @@ from py_gtfs_rt_ingestion import ProcessLogger
 from py_gtfs_rt_ingestion import batch_files
 from py_gtfs_rt_ingestion import file_list_from_s3
 from py_gtfs_rt_ingestion import load_environment
-from py_gtfs_rt_ingestion import get_psql_conn
+from py_gtfs_rt_ingestion import get_local_engine
 
 
 logging.getLogger().setLevel("INFO")
@@ -135,7 +135,7 @@ def lambda_handler(
             batch_args = BatchArgs()
 
         if batch_args.debug_rds_connection:
-            get_psql_conn()
+            get_local_engine()
         else:
             main(batch_args)
 

@@ -9,6 +9,7 @@ authors = ["MBTA CTD <developer@mbta.com>",
 python = "^3.9"
 pyarrow = "^8.0.0"
 psycopg2 = "^2.9.3"
+SQLAlchemy = "^1.4.39"
 
 [tool.poetry.dev-dependencies]
 boto3 = "^1.23.3"
