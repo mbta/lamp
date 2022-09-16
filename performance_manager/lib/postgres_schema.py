@@ -11,7 +11,7 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "eventsVehiclePositions"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True)
+    pk_id = sa.Column(sa.Integer, primary_key=True, index=True)
     is_moving = sa.Column(sa.Boolean)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=True)
@@ -32,7 +32,7 @@ class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "eventsTripUpdates"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True)
+    pk_id = sa.Column(sa.Integer, primary_key=True, index=True)
     is_moving = sa.Column(sa.Boolean)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=True)
@@ -52,7 +52,7 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "metadataLog"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True)
+    pk_id = sa.Column(sa.Integer, primary_key=True, index=True)
     processed = sa.Column(sa.Boolean, default=sa.false())
     path = sa.Column(sa.String(256), nullable=False, unique=True)
     created_on = sa.Column(
@@ -164,16 +164,19 @@ class FullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
         sa.Integer,
         sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
         nullable=True,
+        index=True,
     )
     fk_vp_stopped_event = sa.Column(
         sa.Integer,
         sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
         nullable=True,
+        index=True,
     )
     fk_tu_stopped_event = sa.Column(
         sa.Integer,
         sa.ForeignKey("eventsTripUpdates.pk_id", ondelete="CASCADE"),
         nullable=True,
+        index=True,
     )
 
 
