@@ -1,7 +1,4 @@
-from dataclasses import dataclass
-from typing import Dict
 import pandas
-import numpy
 
 import sqlalchemy as sa
 
@@ -16,115 +13,7 @@ from .postgres_schema import (
 from .gtfs_utils import add_event_hash_column
 
 
-@dataclass
-class EventsToMerge:
-    """
-    container class for processing events that will be merged to make trip events
-    """
-
-    select_query: sa.sql.selectable.Select
-    fk_rename_field: str
-    merge_dataframe: pandas.DataFrame = pandas.DataFrame()
-
-
-def get_merge_list() -> Dict[str, EventsToMerge]:
-    """
-    getter function for dict of merge event objects
-    """
-    process_logger = ProcessLogger("l1_get_merge_list")
-    process_logger.log_start()
-
-    # query to remove "error" records from events going into FullTripEvents
-    # no records should have duplicate hash values unlesss something strange has
-    # happened in the gtfs-rt data stream
-    dupe_hash_query = (
-        sa.select(VehiclePositionEvents.hash)
-        .group_by(VehiclePositionEvents.hash)
-        .having(sa.func.count() > 1)
-    )
-
-    moving_vp_events = EventsToMerge(
-        select_query=sa.select(
-            VehiclePositionEvents.pk_id,
-            VehiclePositionEvents.stop_sequence,
-            VehiclePositionEvents.stop_id,
-            VehiclePositionEvents.direction_id,
-            VehiclePositionEvents.route_id,
-            VehiclePositionEvents.start_date,
-            VehiclePositionEvents.start_time,
-            VehiclePositionEvents.vehicle_id,
-        ).where(
-            (VehiclePositionEvents.is_moving == sa.true())
-            & (
-                VehiclePositionEvents.pk_id.notin_(
-                    sa.select(FullTripEvents.fk_vp_moving_event).where(
-                        FullTripEvents.fk_vp_moving_event.isnot(None)
-                    )
-                )
-            )
-            & (VehiclePositionEvents.hash.notin_(dupe_hash_query))
-        ),
-        fk_rename_field="fk_vp_moving_event",
-    )
-
-    stopped_vp_events = EventsToMerge(
-        select_query=sa.select(
-            VehiclePositionEvents.pk_id,
-            VehiclePositionEvents.stop_sequence,
-            VehiclePositionEvents.stop_id,
-            VehiclePositionEvents.direction_id,
-            VehiclePositionEvents.route_id,
-            VehiclePositionEvents.start_date,
-            VehiclePositionEvents.start_time,
-            VehiclePositionEvents.vehicle_id,
-        ).where(
-            (VehiclePositionEvents.is_moving == sa.false())
-            & (
-                VehiclePositionEvents.pk_id.notin_(
-                    sa.select(FullTripEvents.fk_vp_stopped_event).where(
-                        FullTripEvents.fk_vp_stopped_event.isnot(None)
-                    )
-                )
-            )
-            & (VehiclePositionEvents.hash.notin_(dupe_hash_query))
-        ),
-        fk_rename_field="fk_vp_stopped_event",
-    )
-
-    stopped_tu_events = EventsToMerge(
-        select_query=sa.select(
-            TripUpdateEvents.pk_id,
-            TripUpdateEvents.stop_sequence,
-            TripUpdateEvents.stop_id,
-            TripUpdateEvents.direction_id,
-            TripUpdateEvents.route_id,
-            TripUpdateEvents.start_date,
-            TripUpdateEvents.start_time,
-            TripUpdateEvents.vehicle_id,
-        ).where(
-            (
-                TripUpdateEvents.pk_id.notin_(
-                    sa.select(FullTripEvents.fk_tu_stopped_event).where(
-                        FullTripEvents.fk_tu_stopped_event.isnot(None)
-                    )
-                )
-            )
-        ),
-        fk_rename_field="fk_tu_stopped_event",
-    )
-
-    process_logger.log_complete()
-
-    return {
-        "moving_vp": moving_vp_events,
-        "stopped_vp": stopped_vp_events,
-        "stopped_tu": stopped_tu_events,
-    }
-
-
-def pull_and_transform(
-    events_list: Dict[str, EventsToMerge], db_manager: DatabaseManager
-) -> None:
+def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
     """
     pull new events from events tables and transform
     """
@@ -141,83 +30,213 @@ def pull_and_transform(
 
     # these columns are converted to pandas Int64 type to ensure consistent hash
     convert_to_number_columns = [
+        "fk_vp_moving_event",
+        "fk_vp_stopped_event",
+        "fk_tu_stopped_event",
         "stop_sequence",
         "direction_id",
         "start_date",
         "start_time",
     ]
 
+    merged_columns_to_keep = [
+        "fk_vp_moving_event",
+        "fk_vp_stopped_event",
+        "fk_tu_stopped_event",
+        "hash",
+    ]
+
+    dupe_hash_cte = (
+        sa.select(VehiclePositionEvents.hash)
+        .group_by(VehiclePositionEvents.hash)
+        .having(sa.func.count() > 1)
+    ).cte("dupe_hash")
+
+    move_vp_cte = (
+        sa.select(
+            VehiclePositionEvents.pk_id.label("fk_vp_moving_event"),
+            VehiclePositionEvents.stop_sequence,
+            VehiclePositionEvents.stop_id,
+            VehiclePositionEvents.direction_id,
+            VehiclePositionEvents.route_id,
+            VehiclePositionEvents.start_date,
+            VehiclePositionEvents.start_time,
+            VehiclePositionEvents.vehicle_id,
+        )
+        .join(
+            FullTripEvents,
+            VehiclePositionEvents.pk_id == FullTripEvents.fk_vp_moving_event,
+            isouter=True,
+        )
+        .join(
+            dupe_hash_cte,
+            VehiclePositionEvents.hash == dupe_hash_cte.c.hash,
+            isouter=True,
+        )
+        .where(
+            (VehiclePositionEvents.is_moving == sa.true())
+            & (VehiclePositionEvents.stop_sequence.isnot(None))
+            & (VehiclePositionEvents.stop_id.isnot(None))
+            & (VehiclePositionEvents.direction_id.isnot(None))
+            & (VehiclePositionEvents.route_id.isnot(None))
+            & (VehiclePositionEvents.start_date.isnot(None))
+            & (VehiclePositionEvents.start_time.isnot(None))
+            & (VehiclePositionEvents.vehicle_id.isnot(None))
+            & (FullTripEvents.fk_vp_moving_event.is_(None))
+            & (dupe_hash_cte.c.hash.is_(None))
+        )
+        .cte(name="move_vp")
+    )
+
+    stop_vp_cte = (
+        sa.select(
+            VehiclePositionEvents.pk_id.label("fk_vp_stopped_event"),
+            VehiclePositionEvents.stop_sequence,
+            VehiclePositionEvents.stop_id,
+            VehiclePositionEvents.direction_id,
+            VehiclePositionEvents.route_id,
+            VehiclePositionEvents.start_date,
+            VehiclePositionEvents.start_time,
+            VehiclePositionEvents.vehicle_id,
+        )
+        .join(
+            FullTripEvents,
+            VehiclePositionEvents.pk_id == FullTripEvents.fk_vp_stopped_event,
+            isouter=True,
+        )
+        .join(
+            dupe_hash_cte,
+            VehiclePositionEvents.hash == dupe_hash_cte.c.hash,
+            isouter=True,
+        )
+        .where(
+            (VehiclePositionEvents.is_moving == sa.false())
+            & (VehiclePositionEvents.stop_sequence.isnot(None))
+            & (VehiclePositionEvents.stop_id.isnot(None))
+            & (VehiclePositionEvents.direction_id.isnot(None))
+            & (VehiclePositionEvents.route_id.isnot(None))
+            & (VehiclePositionEvents.start_date.isnot(None))
+            & (VehiclePositionEvents.start_time.isnot(None))
+            & (VehiclePositionEvents.vehicle_id.isnot(None))
+            & (FullTripEvents.fk_vp_stopped_event.is_(None))
+            & (dupe_hash_cte.c.hash.is_(None))
+        )
+        .cte(name="stop_vp")
+    )
+
+    stop_tu_cte = (
+        sa.select(
+            TripUpdateEvents.pk_id.label("fk_tu_stopped_event"),
+            TripUpdateEvents.stop_sequence,
+            TripUpdateEvents.stop_id,
+            TripUpdateEvents.direction_id,
+            TripUpdateEvents.route_id,
+            TripUpdateEvents.start_date,
+            TripUpdateEvents.start_time,
+            TripUpdateEvents.vehicle_id,
+        )
+        .join(
+            FullTripEvents,
+            TripUpdateEvents.pk_id == FullTripEvents.fk_tu_stopped_event,
+            isouter=True,
+        )
+        .where(
+            (TripUpdateEvents.stop_sequence.isnot(None))
+            & (TripUpdateEvents.stop_id.isnot(None))
+            & (TripUpdateEvents.direction_id.isnot(None))
+            & (TripUpdateEvents.route_id.isnot(None))
+            & (TripUpdateEvents.start_date.isnot(None))
+            & (TripUpdateEvents.start_time.isnot(None))
+            & (TripUpdateEvents.vehicle_id.isnot(None))
+            & (FullTripEvents.fk_tu_stopped_event.is_(None))
+        )
+        .cte(name="stop_tu")
+    )
+
+    merged_query = (
+        sa.select(
+            move_vp_cte.c.fk_vp_moving_event,
+            stop_tu_cte.c.fk_tu_stopped_event,
+            stop_vp_cte.c.fk_vp_stopped_event,
+            sa.func.coalesce(
+                move_vp_cte.c.stop_sequence,
+                stop_vp_cte.c.stop_sequence,
+            ).label("stop_sequence"),
+            sa.func.coalesce(
+                move_vp_cte.c.stop_id, stop_vp_cte.c.stop_id
+            ).label("stop_id"),
+            sa.func.coalesce(
+                move_vp_cte.c.direction_id,
+                stop_vp_cte.c.direction_id,
+            ).label("direction_id"),
+            sa.func.coalesce(
+                move_vp_cte.c.route_id, stop_vp_cte.c.route_id
+            ).label("route_id"),
+            sa.func.coalesce(
+                move_vp_cte.c.start_date, stop_vp_cte.c.start_date
+            ).label("start_date"),
+            sa.func.coalesce(
+                move_vp_cte.c.start_time, stop_vp_cte.c.start_time
+            ).label("start_time"),
+            sa.func.coalesce(
+                move_vp_cte.c.vehicle_id, stop_vp_cte.c.vehicle_id
+            ).label("vehicle_id"),
+        )
+        .join(
+            stop_tu_cte,
+            sa.and_(
+                move_vp_cte.c.stop_sequence == stop_tu_cte.c.stop_sequence,
+                move_vp_cte.c.stop_id == stop_tu_cte.c.stop_id,
+                move_vp_cte.c.direction_id == stop_tu_cte.c.direction_id,
+                move_vp_cte.c.route_id == stop_tu_cte.c.route_id,
+                move_vp_cte.c.start_date == stop_tu_cte.c.start_date,
+                move_vp_cte.c.start_time == stop_tu_cte.c.start_time,
+                move_vp_cte.c.vehicle_id == stop_tu_cte.c.vehicle_id,
+            ),
+            isouter=True,
+        )
+        .join(
+            stop_vp_cte,
+            sa.and_(
+                move_vp_cte.c.stop_sequence == stop_vp_cte.c.stop_sequence,
+                move_vp_cte.c.stop_id == stop_vp_cte.c.stop_id,
+                move_vp_cte.c.direction_id == stop_vp_cte.c.direction_id,
+                move_vp_cte.c.route_id == stop_vp_cte.c.route_id,
+                move_vp_cte.c.start_date == stop_vp_cte.c.start_date,
+                move_vp_cte.c.start_time == stop_vp_cte.c.start_time,
+                move_vp_cte.c.vehicle_id == stop_vp_cte.c.vehicle_id,
+            ),
+            full=True,
+        )
+    )
+
     process_logger = ProcessLogger("l1_pull_events")
     process_logger.log_start()
 
-    for event_type in events_list.values():
-        # get dataframe from L0 table select
-        event_type.merge_dataframe = db_manager.select_as_dataframe(
-            event_type.select_query
-        )
+    # get dataframe from L0 table select
+    merged_dataframe = db_manager.select_as_dataframe(merged_query)
 
-        # if L0 select produces no results, create empty frame with expected
-        # columns "pk_id" & "hash"
-        if event_type.merge_dataframe.shape[0] == 0:
-            event_type.merge_dataframe = pandas.DataFrame(
-                columns=["pk_id", "hash"]
-            )
-        else:
-            # if data is retrieved from L0 table, ensure number columns are
-            # Int64 type to ensure consistent hashing
-            for column in convert_to_number_columns:
-                event_type.merge_dataframe[column] = pandas.to_numeric(
-                    event_type.merge_dataframe[column]
-                ).astype("Int64")
-            # create hash column to be used as FullTripEvent primary key
-            # drop category columns after hash has been created
-            event_type.merge_dataframe = add_event_hash_column(
-                event_type.merge_dataframe,
-                expected_hash_columns=expected_hash_columns,
-            )[["pk_id", "hash"]]
+    # if L0 select produces no results, return empty frame
+    if merged_dataframe.shape[0] == 0:
+        return merged_dataframe
 
-        # rename pk_id field from L0 table to L1 foreign key field name
-        event_type.merge_dataframe.rename(
-            columns={"pk_id": event_type.fk_rename_field}, inplace=True
-        )
+    # if data is retrieved from L0 table, ensure number columns are
+    # Int64 type to ensure consistent hashing
+    for column in convert_to_number_columns:
+        merged_dataframe[column] = pandas.to_numeric(
+            merged_dataframe[column]
+        ).astype("Int64")
+
+    # create hash column to be used as FullTripEvent primary key
+    # drop category columns after hash has been created
+    merged_dataframe = add_event_hash_column(
+        merged_dataframe,
+        expected_hash_columns=expected_hash_columns,
+    )[merged_columns_to_keep]
 
     process_logger.log_complete()
 
-
-def merge_events(events_list: Dict[str, EventsToMerge]) -> pandas.DataFrame:
-    """
-    merge all unprocessed event types into single dataframe
-    """
-    process_logger = ProcessLogger("l1_merge_events")
-    process_logger.log_start()
-
-    # left merge TRIP_UPDATE stop events with moving VEHICLE_POSITION events
-    # TRIP_UPDATE predicted stop times are only helpful as supplement to
-    # VEHICLE_POSITION moving event
-    return_dataframe = events_list["moving_vp"].merge_dataframe.merge(
-        events_list["stopped_tu"].merge_dataframe, how="left", on="hash"
-    )
-    # outer join VEHICLE_POSITION stop events to capture all recorded stop
-    # events, even if they do not have associated moving event
-    return_dataframe = return_dataframe.merge(
-        events_list["stopped_vp"].merge_dataframe, how="outer", on="hash"
-    )
-
-    # merge action turns foreign key field into "float" type, this will
-    # convert foreign keys back to integer for update / insert action
-    for column in return_dataframe.columns:
-        if column == "hash":
-            continue
-        return_dataframe[column] = return_dataframe[column].astype("Int64")
-
-    # make sure all "na" types are replace as Python None for RDS
-    # insert / upate
-    return_dataframe = return_dataframe.fillna(numpy.nan).replace(
-        [numpy.nan], [None]
-    )
-
-    process_logger.log_complete()
-    return return_dataframe
+    return merged_dataframe
 
 
 def load_temp_table(
@@ -249,8 +268,9 @@ def update_with_new_events(
 
     # get dataframe of hashes represnting records in FullTripEvent table that
     # need to be update from loading TempFullTripEvents table
-    hash_to_update_query = sa.select(TempFullTripEvents.hash).where(
-        TempFullTripEvents.hash.in_(sa.select(FullTripEvents.hash))
+    hash_to_update_query = sa.select(TempFullTripEvents.hash).join(
+        FullTripEvents,
+        FullTripEvents.hash == TempFullTripEvents.hash,
     )
     hashes_to_update = db_manager.select_as_dataframe(hash_to_update_query)
 
@@ -349,9 +369,13 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
                 TempFullTripEvents.fk_vp_stopped_event,
                 TempFullTripEvents.fk_vp_moving_event,
                 TempFullTripEvents.fk_tu_stopped_event,
-            ).where(
-                (TempFullTripEvents.hash.notin_(sa.select(FullTripEvents.hash)))
-            ),
+            )
+            .join(
+                FullTripEvents,
+                FullTripEvents.hash == TempFullTripEvents.hash,
+                isouter=True,
+            )
+            .where((FullTripEvents.hash.is_(None))),
         )
     )
     result = db_manager.execute(insert_query)
@@ -398,9 +422,7 @@ def process_full_trip_events(db_manager: DatabaseManager) -> None:
     process_logger = ProcessLogger("process_l1_events")
     process_logger.log_start()
     try:
-        events_list = get_merge_list()
-        pull_and_transform(events_list, db_manager)
-        insert_dataframe = merge_events(events_list)
+        insert_dataframe = pull_and_transform(db_manager)
         process_logger.add_metadata(
             new_full_trip_records=insert_dataframe.shape[0]
         )
