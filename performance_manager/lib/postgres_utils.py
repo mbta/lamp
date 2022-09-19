@@ -16,6 +16,69 @@ from .postgres_schema import MetadataLog, SqlBase
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def postgres_create_modified_trigger(
+    table: sa.schema.Table,
+    connection: sa.engine.Connection,
+    **_: Any,
+) -> None:
+    """
+    sqlalchemy will listen for new table create events and when detected,
+    run this function to suplement table creation by creating update_on
+    triggers for tables containing an 'update_on' field
+
+    this function will only be used for postgres db
+    """
+    update_column_name = "updated_on"
+    trigger_function_statement = sa.DDL(
+        f"CREATE OR REPLACE FUNCTION update_modified_columns() "
+        f"RETURNS TRIGGER AS $$ "
+        f"BEGIN "
+        f"NEW.{update_column_name} = CURRENT_TIMESTAMP; "
+        f"RETURN NEW; "
+        f"END; $$ LANGUAGE plpgsql"
+    )
+    connection.execute(trigger_function_statement)
+    if update_column_name in list(table.columns.keys()):
+        trigger_name = f"update_{table}_modified".lower()
+        trigger_statement = sa.DDL(
+            f"DO $$ BEGIN "
+            f"IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = '{trigger_name}') "
+            f"THEN "
+            f'    CREATE TRIGGER {trigger_name} BEFORE UPDATE ON "{table}" '
+            f"    FOR EACH ROW EXECUTE PROCEDURE update_modified_columns();"
+            f"END IF; "
+            f"END $$;"
+        )
+        connection.execute(trigger_statement)
+
+
+def sqlite_create_modified_trigger(
+    table: sa.schema.Table,
+    connection: sa.engine.Connection,
+    **_: Any,
+) -> None:
+    """
+    sqlalchemy will listen for new table create events and when detected,
+    run this function to suplement table creation by creating update_on
+    triggers for tables containing an 'update_on' field
+
+    this function will only be used for sqlite db
+    """
+    update_column_name = "updated_on"
+    if update_column_name in list(table.columns.keys()):
+        trigger_name = f"update_{table}_modified".lower()
+        primary_key = str(table.primary_key.columns.items()[0][0])
+        trigger_statement = sa.DDL(
+            f"CREATE TRIGGER IF NOT EXISTS {trigger_name} "
+            f"AFTER UPDATE ON {table} FOR EACH ROW "
+            f"BEGIN "
+            f"  UPDATE {table} SET {update_column_name} = CURRENT_TIMESTAMP "
+            f"  WHERE {primary_key} = NEW.{primary_key};"
+            f"END; "
+        )
+        connection.execute(trigger_statement)
+
+
 def get_local_engine(
     echo: bool = False,
 ) -> sa.future.engine.Engine:
@@ -147,13 +210,24 @@ class DatabaseManager:
             # this is required for foreign key support in sqlite, per this:
             # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#foreign-key-support
             @sa.event.listens_for(sa.engine.Engine, "connect")
-            def set_sqlite_pragma(dbapi_connection, _):  # type: ignore
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.close()
+            def set_sqlite_pragma(
+                connection: sa.engine.Connection, _: Any
+            ) -> None:
+                connection.execute("PRAGMA foreign_keys=ON")
+
+            sa.event.listen(
+                sa.schema.Table,
+                "after_create",
+                sqlite_create_modified_trigger,
+            )
 
         else:
             self.engine = get_local_engine(echo=verbose)
+            sa.event.listen(
+                sa.schema.Table,
+                "after_create",
+                postgres_create_modified_trigger,
+            )
 
         self.session = sessionmaker(bind=self.engine)
 

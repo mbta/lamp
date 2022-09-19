@@ -11,7 +11,7 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "eventsVehiclePositions"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True, index=True)
+    pk_id = sa.Column(sa.Integer, primary_key=True)
     is_moving = sa.Column(sa.Boolean)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=True)
@@ -25,6 +25,7 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     hash = sa.Column(
         sa.LargeBinary(16), nullable=False, index=True, unique=False
     )
+    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
 class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
@@ -32,7 +33,7 @@ class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "eventsTripUpdates"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True, index=True)
+    pk_id = sa.Column(sa.Integer, primary_key=True)
     is_moving = sa.Column(sa.Boolean)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=True)
@@ -45,6 +46,7 @@ class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
     hash = sa.Column(
         sa.LargeBinary(16), nullable=False, index=True, unique=False
     )
+    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
@@ -52,7 +54,7 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "metadataLog"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True, index=True)
+    pk_id = sa.Column(sa.Integer, primary_key=True)
     processed = sa.Column(sa.Boolean, default=sa.false())
     path = sa.Column(sa.String(256), nullable=False, unique=True)
     created_on = sa.Column(
@@ -178,6 +180,7 @@ class FullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
         nullable=True,
         index=True,
     )
+    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
 class TempFullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
