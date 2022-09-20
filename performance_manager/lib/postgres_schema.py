@@ -201,3 +201,39 @@ class TempFullTripEvents(SqlBase):  # pylint: disable=too-few-public-methods
         sa.Integer,
         nullable=True,
     )
+
+
+class TravelTimes(SqlBase):  # pylint: disable=too-few-public-methods
+    """Level 2 Table for Travel Times"""
+
+    __tablename__ = "travelTimes"
+
+    pk_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+    travel_time_seconds = sa.Column(
+        sa.Integer,
+        nullable=False,
+    )
+    created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
+class DwellTimes(SqlBase):  # pylint: disable=too-few-public-methods
+    """Level 2 Table for Dwell Times"""
+
+    __tablename__ = "dwellTimes"
+
+    pk_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+    dwell_time_seconds = sa.Column(
+        sa.Integer,
+        nullable=False,
+    )
+    created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
