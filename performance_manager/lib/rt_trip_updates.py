@@ -1,9 +1,5 @@
 from typing import Optional, Union, List, Dict, Any
-from queue import SimpleQueue, Empty
 
-import logging
-import threading
-import psutil
 import pandas
 import numpy
 
@@ -44,21 +40,30 @@ def get_tu_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
     )
 
 
-def explode_stop_time_update(row: pandas.Series) -> Optional[List[dict]]:
+# pylint: disable=too-many-arguments
+def explode_stop_time_update(
+    stop_time_update: List[Dict[str, Any]],
+    timestamp: int,
+    direction_id: int,
+    route_id: Any,
+    start_date: int,
+    start_time: int,
+    vehicle_id: Any,
+) -> Optional[List[dict]]:
     """
-    function to be used with pandas `apply` dataframe method
+    function to be used with numpy vectorize
     explode nested list of dicts in stop_time_update column
     """
     append_dict = {
-        "timestamp": row["timestamp"],
-        "direction_id": row["direction_id"],
-        "route_id": row["route_id"],
-        "start_date": row["start_date"],
-        "start_time": row["start_time"],
-        "vehicle_id": row["vehicle_id"],
+        "timestamp": timestamp,
+        "direction_id": direction_id,
+        "route_id": route_id,
+        "start_date": start_date,
+        "start_time": start_time,
+        "vehicle_id": vehicle_id,
     }
     return_list: List[Dict[str, Any]] = []
-    for record in row["stop_time_update"]:
+    for record in stop_time_update:
         try:
             arrival_time = int(record["arrival"]["time"])
         except (TypeError, KeyError):
@@ -66,10 +71,7 @@ def explode_stop_time_update(row: pandas.Series) -> Optional[List[dict]]:
         # filter out stop event predictions that are too far into the future
         # and are unlikel to be used as a final stop event prediction
         # (2 minutes) or predictions that go into the past (negative values)
-        if (
-            arrival_time - row["timestamp"] < 0
-            or arrival_time - row["timestamp"] > 120
-        ):
+        if arrival_time - timestamp < 0 or arrival_time - timestamp > 120:
             continue
         append_dict.update(
             {
@@ -86,20 +88,7 @@ def explode_stop_time_update(row: pandas.Series) -> Optional[List[dict]]:
     return return_list
 
 
-def log_memory_usage(complete_queue: SimpleQueue, interval: int = 5) -> None:
-    """
-    log current amount of system memory used every 'interval' seconds
-    to be used in thread to measure work during high memory operation
-    """
-    while True:
-        mb_memory_used = int(psutil.virtual_memory().used / 1_000_000)
-        logging.info("performance_manager_memory_used=%d", mb_memory_used)
-        try:
-            complete_queue.get(timeout=interval)
-        except Empty:
-            continue
-        else:
-            break
+# pylint: enable=too-many-arguments
 
 
 def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
@@ -124,20 +113,21 @@ def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
         events["start_time"].apply(start_time_to_seconds).astype("int64")
     )
 
-    # start thread to log memory usage during apply operation
-    complete_queue: SimpleQueue = SimpleQueue()
-    log_thread = threading.Thread(
-        target=log_memory_usage, args=(complete_queue,)
-    )
-    log_thread.start()
-
-    # expand and filter stop_time_update column
-    # this will return a Series with values being list of dicts
-    events = events.apply(explode_stop_time_update, axis=1).dropna()
-
-    # send signal to stop memory usage logging and join thread
-    complete_queue.put(True)
-    log_thread.join()
+    # expand and filter stop_time_update column using numpy vectorize
+    # numpy vectorize offers significantly better performance over pandas apply
+    # this will return a ndarray with values being list of dicts
+    vector_explode = numpy.vectorize(explode_stop_time_update)
+    events = pandas.Series(
+        vector_explode(
+            events.stop_time_update,
+            events.timestamp,
+            events.direction_id,
+            events.route_id,
+            events.start_date,
+            events.start_time,
+            events.vehicle_id,
+        )
+    ).dropna()
 
     # transform Series of list of dicts into dataframe
     events = pandas.json_normalize(events.explode())
