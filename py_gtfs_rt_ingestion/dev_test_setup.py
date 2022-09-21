@@ -15,8 +15,8 @@ import boto3
 from py_gtfs_rt_ingestion import file_list_from_s3
 
 GTFS_BUCKET = "mbta-gtfs-s3"
-DEV_INGEST_BUCKET = "mbta-ctd-dataplatform-dev-incoming"
-DEV_EXPORT_BUCKET = "mbta-ctd-dataplatform-dev-springboard"
+DEV_INCOMING_BUCKET = "mbta-ctd-dataplatform-dev-incoming"
+DEV_SPRINGBOARD_BUCKET = "mbta-ctd-dataplatform-dev-springboard"
 DEV_ARCHIVE_BUCKET = "mbta-ctd-dataplatform-dev-archive"
 DEV_ERROR_BUCKET = "mbta-ctd-dataplatform-dev-error"
 LAMP_PREFIX = "lamp/"
@@ -129,8 +129,8 @@ def clear_dev_buckets(args: SetupArgs) -> None:
     Clear all development buckets of objects
     """
     bucket_list = (
-        DEV_INGEST_BUCKET,
-        DEV_EXPORT_BUCKET,
+        DEV_INCOMING_BUCKET,
+        DEV_SPRINGBOARD_BUCKET,
         DEV_ARCHIVE_BUCKET,
         DEV_ERROR_BUCKET,
     )
@@ -213,7 +213,7 @@ def copy_obj(prefix: str, num_to_copy: int) -> int:
         try:
             s3_client.copy(
                 copy_source,
-                DEV_INGEST_BUCKET,
+                DEV_INCOMING_BUCKET,
                 os.path.join(LAMP_PREFIX, key),
             )
         except Exception as e:
@@ -251,7 +251,7 @@ def copy_gfts_to_ingest(args: SetupArgs) -> None:
     objects to development Ingest bucket
     """
     src_uri_root = f"s3://{os.path.join(GTFS_BUCKET, args.src_prefix)}"
-    dest_urc_root = f"s3://{os.path.join(DEV_INGEST_BUCKET, LAMP_PREFIX)}"
+    dest_urc_root = f"s3://{os.path.join(DEV_INCOMING_BUCKET, LAMP_PREFIX)}"
 
     logging.info("Enumerating folders in (%s)...", src_uri_root)
     s3_client = boto3.client("s3")

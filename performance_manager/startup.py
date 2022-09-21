@@ -52,6 +52,36 @@ def load_environment() -> None:
         raise exception
 
 
+def validate_environment() -> None:
+    """
+    ensure that the environment has all the variables its required to have
+    before starting triggering main, making certain errors easier to debug.
+    """
+    # these variables required for normal opperation, ensure they are present
+    required_variables = [
+        "SPRINGBOARD_BUCKET",
+        "DB_HOST",
+        "DB_NAME",
+        "DB_PORT",
+        "DB_USER",
+    ]
+
+    missing_required = [
+        key for key in required_variables if os.environ.get(key, None) is None
+    ]
+
+    # if db password is missing, db region is required to generate a token to
+    # use as the password to the cloud database
+    if os.environ.get("DB_PASSWORD", None) is None:
+        if os.environ.get("DB_REGION", None) is None:
+            missing_required.append("DB_REGION")
+
+    if missing_required:
+        raise Exception(
+            f"Missing required environment variables {missing_required}"
+        )
+
+
 def parse_args(args: List[str]) -> argparse.Namespace:
     """parse args for running this entrypoint script"""
     parser = argparse.ArgumentParser(description=DESCRIPTION)
@@ -125,6 +155,7 @@ def main(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     load_environment()
+    validate_environment()
     parsed_args = parse_args(sys.argv[1:])
 
     main(parsed_args)

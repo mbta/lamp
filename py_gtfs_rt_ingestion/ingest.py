@@ -8,7 +8,6 @@ import sys
 
 from typing import Dict, Union
 
-from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import ConfigType
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
@@ -56,6 +55,39 @@ def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
     return {"files": [(parsed_args.input_file)]}
 
 
+def validate_environment() -> None:
+    """
+    ensure that the environment has all the variables its required to have
+    before starting triggering main, making certain errors easier to debug.
+    """
+    # these variables required for normal opperation, ensure they are present
+    required_variables = [
+        "ARCHIVE_BUCKET",
+        "ERROR_BUCKET",
+        "IMPORT_BUCKET",
+        "SPRINGBOARD_BUCKET",
+        "DB_HOST",
+        "DB_NAME",
+        "DB_PORT",
+        "DB_USER",
+    ]
+
+    missing_required = [
+        key for key in required_variables if os.environ.get(key, None) is None
+    ]
+
+    # if db password is missing, db region is required to generate a token to
+    # use as the password to the cloud database
+    if os.environ.get("DB_PASSWORD", None) is None:
+        if os.environ.get("DB_REGION", None) is None:
+            missing_required.append("DB_REGION")
+
+    if missing_required:
+        raise Exception(
+            f"Missing required environment variables {missing_required}"
+        )
+
+
 def main(event: Dict, process_logger: ProcessLogger) -> None:
     """
     * Convert a list of files from s3 to a parquet table
@@ -63,19 +95,6 @@ def main(event: Dict, process_logger: ProcessLogger) -> None:
     * Archive processed json files to archive s3 bucket
     * Move files that generated error to error s3 bucket
     """
-    try:
-        export_bucket = os.path.join(
-            os.environ["EXPORT_BUCKET"], DEFAULT_S3_PREFIX
-        )
-        archive_bucket = os.path.join(
-            os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
-        )
-        error_bucket = os.path.join(
-            os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX
-        )
-    except KeyError as e:
-        raise ArgumentException("Missing S3 Bucket environment variable") from e
-
     files = unpack_filenames(**event)
     archive_files = []
     error_files = []
@@ -90,7 +109,11 @@ def main(event: Dict, process_logger: ProcessLogger) -> None:
             write_parquet_file(
                 table=table,
                 filetype=s3_prefix,
-                s3_path=os.path.join(export_bucket, s3_prefix),
+                s3_path=os.path.join(
+                    os.environ["SPRINGBOARD_BUCKET"],
+                    DEFAULT_S3_PREFIX,
+                    s3_prefix,
+                ),
                 partition_cols=converter.partition_cols,
             )
 
@@ -112,10 +135,16 @@ def main(event: Dict, process_logger: ProcessLogger) -> None:
 
     finally:
         if len(error_files) > 0:
-            move_s3_objects(error_files, error_bucket)
+            move_s3_objects(
+                error_files,
+                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+            )
 
         if len(archive_files) > 0:
-            move_s3_objects(archive_files, archive_bucket)
+            move_s3_objects(
+                archive_files,
+                os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
+            )
 
 
 def lambda_handler(

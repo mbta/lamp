@@ -179,7 +179,7 @@ def get_static_parquet_paths(table_type: str, feed_info_path: str) -> List[str]:
     """
     get static table parquet files from FEED_INFO path
     """
-    springboard_bucket = os.environ["EXPORT_BUCKET"]
+    springboard_bucket = os.environ["SPRINGBOARD_BUCKET"]
     static_prefix = feed_info_path.replace("FEED_INFO", table_type)
     static_prefix = static_prefix.replace(f"{springboard_bucket}/", "")
     return list(

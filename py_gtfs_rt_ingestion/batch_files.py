@@ -8,7 +8,6 @@ import sys
 
 from typing import NamedTuple
 
-from py_gtfs_rt_ingestion import ArgumentException
 from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
 from py_gtfs_rt_ingestion import LambdaContext
 from py_gtfs_rt_ingestion import LambdaDict
@@ -73,19 +72,36 @@ def parse_args(args: list[str]) -> dict:
     return vars(parser.parse_args(args))
 
 
+def validate_environment() -> None:
+    """
+    ensure that the environment has all the variables its required to have
+    before starting triggering main, making certain errors easier to debug.
+    """
+    # these variables required for normal opperation, ensure they are present
+    required_variables = [
+        "INCOMING_BUCKET",
+        "INGEST_FUNCTION_ARN",
+    ]
+
+    missing_required = [
+        key for key in required_variables if os.environ.get(key, None) is None
+    ]
+
+    if missing_required:
+        raise Exception(
+            f"Missing required environment variables {missing_required}"
+        )
+
+
 def main(batch_args: BatchArgs) -> None:
     """
     * get all of the files and their sizes from the import s3 bucket
     * convert them into batches of matching files
     * trigger the ingestion lambda async
     """
-    try:
-        s3_bucket = os.path.join(os.environ["INGEST_BUCKET"])
-    except KeyError as e:
-        raise ArgumentException("Missing S3 Bucket environment variable") from e
-
     file_list = file_list_from_s3(
-        bucket_name=s3_bucket, file_prefix=batch_args.s3_prefix
+        bucket_name=os.environ["INCOMING_BUCKET"],
+        file_prefix=batch_args.s3_prefix,
     )
 
     total_bytes = 0
@@ -137,6 +153,7 @@ def lambda_handler(
         if batch_args.debug_rds_connection:
             get_local_engine()
         else:
+            validate_environment()
             main(batch_args)
 
         process_logger.log_complete()
