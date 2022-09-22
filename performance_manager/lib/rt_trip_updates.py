@@ -1,4 +1,4 @@
-from typing import Optional, Union, List, Dict, Any
+from typing import Optional, Union, List, Dict, Any, Iterator
 
 import pandas
 import numpy
@@ -9,13 +9,15 @@ from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 from .logging_utils import ProcessLogger
 from .postgres_schema import TripUpdateEvents, MetadataLog
 from .postgres_utils import get_unprocessed_files, DatabaseManager
-from .s3_utils import read_parquet
+from .s3_utils import read_parquet_chunks
 
 
-def get_tu_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
+def get_tu_dataframe_chunks(
+    to_load: Union[str, List[str]]
+) -> Iterator[pandas.DataFrame]:
     """
-    return a dataframe from a trip updates parquet file (or list of files)
-    with expected columns
+    return interator of dataframe chunks from a trip updates parquet file
+    (or list of files)
     """
     trip_update_columns = [
         "timestamp",
@@ -35,7 +37,7 @@ def get_tu_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
         ("vehicle_id", "!=", "None"),
     ]
 
-    return read_parquet(
+    return read_parquet_chunks(
         to_load, columns=trip_update_columns, filters=trip_update_filters
     )
 
@@ -91,43 +93,50 @@ def explode_stop_time_update(
 # pylint: enable=too-many-arguments
 
 
-def unwrap_tu_dataframe(events: pandas.DataFrame) -> pandas.DataFrame:
+def get_and_unwrap_tu_dataframe(
+    paths: Union[str, List[str]]
+) -> pandas.DataFrame:
     """
     unwrap and explode trip updates records from parquet files
     parquet files contain stop_time_update field that is saved as list of dicts
     stop_time_update must have fields extracted and flattened to create
     predicted trip update stop events
     """
-    # store start_date as int64
-    events["start_date"] = pandas.to_numeric(events["start_date"]).astype(
-        "int64"
-    )
+    events = pandas.Series(dtype="object")
+    for batch_events in get_tu_dataframe_chunks(paths):
+        # store start_date as int64
+        batch_events["start_date"] = pandas.to_numeric(
+            batch_events["start_date"]
+        ).astype("int64")
 
-    # store direction_id as int64
-    events["direction_id"] = pandas.to_numeric(events["direction_id"]).astype(
-        "int64"
-    )
+        # store direction_id as int64
+        batch_events["direction_id"] = pandas.to_numeric(
+            batch_events["direction_id"]
+        ).astype("int64")
 
-    # store start_time as seconds from start of day int64
-    events["start_time"] = (
-        events["start_time"].apply(start_time_to_seconds).astype("int64")
-    )
-
-    # expand and filter stop_time_update column using numpy vectorize
-    # numpy vectorize offers significantly better performance over pandas apply
-    # this will return a ndarray with values being list of dicts
-    vector_explode = numpy.vectorize(explode_stop_time_update)
-    events = pandas.Series(
-        vector_explode(
-            events.stop_time_update,
-            events.timestamp,
-            events.direction_id,
-            events.route_id,
-            events.start_date,
-            events.start_time,
-            events.vehicle_id,
+        # store start_time as seconds from start of day int64
+        batch_events["start_time"] = (
+            batch_events["start_time"]
+            .apply(start_time_to_seconds)
+            .astype("int64")
         )
-    ).dropna()
+
+        # expand and filter stop_time_update column using numpy vectorize
+        # numpy vectorize offers significantly better performance over pandas apply
+        # this will return a ndarray with values being list of dicts
+        vector_explode = numpy.vectorize(explode_stop_time_update)
+        batch_events = pandas.Series(
+            vector_explode(
+                batch_events.stop_time_update,
+                batch_events.timestamp,
+                batch_events.direction_id,
+                batch_events.route_id,
+                batch_events.start_date,
+                batch_events.start_time,
+                batch_events.vehicle_id,
+            )
+        ).dropna()
+        events = pandas.concat([events, batch_events])
 
     # transform Series of list of dicts into dataframe
     events = pandas.json_normalize(events.explode())
@@ -281,10 +290,8 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
 
         try:
             sizes = {}
-            new_events = get_tu_dataframe(paths)
-            sizes["new_events_size"] = new_events.shape[0]
 
-            new_events = unwrap_tu_dataframe(new_events)
+            new_events = get_and_unwrap_tu_dataframe(paths)
             sizes["new_events_unwrapped_size"] = new_events.shape[0]
 
             subprocess_logger.add_metadata(**sizes)
