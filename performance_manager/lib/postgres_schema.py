@@ -208,7 +208,9 @@ class TravelTimes(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "travelTimes"
 
-    pk_id = sa.Column(
+    # foreign key pointing to primary key in eventsVehiclePositions
+    # for moving events
+    fk_travel_time_id = sa.Column(
         sa.Integer,
         sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
         nullable=False,
@@ -226,7 +228,9 @@ class DwellTimes(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "dwellTimes"
 
-    pk_id = sa.Column(
+    # foreign key pointing to primary key in eventsVehiclePositions
+    # for stopped events
+    fk_dwell_time_id = sa.Column(
         sa.Integer,
         sa.ForeignKey("eventsVehiclePositions.pk_id", ondelete="CASCADE"),
         nullable=False,

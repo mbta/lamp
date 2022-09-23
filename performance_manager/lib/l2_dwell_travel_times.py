@@ -16,7 +16,7 @@ def dwell_times(db_manager: DatabaseManager) -> None:
 
     executed as delete and insert
     """
-    process_logger = ProcessLogger("update l2 dwell times")
+    process_logger = ProcessLogger("update_l2_dwell_times")
     process_logger.log_start()
 
     # base select for insert of records dwell times
@@ -52,9 +52,10 @@ def dwell_times(db_manager: DatabaseManager) -> None:
     delete_query = (
         DwellTimes.__table__.delete()
         .where(
-            DwellTimes.pk_id.in_(
-                sa.select(DwellTimes.pk_id).join(
-                    insert_cte, insert_cte.c.pk_id == DwellTimes.pk_id
+            DwellTimes.fk_dwell_time_id.in_(
+                sa.select(DwellTimes.fk_dwell_time_id).join(
+                    insert_cte,
+                    insert_cte.c.pk_id == DwellTimes.fk_dwell_time_id,
                 )
             )
         )
@@ -65,7 +66,7 @@ def dwell_times(db_manager: DatabaseManager) -> None:
 
     # insert new dwell time records
     insert_query = DwellTimes.__table__.insert().from_select(
-        ["pk_id", "dwell_time_seconds"], insert_select
+        ["fk_dwell_time_id", "dwell_time_seconds"], insert_select
     )
     insert_result = db_manager.execute(insert_query)
     process_logger.add_metadata(rows_inserted=insert_result.rowcount)
@@ -79,7 +80,7 @@ def travel_times(db_manager: DatabaseManager) -> None:
 
     executed as delete and insert
     """
-    process_logger = ProcessLogger("update l2 travel times")
+    process_logger = ProcessLogger("update_l2_travel_times")
     process_logger.log_start()
 
     # base select for insert of records travel times
@@ -115,9 +116,10 @@ def travel_times(db_manager: DatabaseManager) -> None:
     delete_query = (
         TravelTimes.__table__.delete()
         .where(
-            TravelTimes.pk_id.in_(
-                sa.select(TravelTimes.pk_id).join(
-                    insert_cte, insert_cte.c.pk_id == TravelTimes.pk_id
+            TravelTimes.fk_travel_time_id.in_(
+                sa.select(TravelTimes.fk_travel_time_id).join(
+                    insert_cte,
+                    insert_cte.c.pk_id == TravelTimes.fk_travel_time_id,
                 )
             )
         )
@@ -128,7 +130,7 @@ def travel_times(db_manager: DatabaseManager) -> None:
 
     # insert new travel time records
     insert_query = TravelTimes.__table__.insert().from_select(
-        ["pk_id", "travel_time_seconds"], insert_select
+        ["fk_travel_time_id", "travel_time_seconds"], insert_select
     )
     insert_result = db_manager.execute(insert_query)
     process_logger.add_metadata(rows_inserted=insert_result.rowcount)
