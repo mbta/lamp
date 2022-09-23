@@ -5,6 +5,27 @@ import boto3
 import pandas
 import pyarrow.parquet as pq
 from pyarrow import fs
+import pyarrow
+
+
+def _get_pyarrow_table(
+    filename: Union[str, List[str]],
+    filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
+) -> pyarrow.Table:
+    """
+    internal function to get pyarrow table from parquet file(s)
+    """
+    active_fs = fs.S3FileSystem()
+    if isinstance(filename, list):
+        to_load = [f.replace("s3://", "") for f in filename]
+    else:
+        to_load = [filename.replace("s3://", "")]
+
+    # using `read_pandas` because `read` with "columns" parameter results in
+    # much slower file downloads for some reason...
+    return pq.ParquetDataset(
+        to_load, filesystem=active_fs, filters=filters
+    ).read_pandas()
 
 
 def read_parquet(
@@ -15,18 +36,39 @@ def read_parquet(
     """
     read parquet file or files from s3 and return it as a pandas dataframe
     """
-    active_fs = fs.S3FileSystem()
-    if isinstance(filename, list):
-        to_load = [f.replace("s3://", "") for f in filename]
-    else:
-        to_load = [filename.replace("s3://", "")]
-
     return (
-        pq.ParquetDataset(to_load, filesystem=active_fs, filters=filters)
-        .read_pandas()
-        .to_pandas()
+        _get_pyarrow_table(filename, filters)
+        .to_pandas(self_destruct=True)
         .loc[:, columns]
     )
+
+
+def read_parquet_chunks(
+    filename: Union[str, List[str]],
+    max_rows: int = 100_000,
+    columns: Union[List[str], slice] = slice(None),
+    filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
+) -> Iterator[pandas.core.frame.DataFrame]:
+    """
+    read parquet file or files from s3 IN CHUNKS
+    return chunks as pandas dataframes
+
+    chunk size attempts to be close to max_rows parameter, but may sometimes
+    overshoot because of chunk layout of pyarrow table
+    """
+    yield_dataframe = pandas.DataFrame()
+    for batch in _get_pyarrow_table(filename, filters).to_batches(
+        max_chunksize=None
+    ):
+        yield_dataframe = pandas.concat(
+            [yield_dataframe, batch.to_pandas().loc[:, columns]]
+        )
+        if yield_dataframe.shape[0] >= max_rows:
+            yield yield_dataframe
+            yield_dataframe = pandas.DataFrame()
+
+    if yield_dataframe.shape[0] > 0:
+        yield yield_dataframe
 
 
 def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterator[str]:
