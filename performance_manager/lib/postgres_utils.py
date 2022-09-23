@@ -1,7 +1,6 @@
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Optional, Union
 import json
 import os
-import pathlib
 import urllib.parse as urlparse
 
 import boto3
@@ -12,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, SqlBase
+from .s3_utils import get_utc_from_partition_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -312,7 +312,7 @@ class DatabaseManager:
 
     def select_as_list(
         self, select_query: sa.sql.selectable.Select
-    ) -> List[Any]:
+    ) -> Union[List[Any], List[Dict[str, Any]]]:
         """
         select data from db table and return list
         """
@@ -352,31 +352,56 @@ class DatabaseManager:
 
 
 def get_unprocessed_files(
-    path_contains: str, sql_session: sessionmaker
-) -> Dict[str, Dict[str, List]]:
-    """check metadata table for unprocessed parquet files"""
+    path_contains: str,
+    db_manager: DatabaseManager,
+    file_limit: Optional[int] = None,
+) -> List[Dict[str, List]]:
+    """
+    check metadata table for unprocessed parquet files
+    groups files into batches of similar partition paths
+    sorts partition paths from oldest to most recent
+
+    returns sorted list of path dictionaries with following layout:
+    {
+        "ids": [metadata table ids],
+        "paths": [s3 paths of parquet files that share path]
+    }
+    """
     process_logger = ProcessLogger(
         "get_unprocessed_files", seed_string=path_contains
     )
     process_logger.log_start()
 
-    paths_to_load: Dict[str, Dict[str, List]] = {}
+    paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
         read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
             (MetadataLog.processed == sa.false())
             & (MetadataLog.path.contains(path_contains))
         )
-        with sql_session.begin() as session:
-            for path_id, path in session.execute(read_md_log):
-                path = pathlib.Path(path)
-                if path.parent not in paths_to_load:
-                    paths_to_load[path.parent] = {"ids": [], "paths": []}
-                paths_to_load[path.parent]["ids"].append(path_id)
-                paths_to_load[path.parent]["paths"].append(str(path))
+        for path_record in db_manager.select_as_list(read_md_log):
+            path_id = path_record.get("pk_id")
+            path = str(path_record.get("path"))
+            path_timestamp = get_utc_from_partition_path(path)
+
+            if path_timestamp not in paths_to_load:
+                paths_to_load[path_timestamp] = {"ids": [], "paths": []}
+            paths_to_load[path_timestamp]["ids"].append(path_id)
+            paths_to_load[path_timestamp]["paths"].append(path)
+
+        paths_found = len(paths_to_load)
+        paths_returned = paths_found
+        if file_limit is not None:
+            paths_returned = file_limit
+
+        process_logger.add_metadata(
+            paths_found=paths_found, paths_returned=paths_returned
+        )
 
         process_logger.log_complete()
 
     except Exception as exception:
         process_logger.log_failure(exception)
 
-    return paths_to_load
+    return [
+        paths_to_load[timestamp] for timestamp in sorted(paths_to_load.keys())
+    ][:file_limit]

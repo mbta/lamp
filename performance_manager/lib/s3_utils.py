@@ -1,5 +1,7 @@
 import os
 from typing import Optional, List, Tuple, Union, Sequence, Iterator
+import datetime
+import re
 
 import boto3
 import pandas
@@ -92,3 +94,27 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterator[str]:
                 continue
             uri = os.path.join("s3://", bucket_name, obj["Key"])
             yield uri
+
+
+def get_utc_from_partition_path(path: str) -> float:
+    """
+    process datetime from partitioned s3 path return UTC timestamp
+    """
+    try:
+        # handle gtfs-rt paths
+        year = int(re.findall(r"year=(\d{4})", path)[0])
+        month = int(re.findall(r"month=(\d{1,2})", path)[0])
+        day = int(re.findall(r"day=(\d{1,2})", path)[0])
+        hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
+        date = datetime.datetime(
+            year=year,
+            month=month,
+            day=day,
+            hour=hour,
+            tzinfo=datetime.timezone.utc,
+        )
+        return_date = datetime.datetime.timestamp(date)
+    except IndexError as _:
+        # handle gtfs static paths
+        return_date = float(re.findall(r"timestamp=(\d{10})", path)[0])
+    return return_date
