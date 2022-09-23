@@ -10,5 +10,6 @@ from .postgres_schema import MetadataLog, SqlBase
 from .postgres_utils import DatabaseManager
 from .rt_trip_updates import process_trip_updates
 from .rt_vehicle_positions import process_vehicle_positions
+from .l2_dwell_travel_times import process_dwell_travel_times
 
 __version__ = "0.1.0"
