@@ -36,9 +36,13 @@ def get_tu_dataframe_chunks(
         ("start_time", "!=", "None"),
         ("vehicle_id", "!=", "None"),
     ]
-
+    # 100_000 batch size should result in ~5-6 GB of memory use per batch
+    # of trip update records
     return read_parquet_chunks(
-        to_load, columns=trip_update_columns, filters=trip_update_filters
+        to_load,
+        max_rows=100_000,
+        columns=trip_update_columns,
+        filters=trip_update_filters,
     )
 
 
@@ -103,6 +107,10 @@ def get_and_unwrap_tu_dataframe(
     predicted trip update stop events
     """
     events = pandas.Series(dtype="object")
+    # get_tu_dataframe_chunks set to pull ~100_000 trip update records
+    # per batch, this should result in ~5-6 GB of memory use per batch
+    # after batch goes through explod_stop_time_update vectorize operation,
+    # resulting Series has negligible memory use
     for batch_events in get_tu_dataframe_chunks(paths):
         # store start_date as int64
         batch_events["start_date"] = pandas.to_numeric(
@@ -112,7 +120,7 @@ def get_and_unwrap_tu_dataframe(
         # store direction_id as int64
         batch_events["direction_id"] = pandas.to_numeric(
             batch_events["direction_id"]
-        ).astype("int64")
+        ).astype("int8")
 
         # store start_time as seconds from start of day int64
         batch_events["start_time"] = (
