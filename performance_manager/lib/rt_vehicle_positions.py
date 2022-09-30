@@ -1,8 +1,6 @@
-import datetime
-import re
-
 from typing import List, Union
 
+import pathlib
 import numpy
 import pandas
 import sqlalchemy as sa
@@ -12,7 +10,7 @@ from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 from .logging_utils import ProcessLogger
 from .postgres_schema import VehiclePositionEvents, MetadataLog
 from .postgres_utils import get_unprocessed_files, DatabaseManager
-from .s3_utils import read_parquet
+from .s3_utils import read_parquet, get_utc_from_partition_path
 
 
 def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -137,20 +135,6 @@ def transform_vp_timestamps(
     return vehicle_positions
 
 
-def get_utc_timestamp(path: str) -> float:
-    """
-    process datetime from s3 path return UTC timestamp
-    """
-    year = int(re.findall(r"year=(\d{4})", path)[0])
-    month = int(re.findall(r"month=(\d{1,2})", path)[0])
-    day = int(re.findall(r"day=(\d{1,2})", path)[0])
-    hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
-    date = datetime.datetime(
-        year=year, month=month, day=day, hour=hour, tzinfo=datetime.timezone.utc
-    )
-    return datetime.datetime.timestamp(date)
-
-
 def get_event_overlap(
     folder: str,
     new_events: pandas.DataFrame,
@@ -160,7 +144,7 @@ def get_event_overlap(
     get a dataframe consisting of the new events and any overlapping events from
     the vehicle positions events table, sorted by vehicle id and then timestamp
     """
-    start_window_ts = get_utc_timestamp(folder)
+    start_window_ts = get_utc_from_partition_path(folder)
     timestamp_to_pull_min = start_window_ts - 300
     timestamp_to_pull_max = start_window_ts + 300 + 3600
     get_db_events = sa.select(
@@ -290,17 +274,18 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
 
     # check metadata table for unprocessed parquet files
     paths_to_load = get_unprocessed_files(
-        "RT_VEHICLE_POSITIONS", db_manager.get_session()
+        "RT_VEHICLE_POSITIONS", db_manager, file_limit=6
     )
 
     process_logger.add_metadata(paths_to_load=len(paths_to_load))
 
-    for folder, folder_data in paths_to_load.items():
+    for folder_data in paths_to_load:
+        folder = str(pathlib.Path(folder_data["paths"][0]).parent)
         ids = folder_data["ids"]
         paths = folder_data["paths"]
 
         subprocess_logger = ProcessLogger(
-            "process_vp_dir", folder=folder, file_count=len(paths)
+            "process_vp_dir", s3_path=folder, file_count=len(paths)
         )
         subprocess_logger.log_start()
 

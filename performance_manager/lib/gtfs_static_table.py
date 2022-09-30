@@ -1,5 +1,6 @@
 from typing import List, Optional
 from dataclasses import dataclass
+import pathlib
 
 import os
 import pandas
@@ -251,15 +252,15 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files("FEED_INFO", db_manager.get_session())
+    paths_to_load = get_unprocessed_files("FEED_INFO", db_manager)
     process_logger.add_metadata(filecount=len(paths_to_load))
 
-    for folder, folder_data in paths_to_load.items():
-        individual_logger = ProcessLogger("load_static_tables", folder=folder)
+    for folder_data in paths_to_load:
+        folder = str(pathlib.Path(folder_data["paths"][0]).parent)
+        individual_logger = ProcessLogger("load_static_tables", s3_path=folder)
         individual_logger.log_start()
 
         ids = folder_data["ids"]
-        folder = str(folder)
 
         static_tables = get_table_objects()
 

@@ -1,5 +1,6 @@
 from typing import Optional, Union, List, Dict, Any, Iterator
 
+import pathlib
 import pandas
 import numpy
 
@@ -282,17 +283,18 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
 
     # pull list of objects that need processing from metadata table
     paths_to_load = get_unprocessed_files(
-        "RT_TRIP_UPDATES", db_manager.get_session()
+        "RT_TRIP_UPDATES", db_manager, file_limit=6
     )
 
     process_logger.add_metadata(paths_to_load=len(paths_to_load))
 
-    for folder_data in paths_to_load.values():
+    for folder_data in paths_to_load:
+        folder = str(pathlib.Path(folder_data["paths"][0]).parent)
         ids = folder_data["ids"]
         paths = folder_data["paths"]
 
         subprocess_logger = ProcessLogger(
-            "process_tu_dir", file_count=len(paths)
+            "process_tu_dir", file_count=len(paths), s3_path=folder
         )
         subprocess_logger.log_start()
 
