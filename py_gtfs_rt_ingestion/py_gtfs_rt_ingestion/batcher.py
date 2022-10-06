@@ -34,133 +34,8 @@ class Batch:
 
     def add_file(self, filename: str, filesize: int) -> None:
         """Add a file to this batch"""
-        if (
-            self.prefix != ""
-            and filename.startswith(self.prefix)
-            and filename.endswith(self.suffix)
-        ):
-            filename = filename.removeprefix(self.prefix)
-            filename = filename.removesuffix(self.suffix)
-            self.filenames.append(filename)
-
-        else:
-            full_filenames = unpack_filenames(
-                prefix=self.prefix, suffix=self.suffix, filenames=self.filenames
-            )
-            full_filenames.append(filename)
-
-            self.prefix, self.suffix, self.filenames = compress_filenames(
-                full_filenames
-            )
-
+        self.filenames.append(filename)
         self.total_size += filesize
-
-    def trigger_lambda(self) -> None:
-        """
-        Invoke the ingestion lambda that will take the files in this batch and
-        convert them into a parquette file.
-        """
-        process_logger = ProcessLogger(
-            "trigger_lambda",
-            ingestion_size=self.total_size,
-            file_count=len(self.filenames),
-        )
-        process_logger.log_start()
-
-        try:
-            function_arn = os.environ["INGEST_FUNCTION_ARN"]
-            invoke_async_lambda(
-                function_arn=function_arn, event=self.create_event()
-            )
-        except Exception as exception:
-            process_logger.log_failure(exception)
-        else:
-            process_logger.log_complete()
-
-    def create_event(self) -> dict:
-        """
-        Create an event object that will be used in the invocation of the
-        ingestion lambda
-        """
-        return {
-            "prefix": self.prefix,
-            "suffix": self.suffix,
-            "filenames": self.filenames,
-        }
-
-    def event_size_over_limit(self) -> bool:
-        """
-        Returns True if event size is over limit of 245kb, otherwise False
-        """
-        event_size_kb = sys.getsizeof(json.dumps(self.create_event())) / 1000
-        if event_size_kb >= 245:
-            logging.warning("Event size of %d kb is over limit.", event_size_kb)
-            return True
-        return False
-
-
-def compress_filenames(filenames: List[str]) -> Tuple[str, str, List[str]]:
-    """
-    compress a list of filenames into a dict with the prefix, suffix, and list
-    of unique components
-    """
-    if len(filenames) == 0:
-        return ("", "", [])
-
-    def longest_common(filenames: List[str], prefix: bool = True) -> str:
-        """
-        get the longest start or end string common to all files in filenames
-        """
-        first_file = filenames[0]
-
-        def get_stem(i: int) -> str:
-            """get the 0->ith or ith->-1 string from first_file"""
-            if prefix:
-                return first_file[:i]
-            # if suffix
-            return first_file[-i:]
-
-        def is_common(file: str, stem: str) -> bool:
-            """do all files start or end with this string"""
-            if prefix:
-                return file.startswith(stem)
-            # if suffix
-            return file.endswith(stem)
-
-        result = ""
-
-        for i in range(1, len(first_file)):
-            stem = get_stem(i)
-
-            for file in filenames:
-                if not is_common(file, stem):
-                    return result
-
-            result = stem
-
-        return result
-
-    prefix = longest_common(filenames=filenames, prefix=True)
-    filenames = [file.removeprefix(prefix) for file in filenames]
-
-    suffix = longest_common(filenames=filenames, prefix=False)
-    filenames = [file.removesuffix(suffix) for file in filenames]
-
-    return (prefix, suffix, filenames)
-
-
-def unpack_filenames(
-    prefix: str, suffix: str, filenames: List[str]
-) -> List[str]:
-    """
-    convert a compressed dict of directories and filenames into a list of
-    filenames for ingestion
-    """
-    combined = []
-    for unique in filenames:
-        combined.append(prefix + unique + suffix)
-
-    return combined
 
 
 def batch_files(
@@ -192,7 +67,7 @@ def batch_files(
         try:
             config_type = ConfigType.from_filename(filename)
         except ConfigTypeFromFilenameException as config_exception:
-            logging.warning(config_exception)
+            # logging.warning(config_exception)
             continue
         except Exception as exception:
             logging.exception(
@@ -205,15 +80,10 @@ def batch_files(
         filecount += 0
         batch = ongoing_batches[config_type]
 
-        # lambda async even payload size is limited to 256KB
-        # https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
-        # use sys.getsizeof on batch event to get general size of payload
-        # limit estimated payload size to 245KB for now to account for
-        # additional request overhead and measurement inaccuracy
         if (
             batch.total_size + int(size) > threshold
-            or batch.event_size_over_limit()
-        ) and len(batch.filenames) > 0:
+            and len(batch.filenames) > 0
+        ):
             yield batch
 
             ongoing_batches[config_type] = Batch(config_type)
