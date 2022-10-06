@@ -1,58 +1,52 @@
 #!/usr/bin/env python
 
-import argparse
-import json
 import logging
 import os
-import sys
+import time
 
-from typing import Dict, Union
+import schedule
 
-from py_gtfs_rt_ingestion import ConfigType
-from py_gtfs_rt_ingestion import DEFAULT_S3_PREFIX
-from py_gtfs_rt_ingestion import LambdaContext
-from py_gtfs_rt_ingestion import LambdaDict
-from py_gtfs_rt_ingestion import ProcessLogger
-from py_gtfs_rt_ingestion import get_converter
-from py_gtfs_rt_ingestion import load_environment
-from py_gtfs_rt_ingestion import move_s3_objects
-from py_gtfs_rt_ingestion import unpack_filenames
-from py_gtfs_rt_ingestion import write_parquet_file
+from py_gtfs_rt_ingestion import (
+    batch_files,
+    file_list_from_s3,
+    DEFAULT_S3_PREFIX,
+    move_s3_objects,
+    get_converter,
+    write_parquet_file,
+    ProcessLogger,
+)
 
 logging.getLogger().setLevel("INFO")
+DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
+HERE = os.path.dirname(os.path.abspath(__file__))
 
-DESCRIPTION = "Convert a json file into a parquet file. Used for testing."
 
-
-def parse_args(args: list[str]) -> Union[LambdaDict, list[LambdaDict]]:
+def load_environment() -> None:
     """
-    parse input args from the command line. using them, generate an event
-    lambdadict object and set environment variables.
+    boostrap .env file for local development
     """
-    parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser.add_argument(
-        "--input",
-        dest="input_file",
-        type=str,
-        help="provide filename to ingest",
-    )
+    try:
+        if int(os.environ.get("BOOTSTRAPPED", 0)) == 1:
+            return
 
-    parser.add_argument(
-        "--event-json",
-        dest="event_json",
-        type=str,
-        help="lambda event json file",
-    )
+        env_file = os.path.join(HERE, "..", ".env")
+        logging.info("bootstrapping with env file %s", env_file)
 
-    parsed_args = parser.parse_args(args)
+        with open(env_file, "r", encoding="utf8") as reader:
+            for line in reader.readlines():
+                line = line.rstrip("\n")
+                line.replace('"', "")
+                if line.startswith("#") or line == "":
+                    continue
+                key, value = line.split("=")
+                logging.info("setting %s to %s", key, value)
+                os.environ[key] = value
 
-    if parsed_args.event_json is not None:
-        with open(parsed_args.event_json, encoding="utf8") as event_json_file:
-            events: dict = json.load(event_json_file)
-
-        return events
-
-    return {"files": [(parsed_args.input_file)]}
+    except FileNotFoundError as fnfe:
+        logging.warning("unable to find env file %s", fnfe)
+    except Exception as exception:
+        logging.exception("error while trying to bootstrap")
+        raise exception
 
 
 def validate_environment() -> None:
@@ -64,12 +58,13 @@ def validate_environment() -> None:
     required_variables = [
         "ARCHIVE_BUCKET",
         "ERROR_BUCKET",
-        "IMPORT_BUCKET",
+        "INCOMING_BUCKET",
         "SPRINGBOARD_BUCKET",
         "DB_HOST",
         "DB_NAME",
         "DB_PORT",
         "DB_USER",
+        "INCOMING_BUCKET",
     ]
 
     missing_required = [
@@ -88,113 +83,87 @@ def validate_environment() -> None:
         )
 
 
-def main(event: Dict, process_logger: ProcessLogger) -> None:
+@schedule.repeat(schedule.every().hour.at(":05"))
+def batch_and_ingest() -> None:
     """
-    * Convert a list of files from s3 to a parquet table
-    * Write the table out to s3
-    * Archive processed json files to archive s3 bucket
-    * Move files that generated error to error s3 bucket
+    get all of the filepaths currently in the incoming bucket, sort them into
+    batches of similar gtfs files, convert each batch into tables, write the
+    tables to parquet files in the springboard bucket, add the parquet
+    filepaths to the metadata table as unprocessed, and move gtfs files to the
+    archive bucket (or error bucket in the event of an error)
     """
-    files = unpack_filenames(**event)
-    archive_files = []
-    error_files = []
+    process_logger = ProcessLogger("batch_and_ingest")
+    process_logger.log_start()
 
-    try:
-        config_type = ConfigType.from_filename(files[0])
-        process_logger.add_metadata(config_type=str(config_type))
-        process_logger.log_start()
-        converter = get_converter(config_type)
+    file_list = file_list_from_s3(
+        bucket_name=os.environ["INCOMING_BUCKET"],
+        file_prefix=DEFAULT_S3_PREFIX,
+    )
 
-        for s3_prefix, table in converter.convert(files):
-            write_parquet_file(
-                table=table,
-                filetype=s3_prefix,
-                s3_path=os.path.join(
-                    os.environ["SPRINGBOARD_BUCKET"],
-                    DEFAULT_S3_PREFIX,
-                    s3_prefix,
-                ),
-                partition_cols=converter.partition_cols,
-            )
-
-        archive_files = converter.archive_files
-        error_files = converter.error_files
-
-    except Exception as exception:
-        logging.exception(
-            "failed=convert_files, error_type=%s, config_type=%s, filecount=%d",
-            type(exception).__name__,
-            config_type,
-            len(files),
-        )
-
-        # if unable to determine config from filename, or not implemented yet,
-        # all files are marked as failed ingestion
+    # TODO(zap) - do we want to keep threshold around? seems like we can remove
+    # it now.
+    for batch in batch_files(file_list, 1_000_000_000):
+        files = batch.filenames
         archive_files = []
-        error_files = files
+        error_files = []
 
-    finally:
-        if len(error_files) > 0:
-            move_s3_objects(
-                error_files,
-                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+        try:
+            config_type = batch.config_type
+            converter = get_converter(config_type)
+
+            for s3_prefix, table in converter.convert(files):
+                write_parquet_file(
+                    table=table,
+                    filetype=s3_prefix,
+                    s3_path=os.path.join(
+                        os.environ["SPRINGBOARD_BUCKET"],
+                        DEFAULT_S3_PREFIX,
+                        s3_prefix,
+                    ),
+                    partition_cols=converter.partition_cols,
+                )
+
+            archive_files = converter.archive_files
+            error_files = converter.error_files
+
+        except Exception as exception:
+            logging.exception(
+                "failed=convert_files, error_type=%s, config_type=%s, filecount=%d",
+                type(exception).__name__,
+                config_type,
+                len(files),
             )
 
-        if len(archive_files) > 0:
-            move_s3_objects(
-                archive_files,
-                os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
-            )
+            # if unable to determine config from filename, or not implemented
+            # yet, all files are marked as failed ingestion
+            archive_files = []
+            error_files = files
+
+        finally:
+            if len(error_files) > 0:
+                move_s3_objects(
+                    error_files,
+                    os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+                )
+
+            if len(archive_files) > 0:
+                move_s3_objects(
+                    archive_files,
+                    os.path.join(
+                        os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
+                    ),
+                )
 
 
-def lambda_handler(
-    event: LambdaDict, context: LambdaContext  # pylint: disable=W0613
-) -> None:
-    """
-    AWS Lambda Python handled function as described in AWS Developer Guide:
-    https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
-    :param event: The event dict sent by Amazon API Gateway that contains all of
-            the request data.
-    :param context: The context in which the function is called.
-    :return: A response that is sent to Amazon API Gateway, to be wrapped into
-             an HTTP response. The 'statusCode' field is the HTTP status code
-             and the 'body' field is the body of the response.
-
-    expected event structure is
-    {
-        prefix: "common_prefix_to_all_files",
-        suffix: "common_suffix_to_all_files",
-        filespaths: [
-            "unique_1",
-            "unique_2",
-            ...
-            "unique_n"
-        ]
-    }
-    where S3 files will begin with 's3://'
-
-    batch files should all be of same ConfigType as each run of this script
-    creates a single parquet file.
-    """
-    logging.info("ingestion_event=%s", json.dumps(event))
-    process_logger = ProcessLogger("ingest_files_lambda")
-
-    try:
-        main(event, process_logger)
-        process_logger.log_complete()
-    except Exception as exception:
-        process_logger.log_failure(exception)
+def main() -> None:
+    """every second run jobs that are currently pending"""
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 
 if __name__ == "__main__":
+    logging.info("Starting Ingestion Container")
     load_environment()
-    parsed_events = parse_args(sys.argv[1:])
-    empty_context = LambdaContext()
-
-    if isinstance(parsed_events, list):
-        for parsed_event in parsed_events:
-            lambda_handler(parsed_event, empty_context)
-    elif isinstance(parsed_events, dict):
-        lambda_handler(parsed_events, empty_context)
-    else:
-        raise Exception("parsed event is not a lambda dict")
+    validate_environment()
+    main()

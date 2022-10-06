@@ -3,7 +3,7 @@ This module is used by CTD's LAMP application to process rt gtfs json formatted
 data and convert it into a parquet format for more efficient data analysis.
 """
 
-from .batcher import batch_files, unpack_filenames
+from .batcher import batch_files
 from .converter import ConfigType
 from .converter_factory import get_converter
 from .error import ArgumentException

@@ -27,6 +27,7 @@ class ConfigType(Enum):
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
     SCHEDULE = auto()
+    LIGHT_RAIL = auto()
 
     def __str__(self) -> str:
         return self.name
@@ -53,6 +54,8 @@ class ConfigType(Enum):
             return cls.VEHICLE_COUNT
         if "MBTA_GTFS.zip" in filename:
             return cls.SCHEDULE
+        if "LightRailRawGPS" in filename:
+            return cls.LIGHT_RAIL
 
         raise ConfigTypeFromFilenameException(filename)
 

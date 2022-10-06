@@ -23,6 +23,8 @@ def test_each_config_type() -> None:
     for config_type in ConfigType:
         if config_type == ConfigType.VEHICLE_COUNT:
             continue
+        if config_type == ConfigType.LIGHT_RAIL:
+            continue
         converter = get_converter(config_type)
         assert isinstance(converter, config_type_map[config_type])
 
