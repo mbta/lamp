@@ -6,6 +6,7 @@ authors = ["MBTA CTD <developer@mbta.com>",
            "Mike Zappitello <mzappitello@mbta.com>"]
 
 [tool.poetry.dependencies]
+boto3 = "^1.23.3"
 python = "^3.9"
 pyarrow = "^8.0.0"
 psycopg2 = "^2.9.3"
@@ -13,7 +14,6 @@ SQLAlchemy = "^1.4.39"
 schedule = "^1.1.0"
 
 [tool.poetry.dev-dependencies]
-boto3 = "^1.23.3"
 pytest = "^5.2"
 pandas = "^1.4.2"
 pytest-cov = "^3.0.0"

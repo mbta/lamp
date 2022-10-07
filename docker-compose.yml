@@ -18,10 +18,22 @@ services:
     container_name: performance_manager
     env_file: .env
     build:
-      context: .
+      context: performance_manager
       dockerfile: Dockerfile
     depends_on:
-      - local_rds 
+      - local_rds
     working_dir: /performance_manager
+    volumes:
+      - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
+
+  performance_manager:
+    container_name: ingestion
+    env_file: .env
+    build:
+      context: py_gtfs_rt_ingestion
+      dockerfile: Dockerfile
+    depends_on:
+      - local_rds
+    working_dir: /py_gtfs_rt_ingestion
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
