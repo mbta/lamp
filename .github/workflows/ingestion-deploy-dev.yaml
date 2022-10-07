@@ -2,11 +2,10 @@ name: Deploy ECS to Dev
 
 on:
   workflow_run:
-    workflows: ["ECS CI"]
+    workflows: ["Ingestion CI"]
     types: [completed]
     branches:
       - main
-      - ecs-deploy-test
   workflow_dispatch:
 
 jobs:
@@ -14,7 +13,7 @@ jobs:
     name: Deploy
     uses: mbta/workflows/.github/workflows/deploy-ecs.yml@main
     with:
-      app-name: lamp
+      app-name: lamp-ingestion
       environment: 'dev'
     secrets:
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
