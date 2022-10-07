@@ -1,10 +1,10 @@
 import pytest
 
-from py_gtfs_rt_ingestion import ConfigType
-from py_gtfs_rt_ingestion import get_converter
-from py_gtfs_rt_ingestion.convert_gtfs import GtfsConverter
-from py_gtfs_rt_ingestion.convert_gtfs_rt import GtfsRtConverter
-from py_gtfs_rt_ingestion.error import NoImplException
+from lib import ConfigType
+from lib import get_converter
+from lib.convert_gtfs import GtfsConverter
+from lib.convert_gtfs_rt import GtfsRtConverter
+from lib.error import NoImplException
 
 
 def test_each_config_type() -> None:

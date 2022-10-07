@@ -1,4 +1,4 @@
-from py_gtfs_rt_ingestion import __version__
+from lib import __version__
 
 
 def test_version() -> None:

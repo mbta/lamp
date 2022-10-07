@@ -14,8 +14,8 @@ import pytest
 from botocore.stub import Stubber
 from botocore.stub import ANY
 
-from py_gtfs_rt_ingestion.s3_utils import file_list_from_s3
-from py_gtfs_rt_ingestion.s3_utils import move_s3_objects
+from lib.s3_utils import file_list_from_s3
+from lib.s3_utils import move_s3_objects
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
@@ -25,9 +25,7 @@ def s3_stub():  # type: ignore
     """test fixture for simulating s3 calls"""
     s3_stub = boto3.client("s3")
     with Stubber(s3_stub) as stubber:
-        with patch(
-            "py_gtfs_rt_ingestion.s3_utils.get_s3_client", return_value=s3_stub
-        ):
+        with patch("lib.s3_utils.get_s3_client", return_value=s3_stub):
             yield stubber
         stubber.assert_no_pending_responses()
 

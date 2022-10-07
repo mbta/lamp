@@ -1,7 +1,7 @@
 import os
 
-from py_gtfs_rt_ingestion.convert_gtfs import GtfsConverter
-from py_gtfs_rt_ingestion import ConfigType
+from lib.convert_gtfs import GtfsConverter
+from lib import ConfigType
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 

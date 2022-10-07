@@ -1,15 +1,11 @@
-import json
 import logging
-import os
-import sys
 
 from collections.abc import Iterable
-from typing import List, Tuple
+from typing import List
 
 from .converter import ConfigType
 from .error import ConfigTypeFromFilenameException
 from .logging_utils import ProcessLogger
-from .s3_utils import invoke_async_lambda
 
 
 class Batch:
@@ -66,9 +62,23 @@ def batch_files(
     for (filename, size) in files:
         try:
             config_type = ConfigType.from_filename(filename)
+
+            filecount += 0
+            batch = ongoing_batches[config_type]
+
+            if (
+                batch.total_size + int(size) > threshold
+                and len(batch.filenames) > 0
+            ):
+                yield batch
+
+                ongoing_batches[config_type] = Batch(config_type)
+                batch = ongoing_batches[config_type]
+                batch_count[str(config_type)] += 1
+
+            batch.add_file(filename, int(size))
         except ConfigTypeFromFilenameException as config_exception:
-            # logging.warning(config_exception)
-            continue
+            logging.warning(config_exception)
         except Exception as exception:
             logging.exception(
                 "failed=%s, error_type=%s",
@@ -76,21 +86,6 @@ def batch_files(
                 type(exception).__name__,
             )
             continue
-
-        filecount += 0
-        batch = ongoing_batches[config_type]
-
-        if (
-            batch.total_size + int(size) > threshold
-            and len(batch.filenames) > 0
-        ):
-            yield batch
-
-            ongoing_batches[config_type] = Batch(config_type)
-            batch = ongoing_batches[config_type]
-            batch_count[str(config_type)] += 1
-
-        batch.add_file(filename, int(size))
 
     # add the ongoing batches too complete ones and return.
     for (_, batch) in ongoing_batches.items():

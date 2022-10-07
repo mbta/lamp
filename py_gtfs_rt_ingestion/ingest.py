@@ -6,7 +6,7 @@ import time
 
 import schedule
 
-from py_gtfs_rt_ingestion import (
+from lib import (
     batch_files,
     file_list_from_s3,
     DEFAULT_S3_PREFIX,

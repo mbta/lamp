@@ -9,11 +9,11 @@ import pytest
 
 from botocore.stub import ANY
 
-from py_gtfs_rt_ingestion import ConfigType
-from py_gtfs_rt_ingestion.batcher import Batch
-from py_gtfs_rt_ingestion.batcher import batch_files
-from py_gtfs_rt_ingestion.error import ArgumentException
-from py_gtfs_rt_ingestion.s3_utils import file_list_from_s3
+from lib import ConfigType
+from lib.batcher import Batch
+from lib.batcher import batch_files
+from lib.error import ArgumentException
+from lib.s3_utils import file_list_from_s3
 
 from .test_s3_utils import s3_stub
 

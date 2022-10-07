@@ -12,7 +12,7 @@ from collections.abc import Iterable
 
 import boto3
 
-from py_gtfs_rt_ingestion import file_list_from_s3
+from lib import file_list_from_s3
 
 GTFS_BUCKET = "mbta-gtfs-s3"
 DEV_INCOMING_BUCKET = "mbta-ctd-dataplatform-dev-incoming"
