@@ -13,8 +13,8 @@ RUN apt-get install -y libpq-dev gcc curl
 RUN pip install -U pip
 RUN pip install "poetry==1.1.14"
 
-COPY . /gtfs_ingestion/
-WORKDIR /gtfs_ingestion/
+COPY . /py_gtfs_rt_ingestion/
+WORKDIR /py_gtfs_rt_ingestion/
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev --no-interaction --no-ansi
 

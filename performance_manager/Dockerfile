@@ -13,7 +13,7 @@ RUN apt-get install -y libpq-dev gcc curl
 RUN pip install -U pip
 RUN pip install "poetry==1.1.14"
 
-COPY ./performance_manager /performance_manager/
+COPY . /performance_manager/
 WORKDIR /performance_manager/
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev --no-interaction --no-ansi
