@@ -11,5 +11,6 @@ from .postgres_utils import DatabaseManager
 from .rt_trip_updates import process_trip_updates
 from .rt_vehicle_positions import process_vehicle_positions
 from .l2_dwell_travel_times import process_dwell_travel_times
+from .l2_headways import process_headways
 
 __version__ = "0.1.0"

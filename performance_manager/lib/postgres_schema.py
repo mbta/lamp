@@ -108,13 +108,13 @@ class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
     pk_id = sa.Column(sa.Integer, primary_key=True)
     route_id = sa.Column(sa.String(60), nullable=False)
     agency_id = sa.Column(sa.SmallInteger, nullable=False)
-    route_short_name = sa.Column(sa.String(60), nullable=False)
-    route_long_name = sa.Column(sa.String(150), nullable=False)
-    route_desc = sa.Column(sa.String(40), nullable=False)
+    route_short_name = sa.Column(sa.String(60), nullable=True)
+    route_long_name = sa.Column(sa.String(150), nullable=True)
+    route_desc = sa.Column(sa.String(40), nullable=True)
     route_type = sa.Column(sa.SmallInteger, nullable=False)
     route_sort_order = sa.Column(sa.Integer, nullable=False)
     route_fare_class = sa.Column(sa.String(30), nullable=False)
-    line_id = sa.Column(sa.String(30), nullable=False)
+    line_id = sa.Column(sa.String(30), nullable=True)
     timestamp = sa.Column(sa.Integer, nullable=False)
 
 
@@ -126,10 +126,10 @@ class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
     pk_id = sa.Column(sa.Integer, primary_key=True)
     stop_id = sa.Column(sa.String(128), nullable=False)
     stop_name = sa.Column(sa.String(128), nullable=False)
-    stop_desc = sa.Column(sa.String(256), nullable=False)
-    platform_code = sa.Column(sa.String(10), nullable=False)
-    platform_name = sa.Column(sa.String(60), nullable=False)
-    parent_station = sa.Column(sa.String(30), nullable=False)
+    stop_desc = sa.Column(sa.String(256), nullable=True)
+    platform_code = sa.Column(sa.String(10), nullable=True)
+    platform_name = sa.Column(sa.String(60), nullable=True)
+    parent_station = sa.Column(sa.String(30), nullable=True)
     timestamp = sa.Column(sa.Integer, nullable=False)
 
 
@@ -140,8 +140,8 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
     trip_id = sa.Column(sa.String(128), nullable=False)
-    arrival_time = sa.Column(sa.Integer, nullable=True)
-    departure_time = sa.Column(sa.Integer, nullable=True)
+    arrival_time = sa.Column(sa.Integer, nullable=False)
+    departure_time = sa.Column(sa.Integer, nullable=False)
     stop_id = sa.Column(sa.String(30), nullable=False)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
     timestamp = sa.Column(sa.Integer, nullable=False)
@@ -251,3 +251,55 @@ class DwellTimes(SqlBase):  # pylint: disable=too-few-public-methods
         nullable=False,
     )
     created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
+class Headways(SqlBase):  # pylint: disable=too-few-public-methods
+    """Level 2 Table for Headways"""
+
+    __tablename__ = "headways"
+
+    # foreign key pointing to primary key in fullTripEvents
+    # for stopped events
+    fk_trip_event_hash = sa.Column(
+        sa.LargeBinary(16),
+        sa.ForeignKey("fullTripEvents.hash", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+    fk_vp_stopped_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    fk_tu_stopped_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    headway_seconds = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
+class TempHeadways(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for loading new Level-2 headways"""
+
+    __tablename__ = "loadHeadways"
+
+    fk_trip_event_hash = sa.Column(
+        sa.LargeBinary(16),
+        nullable=False,
+        primary_key=True,
+    )
+    fk_vp_stopped_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    fk_tu_stopped_event = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    headway_seconds = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
