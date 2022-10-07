@@ -1,7 +1,7 @@
 import pytest
 
-from py_gtfs_rt_ingestion import ConfigType
-from py_gtfs_rt_ingestion.error import ConfigTypeFromFilenameException
+from lib import ConfigType
+from lib.error import ConfigTypeFromFilenameException
 
 UPDATE_FILENAME = "2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz"
 

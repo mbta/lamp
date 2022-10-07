@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 from pyarrow import fs
 
-from py_gtfs_rt_ingestion.convert_gtfs_rt import GtfsRtConverter
-from py_gtfs_rt_ingestion import ConfigType
+from lib.convert_gtfs_rt import GtfsRtConverter
+from lib import ConfigType
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
@@ -64,12 +64,12 @@ def test_empty_files() -> None:
 
         empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
         table = converter.gz_to_pyarrow(filename=empty_file)
-        np_df = table.to_pandas()
+        np_df = table.to_pandas()  # type: ignore
         assert np_df.shape == (0, len(converter.detail.export_schema))
 
         one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
         table = converter.gz_to_pyarrow(filename=one_blank_file)
-        np_df = table.to_pandas()
+        np_df = table.to_pandas()  # type: ignore
         assert np_df.shape == (1, len(converter.detail.export_schema))
 
 
