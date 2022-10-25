@@ -1,6 +1,6 @@
 import zipfile
 
-from typing import IO, List, Union
+from typing import IO, List, Tuple, Union
 
 import pyarrow
 from pyarrow import csv
@@ -10,7 +10,7 @@ from .converter import Converter
 from .logging_utils import ProcessLogger
 
 
-def zip_to_pyarrow(filename: str) -> List[tuple[str, pyarrow.Table]]:
+def zip_to_pyarrow(filename: str) -> List[Tuple[str, pyarrow.Table]]:
     """
     convert a schedule gtfs zip file into tables. the zip file is essentially a
     small database with each contained file (outside of feed info) acting as its
