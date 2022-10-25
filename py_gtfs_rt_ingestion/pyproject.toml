@@ -18,7 +18,7 @@ pytest = "^5.2"
 pandas = "^1.4.2"
 pytest-cov = "^3.0.0"
 black = "^22.3.0"
-pylint = "^2.14.1"
+pylint = "^2.15.5"
 mypy = "^0.961"
 awscli = "^1.25.8"
 
@@ -42,6 +42,8 @@ disable = [
   "broad-except",
   # caught by black
   "line-too-long",
+  # for some reason Iterable[type] is triggering this error on github
+  "unsubscriptable-object",
 ]
 good-names = ["e", "i"]
 max-line-length = 80

@@ -4,7 +4,7 @@ import os
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
-from typing import IO, List, cast
+from typing import IO, List, Tuple, cast
 
 from pyarrow import fs, Table
 from pyarrow.util import guid
@@ -20,7 +20,7 @@ def get_s3_client() -> boto3.client:
     return boto3.client("s3")
 
 
-def get_zip_buffer(filename: str) -> tuple[IO[bytes], int]:
+def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     """
     Get a buffer for a zip file from s3 so that it can be read by zipfile
     module. filename is assumed to be the full path to the zip file without the
@@ -41,7 +41,7 @@ def get_zip_buffer(filename: str) -> tuple[IO[bytes], int]:
 
 def file_list_from_s3(
     bucket_name: str, file_prefix: str
-) -> Iterable[tuple[str, int]]:
+) -> Iterable[Tuple[str, int]]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 
@@ -128,7 +128,7 @@ def _move_s3_object(filename: str, destination: str) -> None:
         process_logger.log_failure(exception)
 
 
-def move_s3_objects(files: list[str], destination: str) -> None:
+def move_s3_objects(files: List[str], destination: str) -> None:
     """
     Move list of S3 objects from source to destination.
 

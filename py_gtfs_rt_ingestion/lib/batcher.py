@@ -1,7 +1,7 @@
 import logging
 
 from collections.abc import Iterable
-from typing import List
+from typing import List, Tuple
 
 from .converter import ConfigType
 from .error import ConfigTypeFromFilenameException
@@ -35,7 +35,7 @@ class Batch:
 
 
 def batch_files(
-    files: Iterable[tuple[str, int]], threshold: int
+    files: Iterable[Tuple[str, int]], threshold: int
 ) -> Iterable[Batch]:
     """
     Take a bunch of files and sort them into Batches based on their config type

@@ -3,8 +3,7 @@
 import argparse
 import logging
 import sys
-from typing import NamedTuple
-from typing import Optional
+from typing import List, Optional, NamedTuple
 import os
 import random
 from multiprocessing import Pool
@@ -33,7 +32,7 @@ class SetupArgs(NamedTuple):
     log_level: str
 
 
-def parse_args(args: list[str]) -> SetupArgs:
+def parse_args(args: List[str]) -> SetupArgs:
     """
     parse input args from the command line and generate an event dict in the
     format the lambda handler is expecting
@@ -76,7 +75,7 @@ def parse_args(args: list[str]) -> SetupArgs:
     return SetupArgs(**vars(parser.parse_args(args)))
 
 
-def del_objs(del_list: list[str], bucket: str) -> int:
+def del_objs(del_list: List[str], bucket: str) -> int:
     """
     Delete del_list of objects from bucket
     """
@@ -97,7 +96,7 @@ def del_objs(del_list: list[str], bucket: str) -> int:
     return len(response["Deleted"])
 
 
-def make_del_jobs(files: list[str], bucket: str) -> int:
+def make_del_jobs(files: List[str], bucket: str) -> int:
     """
     Spin up Multiprocessing jobs to delete batches of objects
     """
@@ -111,7 +110,7 @@ def make_del_jobs(files: list[str], bucket: str) -> int:
     return del_count
 
 
-def get_del_obj_list(bucket: str, uri_root: str) -> list[str]:
+def get_del_obj_list(bucket: str, uri_root: str) -> List[str]:
     """
     Return list of objects in bucket, removing uri_root object from return list
     """
