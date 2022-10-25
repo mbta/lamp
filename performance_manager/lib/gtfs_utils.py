@@ -10,7 +10,7 @@ def add_event_hash_column(
     expected_hash_columns: Sequence[str] = (
         "is_moving",
         "stop_sequence",
-        "stop_id",
+        "parent_station",
         "direction_id",
         "route_id",
         "start_date",

@@ -8,7 +8,12 @@ import sqlalchemy as sa
 
 from .gtfs_utils import start_time_to_seconds, add_event_hash_column
 from .logging_utils import ProcessLogger
-from .postgres_schema import TripUpdateEvents, MetadataLog
+from .postgres_schema import (
+    TripUpdateEvents,
+    MetadataLog,
+    StaticFeedInfo,
+    StaticStops,
+)
 from .postgres_utils import get_unprocessed_files, DatabaseManager
 from .s3_utils import read_parquet_chunks
 
@@ -155,18 +160,115 @@ def get_and_unwrap_tu_dataframe(
     events["is_moving"] = False
     events["pk_id"] = None
 
+    return events
+
+
+def join_gtfs_static(
+    trip_updates: pandas.DataFrame, db_manager: DatabaseManager
+) -> pandas.DataFrame:
+    """
+    join trip update dataframe to gtfs static records
+
+    adds "fk_static_timestamp" and "parent_station" columns to dataframe
+    """
+    # get unique "start_date" values from trip update dataframe
+    # with associated minimum "timestamp_start"
+    date_groups = trip_updates.groupby(by="start_date")["timestamp_start"].min()
+
+    # pylint: disable=duplicate-code
+    # TODO(ryan): the following code is duplicated in rt_vehicle_positions.py
+
+    # dictionary used to match minimum "timestamp_start" values to
+    # "timestamp" from StaticFeedInfo table, to be used as foreign key
+    timestamp_lookup = {}
+    for (date, min_timestamp) in date_groups.iteritems():
+        date = int(date)
+        min_timestamp = int(min_timestamp)
+        # "start_date" from trip updates must be between "feed_start_date"
+        # and "feed_end_date" in StaticFeedInfo
+        # minimum "timestamp_start" must also be less than "timestamp" from
+        # StaticFeedInfo, order by "timestamp" descending and limit to 1 result
+        # this should deal with multiple static schedules with possible
+        # overlapping times of applicability
+        feed_timestamp_query = (
+            sa.select(StaticFeedInfo.timestamp)
+            .where(
+                (StaticFeedInfo.feed_start_date <= date)
+                & (StaticFeedInfo.feed_end_date >= date)
+                & (StaticFeedInfo.timestamp < min_timestamp)
+            )
+            .order_by(StaticFeedInfo.timestamp.desc())
+            .limit(1)
+        )
+        result = db_manager.select_as_list(feed_timestamp_query)
+        # if this query does not produce a result, no static schedule info
+        # exists for this trip update data, so the tri update data
+        # should not be processed until valid static schedule data exists
+        if len(result) == 0:
+            raise IndexError(
+                f"StaticFeedInfo table has no matching schedule for start_date={date}, timestamp={min_timestamp}"
+            )
+        timestamp_lookup[min_timestamp] = int(result[0]["timestamp"])
+
+    # pylint: disable=duplicate-code
+
+    trip_updates["fk_static_timestamp"] = timestamp_lookup[
+        min(timestamp_lookup.keys())
+    ]
+    # add "fk_static_timestamp" column to trip update dataframe
+    # loop is to handle batches vehicle position batches that are applicable to
+    # overlapping static gtfs data
+    for min_timestamp in sorted(timestamp_lookup.keys()):
+        timestamp_mask = trip_updates["timestamp_start"] >= min_timestamp
+        trip_updates.loc[
+            timestamp_mask, "fk_static_timestamp"
+        ] = timestamp_lookup[min_timestamp]
+
+    # unique list of "fk_static_timestamp" values for pulling parent stations
+    static_timestamps = list(set(timestamp_lookup.values()))
+
+    # pull parent station data for joining to trip update events
+    parent_station_query = sa.select(
+        StaticStops.timestamp.label("fk_static_timestamp"),
+        StaticStops.stop_id,
+        StaticStops.parent_station,
+    ).where(StaticStops.timestamp.in_(static_timestamps))
+    parent_stations = db_manager.select_as_dataframe(parent_station_query)
+
+    # join parent stations to trip updates on "stop_id" and gtfs static
+    # timestamp foreign key
+    trip_updates = trip_updates.merge(
+        parent_stations, how="left", on=["fk_static_timestamp", "stop_id"]
+    )
+    # is parent station is not provided, transfer "stop_id" value to
+    # "parent_station" column
+    trip_updates["parent_station"] = numpy.where(
+        trip_updates["parent_station"].isna(),
+        trip_updates["stop_id"],
+        trip_updates["parent_station"],
+    )
+
+    return trip_updates
+
+
+def hash_events(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
+    """
+    hash category columns of rows and return data frame with "hash" column
+    """
     # add hash column, hash should be consistent across trip_update and
     # vehicle_position events
-    events = add_event_hash_column(events).sort_values(by=["hash", "timestamp"])
+    trip_updates = add_event_hash_column(trip_updates).sort_values(
+        by=["hash", "timestamp"]
+    )
 
     # after sort, drop all duplicates by hash, keep last record
     # last record will be most recent arrival time prediction for event
-    events = events.drop_duplicates(subset=["hash"], keep="last")
+    trip_updates = trip_updates.drop_duplicates(subset=["hash"], keep="last")
 
-    # after sort and drop timestamp column no longer needed
-    events = events.drop(columns=["timestamp"])
+    # after hash and sort, "timestamp" and "parent_station" no longer needed
+    trip_updates = trip_updates.drop(columns=["timestamp", "parent_station"])
 
-    return events
+    return trip_updates
 
 
 def merge_trip_update_events(  # pylint: disable=too-many-locals
@@ -303,6 +405,10 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
 
             new_events = get_and_unwrap_tu_dataframe(paths)
             sizes["new_events_unwrapped_size"] = new_events.shape[0]
+
+            new_events = join_gtfs_static(new_events, db_manager)
+
+            new_events = hash_events(new_events)
 
             subprocess_logger.add_metadata(**sizes)
 

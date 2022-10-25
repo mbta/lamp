@@ -25,6 +25,11 @@ class VehiclePositionEvents(SqlBase):  # pylint: disable=too-few-public-methods
     hash = sa.Column(
         sa.LargeBinary(16), nullable=False, index=True, unique=False
     )
+    fk_static_timestamp = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("staticFeedInfo.timestamp"),
+        nullable=False,
+    )
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
@@ -45,6 +50,11 @@ class TripUpdateEvents(SqlBase):  # pylint: disable=too-few-public-methods
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     hash = sa.Column(
         sa.LargeBinary(16), nullable=False, index=True, unique=False
+    )
+    fk_static_timestamp = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("staticFeedInfo.timestamp"),
+        nullable=False,
     )
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 

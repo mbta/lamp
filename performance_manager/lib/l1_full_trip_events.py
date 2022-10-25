@@ -9,6 +9,7 @@ from .postgres_schema import (
     TripUpdateEvents,
     FullTripEvents,
     TempFullTripEvents,
+    StaticStops,
 )
 from .gtfs_utils import add_event_hash_column
 
@@ -20,7 +21,7 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
     # columns to hash for FullTripEvents primary key field
     expected_hash_columns = [
         "stop_sequence",
-        "stop_id",
+        "parent_station",
         "direction_id",
         "route_id",
         "start_date",
@@ -56,7 +57,13 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         sa.select(
             VehiclePositionEvents.pk_id.label("fk_vp_moving_event"),
             VehiclePositionEvents.stop_sequence,
-            VehiclePositionEvents.stop_id,
+            sa.case(
+                (
+                    StaticStops.parent_station.is_(None),
+                    VehiclePositionEvents.stop_id,
+                ),
+                else_=StaticStops.parent_station,
+            ).label("parent_station"),
             VehiclePositionEvents.direction_id,
             VehiclePositionEvents.route_id,
             VehiclePositionEvents.start_date,
@@ -71,6 +78,15 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         .join(
             dupe_hash_cte,
             VehiclePositionEvents.hash == dupe_hash_cte.c.hash,
+            isouter=True,
+        )
+        .join(
+            StaticStops,
+            sa.and_(
+                VehiclePositionEvents.fk_static_timestamp
+                == StaticStops.timestamp,
+                VehiclePositionEvents.stop_id == StaticStops.stop_id,
+            ),
             isouter=True,
         )
         .where(
@@ -92,7 +108,13 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         sa.select(
             VehiclePositionEvents.pk_id.label("fk_vp_stopped_event"),
             VehiclePositionEvents.stop_sequence,
-            VehiclePositionEvents.stop_id,
+            sa.case(
+                (
+                    StaticStops.parent_station.is_(None),
+                    VehiclePositionEvents.stop_id,
+                ),
+                else_=StaticStops.parent_station,
+            ).label("parent_station"),
             VehiclePositionEvents.direction_id,
             VehiclePositionEvents.route_id,
             VehiclePositionEvents.start_date,
@@ -107,6 +129,15 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         .join(
             dupe_hash_cte,
             VehiclePositionEvents.hash == dupe_hash_cte.c.hash,
+            isouter=True,
+        )
+        .join(
+            StaticStops,
+            sa.and_(
+                VehiclePositionEvents.fk_static_timestamp
+                == StaticStops.timestamp,
+                VehiclePositionEvents.stop_id == StaticStops.stop_id,
+            ),
             isouter=True,
         )
         .where(
@@ -128,7 +159,13 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         sa.select(
             TripUpdateEvents.pk_id.label("fk_tu_stopped_event"),
             TripUpdateEvents.stop_sequence,
-            TripUpdateEvents.stop_id,
+            sa.case(
+                (
+                    StaticStops.parent_station.is_(None),
+                    TripUpdateEvents.stop_id,
+                ),
+                else_=StaticStops.parent_station,
+            ).label("parent_station"),
             TripUpdateEvents.direction_id,
             TripUpdateEvents.route_id,
             TripUpdateEvents.start_date,
@@ -138,6 +175,14 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         .join(
             FullTripEvents,
             TripUpdateEvents.pk_id == FullTripEvents.fk_tu_stopped_event,
+            isouter=True,
+        )
+        .join(
+            StaticStops,
+            sa.and_(
+                TripUpdateEvents.fk_static_timestamp == StaticStops.timestamp,
+                TripUpdateEvents.stop_id == StaticStops.stop_id,
+            ),
             isouter=True,
         )
         .where(
@@ -163,8 +208,8 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
                 stop_vp_cte.c.stop_sequence,
             ).label("stop_sequence"),
             sa.func.coalesce(
-                move_vp_cte.c.stop_id, stop_vp_cte.c.stop_id
-            ).label("stop_id"),
+                move_vp_cte.c.parent_station, stop_vp_cte.c.parent_station
+            ).label("parent_station"),
             sa.func.coalesce(
                 move_vp_cte.c.direction_id,
                 stop_vp_cte.c.direction_id,
@@ -186,7 +231,7 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
             stop_tu_cte,
             sa.and_(
                 move_vp_cte.c.stop_sequence == stop_tu_cte.c.stop_sequence,
-                move_vp_cte.c.stop_id == stop_tu_cte.c.stop_id,
+                move_vp_cte.c.parent_station == stop_tu_cte.c.parent_station,
                 move_vp_cte.c.direction_id == stop_tu_cte.c.direction_id,
                 move_vp_cte.c.route_id == stop_tu_cte.c.route_id,
                 move_vp_cte.c.start_date == stop_tu_cte.c.start_date,
@@ -199,7 +244,7 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
             stop_vp_cte,
             sa.and_(
                 move_vp_cte.c.stop_sequence == stop_vp_cte.c.stop_sequence,
-                move_vp_cte.c.stop_id == stop_vp_cte.c.stop_id,
+                move_vp_cte.c.parent_station == stop_vp_cte.c.parent_station,
                 move_vp_cte.c.direction_id == stop_vp_cte.c.direction_id,
                 move_vp_cte.c.route_id == stop_vp_cte.c.route_id,
                 move_vp_cte.c.start_date == stop_vp_cte.c.start_date,
