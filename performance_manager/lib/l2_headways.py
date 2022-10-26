@@ -78,10 +78,13 @@ def get_min_timestamp(db_manager: DatabaseManager) -> Optional[int]:
     return min_timestamp_start
 
 
-def load_temp_headways(db_manager: DatabaseManager) -> int:
+def load_temp_headways(db_manager: DatabaseManager) -> bool:
     """
-    perform update on headways table
+    Load headways data from new records into Temporary holding table
 
+    return True if any new records are loaded
+
+    return False if NO new records loaded
     """
     process_logger = ProcessLogger("l2_load_temp_headways")
     process_logger.log_start()
@@ -93,7 +96,7 @@ def load_temp_headways(db_manager: DatabaseManager) -> int:
     if min_timestamp_start is None:
         process_logger.add_metadata(temp_rows_inserted=0)
         process_logger.log_complete()
-        return 0
+        return False
 
     # headways will be aggregated by the following fields:
     # - direction_id
@@ -292,7 +295,10 @@ def load_temp_headways(db_manager: DatabaseManager) -> int:
     process_logger.add_metadata(temp_rows_inserted=result.rowcount)
     process_logger.log_complete()
 
-    return result.rowcount
+    if result.rowcount > 0:
+        return True
+
+    return False
 
 
 def update_headways_from_temp(db_manager: DatabaseManager) -> None:
@@ -367,10 +373,8 @@ def process_headways(db_manager: DatabaseManager) -> None:
     process_logger = ProcessLogger("process_l2_headways")
     process_logger.log_start()
     try:
-        temp_table_rows = load_temp_headways(db_manager)
-
-        # gate to check for no records needing update / insert
-        if temp_table_rows == 0:
+        # gate to check if no records need update / insert
+        if load_temp_headways(db_manager) is False:
             process_logger.log_complete()
             return
 
