@@ -5,7 +5,7 @@ services:
 
   local_rds:
     container_name: local_rds
-    image: postgres:13.4
+    image: postgres:14.4
     env_file: .env
     environment:
       POSTGRES_DB: ${DB_NAME}
@@ -26,7 +26,7 @@ services:
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
 
-  performance_manager:
+  ingestion:
     container_name: ingestion
     env_file: .env
     build:
