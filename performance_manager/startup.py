@@ -17,6 +17,7 @@ from lib import (
     process_static_tables,
     process_full_trip_events,
     process_dwell_travel_times,
+    process_headways,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -143,6 +144,7 @@ def main(args: argparse.Namespace) -> None:
             process_trip_updates(db_manager)
             process_full_trip_events(db_manager)
             process_dwell_travel_times(db_manager)
+            process_headways(db_manager)
 
             process_logger.log_complete()
         except Exception as exception:

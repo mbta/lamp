@@ -232,6 +232,11 @@ def transform_data_tables(static_tables: List[StaticTableDetails]) -> None:
                     .astype("Int64")
                 )
 
+        table.data_table = table.data_table.fillna(numpy.nan).replace(
+            [numpy.nan], [None]
+        )
+        table.data_table = table.data_table.replace([""], [None])
+
 
 def insert_data_tables(
     static_tables: List[StaticTableDetails],
