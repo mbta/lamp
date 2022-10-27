@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
+from typing import List, Tuple
 
 from enum import auto
 from enum import Enum
@@ -28,6 +29,8 @@ class ConfigType(Enum):
     VEHICLE_COUNT = auto()
     SCHEDULE = auto()
     LIGHT_RAIL = auto()
+
+    ERROR = auto()
 
     def __str__(self) -> str:
         return self.name
@@ -72,6 +75,7 @@ class ConfigType(Enum):
             self.BUS_TRIP_UPDATES,
             self.BUS_VEHICLE_POSITIONS,
             self.VEHICLE_COUNT,
+            self.LIGHT_RAIL,
         ]
 
 
@@ -87,10 +91,23 @@ class Converter(ABC):
         self.error_files: list[str] = []
 
     @abstractmethod
-    def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
+    def get_tables(self) -> List[Tuple[str, pyarrow.Table]]:
         """
-        convert input files into a list of pyarrow tables. each table is tupled
-        with a prefix path that it should be stored with in s3
+        get a list of tables and their s3 prefixes so they can be written to s3
+        """
+
+    @abstractmethod
+    def add_file(self, file: str) -> bool:
+        """
+        add a file to the converter to ingest and format.
+        @return is this the last file to ingest
+        """
+
+    @abstractmethod
+    def reset(self) -> None:
+        """
+        reset this converter for another round of files to ingest and transform
+        into tables
         """
 
     @property

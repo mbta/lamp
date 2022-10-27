@@ -116,7 +116,7 @@ def get_del_obj_list(bucket: str, uri_root: str) -> List[str]:
     """
     logging.info("Checking for objects to delete in %s...", uri_root)
     files_to_delete = []
-    for (uri, _) in file_list_from_s3(bucket, LAMP_PREFIX):
+    for uri in file_list_from_s3(bucket, LAMP_PREFIX):
         files_to_delete.append(uri)
     # Remove uri_root from list so that root directory is not deleted.
     files_to_delete.remove(uri_root)
@@ -185,9 +185,9 @@ def copy_obj(prefix: str, num_to_copy: int) -> int:
         src_uri_root,
     )
     try:
-        for (uri, size) in file_list_from_s3(GTFS_BUCKET, prefix):
+        for uri in file_list_from_s3(GTFS_BUCKET, prefix):
             # Skip busloc TripUpdates because of S3 permission issues
-            if size > 0 and skip_uri not in uri:
+            if skip_uri not in uri:
                 uri_copy_set.add(uri)
             if len(uri_copy_set) == count_objs_to_pull:
                 break

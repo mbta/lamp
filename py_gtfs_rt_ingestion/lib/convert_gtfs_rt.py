@@ -1,10 +1,7 @@
 import json
-import logging
-import os
 
 from datetime import datetime, timezone
-from typing import Optional, cast
-from concurrent.futures import ThreadPoolExecutor
+from typing import List, Optional, Tuple
 
 import pyarrow
 from pyarrow import fs
@@ -58,34 +55,65 @@ class GtfsRtConverter(Converter):
         now = datetime.now(tz=timezone.utc)
         self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
 
-    def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
-        pa_table = pyarrow.table(
+        self.current_time: Optional[datetime] = None
+        self.table = pyarrow.table(
             self.detail.empty_table(), schema=self.detail.export_schema
         )
+        self.next_table: Optional[pyarrow.table] = None
 
-        # this is the default pool size for a ThreadPoolExecutor as of py3.8
-        cpu_count = cast(
-            int, os.cpu_count() if os.cpu_count() is not None else 1
-        )
-        pool_size = min(32, cpu_count + 4)
+    def get_tables(self) -> List[Tuple[str, pyarrow.Table]]:
+        return [(str(self.config_type), self.table)]
 
+    def reset(self) -> None:
+        self.current_time = None
+        self.table = self.next_table
+        self.next_table = None
+
+        self.archive_files = []
+        self.error_files = []
+
+    def add_file(self, file: str) -> bool:
         process_logger = ProcessLogger(
-            "convert_gtfs_rt",
+            "convert_single_gtfs_rt",
             config_type=str(self.config_type),
-            pool_size=pool_size,
-            file_count=len(files),
+            filename=file,
         )
         process_logger.log_start()
 
-        with ThreadPoolExecutor(max_workers=pool_size) as executor:
-            for result in executor.map(self.gz_to_pyarrow, files):
-                if result is not None:
-                    pa_table = pyarrow.concat_tables([pa_table, result])
+        try:
+            timestamp, table = self.gz_to_pyarrow(file)
 
-        process_logger.log_complete()
+            # skip files that have been generated after the start of the current
+            # hour. don't add them to archive or error so that they are picked
+            # up next go around.
+            if timestamp >= self.start_of_hour:
+                return False
 
-        # return a list with a single prefix, table tuple
-        return [(str(self.config_type), pa_table)]
+            if self.current_time is None:
+                self.current_time = timestamp
+            else:
+                same_hour = (
+                    timestamp.year == self.current_time.year
+                    and timestamp.month == self.current_time.month
+                    and timestamp.day == self.current_time.day
+                    and timestamp.hour == self.current_time.hour
+                )
+
+                if not same_hour:
+                    self.next_table = table
+                    return True
+
+            # check to see if this timestamp matches the current timestamps hours
+            self.table = pyarrow.concat_tables([self.table, table])
+            self.archive_files.append(file)
+
+            process_logger.log_complete()
+            return False
+
+        except Exception as exception:
+            process_logger.log_failure(exception)
+            self.error_files.append(file)
+            return False
 
     def record_from_entity(self, entity: dict) -> dict:
         """
@@ -114,69 +142,49 @@ class GtfsRtConverter(Converter):
 
         return record
 
-    def gz_to_pyarrow(self, filename: str) -> Optional[str]:
+    def gz_to_pyarrow(self, filename: str) -> Tuple[datetime, pyarrow.table]:
         """
         Accepts filename as string. Converts gzipped json -> pyarrow table.
 
         Will handle Local or S3 filenames.
         """
-        process_logger = ProcessLogger(
-            "convert_single_gtfs_rt",
-            config_type=str(self.config_type),
-            filename=filename,
+        if filename.startswith("s3://"):
+            active_fs = fs.S3FileSystem()
+            file_to_load = str(filename).replace("s3://", "")
+        else:
+            active_fs = fs.LocalFileSystem()
+            file_to_load = filename
+
+        with active_fs.open_input_stream(file_to_load) as file:
+            json_data = json.load(file)
+
+        # Create empty 'table' as dict of lists for export schema
+        table = self.detail.empty_table()
+
+        # parse timestamp info out of the header
+        feed_timestamp = json_data["header"]["timestamp"]
+        timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
+
+        # for each entity in the list, create a record, add it to the table
+        for entity in json_data["entity"]:
+            record = self.record_from_entity(entity=entity)
+            record.update(
+                {
+                    "year": timestamp.year,
+                    "month": timestamp.month,
+                    "day": timestamp.day,
+                    "hour": timestamp.hour,
+                    "feed_timestamp": feed_timestamp,
+                }
+            )
+
+            for key, value in record.items():
+                table[key].append(value)
+
+        return (
+            timestamp,
+            pyarrow.table(table, schema=self.detail.export_schema),
         )
-        process_logger.log_start()
-        try:
-            if filename.startswith("s3://"):
-                active_fs = fs.S3FileSystem()
-                file_to_load = str(filename).replace("s3://", "")
-            else:
-                active_fs = fs.LocalFileSystem()
-                file_to_load = filename
-
-            with active_fs.open_input_stream(file_to_load) as file:
-                json_data = json.load(file)
-
-            # Create empty 'table' as dict of lists for export schema
-            table = self.detail.empty_table()
-
-            # parse timestamp info out of the header
-            feed_timestamp = json_data["header"]["timestamp"]
-            timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
-
-            # skip files that have been generated after the start of the current
-            # hour. don't add them to archive or error so that they are picked
-            # up next go around.
-            if timestamp >= self.start_of_hour:
-                logging.debug("skipping %s", filename)
-                return None
-
-            # for each entity in the list, create a record, add it to the table
-            for entity in json_data["entity"]:
-                record = self.record_from_entity(entity=entity)
-                record.update(
-                    {
-                        "year": timestamp.year,
-                        "month": timestamp.month,
-                        "day": timestamp.day,
-                        "hour": timestamp.hour,
-                        "feed_timestamp": feed_timestamp,
-                    }
-                )
-
-                for key, value in record.items():
-                    table[key].append(value)
-
-            self.archive_files.append(filename)
-
-            process_logger.log_complete()
-
-            return pyarrow.table(table, schema=self.detail.export_schema)
-
-        except Exception as exception:
-            process_logger.log_failure(exception)
-            self.error_files.append(filename)
-            return None
 
     @property
     def partition_cols(self) -> list[str]:

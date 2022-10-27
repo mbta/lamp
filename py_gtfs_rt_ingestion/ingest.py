@@ -2,16 +2,15 @@
 
 import logging
 import os
-import time
 
+import time
 import schedule
 
 from lib import (
-    batch_files,
+    ingest_files,
     file_list_from_s3,
     DEFAULT_S3_PREFIX,
     move_s3_objects,
-    get_converter,
     write_parquet_file,
     ProcessLogger,
 )
@@ -95,23 +94,17 @@ def batch_and_ingest() -> None:
     process_logger = ProcessLogger("batch_and_ingest")
     process_logger.log_start()
 
-    file_list = file_list_from_s3(
+    files = file_list_from_s3(
         bucket_name=os.environ["INCOMING_BUCKET"],
         file_prefix=DEFAULT_S3_PREFIX,
     )
 
-    # TODO(zap) - do we want to keep threshold around? seems like we can remove
-    # it now.
-    for batch in batch_files(file_list, 1_000_000_000):
-        files = batch.filenames
+    for converter in ingest_files(files):
         archive_files = []
         error_files = []
 
         try:
-            config_type = batch.config_type
-            converter = get_converter(config_type)
-
-            for s3_prefix, table in converter.convert(files):
+            for s3_prefix, table in converter.get_tables():
                 write_parquet_file(
                     table=table,
                     filetype=s3_prefix,
@@ -130,14 +123,14 @@ def batch_and_ingest() -> None:
             logging.exception(
                 "failed=convert_files, error_type=%s, config_type=%s, filecount=%d",
                 type(exception).__name__,
-                config_type,
-                len(files),
+                converter.config_type,
+                len(converter.archive_files),
             )
 
             # if unable to determine config from filename, or not implemented
             # yet, all files are marked as failed ingestion
             archive_files = []
-            error_files = files
+            error_files = converter.archive_files + converter.error_files
 
         finally:
             if len(error_files) > 0:
@@ -157,6 +150,7 @@ def batch_and_ingest() -> None:
 
 def main() -> None:
     """every second run jobs that are currently pending"""
+    batch_and_ingest()
     while True:
         schedule.run_pending()
         time.sleep(1)

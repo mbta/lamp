@@ -39,9 +39,7 @@ def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     )
 
 
-def file_list_from_s3(
-    bucket_name: str, file_prefix: str
-) -> Iterable[Tuple[str, int]]:
+def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[str]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 
@@ -57,8 +55,7 @@ def file_list_from_s3(
         if page["KeyCount"] == 0:
             continue
         for obj in page["Contents"]:
-            uri = os.path.join("s3://", bucket_name, obj["Key"])
-            yield (uri, obj["Size"])
+            yield os.path.join("s3://", bucket_name, obj["Key"])
 
 
 def invoke_async_lambda(function_arn: str, event: dict) -> None:

@@ -303,8 +303,13 @@ def test_schedule_conversion() -> None:
 
     config_type = ConfigType.from_filename(gtfs_schedule_file)
     converter = GtfsConverter(config_type)
+    should_save = converter.add_file(gtfs_schedule_file)
 
-    for prefix, table in converter.convert([gtfs_schedule_file]):
+    # assert that the converter indicates a save is required after parsing the
+    # schedule file
+    assert should_save
+
+    for prefix, table in converter.get_tables():
         table_name = prefix.lower()
 
         # check that we are expecting this name

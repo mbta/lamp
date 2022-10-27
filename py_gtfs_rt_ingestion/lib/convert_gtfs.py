@@ -6,7 +6,7 @@ import pyarrow
 from pyarrow import csv
 
 from .s3_utils import get_zip_buffer
-from .converter import Converter
+from .converter import Converter, ConfigType
 from .logging_utils import ProcessLogger
 
 
@@ -18,7 +18,7 @@ def zip_to_pyarrow(filename: str) -> List[Tuple[str, pyarrow.Table]]:
     http://gtfs.org/schedule/
     """
     process_logger = ProcessLogger("convert_single_gtfs", filename=filename)
-    process_logger.log_start()
+    # process_logger.log_start()
 
     try:
         tables = []
@@ -53,22 +53,22 @@ class GtfsConverter(Converter):
     Converter for GTFS Schedule Data
     """
 
-    def convert(self, files: list[str]) -> list[tuple[str, pyarrow.Table]]:
-        process_logger = ProcessLogger("convert_gtfs", filecount=len(files))
-        process_logger.log_start()
+    def __init__(self, config_type: ConfigType) -> None:
+        Converter.__init__(self, config_type)
 
-        all_tables = []
-        for file in files:
-            tables = list(zip_to_pyarrow(file))
+        self.tables: List[Tuple[str, pyarrow.Table]] = []
 
-            if len(tables) == 0:
-                self.error_files.append(file)
-            else:
-                self.archive_files.append(file)
-                all_tables += tables
+    def add_file(self, file: str) -> bool:
+        self.tables = zip_to_pyarrow(file)
+        return True
 
-        process_logger.log_complete()
-        return all_tables
+    def reset(self) -> None:
+        self.tables = []
+        self.archive_files = []
+        self.error_files = []
+
+    def get_tables(self) -> List[Tuple[str, pyarrow.Table]]:
+        return self.tables
 
     @property
     def partition_cols(self) -> list[str]:
