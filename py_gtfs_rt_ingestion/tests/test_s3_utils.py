@@ -77,9 +77,7 @@ def test_file_list_s3(s3_stub):  # type: ignore
     should_files = []
     for file_size_dict in page_obj_response["Contents"]:
         name = file_size_dict["Key"]
-        size = file_size_dict["Size"]
-
-        should_files.append((f"s3://mbta-gtfs-s3/{name}", size))
+        should_files.append(f"s3://mbta-gtfs-s3/{name}")
 
     assert files == should_files
 
@@ -106,9 +104,8 @@ def test_file_list_s3(s3_stub):  # type: ignore
     should_files = []
     for file_size_dict in page_obj_response["Contents"]:
         name = file_size_dict["Key"]
-        size = file_size_dict["Size"]
 
-        should_files.append((f"s3://mbta-gtfs-s3/{name}", size))
+        should_files.append(f"s3://mbta-gtfs-s3/{name}")
 
     assert files == should_files
 

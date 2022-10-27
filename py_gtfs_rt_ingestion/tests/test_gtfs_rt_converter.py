@@ -19,7 +19,8 @@ def test_bad_conversion_local() -> None:
     converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS)
 
     # convert should still return a single element list of prefix, table tuple
-    tables = converter.convert(["badfile"])
+    converter.add_file("badfile")
+    tables = converter.get_tables()
     assert len(tables) == 1
 
     # archive files should be empty, error files should have the bad file in it
@@ -38,8 +39,9 @@ def test_bad_conversion_s3() -> None:
     """
     converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS)
     with patch("pyarrow.fs.S3FileSystem", return_value=fs.LocalFileSystem):
-        tables = converter.convert(["s3://badfile"])
+        converter.add_file("s3://badfile")
 
+    tables = converter.get_tables()
     assert len(tables) == 1
 
     # archive files should be empty, error files should have the bad file in it
@@ -63,13 +65,13 @@ def test_empty_files() -> None:
         converter = GtfsRtConverter(config_type=config_type)
 
         empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
-        table = converter.gz_to_pyarrow(filename=empty_file)
-        np_df = table.to_pandas()  # type: ignore
+        _, table = converter.gz_to_pyarrow(filename=empty_file)
+        np_df = table.to_pandas()
         assert np_df.shape == (0, len(converter.detail.export_schema))
 
         one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
-        table = converter.gz_to_pyarrow(filename=one_blank_file)
-        np_df = table.to_pandas()  # type: ignore
+        _, table = converter.gz_to_pyarrow(filename=one_blank_file)
+        np_df = table.to_pandas()
         assert np_df.shape == (1, len(converter.detail.export_schema))
 
 
@@ -86,9 +88,14 @@ def test_vehicle_positions_file_conversion() -> None:
     converter = GtfsRtConverter(config_type)
 
     assert converter.config_type == ConfigType.RT_VEHICLE_POSITIONS
+    should_save = converter.add_file(gtfs_rt_file)
 
-    tables = converter.convert([gtfs_rt_file])
+    # shouldn't trigger a save on the first file
+    assert not should_save
+
+    tables = converter.get_tables()
     assert len(tables) == 1
+
     assert converter.archive_files == [gtfs_rt_file]
     assert len(converter.error_files) == 0
 
@@ -160,7 +167,12 @@ def test_rt_alert_file_conversion() -> None:
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.RT_ALERTS
 
-    tables = converter.convert([gtfs_rt_file])
+    should_save = converter.add_file(gtfs_rt_file)
+
+    # shouldn't trigger a save on the first file
+    assert not should_save
+
+    tables = converter.get_tables()
     assert len(tables) == 1
     assert converter.archive_files == [gtfs_rt_file]
     assert len(converter.error_files) == 0
@@ -236,7 +248,11 @@ def test_rt_trip_file_conversion() -> None:
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.RT_TRIP_UPDATES
 
-    tables = converter.convert([gtfs_rt_file])
+    # shouldn't trigger a save on the first file
+    should_save = converter.add_file(gtfs_rt_file)
+    assert not should_save
+
+    tables = converter.get_tables()
     assert len(tables) == 1
     assert converter.archive_files == [gtfs_rt_file]
     assert len(converter.error_files) == 0
@@ -302,7 +318,11 @@ def test_bus_vehicle_positions_file_conversion() -> None:
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.BUS_VEHICLE_POSITIONS
 
-    tables = converter.convert([gtfs_rt_file])
+    # shouldn't trigger a save on the first file
+    should_save = converter.add_file(gtfs_rt_file)
+    assert not should_save
+
+    tables = converter.get_tables()
     assert len(tables) == 1
     assert converter.archive_files == [gtfs_rt_file]
     assert len(converter.error_files) == 0
@@ -385,7 +405,11 @@ def test_bus_trip_updates_file_conversion() -> None:
     converter = GtfsRtConverter(config_type)
     assert converter.config_type == ConfigType.BUS_TRIP_UPDATES
 
-    tables = converter.convert([gtfs_rt_file])
+    # shouldn't trigger a save on the first file
+    should_save = converter.add_file(gtfs_rt_file)
+    assert not should_save
+
+    tables = converter.get_tables()
     assert len(tables) == 1
     assert converter.archive_files == [gtfs_rt_file]
     assert len(converter.error_files) == 0
@@ -470,7 +494,10 @@ def test_start_of_hour() -> None:
     )
 
     # convert the list of files into a table
-    tables = converter.convert([gtfs_rt_file_1, gtfs_rt_file_2])
+    should_save = converter.add_file(gtfs_rt_file_1)
+    assert not should_save
+    should_save = converter.add_file(gtfs_rt_file_2)
+    assert not should_save
 
     # check that only the first file was archived and error files are empty
     assert converter.archive_files == [gtfs_rt_file_1]
@@ -478,6 +505,7 @@ def test_start_of_hour() -> None:
 
     # access the table and assert that the datetime information is for the
     # expected month and day
+    tables = converter.get_tables()
     assert len(tables) == 1
     _, table = tables[0]
 
