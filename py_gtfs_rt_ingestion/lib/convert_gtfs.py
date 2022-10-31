@@ -18,7 +18,7 @@ def zip_to_pyarrow(filename: str) -> List[Tuple[str, pyarrow.Table]]:
     http://gtfs.org/schedule/
     """
     process_logger = ProcessLogger("convert_single_gtfs", filename=filename)
-    # process_logger.log_start()
+    process_logger.log_start()
 
     try:
         tables = []

@@ -28,6 +28,10 @@ class ConfigType(Enum):
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
     SCHEDULE = auto()
+
+    # this filetype is currently being added from delta into our incoming
+    # bucket. we haven't looked into it yet, and its ingestion remains
+    # unimplimented.
     LIGHT_RAIL = auto()
 
     ERROR = auto()
