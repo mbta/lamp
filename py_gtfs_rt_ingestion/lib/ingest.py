@@ -81,5 +81,5 @@ def ingest_files(files: Iterable[str]) -> Iterable[Converter]:
             converters[ConfigType.ERROR].add_file(file)
             continue
 
-    for _, converter in converters.items():
+    for converter in converters.values():
         yield converter
