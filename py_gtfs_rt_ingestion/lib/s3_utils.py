@@ -1,7 +1,7 @@
 import json
 import os
+import pathlib
 
-from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from typing import IO, List, Tuple, cast
@@ -39,23 +39,40 @@ def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     )
 
 
-def file_list_from_s3(bucket_name: str, file_prefix: str) -> Iterable[str]:
+def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 
     :param bucket_name: the name of the bucket to look inside of
     :param file_prefix: prefix for files to generate
 
-    :yield filename, filesize tuples from inside of the bucket
+    :return list of s3 filepaths sorted by the timestamps formatted into them
     """
     s3_client = get_s3_client()
     paginator = s3_client.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
+
+    filepaths = []
     for page in pages:
         if page["KeyCount"] == 0:
             continue
         for obj in page["Contents"]:
-            yield os.path.join("s3://", bucket_name, obj["Key"])
+            filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+
+    def strip_timestamp(fileobject: str) -> str:
+        """
+        utility for sorting pulling timestamp string out of file path.
+        assumption is that the objects will have a bunch of "directories" that
+        pathlib can parse out, and the filename will start with a timestamp
+        "YYY-MM-DDTHH:MM:SSZ" (20 char) format.
+
+        This utility will be used to sort the list of objects.
+        """
+        filepath = pathlib.Path(fileobject)
+        return filepath.name[:20]
+
+    filepaths.sort(key=strip_timestamp)
+    return filepaths
 
 
 def invoke_async_lambda(function_arn: str, event: dict) -> None:
