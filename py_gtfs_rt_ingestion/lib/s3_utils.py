@@ -48,16 +48,10 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
 
     :return list of s3 filepaths sorted by the timestamps formatted into them
     """
-    s3_client = get_s3_client()
-    paginator = s3_client.get_paginator("list_objects_v2")
-    pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
-
-    filepaths = []
-    for page in pages:
-        if page["KeyCount"] == 0:
-            continue
-        for obj in page["Contents"]:
-            filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+    process_logger = ProcessLogger(
+        "file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix
+    )
+    process_logger.log_start()
 
     def strip_timestamp(fileobject: str) -> str:
         """
@@ -71,8 +65,24 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
         filepath = pathlib.Path(fileobject)
         return filepath.name[:20]
 
-    filepaths.sort(key=strip_timestamp)
-    return filepaths
+    try:
+        s3_client = get_s3_client()
+        paginator = s3_client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
+
+        filepaths = []
+        for page in pages:
+            if page["KeyCount"] == 0:
+                continue
+            for obj in page["Contents"]:
+                filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+
+        filepaths.sort(key=strip_timestamp)
+        process_logger.log_complete()
+        return filepaths
+    except Exception as exception:
+        process_logger.log_failure(exception)
+        return []
 
 
 def invoke_async_lambda(function_arn: str, event: dict) -> None:

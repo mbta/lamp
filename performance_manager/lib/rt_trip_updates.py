@@ -404,21 +404,23 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
             sizes = {}
 
             new_events = get_and_unwrap_tu_dataframe(paths)
-            sizes["new_events_unwrapped_size"] = new_events.shape[0]
+            new_events_records = new_events.shape[0]
+            sizes["new_events_unwrapped_size"] = new_events_records
 
-            new_events = join_gtfs_static(new_events, db_manager)
+            # skip processing if no new records in file
+            if new_events_records > 0:
+                new_events = join_gtfs_static(new_events, db_manager)
 
-            new_events = hash_events(new_events)
+                new_events = hash_events(new_events)
 
-            subprocess_logger.add_metadata(**sizes)
-
-            merge_trip_update_events(
-                new_events=new_events,
-                session=db_manager.get_session(),
-            )
+                merge_trip_update_events(
+                    new_events=new_events,
+                    session=db_manager.get_session(),
+                )
         except Exception as exception:
             subprocess_logger.log_failure(exception)
         else:
+            subprocess_logger.add_metadata(**sizes)
             update_md_log = (
                 sa.update(MetadataLog.__table__)
                 .where(MetadataLog.pk_id.in_(ids))
