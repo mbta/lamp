@@ -82,8 +82,8 @@ def validate_environment() -> None:
         )
 
 
-@schedule.repeat(schedule.every().hour.at(":05"))
-def batch_and_ingest() -> None:
+@schedule.repeat(schedule.every(5).minutes)
+def ingest() -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs files, convert each batch into tables, write the
@@ -91,7 +91,7 @@ def batch_and_ingest() -> None:
     filepaths to the metadata table as unprocessed, and move gtfs files to the
     archive bucket (or error bucket in the event of an error)
     """
-    process_logger = ProcessLogger("batch_and_ingest")
+    process_logger = ProcessLogger("ingest_all")
     process_logger.log_start()
 
     files = file_list_from_s3(
@@ -99,7 +99,12 @@ def batch_and_ingest() -> None:
         file_prefix=DEFAULT_S3_PREFIX,
     )
 
+    total_filecount = 0
+
     for converter in ingest_files(files):
+        sub_process_logger = ProcessLogger("process_converter")
+        sub_process_logger.log_start()
+
         archive_files = []
         error_files = []
 
@@ -120,13 +125,7 @@ def batch_and_ingest() -> None:
             error_files = converter.error_files
 
         except Exception as exception:
-            logging.exception(
-                "failed=convert_files, error_type=%s, config_type=%s, filecount=%d",
-                type(exception).__name__,
-                converter.config_type,
-                len(converter.archive_files),
-            )
-
+            sub_process_logger.log_failure(exception)
             # if unable to determine config from filename, or not implemented
             # yet, all files are marked as failed ingestion
             archive_files = []
@@ -147,10 +146,22 @@ def batch_and_ingest() -> None:
                     ),
                 )
 
+            sub_process_logger.add_metadata(
+                error_filecount=len(error_files),
+                archive_filecount=len(archive_files),
+            )
+
+            total_filecount += len(error_files) + len(archive_files)
+
+            sub_process_logger.log_complete()
+
+    process_logger.add_metadata(total_filecount=total_filecount)
+    process_logger.log_complete()
+
 
 def main() -> None:
     """every second run jobs that are currently pending"""
-    batch_and_ingest()
+    ingest()
     while True:
         schedule.run_pending()
         time.sleep(1)

@@ -63,9 +63,7 @@ def get_local_engine(echo: bool = False) -> sa.engine.Engine:
             # set the ssl cert path to the file that should be added to the
             # lambda function at deploy time
             db_ssl_cert = os.path.abspath(
-                os.path.join(
-                    os.path.abspath(__file__), "..", "..", "aws-cert-bundle.pem"
-                )
+                os.path.join("/", "usr", "local", "share", "amazon-certs.pem")
             )
 
             assert os.path.isfile(db_ssl_cert)
