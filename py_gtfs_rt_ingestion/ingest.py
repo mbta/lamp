@@ -150,8 +150,10 @@ def batch_and_ingest() -> None:
 
 def main() -> None:
     """every second run jobs that are currently pending"""
+    batch_and_ingest()
     while True:
-        time.sleep(10)
+        schedule.run_pending()
+        time.sleep(1)
 
 
 if __name__ == "__main__":
