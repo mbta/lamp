@@ -1,4 +1,4 @@
-name: Deploy ECS to Dev
+name: Deploy Ingestion to Dev
 
 on:
   workflow_run:
