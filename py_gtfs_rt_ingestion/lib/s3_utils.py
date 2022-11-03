@@ -46,7 +46,7 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
     :param bucket_name: the name of the bucket to look inside of
     :param file_prefix: prefix for files to generate
 
-    :return list of s3 filepaths sorted by the timestamps formatted into them
+    :return list of s3 filepaths
     """
     process_logger = ProcessLogger(
         "file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix
