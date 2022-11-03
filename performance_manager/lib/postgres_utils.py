@@ -149,7 +149,9 @@ def get_local_engine(
             f"{db_ssl_options}"
         )
 
-        engine = sa.create_engine(database_url, echo=echo, future=True)
+        engine = sa.create_engine(
+            database_url, echo=echo, future=True, pool_pre_ping=True
+        )
 
         process_logger.log_complete()
         return engine
