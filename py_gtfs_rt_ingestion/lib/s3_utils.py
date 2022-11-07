@@ -1,8 +1,8 @@
-import json
 import os
 import pathlib
 
-from concurrent.futures import ThreadPoolExecutor
+from multiprocessing.pool import Pool
+from multiprocessing import current_process
 from io import BytesIO
 from typing import IO, List, Tuple, cast
 
@@ -85,65 +85,47 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
         return []
 
 
-def invoke_async_lambda(function_arn: str, event: dict) -> None:
+def _move_s3_object(filename: str, to_bucket: str) -> None:
     """
-    Invoke a lambda method asynchronously.
-
-    :param function_arn: Lambda function's Amazon Resource Name
-    :param event: the event information passed into the invocation of the lambda
-                  function
-
-    No return value
-    """
-    lambda_client = boto3.client("lambda")
-    lambda_client.invoke(
-        FunctionName=function_arn,
-        InvocationType="Event",
-        Payload=json.dumps(event),
-    )
-
-
-def _move_s3_object(filename: str, destination: str) -> None:
-    """
-    move a single s3 file to the destination bucket. break the incoming s3 path
-    intco parts that are used for copying. each execution will spin up a session
-    and get a resource from that session to avoid threading issues.
+    move a single s3 file to the to_bucket bucket. break the incoming s3 path
+    into parts that are used for copying. each process will have it's own
+    boto session and resource available, from the _init_process_session function
+    to avoid multi-processing issues
 
     :param filename - expected as 's3://my_bucket/the/path/to/the/file.json
-    :param destination bucket name
+    :param to_bucket bucket name
     """
     process_logger = ProcessLogger(
         "move_s3_object",
         filename=filename,
-        destination=destination,
+        to_bucket=to_bucket,
     )
     process_logger.log_start()
 
     try:
-        session = boto3.session.Session()
-        s3_resource = session.resource("s3")
+        s3_resource = current_process().__dict__["boto_s3_resource"]
 
         # trim off leading s3://
         copy_key = filename.replace("s3://", "")
 
         # string before first delimiter is the bucket name
-        source = copy_key.split("/")[0]
+        from_bucket = copy_key.split("/")[0]
 
         # trim off bucket name
-        copy_key = copy_key.replace(f"{source}/", "")
+        copy_key = copy_key.replace(f"{from_bucket}/", "")
 
         # json args for cop
-        destination_bucket = s3_resource.Bucket(destination)
+        destination_bucket = s3_resource.Bucket(to_bucket)
         destination_object = destination_bucket.Object(copy_key)
         destination_object.copy(
             {
-                "Bucket": source,
+                "Bucket": from_bucket,
                 "Key": copy_key,
             }
         )
 
         # delete the source object
-        source_bucket = s3_resource.Bucket(source)
+        source_bucket = s3_resource.Bucket(from_bucket)
         source_object = source_bucket.Object(copy_key)
         source_object.delete()
 
@@ -152,9 +134,27 @@ def _move_s3_object(filename: str, destination: str) -> None:
         process_logger.log_failure(exception)
 
 
-def move_s3_objects(files: List[str], destination: str) -> None:
+def _init_process_session() -> None:
     """
-    Move list of S3 objects from source to destination.
+    initialization function for any process in multi processing pool needing to
+    use a boto session object
+
+    this avoids the expensive operation of creating a new session for every unti of work
+    in the pool
+
+    not totally sure this is the best way to retain the session on process initialization
+    but it seems to work
+    """
+    process_data = current_process()
+    process_data.__dict__["boto_session"] = boto3.session.Session()
+    process_data.__dict__["boto_s3_resource"] = process_data.__dict__[
+        "boto_session"
+    ].resource("s3")
+
+
+def move_s3_objects(files: List[str], to_bucket: str) -> None:
+    """
+    Move list of S3 objects to to_bucket bucket, retaining the object path.
 
     :param files: list of s3 filepath uris
     :param destination: directory or S3 bucket to move to formatted without
@@ -162,7 +162,7 @@ def move_s3_objects(files: List[str], destination: str) -> None:
 
     No return value.
     """
-    destination = destination.split("/")[0]
+    to_bucket = to_bucket.split("/")[0]
 
     # this is the default pool size for a ThreadPoolExecutor as of py3.8
     cpu_count = cast(int, os.cpu_count() if os.cpu_count() is not None else 1)
@@ -171,14 +171,15 @@ def move_s3_objects(files: List[str], destination: str) -> None:
     process_logger = ProcessLogger(
         "move_s3_objects",
         pool_size=pool_size,
-        destination=destination,
+        to_bucket=to_bucket,
         file_count=len(files),
     )
     process_logger.log_start()
 
-    with ThreadPoolExecutor(max_workers=pool_size) as executor:
-        for filename in files:
-            executor.submit(_move_s3_object, filename, destination)
+    with Pool(pool_size, initializer=_init_process_session) as pool:
+        pool.starmap(
+            _move_s3_object, [(filename, to_bucket) for filename in files]
+        )
 
     process_logger.log_complete()
 
