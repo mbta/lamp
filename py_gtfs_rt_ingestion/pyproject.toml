@@ -43,6 +43,8 @@ disable = [
   "line-too-long",
   # for some reason Iterable[type] is triggering this error on github
   "unsubscriptable-object",
+  # Converter abstract base class only has one common function
+  "too-few-public-methods"
 ]
 good-names = ["e", "i"]
 max-line-length = 80

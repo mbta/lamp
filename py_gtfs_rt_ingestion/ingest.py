@@ -10,8 +10,6 @@ from lib import (
     ingest_files,
     file_list_from_s3,
     DEFAULT_S3_PREFIX,
-    move_s3_objects,
-    write_parquet_file,
     ProcessLogger,
 )
 
@@ -101,59 +99,7 @@ def ingest() -> None:
 
     total_filecount = 0
 
-    for converter in ingest_files(files):
-        sub_process_logger = ProcessLogger("process_converter")
-        sub_process_logger.log_start()
-
-        archive_files = []
-        error_files = []
-
-        try:
-            for s3_prefix, table in converter.get_tables():
-                write_parquet_file(
-                    table=table,
-                    filetype=s3_prefix,
-                    s3_path=os.path.join(
-                        os.environ["SPRINGBOARD_BUCKET"],
-                        DEFAULT_S3_PREFIX,
-                        s3_prefix,
-                    ),
-                    partition_cols=converter.partition_cols,
-                )
-
-            archive_files = converter.archive_files
-            error_files = converter.error_files
-
-        except Exception as exception:
-            sub_process_logger.log_failure(exception)
-            # if unable to determine config from filename, or not implemented
-            # yet, all files are marked as failed ingestion
-            archive_files = []
-            error_files = converter.archive_files + converter.error_files
-
-        finally:
-            if len(error_files) > 0:
-                move_s3_objects(
-                    error_files,
-                    os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
-                )
-
-            if len(archive_files) > 0:
-                move_s3_objects(
-                    archive_files,
-                    os.path.join(
-                        os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
-                    ),
-                )
-
-            sub_process_logger.add_metadata(
-                error_filecount=len(error_files),
-                archive_filecount=len(archive_files),
-            )
-
-            total_filecount += len(error_files) + len(archive_files)
-
-            sub_process_logger.log_complete()
+    ingest_files(files)
 
     process_logger.add_metadata(total_filecount=total_filecount)
     process_logger.log_complete()

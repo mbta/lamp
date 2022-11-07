@@ -1,6 +1,5 @@
 import json
 import os
-import pathlib
 
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
@@ -53,18 +52,6 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
     )
     process_logger.log_start()
 
-    def strip_timestamp(fileobject: str) -> str:
-        """
-        utility for sorting pulling timestamp string out of file path.
-        assumption is that the objects will have a bunch of "directories" that
-        pathlib can parse out, and the filename will start with a timestamp
-        "YYY-MM-DDTHH:MM:SSZ" (20 char) format.
-
-        This utility will be used to sort the list of objects.
-        """
-        filepath = pathlib.Path(fileobject)
-        return filepath.name[:20]
-
     try:
         s3_client = get_s3_client()
         paginator = s3_client.get_paginator("list_objects_v2")
@@ -77,7 +64,6 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
             for obj in page["Contents"]:
                 filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
-        filepaths.sort(key=strip_timestamp)
         process_logger.log_complete()
         return filepaths
     except Exception as exception:

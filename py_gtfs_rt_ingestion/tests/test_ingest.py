@@ -3,7 +3,6 @@
 # fixtures work. https://stackoverflow.com/q/59664605
 
 import json
-import logging
 import os
 import pytest
 
@@ -38,19 +37,5 @@ def test_each_config_type() -> None:
         ConfigType.ERROR: NoImplConverter,
     }
     for config_type in ConfigType:
-        converter = get_converter(config_type)
+        converter = get_converter(config_type, [])
         assert isinstance(converter, config_type_map[config_type])
-
-
-def test_bad_file_names() -> None:
-    """
-    test that bad filenames are handled appropriately
-    """
-    # all bad filenames
-    files = ["test1", "test2", "test3", "test4"]
-
-    all_error_files = []
-    for converter in ingest_files(files):
-        assert converter.archive_files == []
-        all_error_files += converter.error_files
-    assert all_error_files == files

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import List
 
 from enum import auto
 from enum import Enum
-
-import pyarrow
 
 from .error import ConfigTypeFromFilenameException
 
@@ -89,34 +87,13 @@ class Converter(ABC):
     into pyarrow tables.
     """
 
-    def __init__(self, config_type: ConfigType) -> None:
+    def __init__(self, config_type: ConfigType, files: List[str]) -> None:
         self.config_type = config_type
-        self.archive_files: list[str] = []
-        self.error_files: list[str] = []
+        self.files = files
 
     @abstractmethod
-    def get_tables(self) -> List[Tuple[str, pyarrow.Table]]:
+    def convert(self) -> None:
         """
-        get a list of tables and their s3 prefixes so they can be written to s3
-        """
-
-    @abstractmethod
-    def add_file(self, file: str) -> bool:
-        """
-        add a file to the converter to ingest and format.
-        @return is this the last file to ingest
-        """
-
-    @abstractmethod
-    def reset(self) -> None:
-        """
-        reset this converter for another round of files to ingest and transform
-        into tables
-        """
-
-    @property
-    @abstractmethod
-    def partition_cols(self) -> list[str]:
-        """
-        list of columns to patition out of parquet tables
+        convert files to pyarrow tables, write them to s3 as parquete, and move
+        files from incoming to archive (or error)
         """

@@ -1,7 +1,6 @@
 import os
 
-from lib.convert_gtfs import GtfsConverter
-from lib import ConfigType
+from lib.convert_gtfs import zip_to_pyarrow
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
@@ -301,15 +300,7 @@ def test_schedule_conversion() -> None:
         },
     }
 
-    config_type = ConfigType.from_filename(gtfs_schedule_file)
-    converter = GtfsConverter(config_type)
-    should_save = converter.add_file(gtfs_schedule_file)
-
-    # assert that the converter indicates a save is required after parsing the
-    # schedule file
-    assert should_save
-
-    for prefix, table in converter.get_tables():
+    for prefix, table in zip_to_pyarrow(gtfs_schedule_file):
         table_name = prefix.lower()
 
         # check that we are expecting this name
