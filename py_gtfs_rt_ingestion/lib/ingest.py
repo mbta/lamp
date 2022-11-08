@@ -1,14 +1,14 @@
-import logging
+import os
 
-from collections.abc import Iterable
-from typing import List, Tuple
-
-import pyarrow
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List
 
 from .converter import ConfigType, Converter
 from .convert_gtfs import GtfsConverter
 from .convert_gtfs_rt import GtfsRtConverter
 from .error import ConfigTypeFromFilenameException, NoImplException
+from .s3_utils import move_s3_objects
+from .utils import DEFAULT_S3_PREFIX, group_sort_file_list
 
 
 class NoImplConverter(Converter):
@@ -18,68 +18,58 @@ class NoImplConverter(Converter):
     files.
     """
 
-    def get_tables(self) -> List[Tuple[str, pyarrow.Table]]:
-        return []
-
-    def add_file(self, file: str) -> bool:
-        self.error_files.append(file)
-        return len(self.error_files) > 100
-
-    def reset(self) -> None:
-        self.error_files = []
-
-    @property
-    def partition_cols(self) -> list[str]:
-        return []
+    def convert(self) -> None:
+        move_s3_objects(
+            self.files,
+            os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+        )
 
 
 def get_converter(config_type: ConfigType) -> Converter:
     """
-    Get the correct converter object for a given config type
+    get the correct converter for this config type. it may raise an exception if
+    the gtfs_rt file type does not have an implimented detail
     """
-    try:
-        if config_type.is_gtfs():
-            return GtfsConverter(config_type)
-        if config_type.is_gtfs_rt():
-            return GtfsRtConverter(config_type)
-    except NoImplException as exception:
-        # if we encounter a no impl exception, use a no impl converter that will
-        # push all files to the error list
-        logging.warning(exception)
-
-    return NoImplConverter(config_type)
+    if config_type.is_gtfs():
+        return GtfsConverter(config_type)
+    return GtfsRtConverter(config_type)
 
 
-def ingest_files(files: Iterable[str]) -> Iterable[Converter]:
+def ingest_files(files: List[str]) -> None:
     """
-    Take a bunch of files and sort them into Batches based on their config type
-    (derrived from filename). Each Batch should be under a limit in total
-    filesize.
-
-    :param file: An iterable of filename and filesize tubles to be sorted into
-        Batches. The filename is used to determine config type.
-    :param threshold: upper bounds on how large the sum filesize of a batch can
-        be.
-
-    :yield: Converter object containing a list of tables to write with their
-            prefixes and files to move to error and archive buckets
+    sort the incoming file list by type and create a converter for each type.
+    each converter will ingest and convert its files in its own thread.
     """
-    converters = {t: get_converter(t) for t in ConfigType}
+    grouped_files = group_sort_file_list(files)
 
-    for file in files:
+    # initialize with an error / no impl converter, the rest will be added in as
+    # the appear.
+    converters: Dict[ConfigType, Converter] = {}
+    error_files: List[str] = []
+
+    for file_group in grouped_files.values():
+        # get the config type from the file name and create a converter for this
+        # type if one does not already exist. add the files to their converter.
+        # if something goes wrong, add these files to the error converter where
+        # they will be moved from incoming to errror s3 buckets.
         try:
-            config_type = ConfigType.from_filename(file)
-            converter = converters[config_type]
-            save_file = converter.add_file(file)
+            config_type = ConfigType.from_filename(file_group[0])
+            if config_type not in converters:
+                converters[config_type] = get_converter(config_type)
+            converters[config_type].add_files(file_group)
+        except (ConfigTypeFromFilenameException, NoImplException):
+            error_files += file_group
 
-            if save_file:
-                yield converter
-                converter.reset()
+    # GTFS Static Schedule must be processed first for performance manager to
+    # work as expected
+    if ConfigType.SCHEDULE in converters:
+        converters[ConfigType.SCHEDULE].convert()
+        del converters[ConfigType.SCHEDULE]
 
-        except ConfigTypeFromFilenameException as config_exception:
-            logging.warning(config_exception)
-            converters[ConfigType.ERROR].add_file(file)
-            continue
+    converters[ConfigType.ERROR] = NoImplConverter(ConfigType.ERROR)
+    converters[ConfigType.ERROR].add_files(error_files)
 
-    for converter in converters.values():
-        yield converter
+    # The remaining converters can be run in parallel
+    with ThreadPoolExecutor(max_workers=len(converters)) as executor:
+        for converter in converters.values():
+            executor.submit(converter.convert)

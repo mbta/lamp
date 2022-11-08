@@ -46,7 +46,7 @@ class ProcessLogger:
 
     def log_complete(self) -> None:
         """log the completion of a proccess with duration"""
-        duration = self.start_time - time.time()
+        duration = time.time() - self.start_time
         logging_string = (
             f"parent={self.parent}, "
             f"complete={self.process_name}, "

@@ -3,14 +3,13 @@
 # fixtures work. https://stackoverflow.com/q/59664605
 
 import json
-import logging
 import os
 import pytest
 
 from botocore.stub import ANY
 
 from lib import ConfigType
-from lib.error import ArgumentException
+from lib.error import NoImplException
 from lib.ingest import ingest_files, get_converter, NoImplConverter
 from lib.s3_utils import file_list_from_s3
 from lib.convert_gtfs import GtfsConverter
@@ -33,24 +32,18 @@ def test_each_config_type() -> None:
         ConfigType.BUS_TRIP_UPDATES: GtfsRtConverter,
         ConfigType.BUS_VEHICLE_POSITIONS: GtfsRtConverter,
         ConfigType.SCHEDULE: GtfsConverter,
-        ConfigType.VEHICLE_COUNT: NoImplConverter,
-        ConfigType.LIGHT_RAIL: NoImplConverter,
-        ConfigType.ERROR: NoImplConverter,
     }
-    for config_type in ConfigType:
+
+    for config_type, converter_type in config_type_map.items():
         converter = get_converter(config_type)
-        assert isinstance(converter, config_type_map[config_type])
+        assert isinstance(converter, converter_type)
 
+    bad_config_types = [
+        ConfigType.VEHICLE_COUNT,
+        ConfigType.LIGHT_RAIL,
+        ConfigType.ERROR,
+    ]
 
-def test_bad_file_names() -> None:
-    """
-    test that bad filenames are handled appropriately
-    """
-    # all bad filenames
-    files = ["test1", "test2", "test3", "test4"]
-
-    all_error_files = []
-    for converter in ingest_files(files):
-        assert converter.archive_files == []
-        all_error_files += converter.error_files
-    assert all_error_files == files
+    for config_type in bad_config_types:
+        with pytest.raises(NoImplException):
+            converter = get_converter(config_type)

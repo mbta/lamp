@@ -1,7 +1,8 @@
+import os
 import json
 
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import pyarrow
 from pyarrow import fs
@@ -10,6 +11,8 @@ from .error import NoImplException
 from .converter import Converter, ConfigType
 from .gtfs_rt_detail import GTFSRTDetail
 from .logging_utils import ProcessLogger
+from .s3_utils import move_s3_objects, write_parquet_file
+from .utils import DEFAULT_S3_PREFIX
 
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_bus_vehicle import RtBusVehicleDetail
@@ -55,65 +58,96 @@ class GtfsRtConverter(Converter):
         now = datetime.now(tz=timezone.utc)
         self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
 
-        self.current_time: Optional[datetime] = None
-        self.table = pyarrow.table(
-            self.detail.empty_table(), schema=self.detail.export_schema
-        )
-        self.next_table: Optional[pyarrow.table] = None
+        self.error_files: List[str] = []
+        self.archive_files: List[str] = []
 
-    def get_tables(self) -> List[Tuple[str, pyarrow.Table]]:
-        return [(str(self.config_type), self.table)]
+        self.active_fs = fs.LocalFileSystem()
 
-    def reset(self) -> None:
-        self.current_time = None
-        self.table = self.next_table
-        self.next_table = None
-
-        self.archive_files = []
-        self.error_files = []
-
-    def add_file(self, file: str) -> bool:
+    def convert(self) -> None:
         process_logger = ProcessLogger(
-            "convert_single_gtfs_rt",
-            config_type=str(self.config_type),
-            filename=file,
+            "gtfs_rt_convert", config_type=str(self.config_type)
         )
         process_logger.log_start()
 
-        try:
-            timestamp, table = self.gz_to_pyarrow(file)
+        table_count = 0
+        for table in self.process_files():
+            self.write_and_archive(table)
+            table_count += 1
 
-            # skip files that have been generated after the start of the current
-            # hour. don't add them to archive or error so that they are picked
-            # up next go around.
-            if timestamp >= self.start_of_hour:
-                return False
+        process_logger.add_metadata(table_count=table_count)
+        process_logger.log_complete()
 
-            if self.current_time is None:
-                self.current_time = timestamp
-            else:
+    def process_files(self) -> Iterable[pyarrow.table]:
+        """
+        iterate through all of the files to be converted, yielding a new table
+        everytime the timestamps cross over an hour.
+        """
+        table = pyarrow.table(
+            self.detail.empty_table(),
+            schema=self.detail.export_schema,
+        )
+        current_time = None
+
+        process_logger = ProcessLogger(
+            "single_gtfs_rt_convert", config_type=str(self.config_type)
+        )
+        file_count = 0
+
+        # update the active fs to use the s3 filesystem for all loading if the
+        # first file starts with s3
+        if self.files and self.files[0].startswith("s3://"):
+            self.active_fs = fs.S3FileSystem()
+
+        for file in self.files:
+            try:
+                timestamp, new_data = self.gz_to_pyarrow(file)
+
+                # skip files that have been generated after the start of the
+                # current hour. don't add them to archive or error so that they
+                # are picked up next go around.
+                if timestamp >= self.start_of_hour:
+                    break
+
+                if current_time is None:
+                    current_time = timestamp
+
                 same_hour = (
-                    timestamp.year == self.current_time.year
-                    and timestamp.month == self.current_time.month
-                    and timestamp.day == self.current_time.day
-                    and timestamp.hour == self.current_time.hour
+                    timestamp.year == current_time.year
+                    and timestamp.month == current_time.month
+                    and timestamp.day == current_time.day
+                    and timestamp.hour == current_time.hour
                 )
 
+                # if the next table crossed over into the next hour, then write
+                # out the current table, move archive and error s3 files, and
+                # reset the state of the converter.
                 if not same_hour:
-                    self.next_table = table
-                    return True
+                    process_logger.add_metadata(file_count=file_count)
+                    process_logger.log_complete()
 
-            # check to see if this timestamp matches the current timestamps hours
-            self.table = pyarrow.concat_tables([self.table, table])
-            self.archive_files.append(file)
+                    yield table
 
-            process_logger.log_complete()
-            return False
+                    self.error_files = []
+                    self.archive_files = []
+                    table = pyarrow.table(
+                        self.detail.empty_table(),
+                        schema=self.detail.export_schema,
+                    )
+                    current_time = timestamp
+                    file_count = 0
 
-        except Exception as exception:
-            process_logger.log_failure(exception)
-            self.error_files.append(file)
-            return False
+                    process_logger.log_start()
+
+                table = pyarrow.concat_tables([table, new_data])
+                self.archive_files.append(file)
+                file_count += 1
+
+            except Exception:
+                self.error_files.append(file)
+
+        process_logger.add_metadata(file_count=file_count)
+        process_logger.log_complete()
+        yield table
 
     def record_from_entity(self, entity: dict) -> dict:
         """
@@ -148,14 +182,8 @@ class GtfsRtConverter(Converter):
 
         Will handle Local or S3 filenames.
         """
-        if filename.startswith("s3://"):
-            active_fs = fs.S3FileSystem()
-            file_to_load = str(filename).replace("s3://", "")
-        else:
-            active_fs = fs.LocalFileSystem()
-            file_to_load = filename
-
-        with active_fs.open_input_stream(file_to_load) as file:
+        filename = filename.replace("s3://", "")
+        with self.active_fs.open_input_stream(filename) as file:
             json_data = json.load(file)
 
         # Create empty 'table' as dict of lists for export schema
@@ -186,6 +214,39 @@ class GtfsRtConverter(Converter):
             pyarrow.table(table, schema=self.detail.export_schema),
         )
 
-    @property
-    def partition_cols(self) -> list[str]:
-        return ["year", "month", "day", "hour"]
+    def write_and_archive(self, table: pyarrow.table) -> None:
+        """
+        write the table to our s3 bucket and move archive and error files to
+        their respective s3 buckets.
+        """
+        try:
+            s3_prefix = str(self.config_type)
+            write_parquet_file(
+                table=table,
+                filetype=s3_prefix,
+                s3_path=os.path.join(
+                    os.environ["SPRINGBOARD_BUCKET"],
+                    DEFAULT_S3_PREFIX,
+                    s3_prefix,
+                ),
+                partition_cols=["year", "month", "day", "hour"],
+            )
+
+        except Exception:
+            self.error_files += self.archive_files
+            self.archive_files = []
+
+        finally:
+            if len(self.error_files) > 0:
+                move_s3_objects(
+                    self.error_files,
+                    os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+                )
+
+            if len(self.archive_files) > 0:
+                move_s3_objects(
+                    self.archive_files,
+                    os.path.join(
+                        os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
+                    ),
+                )

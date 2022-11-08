@@ -1,5 +1,4 @@
 import os
-import pathlib
 
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
@@ -46,24 +45,12 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
     :param bucket_name: the name of the bucket to look inside of
     :param file_prefix: prefix for files to generate
 
-    :return list of s3 filepaths sorted by the timestamps formatted into them
+    :return list of s3 filepaths
     """
     process_logger = ProcessLogger(
         "file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix
     )
     process_logger.log_start()
-
-    def strip_timestamp(fileobject: str) -> str:
-        """
-        utility for sorting pulling timestamp string out of file path.
-        assumption is that the objects will have a bunch of "directories" that
-        pathlib can parse out, and the filename will start with a timestamp
-        "YYY-MM-DDTHH:MM:SSZ" (20 char) format.
-
-        This utility will be used to sort the list of objects.
-        """
-        filepath = pathlib.Path(fileobject)
-        return filepath.name[:20]
 
     try:
         s3_client = get_s3_client()
@@ -77,7 +64,6 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
             for obj in page["Contents"]:
                 filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
-        filepaths.sort(key=strip_timestamp)
         process_logger.log_complete()
         return filepaths
     except Exception as exception:
