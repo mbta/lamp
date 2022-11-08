@@ -87,9 +87,13 @@ class Converter(ABC):
     into pyarrow tables.
     """
 
-    def __init__(self, config_type: ConfigType, files: List[str]) -> None:
+    def __init__(self, config_type: ConfigType) -> None:
         self.config_type = config_type
-        self.files = files
+        self.files: List[str] = []
+
+    def add_files(self, files: List[str]) -> None:
+        """add files to this converter"""
+        self.files += files
 
     @abstractmethod
     def convert(self) -> None:

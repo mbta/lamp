@@ -33,8 +33,8 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, files: List[str]) -> None:
-        Converter.__init__(self, config_type, files)
+    def __init__(self, config_type: ConfigType) -> None:
+        Converter.__init__(self, config_type)
 
         # Depending on filename, assign self.details to correct implementation
         # of GTFSRTDetail class.
@@ -61,14 +61,21 @@ class GtfsRtConverter(Converter):
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
 
+        self.active_fs = fs.LocalFileSystem()
+
     def convert(self) -> None:
-        process_logger = ProcessLogger("gtfs_rt_convert")
+        process_logger = ProcessLogger(
+            "gtfs_rt_convert", config_type=str(self.config_type)
+        )
         process_logger.log_start()
 
+        table_count = 0
         for table in self.process_files():
             self.write_and_archive(table)
-            process_logger.log_complete()
-            process_logger.log_start()
+            table_count += 1
+
+        process_logger.add_metadata(table_count=table_count)
+        process_logger.log_complete()
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
@@ -81,13 +88,23 @@ class GtfsRtConverter(Converter):
         )
         current_time = None
 
+        process_logger = ProcessLogger(
+            "single_gtfs_rt_convert", config_type=str(self.config_type)
+        )
+        file_count = 0
+
+        # update the active fs to use the s3 filesystem for all loading if the
+        # first file starts with s3
+        if self.files and self.files[0].startswith("s3://"):
+            self.active_fs = fs.S3FileSystem()
+
         for file in self.files:
             try:
                 timestamp, new_data = self.gz_to_pyarrow(file)
 
-                # skip files that have been generated after the start of the current
-                # hour. don't add them to archive or error so that they are picked
-                # up next go around.
+                # skip files that have been generated after the start of the
+                # current hour. don't add them to archive or error so that they
+                # are picked up next go around.
                 if timestamp >= self.start_of_hour:
                     break
 
@@ -105,7 +122,11 @@ class GtfsRtConverter(Converter):
                 # out the current table, move archive and error s3 files, and
                 # reset the state of the converter.
                 if not same_hour:
+                    process_logger.add_metadata(file_count=file_count)
+                    process_logger.log_complete()
+
                     yield table
+
                     self.error_files = []
                     self.archive_files = []
                     table = pyarrow.table(
@@ -113,13 +134,19 @@ class GtfsRtConverter(Converter):
                         schema=self.detail.export_schema,
                     )
                     current_time = timestamp
+                    file_count = 0
+
+                    process_logger.log_start()
 
                 table = pyarrow.concat_tables([table, new_data])
                 self.archive_files.append(file)
+                file_count += 1
 
             except Exception:
                 self.error_files.append(file)
 
+        process_logger.add_metadata(file_count=file_count)
+        process_logger.log_complete()
         yield table
 
     def record_from_entity(self, entity: dict) -> dict:
@@ -155,14 +182,8 @@ class GtfsRtConverter(Converter):
 
         Will handle Local or S3 filenames.
         """
-        if filename.startswith("s3://"):
-            active_fs = fs.S3FileSystem()
-            file_to_load = str(filename).replace("s3://", "")
-        else:
-            active_fs = fs.LocalFileSystem()
-            file_to_load = filename
-
-        with active_fs.open_input_stream(file_to_load) as file:
+        filename = filename.replace("s3://", "")
+        with self.active_fs.open_input_stream(filename) as file:
             json_data = json.load(file)
 
         # Create empty 'table' as dict of lists for export schema
