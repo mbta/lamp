@@ -11,6 +11,7 @@ from lib import (
     file_list_from_s3,
     DEFAULT_S3_PREFIX,
     ProcessLogger,
+    start_rds_writer_process,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -99,7 +100,15 @@ def ingest() -> None:
 
     total_filecount = 0
 
-    ingest_files(files)
+    # start rds writer process
+    metadata_queue = start_rds_writer_process()
+
+    ingest_files(files, metadata_queue)
+
+    # send shutdown signal to rds process and wait for finish
+    metadata_queue.put(None)
+    metadata_queue.close()
+    metadata_queue.join_thread()
 
     process_logger.add_metadata(total_filecount=total_filecount)
     process_logger.log_complete()

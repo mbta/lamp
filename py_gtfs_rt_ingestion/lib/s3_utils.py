@@ -3,7 +3,7 @@ import os
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
 from io import BytesIO
-from typing import IO, List, Tuple, cast
+from typing import IO, List, Tuple, cast, Callable
 
 from pyarrow import fs, Table
 from pyarrow.util import guid
@@ -11,7 +11,6 @@ import boto3
 import pyarrow.dataset as ds
 
 from .logging_utils import ProcessLogger
-from .postgres_utils import insert_metadata
 
 
 def get_s3_client() -> boto3.client:
@@ -152,7 +151,10 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
 
     # this is the default pool size for a ThreadPoolExecutor as of py3.8
     cpu_count = cast(int, os.cpu_count() if os.cpu_count() is not None else 1)
-    pool_size = min(32, cpu_count + 4)
+    # make sure each pool will have at least 50 files to move
+    files_per_pool = 50
+    max_pool_size = max(1, int(len(files) / files_per_pool))
+    pool_size = min(32, cpu_count + 4, max_pool_size)
 
     process_logger = ProcessLogger(
         "move_s3_objects",
@@ -171,7 +173,11 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
 
 
 def write_parquet_file(
-    table: Table, filetype: str, s3_path: str, partition_cols: List[str]
+    table: Table,
+    filetype: str,
+    s3_path: str,
+    partition_cols: List[str],
+    visitor_func: Callable[..., None],
 ) -> None:
     """
     Helper function to write out a parquet table to an s3 path, patitioning
@@ -205,7 +211,7 @@ def write_parquet_file(
         filesystem=fs.S3FileSystem(),
         format=ds.ParquetFileFormat(),
         partitioning=partitioning,
-        file_visitor=insert_metadata,
+        file_visitor=visitor_func,
         basename_template=guid() + "-{i}.parquet",
         existing_data_behavior="overwrite_or_ignore",
     )

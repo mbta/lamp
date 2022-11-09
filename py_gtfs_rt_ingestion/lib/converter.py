@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
-from typing import List
+from typing import List, Any
+from multiprocessing import Queue
 
 from enum import auto
 from enum import Enum
@@ -87,13 +88,18 @@ class Converter(ABC):
     into pyarrow tables.
     """
 
-    def __init__(self, config_type: ConfigType) -> None:
+    def __init__(self, config_type: ConfigType, metadata_queue: Queue) -> None:
         self.config_type = config_type
         self.files: List[str] = []
+        self.metadata_queue = metadata_queue
 
     def add_files(self, files: List[str]) -> None:
         """add files to this converter"""
         self.files += files
+
+    def send_metadata(self, written_file: Any) -> None:
+        """send metadata path to rds writer process"""
+        self.metadata_queue.put(written_file)
 
     @abstractmethod
     def convert(self) -> None:

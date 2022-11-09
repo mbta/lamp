@@ -124,9 +124,7 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(
-        experimental=args.experimental, verbose=args.verbose, seed=args.seed
-    )
+    db_manager = DatabaseManager(verbose=args.verbose, seed=args.seed)
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)

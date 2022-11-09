@@ -1,5 +1,6 @@
 from abc import ABC
 from abc import abstractmethod
+from typing import Dict
 
 import pyarrow
 
@@ -25,6 +26,6 @@ class GTFSRTDetail(ABC):
         and how to remap them if necessary
         """
 
-    def empty_table(self) -> dict:
+    def empty_table(self) -> Dict[str, list]:
         """Create an empty table using this details parrow schema."""
         return {key.name: [] for key in self.export_schema}
