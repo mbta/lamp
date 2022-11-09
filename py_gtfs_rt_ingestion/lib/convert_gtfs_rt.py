@@ -66,7 +66,9 @@ class GtfsRtConverter(Converter):
 
     def convert(self) -> None:
         process_logger = ProcessLogger(
-            "gtfs_rt_convert", config_type=str(self.config_type)
+            "gtfs_rt_convert",
+            config_type=str(self.config_type),
+            file_count=len(self.files),
         )
         process_logger.log_start()
 
@@ -83,11 +85,14 @@ class GtfsRtConverter(Converter):
         iterate through all of the files to be converted, yielding a new table
         everytime the timestamps cross over an hour.
         """
-        table = self.detail.empty_table()
+        table = pyarrow.table(
+            self.detail.empty_table(),
+            schema=self.detail.export_schema,
+        )
         current_time = None
 
         process_logger = ProcessLogger(
-            "single_gtfs_rt_convert", config_type=str(self.config_type)
+            "gtfs_rt_create_table", config_type=str(self.config_type)
         )
         file_count = 0
 
@@ -98,8 +103,7 @@ class GtfsRtConverter(Converter):
 
         for file in self.files:
             try:
-                feed_timestamp, json_data = self.gz_to_dict(file)
-                timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
+                timestamp, new_data = self.gz_to_pyarrow(file)
 
                 # skip files that have been generated after the start of the
                 # current hour. don't add them to archive or error so that they
@@ -124,36 +128,21 @@ class GtfsRtConverter(Converter):
                     process_logger.add_metadata(file_count=file_count)
                     process_logger.log_complete()
 
-                    yield pyarrow.table(
-                        table,
-                        schema=self.detail.export_schema,
-                    )
+                    yield table
 
                     self.error_files = []
                     self.archive_files = []
-                    table = self.detail.empty_table()
+                    table = pyarrow.table(
+                        self.detail.empty_table(),
+                        schema=self.detail.export_schema,
+                    )
                     current_time = timestamp
                     file_count = 0
 
+                    process_logger.add_metadata(file_count=0)
                     process_logger.log_start()
 
-                # for each entity in the json_data, create a record, add it to the table
-                for entity in json_data["entity"]:
-                    record = self.record_from_entity(entity=entity)
-                    record.update(
-                        {
-                            "year": timestamp.year,
-                            "month": timestamp.month,
-                            "day": timestamp.day,
-                            "hour": timestamp.hour,
-                            "feed_timestamp": feed_timestamp,
-                        }
-                    )
-
-                    for key, value in record.items():
-                        table[key].append(value)
-
-                # file successfully processed, add to archive list
+                table = pyarrow.concat_tables([table, new_data])
                 self.archive_files.append(file)
                 file_count += 1
 
@@ -162,10 +151,7 @@ class GtfsRtConverter(Converter):
 
         process_logger.add_metadata(file_count=file_count)
         process_logger.log_complete()
-        yield pyarrow.table(
-            table,
-            schema=self.detail.export_schema,
-        )
+        yield table
 
     def record_from_entity(self, entity: dict) -> dict:
         """
@@ -194,22 +180,42 @@ class GtfsRtConverter(Converter):
 
         return record
 
-    def gz_to_dict(self, filename: str) -> Tuple[float, dict]:
+    def gz_to_pyarrow(self, filename: str) -> Tuple[datetime, pyarrow.table]:
         """
-        Accepts filename as string
-
+        Accepts filename as string. Converts gzipped json -> pyarrow table.
         Will handle Local or S3 filenames.
-
-        returns timestamp from header of json file and json file data
         """
         filename = filename.replace("s3://", "")
         with self.active_fs.open_input_stream(filename) as file:
             json_data = json.load(file)
 
+        # Create empty 'table' as dict of lists for export schema
+        table = self.detail.empty_table()
+
         # parse timestamp info out of the header
         feed_timestamp = json_data["header"]["timestamp"]
+        timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
 
-        return (feed_timestamp, json_data)
+        # for each entity in the list, create a record, add it to the table
+        for entity in json_data["entity"]:
+            record = self.record_from_entity(entity=entity)
+            record.update(
+                {
+                    "year": timestamp.year,
+                    "month": timestamp.month,
+                    "day": timestamp.day,
+                    "hour": timestamp.hour,
+                    "feed_timestamp": feed_timestamp,
+                }
+            )
+
+            for key, value in record.items():
+                table[key].append(value)
+
+        return (
+            timestamp,
+            pyarrow.table(table, schema=self.detail.export_schema),
+        )
 
     def write_and_archive(self, table: pyarrow.table) -> None:
         """
