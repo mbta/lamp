@@ -1,6 +1,7 @@
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
 import json
 import os
+import platform
 import urllib.parse as urlparse
 
 import boto3
@@ -16,7 +17,47 @@ from .s3_utils import get_utc_from_partition_path
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def postgres_create_modified_trigger(
+def get_db_password() -> str:
+    """
+    function to provide rds password
+
+    used to refresh auth token, if required
+    """
+    db_password = os.environ.get("DB_PASSWORD", None)
+    db_host = os.environ.get("DB_HOST")
+    db_port = os.environ.get("DB_PORT")
+    db_user = os.environ.get("DB_USER")
+    db_region = os.environ.get("DB_REGION", None)
+
+    if db_password is None:
+        # generate aws db auth token
+        client = boto3.client("rds")
+        return urlparse.quote_plus(
+            client.generate_db_auth_token(
+                DBHostname=db_host,
+                Port=db_port,
+                DBUsername=db_user,
+                Region=db_region,
+            )
+        )
+
+    return db_password
+
+
+def postgres_event_update_db_password(
+    _: sa.engine.interfaces.Dialect,
+    __: Any,
+    ___: Tuple[Any, ...],
+    cparams: Dict[str, Any],
+) -> None:
+    """
+    update database passord on every new connection attempt
+    this will refresh db auth token passwords
+    """
+    cparams["password"] = get_db_password()
+
+
+def postgres_event_create_modified_trigger(
     table: sa.schema.Table,
     connection: sa.engine.Connection,
     **_: Any,
@@ -52,33 +93,6 @@ def postgres_create_modified_trigger(
         connection.execute(trigger_statement)
 
 
-def sqlite_create_modified_trigger(
-    table: sa.schema.Table,
-    connection: sa.engine.Connection,
-    **_: Any,
-) -> None:
-    """
-    sqlalchemy will listen for new table create events and when detected,
-    run this function to suplement table creation by creating update_on
-    triggers for tables containing an 'update_on' field
-
-    this function will only be used for sqlite db
-    """
-    update_column_name = "updated_on"
-    if update_column_name in list(table.columns.keys()):
-        trigger_name = f"update_{table}_modified".lower()
-        primary_key = str(table.primary_key.columns.items()[0][0])
-        trigger_statement = sa.DDL(
-            f"CREATE TRIGGER IF NOT EXISTS {trigger_name} "
-            f"AFTER UPDATE ON {table} FOR EACH ROW "
-            f"BEGIN "
-            f"  UPDATE {table} SET {update_column_name} = CURRENT_TIMESTAMP "
-            f"  WHERE {primary_key} = NEW.{primary_key};"
-            f"END; "
-        )
-        connection.execute(trigger_statement)
-
-
 def get_local_engine(
     echo: bool = False,
 ) -> sa.future.engine.Engine:
@@ -93,13 +107,12 @@ def get_local_engine(
         db_name = os.environ.get("DB_NAME")
         db_password = os.environ.get("DB_PASSWORD", None)
         db_port = os.environ.get("DB_PORT")
-        db_region = os.environ.get("DB_REGION", None)
         db_user = os.environ.get("DB_USER")
         db_ssl_options = ""
 
         # when using docker, the db host env var will be "local_rds" but
-        # accessed via the "0.0.0.0" ip address
-        if db_host == "local_rds":
+        # accessed via the "0.0.0.0" ip address (mac specific)
+        if db_host == "local_rds" and "macos" in platform.platform().lower():
             db_host = "0.0.0.0"
 
         assert db_host is not None
@@ -118,16 +131,7 @@ def get_local_engine(
         #
         # if it is provided, assume local docker database
         if db_password is None:
-            # spin up a rds client to get the db password
-            client = boto3.client("rds")
-            db_password = urlparse.quote_plus(
-                client.generate_db_auth_token(
-                    DBHostname=db_host,
-                    Port=db_port,
-                    DBUsername=db_user,
-                    Region=db_region,
-                )
-            )
+            db_password = get_db_password()
 
             assert db_password is not None
             assert db_password != ""
@@ -150,7 +154,11 @@ def get_local_engine(
         )
 
         engine = sa.create_engine(
-            database_url, echo=echo, future=True, pool_pre_ping=True
+            database_url,
+            echo=echo,
+            future=True,
+            pool_recycle=300,
+            pool_pre_ping=True,
         )
 
         process_logger.log_complete()
@@ -158,29 +166,6 @@ def get_local_engine(
     except Exception as exception:
         process_logger.log_failure(exception)
         raise exception
-
-
-def get_experimental_engine(
-    echo: bool = False,
-) -> sa.future.engine.Engine:
-    """
-    return lightweight engine using local memeory that doens't require a
-    database to be stood up. great for testing from within the shell.
-    """
-    engine = sa.create_engine(
-        "sqlite+pysqlite:///./test.db",
-        echo=echo,
-        future=True
-        # "sqlite+pysqlite:///:memory:", echo=echo, future=True
-    )
-    return engine
-
-
-def get_aws_engine() -> sa.future.engine.Engine:
-    """
-    return an engine connected to our aws rds
-    """
-    # TODO(zap) - figure out how to connect to the AWS RDS for Writing
 
 
 # Setup the base class that all of the SQL objects will inherit from.
@@ -200,36 +185,25 @@ class DatabaseManager:
 
     def __init__(
         self,
-        experimental: bool = False,
         verbose: bool = False,
         seed: bool = False,
     ):
         """
         initialize db manager object, creates engine and sessionmaker
         """
-        if experimental:
-            self.engine = get_experimental_engine(echo=verbose)
-            # this is required for foreign key support in sqlite, per this:
-            # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#foreign-key-support
-            @sa.event.listens_for(sa.engine.Engine, "connect")
-            def set_sqlite_pragma(
-                connection: sa.engine.Connection, _: Any
-            ) -> None:
-                connection.execute("PRAGMA foreign_keys=ON")
+        self.engine = get_local_engine(echo=verbose)
 
-            sa.event.listen(
-                sa.schema.Table,
-                "after_create",
-                sqlite_create_modified_trigger,
-            )
+        sa.event.listen(
+            sa.schema.Table,
+            "after_create",
+            postgres_event_create_modified_trigger,
+        )
 
-        else:
-            self.engine = get_local_engine(echo=verbose)
-            sa.event.listen(
-                sa.schema.Table,
-                "after_create",
-                postgres_create_modified_trigger,
-            )
+        sa.event.listen(
+            self.engine,
+            "do_connect",
+            postgres_event_update_db_password,
+        )
 
         self.session = sessionmaker(bind=self.engine)
 

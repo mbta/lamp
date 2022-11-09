@@ -68,6 +68,7 @@ class GtfsConverter(Converter):
                             s3_prefix,
                         ),
                         partition_cols=["timestamp"],
+                        visitor_func=self.send_metadata,
                     )
 
                 archive_files.append(file)

@@ -2,6 +2,7 @@ import os
 
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List
+from multiprocessing import Queue
 
 from .converter import ConfigType, Converter
 from .convert_gtfs import GtfsConverter
@@ -25,17 +26,17 @@ class NoImplConverter(Converter):
         )
 
 
-def get_converter(config_type: ConfigType) -> Converter:
+def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
     """
     get the correct converter for this config type. it may raise an exception if
     the gtfs_rt file type does not have an implimented detail
     """
     if config_type.is_gtfs():
-        return GtfsConverter(config_type)
-    return GtfsRtConverter(config_type)
+        return GtfsConverter(config_type, metadata_queue)
+    return GtfsRtConverter(config_type, metadata_queue)
 
 
-def ingest_files(files: List[str]) -> None:
+def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     """
     sort the incoming file list by type and create a converter for each type.
     each converter will ingest and convert its files in its own thread.
@@ -55,7 +56,9 @@ def ingest_files(files: List[str]) -> None:
         try:
             config_type = ConfigType.from_filename(file_group[0])
             if config_type not in converters:
-                converters[config_type] = get_converter(config_type)
+                converters[config_type] = get_converter(
+                    config_type, metadata_queue
+                )
             converters[config_type].add_files(file_group)
         except (ConfigTypeFromFilenameException, NoImplException):
             error_files += file_group
@@ -66,7 +69,9 @@ def ingest_files(files: List[str]) -> None:
         converters[ConfigType.SCHEDULE].convert()
         del converters[ConfigType.SCHEDULE]
 
-    converters[ConfigType.ERROR] = NoImplConverter(ConfigType.ERROR)
+    converters[ConfigType.ERROR] = NoImplConverter(
+        ConfigType.ERROR, metadata_queue
+    )
     converters[ConfigType.ERROR].add_files(error_files)
 
     # The remaining converters can be run in parallel

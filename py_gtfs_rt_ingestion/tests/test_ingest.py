@@ -2,20 +2,16 @@
 # disable these warnings that are triggered by pylint not understanding how test
 # fixtures work. https://stackoverflow.com/q/59664605
 
-import json
 import os
+from multiprocessing import Queue
 import pytest
-
-from botocore.stub import ANY
 
 from lib import ConfigType
 from lib.error import NoImplException
-from lib.ingest import ingest_files, get_converter, NoImplConverter
-from lib.s3_utils import file_list_from_s3
+from lib.ingest import get_converter
 from lib.convert_gtfs import GtfsConverter
 from lib.convert_gtfs_rt import GtfsRtConverter
 
-from .test_s3_utils import s3_stub
 
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
@@ -33,9 +29,8 @@ def test_each_config_type() -> None:
         ConfigType.BUS_VEHICLE_POSITIONS: GtfsRtConverter,
         ConfigType.SCHEDULE: GtfsConverter,
     }
-
     for config_type, converter_type in config_type_map.items():
-        converter = get_converter(config_type)
+        converter = get_converter(config_type, Queue())
         assert isinstance(converter, converter_type)
 
     bad_config_types = [
@@ -46,4 +41,4 @@ def test_each_config_type() -> None:
 
     for config_type in bad_config_types:
         with pytest.raises(NoImplException):
-            converter = get_converter(config_type)
+            converter = get_converter(config_type, Queue())

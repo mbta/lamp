@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timezone
+from multiprocessing import Queue
 from unittest.mock import patch
 
 from pyarrow import fs
@@ -16,7 +17,9 @@ def test_bad_conversion_local() -> None:
     be added to the error files list
     """
     # dummy config to avoid mypy errors
-    converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS)
+    converter = GtfsRtConverter(
+        config_type=ConfigType.RT_ALERTS, metadata_queue=Queue()
+    )
     converter.add_files(["badfile"])
 
     # process the bad file and get the table out
@@ -36,7 +39,9 @@ def test_bad_conversion_s3() -> None:
     will be added to the error files list
     """
     with patch("pyarrow.fs.S3FileSystem", return_value=fs.LocalFileSystem):
-        converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS)
+        converter = GtfsRtConverter(
+            config_type=ConfigType.RT_ALERTS, metadata_queue=Queue()
+        )
         converter.add_files(["s3://badfile"])
 
         table = next(converter.process_files())  # type: ignore
@@ -58,7 +63,9 @@ def test_empty_files() -> None:
 
     for config_type in configs_to_test:
         empty_file = os.path.join(TEST_FILE_DIR, "empty.json.gz")
-        converter = GtfsRtConverter(config_type=config_type)
+        converter = GtfsRtConverter(
+            config_type=config_type, metadata_queue=Queue()
+        )
         converter.add_files([empty_file])
 
         table = next(converter.process_files())  # type: ignore
@@ -66,7 +73,9 @@ def test_empty_files() -> None:
         assert np_df.shape == (0, len(converter.detail.export_schema))
 
         one_blank_file = os.path.join(TEST_FILE_DIR, "one_blank_record.json.gz")
-        converter = GtfsRtConverter(config_type=config_type)
+        converter = GtfsRtConverter(
+            config_type=config_type, metadata_queue=Queue()
+        )
         converter.add_files([one_blank_file])
 
         table = next(converter.process_files())  # type: ignore
@@ -84,7 +93,7 @@ def test_vehicle_positions_file_conversion() -> None:
         "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
     )
     config_type = ConfigType.from_filename(gtfs_rt_file)
-    converter = GtfsRtConverter(config_type)
+    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.add_files([gtfs_rt_file])
 
     assert converter.config_type == ConfigType.RT_VEHICLE_POSITIONS
@@ -155,7 +164,7 @@ def test_rt_alert_file_conversion() -> None:
     )
 
     config_type = ConfigType.from_filename(gtfs_rt_file)
-    converter = GtfsRtConverter(config_type)
+    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.add_files([gtfs_rt_file])
 
     assert converter.config_type == ConfigType.RT_ALERTS
@@ -229,7 +238,7 @@ def test_rt_trip_file_conversion() -> None:
     )
 
     config_type = ConfigType.from_filename(gtfs_rt_file)
-    converter = GtfsRtConverter(config_type)
+    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.add_files([gtfs_rt_file])
 
     assert converter.config_type == ConfigType.RT_TRIP_UPDATES
@@ -293,7 +302,7 @@ def test_bus_vehicle_positions_file_conversion() -> None:
     )
 
     config_type = ConfigType.from_filename(gtfs_rt_file)
-    converter = GtfsRtConverter(config_type)
+    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.add_files([gtfs_rt_file])
 
     assert converter.config_type == ConfigType.BUS_VEHICLE_POSITIONS
@@ -374,7 +383,7 @@ def test_bus_trip_updates_file_conversion() -> None:
     )
 
     config_type = ConfigType.from_filename(gtfs_rt_file)
-    converter = GtfsRtConverter(config_type)
+    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.add_files([gtfs_rt_file])
 
     assert converter.config_type == ConfigType.BUS_TRIP_UPDATES
@@ -446,7 +455,7 @@ def test_start_of_hour() -> None:
     )
 
     config_type = ConfigType.from_filename(gtfs_rt_file_1)
-    converter = GtfsRtConverter(config_type)
+    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.add_files([gtfs_rt_file_1, gtfs_rt_file_2])
 
     # check that start of hour has not minutes, seconmds, or microseconds

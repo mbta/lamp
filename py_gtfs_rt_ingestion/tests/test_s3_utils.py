@@ -128,4 +128,4 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
 
     for bad_file in bad_file_list:
         assert f"filename={bad_file}" in caplog.text
-        assert f"destination={dest_bucket}" in caplog.text
+        assert f"to_bucket={dest_bucket}" in caplog.text
