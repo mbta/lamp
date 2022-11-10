@@ -85,6 +85,5 @@ def group_sort_file_list(filepaths: List[str]) -> Dict[str, List[str]]:
 
     for group in grouped_files.values():
         group.sort(key=strip_timestamp)
-        logging.info(group)
 
     return grouped_files

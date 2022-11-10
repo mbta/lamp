@@ -2,6 +2,7 @@
 
 import logging
 import os
+from multiprocessing import Queue
 
 import time
 import schedule
@@ -81,8 +82,7 @@ def validate_environment() -> None:
         )
 
 
-@schedule.repeat(schedule.every(5).minutes)
-def ingest() -> None:
+def ingest(metadata_queue: Queue) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs files, convert each batch into tables, write the
@@ -98,28 +98,27 @@ def ingest() -> None:
         file_prefix=DEFAULT_S3_PREFIX,
     )
 
-    total_filecount = 0
-
-    # start rds writer process
-    metadata_queue = start_rds_writer_process()
-
     ingest_files(files, metadata_queue)
 
-    # send shutdown signal to rds process and wait for finish
-    metadata_queue.put(None)
-    metadata_queue.close()
-    metadata_queue.join_thread()
-
-    process_logger.add_metadata(total_filecount=total_filecount)
     process_logger.log_complete()
 
 
 def main() -> None:
     """every second run jobs that are currently pending"""
-    ingest()
+    # start rds writer process
+    # this will create only one rds engine while app is running
+    metadata_queue, _rds_process = start_rds_writer_process()
+
+    schedule.every(5).minutes.do(ingest, metadata_queue=metadata_queue)
+
     while True:
         schedule.run_pending()
         time.sleep(1)
+
+    # send shutdown signal to rds process and wait for finish
+    # not sure if we'll ever get here the way we're using @schedule
+    # metadata_queue.put(None)
+    # _rds_process.join()
 
 
 if __name__ == "__main__":

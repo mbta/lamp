@@ -6,7 +6,6 @@ from multiprocessing import Process, Queue
 
 import boto3
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 from .logging_utils import ProcessLogger
@@ -33,6 +32,7 @@ def get_db_password() -> str:
 
     used to refresh auth token, if required
     """
+
     db_password = os.environ.get("DB_PASSWORD", None)
     db_host = os.environ.get("DB_HOST")
     db_port = os.environ.get("DB_PORT")
@@ -40,15 +40,13 @@ def get_db_password() -> str:
     db_region = os.environ.get("DB_REGION", None)
 
     if db_password is None:
-        # generate aws db auth token
+        # generate aws db auth token if in rds
         client = boto3.client("rds")
-        return urlparse.quote_plus(
-            client.generate_db_auth_token(
-                DBHostname=db_host,
-                Port=db_port,
-                DBUsername=db_user,
-                Region=db_region,
-            )
+        return client.generate_db_auth_token(
+            DBHostname=db_host,
+            Port=db_port,
+            DBUsername=db_user,
+            Region=db_region,
         )
 
     return db_password
@@ -64,7 +62,10 @@ def postgres_event_update_db_password(
     update database passord on every new connection attempt
     this will refresh db auth token passwords
     """
+    process_logger = ProcessLogger("password_refresh")
+    process_logger.log_start()
     cparams["password"] = get_db_password()
+    process_logger.log_complete()
 
 
 def get_local_engine(echo: bool = False) -> sa.engine.Engine:
@@ -105,6 +106,7 @@ def get_local_engine(echo: bool = False) -> sa.engine.Engine:
         if db_password is None:
             # spin up a rds client to get the db password
             db_password = get_db_password()
+            db_password = urlparse.quote_plus(db_password)
 
             assert db_password is not None
             assert db_password != ""
@@ -130,8 +132,15 @@ def get_local_engine(echo: bool = False) -> sa.engine.Engine:
             database_url,
             echo=echo,
             future=True,
-            pool_recycle=300,
             pool_pre_ping=True,
+            pool_use_lifo=True,
+            pool_size=5,
+            max_overflow=2,
+            connect_args={
+                "keepalives": 1,
+                "keepalives_idle": 60,
+                "keepalives_interval": 60,
+            },
         )
 
         process_logger.log_complete()
@@ -147,6 +156,8 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
 
     if None recieved from queue, process will exit
     """
+    process_logger = ProcessLogger("rds_writer_process")
+    process_logger.log_start()
     engine = get_local_engine()
 
     sa.event.listen(
@@ -155,8 +166,8 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
         postgres_event_update_db_password,
     )
 
-    session = sessionmaker(bind=engine)
-
+    good_insert = 0
+    bad_insert = 0
     while True:
         metadata = metadata_queue.get()
 
@@ -172,15 +183,21 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
         )
         process_logger.log_start()
         try:
-            # Instance of 'sessionmaker' has no 'begin' member (no-member)
-            with session.begin() as cursor:  # pylint: disable=E1101
+            with engine.begin() as cursor:
                 cursor.execute(insert_statement)
+            good_insert += 1
             process_logger.log_complete()
         except Exception as exception:
+            bad_insert += 1
             process_logger.log_failure(exception)
 
+    process_logger.add_metadata(
+        insert_success_count=good_insert, insert_fail_count=bad_insert
+    )
+    process_logger.log_complete()
 
-def start_rds_writer_process() -> Queue:
+
+def start_rds_writer_process() -> Tuple[Queue, Process]:
     """
     create metadata queue and rds writer process
 
@@ -191,4 +208,4 @@ def start_rds_writer_process() -> Queue:
     writer_process = Process(target=_rds_writer_process, args=(metadata_queue,))
     writer_process.start()
 
-    return metadata_queue
+    return (metadata_queue, writer_process)

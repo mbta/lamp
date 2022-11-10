@@ -30,15 +30,13 @@ def get_db_password() -> str:
     db_region = os.environ.get("DB_REGION", None)
 
     if db_password is None:
-        # generate aws db auth token
+        # generate aws db auth token if in rds
         client = boto3.client("rds")
-        return urlparse.quote_plus(
-            client.generate_db_auth_token(
-                DBHostname=db_host,
-                Port=db_port,
-                DBUsername=db_user,
-                Region=db_region,
-            )
+        return client.generate_db_auth_token(
+            DBHostname=db_host,
+            Port=db_port,
+            DBUsername=db_user,
+            Region=db_region,
         )
 
     return db_password
@@ -54,7 +52,10 @@ def postgres_event_update_db_password(
     update database passord on every new connection attempt
     this will refresh db auth token passwords
     """
+    process_logger = ProcessLogger("password_refresh")
+    process_logger.log_start()
     cparams["password"] = get_db_password()
+    process_logger.log_complete()
 
 
 def postgres_event_create_modified_trigger(
@@ -132,6 +133,7 @@ def get_local_engine(
         # if it is provided, assume local docker database
         if db_password is None:
             db_password = get_db_password()
+            db_password = urlparse.quote_plus(db_password)
 
             assert db_password is not None
             assert db_password != ""
@@ -157,8 +159,15 @@ def get_local_engine(
             database_url,
             echo=echo,
             future=True,
-            pool_recycle=300,
             pool_pre_ping=True,
+            pool_use_lifo=True,
+            pool_size=5,
+            max_overflow=2,
+            connect_args={
+                "keepalives": 1,
+                "keepalives_idle": 60,
+                "keepalives_interval": 60,
+            },
         )
 
         process_logger.log_complete()

@@ -63,6 +63,7 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
             for obj in page["Contents"]:
                 filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
+        process_logger.add_metadata(list_size=str(len(filepaths)))
         process_logger.log_complete()
         return filepaths
     except Exception as exception:
@@ -70,7 +71,7 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
         return []
 
 
-def _move_s3_object(filename: str, to_bucket: str) -> None:
+def _move_s3_object(filename: str, to_bucket: str) -> int:
     """
     move a single s3 file to the to_bucket bucket. break the incoming s3 path
     into parts that are used for copying. each process will have it's own
@@ -80,13 +81,6 @@ def _move_s3_object(filename: str, to_bucket: str) -> None:
     :param filename - expected as 's3://my_bucket/the/path/to/the/file.json
     :param to_bucket bucket name
     """
-    process_logger = ProcessLogger(
-        "move_s3_object",
-        filename=filename,
-        to_bucket=to_bucket,
-    )
-    process_logger.log_start()
-
     try:
         s3_resource = current_process().__dict__["boto_s3_resource"]
 
@@ -114,9 +108,10 @@ def _move_s3_object(filename: str, to_bucket: str) -> None:
         source_object = source_bucket.Object(copy_key)
         source_object.delete()
 
-        process_logger.log_complete()
-    except Exception as exception:
-        process_logger.log_failure(exception)
+    except Exception as _:
+        return 1
+
+    return 0
 
 
 def _init_process_session() -> None:
@@ -164,11 +159,14 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
     )
     process_logger.log_start()
 
+    error_count = 0
     with Pool(pool_size, initializer=_init_process_session) as pool:
-        pool.starmap(
+        for pool_error_count in pool.starmap(
             _move_s3_object, [(filename, to_bucket) for filename in files]
-        )
+        ):
+            error_count += pool_error_count
 
+    process_logger.add_metadata(failed_count=error_count)
     process_logger.log_complete()
 
 
