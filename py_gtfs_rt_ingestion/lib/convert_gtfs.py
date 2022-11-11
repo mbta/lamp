@@ -53,7 +53,9 @@ class GtfsConverter(Converter):
         error_files = []
 
         for file in self.files:
-            process_logger = ProcessLogger("gtfs_rt_convert", filename=file)
+            process_logger = ProcessLogger(
+                "parquet_table_creator", table_type="gtfs", filename=file
+            )
             process_logger.log_start()
             try:
                 tables = zip_to_pyarrow(file)
@@ -61,7 +63,7 @@ class GtfsConverter(Converter):
                 for s3_prefix, table in tables:
                     write_parquet_file(
                         table=table,
-                        filetype=s3_prefix,
+                        config_type=s3_prefix,
                         s3_path=os.path.join(
                             os.environ["SPRINGBOARD_BUCKET"],
                             DEFAULT_S3_PREFIX,
@@ -75,8 +77,8 @@ class GtfsConverter(Converter):
                 process_logger.log_complete()
 
             except Exception as exception:
-                process_logger.log_failure(exception)
                 error_files.append(file)
+                process_logger.log_failure(exception)
 
         if len(error_files) > 0:
             move_s3_objects(

@@ -66,7 +66,8 @@ class GtfsRtConverter(Converter):
 
     def convert(self) -> None:
         process_logger = ProcessLogger(
-            "gtfs_rt_convert",
+            "parquet_table_creator",
+            table_type="gtfs-rt",
             config_type=str(self.config_type),
             file_count=len(self.files),
         )
@@ -74,8 +75,12 @@ class GtfsRtConverter(Converter):
 
         table_count = 0
         for table in self.process_files():
-            self.write_and_archive(table)
-            table_count += 1
+            self.write_table(table)
+            self.move_s3_files()
+
+            # only count table if it contains data
+            if table.num_row > 0:
+                table_count += 1
 
         process_logger.add_metadata(table_count=table_count)
         process_logger.log_complete()
@@ -92,7 +97,8 @@ class GtfsRtConverter(Converter):
         current_time = None
 
         process_logger = ProcessLogger(
-            "gtfs_rt_create_table", config_type=str(self.config_type)
+            "create_parquet_table",
+            config_type=str(self.config_type),
         )
         file_count = 0
 
@@ -125,9 +131,10 @@ class GtfsRtConverter(Converter):
                 # out the current table, move archive and error s3 files, and
                 # reset the state of the converter.
                 if not same_hour:
-                    process_logger.add_metadata(file_count=file_count)
+                    process_logger.add_metadata(
+                        file_count=file_count, number_of_rows=table.num_rows
+                    )
                     process_logger.log_complete()
-
                     yield table
 
                     self.error_files = []
@@ -149,7 +156,9 @@ class GtfsRtConverter(Converter):
             except Exception:
                 self.error_files.append(file)
 
-        process_logger.add_metadata(file_count=file_count)
+        process_logger.add_metadata(
+            file_count=file_count, number_of_rows=table.num_rows
+        )
         process_logger.log_complete()
         yield table
 
@@ -217,16 +226,17 @@ class GtfsRtConverter(Converter):
             pyarrow.table(table, schema=self.detail.export_schema),
         )
 
-    def write_and_archive(self, table: pyarrow.table) -> None:
-        """
-        write the table to our s3 bucket and move archive and error files to
-        their respective s3 buckets.
-        """
+    def write_table(self, table: pyarrow.table) -> None:
+        """write the table to our s3 bucket"""
+        # don't write if table has no data
+        if table.num_rows == 0:
+            return
+
         try:
             s3_prefix = str(self.config_type)
             write_parquet_file(
                 table=table,
-                filetype=s3_prefix,
+                config_type=s3_prefix,
                 s3_path=os.path.join(
                     os.environ["SPRINGBOARD_BUCKET"],
                     DEFAULT_S3_PREFIX,
@@ -240,17 +250,18 @@ class GtfsRtConverter(Converter):
             self.error_files += self.archive_files
             self.archive_files = []
 
-        finally:
-            if len(self.error_files) > 0:
-                move_s3_objects(
-                    self.error_files,
-                    os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
-                )
+    def move_s3_files(self) -> None:
+        """
+        move archive and error files to their respective s3 buckets.
+        """
+        if len(self.error_files) > 0:
+            move_s3_objects(
+                self.error_files,
+                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+            )
 
-            if len(self.archive_files) > 0:
-                move_s3_objects(
-                    self.archive_files,
-                    os.path.join(
-                        os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX
-                    ),
-                )
+        if len(self.archive_files) > 0:
+            move_s3_objects(
+                self.archive_files,
+                os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
+            )

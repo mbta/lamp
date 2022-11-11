@@ -63,7 +63,7 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
             for obj in page["Contents"]:
                 filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
-        process_logger.add_metadata(list_size=str(len(filepaths)))
+        process_logger.add_metadata(list_size=len(filepaths))
         process_logger.log_complete()
         return filepaths
     except Exception as exception:
@@ -159,20 +159,20 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
     )
     process_logger.log_start()
 
-    error_count = 0
+    failed_count = 0
     with Pool(pool_size, initializer=_init_process_session) as pool:
-        for pool_error_count in pool.starmap(
+        for move_error in pool.starmap(
             _move_s3_object, [(filename, to_bucket) for filename in files]
         ):
-            error_count += pool_error_count
+            failed_count += move_error
 
-    process_logger.add_metadata(failed_count=error_count)
+    process_logger.add_metadata(failed_count=failed_count)
     process_logger.log_complete()
 
 
 def write_parquet_file(
     table: Table,
-    filetype: str,
+    config_type: str,
     s3_path: str,
     partition_cols: List[str],
     visitor_func: Callable[..., None],
@@ -193,7 +193,7 @@ def write_parquet_file(
     going forward. https://issues.apache.org/jira/browse/ARROW-17068
     """
     process_logger = ProcessLogger(
-        "write_parquet", filetype=filetype, number_of_rows=table.num_rows
+        "write_parquet", config_type=config_type, number_of_rows=table.num_rows
     )
     process_logger.log_start()
 

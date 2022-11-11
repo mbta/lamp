@@ -1,9 +1,8 @@
 import logging
+import os
 import time
 import uuid
-import os
-
-from typing import Union, Optional
+from typing import Any, Dict, Union
 
 MdValues = Union[str, int, float]
 
@@ -18,70 +17,74 @@ class ProcessLogger:
         create a process logger with a name and optional metadata. a start time
         and uuid will be created for timing and unique identification
         """
-        self.parent = "performance_manager"
-        self.process_name = process_name
-        self.metadata = metadata
-        self.uuid: Optional[uuid.UUID] = None
+        self.default_data: Dict[str, Any] = {}
+        self.metadata: Dict[str, Any] = {}
+
+        self.default_data["parent"] = "performance_manager"
+        self.default_data["process_name"] = process_name
+
+        # default_data keys that can not be added as metadata
+        self.protected_keys = [
+            "parent",
+            "process_name",
+            "process_id",
+            "uuid",
+            "status",
+            "duration",
+            "error_type",
+        ]
+
         self.start_time = 0.0
-        self.process_id = 0
+
+        self.add_metadata(**metadata)
+
+    def _get_log_string(self) -> str:
+        """create logging string for log write"""
+        logging_list = []
+        # add default data to log output
+        for (key, value) in self.default_data.items():
+            logging_list.append(f"{key}={value}")
+
+        # add metadata to log output
+        for (key, value) in self.metadata.items():
+            logging_list.append(f"{key}={value}")
+
+        return ", ".join(logging_list)
 
     def add_metadata(self, **metadata: MdValues) -> None:
         """add metadata to the process logger"""
         for key, value in metadata.items():
-            self.metadata[key] = value
+            # skip metadata key if protected as default_data key
+            # maybe raise on this? instead of fail silently
+            if key in self.protected_keys:
+                continue
+            self.metadata[str(key)] = str(value)
 
     def log_start(self) -> None:
         """log the start of a proccess"""
-        self.uuid = uuid.uuid4()
-        self.start_time = time.monotonic()
-        self.process_id = os.getpid()
-        logging_string = (
-            f"parent={self.parent}, "
-            f"start={self.process_name}, "
-            f"uuid={self.uuid}, "
-            f"process_id={self.process_id}"
-        )
+        self.default_data["uuid"] = uuid.uuid4()
+        self.default_data["process_id"] = os.getpid()
+        self.default_data["status"] = "started"
+        self.default_data.pop("duration", None)
+        self.default_data.pop("error_type", None)
 
-        if self.metadata:
-            metadata_string = ", ".join(
-                [f"{key}={value}" for (key, value) in self.metadata.items()]
-            )
-            logging_string += f", {metadata_string}"
-        logging.info(logging_string)
+        self.start_time = time.monotonic()
+
+        logging.info(self._get_log_string())
 
     def log_complete(self) -> None:
         """log the completion of a proccess with duration"""
         duration = time.monotonic() - self.start_time
-        logging_string = (
-            f"parent={self.parent}, "
-            f"complete={self.process_name}, "
-            f"uuid={self.uuid}, "
-            f"process_id={self.process_id}, "
-            f"duration={duration:.2f}"
-        )
+        self.default_data["status"] = "complete"
+        self.default_data["duration"] = f"{duration:.2f}"
 
-        if self.metadata:
-            metadata_string = ", ".join(
-                [f"{key}={value}" for (key, value) in self.metadata.items()]
-            )
-            logging_string += f", {metadata_string}"
-        logging.info(logging_string)
+        logging.info(self._get_log_string())
 
     def log_failure(self, exception: Exception) -> None:
-        """log the failure of a process with exception details"""
+        """log the failure of a process with exception type"""
         duration = time.monotonic() - self.start_time
-        logging_string = (
-            f"parent={self.parent}, "
-            f"failed={self.process_name}, "
-            f"uuid={self.uuid}, "
-            f"process_id={self.process_id}, "
-            f"duration={duration:.2f}, "
-            f"error_type={type(exception).__name__}"
-        )
+        self.default_data["status"] = "failed"
+        self.default_data["duration"] = f"{duration:.2f}"
+        self.default_data["error_type"] = type(exception).__name__
 
-        if self.metadata:
-            metadata_string = ", ".join(
-                [f"{key}={value}" for (key, value) in self.metadata.items()]
-            )
-            logging_string += f", {metadata_string}"
-        logging.exception(logging_string)
+        logging.exception(self._get_log_string())
