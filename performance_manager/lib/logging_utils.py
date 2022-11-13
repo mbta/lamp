@@ -88,3 +88,4 @@ class ProcessLogger:
         self.default_data["error_type"] = type(exception).__name__
 
         logging.exception(self._get_log_string())
+        logging.exception(exception)
