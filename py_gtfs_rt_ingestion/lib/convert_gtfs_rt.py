@@ -80,7 +80,7 @@ class GtfsRtConverter(Converter):
                 self.move_s3_files()
 
                 # only count table if it contains data
-                if table.num_row > 0:
+                if table.num_rows > 0:
                     table_count += 1
         except Exception as exception:
             process_logger.log_failure(exception)
