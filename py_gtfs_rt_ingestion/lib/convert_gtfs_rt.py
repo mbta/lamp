@@ -74,16 +74,19 @@ class GtfsRtConverter(Converter):
         process_logger.log_start()
 
         table_count = 0
-        for table in self.process_files():
-            self.write_table(table)
-            self.move_s3_files()
+        try:
+            for table in self.process_files():
+                self.write_table(table)
+                self.move_s3_files()
 
-            # only count table if it contains data
-            if table.num_row > 0:
-                table_count += 1
-
-        process_logger.add_metadata(table_count=table_count)
-        process_logger.log_complete()
+                # only count table if it contains data
+                if table.num_row > 0:
+                    table_count += 1
+        except Exception as exception:
+            process_logger.log_failure(exception)
+        else:
+            process_logger.add_metadata(table_count=table_count)
+            process_logger.log_complete()
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
@@ -100,6 +103,7 @@ class GtfsRtConverter(Converter):
             "create_parquet_table",
             config_type=str(self.config_type),
         )
+        process_logger.log_start()
         file_count = 0
 
         # update the active fs to use the s3 filesystem for all loading if the
