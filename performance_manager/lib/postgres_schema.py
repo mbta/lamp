@@ -66,6 +66,7 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
     processed = sa.Column(sa.Boolean, default=sa.false())
+    process_fail = sa.Column(sa.Boolean, default=sa.false())
     path = sa.Column(sa.String(256), nullable=False, unique=True)
     created_on = sa.Column(
         sa.DateTime(timezone=True), server_default=sa.func.now()

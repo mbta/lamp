@@ -210,7 +210,7 @@ def join_gtfs_static(
             )
         timestamp_lookup[min_timestamp] = int(result[0]["timestamp"])
 
-    # pylint: disable=duplicate-code
+    # pylint: enable=duplicate-code
 
     trip_updates["fk_static_timestamp"] = timestamp_lookup[
         min(timestamp_lookup.keys())
@@ -380,7 +380,9 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
     """
     process trip updates parquet files from metadataLog table
     """
-    process_logger = ProcessLogger("process_tu")
+    process_logger = ProcessLogger(
+        "l0_tables_loader", table_type="rt_trip_update"
+    )
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
@@ -388,7 +390,7 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
         "RT_TRIP_UPDATES", db_manager, file_limit=6
     )
 
-    process_logger.add_metadata(paths_to_load=len(paths_to_load))
+    process_logger.add_metadata(count_of_paths=len(paths_to_load))
 
     for folder_data in paths_to_load:
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
@@ -396,7 +398,10 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
         paths = folder_data["paths"]
 
         subprocess_logger = ProcessLogger(
-            "process_tu_dir", file_count=len(paths), s3_path=folder
+            "l0_load_table",
+            table_type="rt_trip_update",
+            file_count=len(paths),
+            s3_path=folder,
         )
         subprocess_logger.log_start()
 
@@ -405,7 +410,7 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
 
             new_events = get_and_unwrap_tu_dataframe(paths)
             new_events_records = new_events.shape[0]
-            sizes["new_events_unwrapped_size"] = new_events_records
+            sizes["merge_events_count"] = new_events_records
 
             # skip processing if no new records in file
             if new_events_records > 0:
@@ -417,10 +422,11 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
                     new_events=new_events,
                     session=db_manager.get_session(),
                 )
-        except Exception as exception:
-            subprocess_logger.log_failure(exception)
-        else:
+
             subprocess_logger.add_metadata(**sizes)
+
+            # same found in l0_rt_vehicle_positions.py
+            # pylint: disable=duplicate-code
             update_md_log = (
                 sa.update(MetadataLog.__table__)
                 .where(MetadataLog.pk_id.in_(ids))
@@ -428,5 +434,14 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
             )
             db_manager.execute(update_md_log)
             subprocess_logger.log_complete()
+        except Exception as exception:
+            update_md_log = (
+                sa.update(MetadataLog.__table__)
+                .where(MetadataLog.pk_id.in_(ids))
+                .values(processed=1, process_fail=1)
+            )
+            db_manager.execute(update_md_log)
+            subprocess_logger.log_failure(exception)
+        # pylint: enable=duplicate-code
 
     process_logger.log_complete()

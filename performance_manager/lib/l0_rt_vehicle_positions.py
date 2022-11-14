@@ -369,15 +369,16 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
     create events for them
     merge those events with existing events
     """
-    process_logger = ProcessLogger("process_vp")
+    process_logger = ProcessLogger(
+        "l0_tables_loader", table_type="rt_vehicle_position"
+    )
     process_logger.log_start()
 
     # check metadata table for unprocessed parquet files
     paths_to_load = get_unprocessed_files(
         "RT_VEHICLE_POSITIONS", db_manager, file_limit=6
     )
-
-    process_logger.add_metadata(paths_to_load=len(paths_to_load))
+    process_logger.add_metadata(count_of_paths=len(paths_to_load))
 
     for folder_data in paths_to_load:
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
@@ -385,14 +386,17 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
         paths = folder_data["paths"]
 
         subprocess_logger = ProcessLogger(
-            "process_vp_dir", s3_path=folder, file_count=len(paths)
+            "l0_load_table",
+            table_type="rt_vehicle_position",
+            s3_path=folder,
+            file_count=len(paths),
         )
         subprocess_logger.log_start()
 
         try:
             sizes = {}
             new_events = get_vp_dataframe(paths)
-            sizes["parquet_events_size"] = new_events.shape[0]
+            sizes["parquet_events_count"] = new_events.shape[0]
 
             new_events = transform_vp_dtyes(new_events)
 
@@ -401,22 +405,30 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> None:
             new_events = hash_events(new_events)
 
             new_events = transform_vp_timestamps(new_events)
-            sizes["condensed_events_size"] = new_events.shape[0]
+            sizes["merge_events_count"] = new_events.shape[0]
 
             subprocess_logger.add_metadata(**sizes)
 
             merge_vehicle_position_events(
                 str(folder), new_events, db_manager.get_session()
             )
-        except Exception as exception:
-            subprocess_logger.log_failure(exception)
-        else:
+
             update_md_log = (
                 sa.update(MetadataLog.__table__)
                 .where(MetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
             db_manager.execute(update_md_log)
+
             subprocess_logger.log_complete()
+        except Exception as exception:
+            update_md_log = (
+                sa.update(MetadataLog.__table__)
+                .where(MetadataLog.pk_id.in_(ids))
+                .values(processed=1, process_fail=1)
+            )
+            db_manager.execute(update_md_log)
+
+            subprocess_logger.log_failure(exception)
 
     process_logger.log_complete()

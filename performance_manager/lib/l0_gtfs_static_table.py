@@ -253,16 +253,20 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     """
     process gtfs static table files from metadataLog table
     """
-    process_logger = ProcessLogger("load_static_table_sets")
+    process_logger = ProcessLogger(
+        "l0_tables_loader", table_type="static_schedule"
+    )
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
     paths_to_load = get_unprocessed_files("FEED_INFO", db_manager)
-    process_logger.add_metadata(filecount=len(paths_to_load))
+    process_logger.add_metadata(count_of_paths=len(paths_to_load))
 
     for folder_data in paths_to_load:
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
-        individual_logger = ProcessLogger("load_static_tables", s3_path=folder)
+        individual_logger = ProcessLogger(
+            "l0_load_table", table_type="static_schedule", s3_path=folder
+        )
         individual_logger.log_start()
 
         ids = folder_data["ids"]
@@ -273,9 +277,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             load_parquet_files(static_tables, folder)
             transform_data_tables(static_tables)
             insert_data_tables(static_tables, db_manager)
-        except Exception as exception:
-            individual_logger.log_failure(exception)
-        else:
+
             update_md_log = (
                 sa.update(MetadataLog.__table__)
                 .where(MetadataLog.pk_id.in_(ids))
@@ -283,5 +285,13 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             )
             db_manager.execute(update_md_log)
             individual_logger.log_complete()
+        except Exception as exception:
+            update_md_log = (
+                sa.update(MetadataLog.__table__)
+                .where(MetadataLog.pk_id.in_(ids))
+                .values(processed=1, process_fail=1)
+            )
+            db_manager.execute(update_md_log)
+            individual_logger.log_failure(exception)
 
     process_logger.log_complete()

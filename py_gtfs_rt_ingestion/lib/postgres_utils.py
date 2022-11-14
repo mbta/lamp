@@ -1,5 +1,6 @@
 import os
 import platform
+import time
 from typing import Any, Tuple, Dict
 import urllib.parse as urlparse
 from multiprocessing import Process, Queue
@@ -156,7 +157,11 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
 
     if None recieved from queue, process will exit
     """
-    process_logger = ProcessLogger("rds_writer_process")
+    retry_count = 3
+
+    process_logger = ProcessLogger(
+        "rds_writer_process", retry_count=retry_count
+    )
     process_logger.log_start()
     engine = get_local_engine()
 
@@ -182,14 +187,24 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
             "metadata_insert", filepath=metadata_path
         )
         process_logger.log_start()
-        try:
-            with engine.begin() as cursor:
-                cursor.execute(insert_statement)
-            good_insert += 1
-            process_logger.log_complete()
-        except Exception as exception:
-            bad_insert += 1
-            process_logger.log_failure(exception)
+        for retry_attempt in range(retry_count):
+            try:
+                process_logger.add_metadata(retry_attempts=retry_attempt)
+                with engine.begin() as cursor:
+                    cursor.execute(insert_statement)
+
+            except Exception as exception:
+                if retry_attempt == retry_count - 1:
+                    bad_insert += 1
+                    process_logger.log_failure(exception)
+                else:
+                    # wait for gremlins to disappear
+                    time.sleep(15)
+
+            else:
+                good_insert += 1
+                process_logger.log_complete()
+                break
 
     process_logger.add_metadata(
         insert_success_count=good_insert, insert_fail_count=bad_insert

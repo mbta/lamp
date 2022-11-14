@@ -9,6 +9,7 @@ erl_crash.dump
 /config/*.secret.exs
 .elixir_ls/
 /performance_manager/test.db
+/notebook
 
 
 __pycache__
