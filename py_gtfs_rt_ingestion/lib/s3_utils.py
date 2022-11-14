@@ -4,7 +4,7 @@ import time
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
 from io import BytesIO
-from typing import IO, List, Tuple, cast, Callable
+from typing import IO, List, Tuple, cast, Callable, Optional
 
 from pyarrow import fs, Table
 from pyarrow.util import guid
@@ -72,7 +72,7 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
         return []
 
 
-def _move_s3_object(filename: str, to_bucket: str) -> int:
+def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
     """
     move a single s3 file to the to_bucket bucket. break the incoming s3 path
     into parts that are used for copying. each process will have it's own
@@ -135,7 +135,7 @@ def _init_process_session() -> None:
     ].resource("s3")
 
 
-def move_s3_objects(files: List[str], to_bucket: str) -> None:
+def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
     """
     Move list of S3 objects to to_bucket bucket, retaining the object path.
 
@@ -146,7 +146,7 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
     :reutrn - list of 3s objects that failed to move
     """
     to_bucket = to_bucket.split("/")[0]
-    
+
     files_to_move = set(files)
     found_exception = Exception("No exception reported from s3 move pool.")
 
@@ -171,10 +171,13 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
         try:
             with Pool(pool_size, initializer=_init_process_session) as pool:
                 for file_moved in pool.starmap(
-                    _move_s3_object, [(filename, to_bucket) for filename in files_to_move]
+                    _move_s3_object,
+                    [(filename, to_bucket) for filename in files_to_move],
                 ):
                     # remove filename from set if moved without exception
-                    files_to_move.discard(file_moved)
+                    if isinstance(file_moved, str):
+                        files_to_move.discard(file_moved)
+
         except Exception as exception:
             found_exception = exception
 
@@ -185,8 +188,10 @@ def move_s3_objects(files: List[str], to_bucket: str) -> None:
         # wait for gremlins to disappear
         time.sleep(15)
 
-    process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
-    
+    process_logger.add_metadata(
+        failed_count=len(files_to_move), retry_attempts=retry_attempt
+    )
+
     if len(files_to_move) == 0:
         process_logger.log_complete()
     else:

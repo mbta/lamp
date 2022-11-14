@@ -425,8 +425,8 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
 
             subprocess_logger.add_metadata(**sizes)
 
-        # same found in l0_rt_vehicle_positions.py
-        # pylint: disable=duplicate-code
+            # same found in l0_rt_vehicle_positions.py
+            # pylint: disable=duplicate-code
             update_md_log = (
                 sa.update(MetadataLog.__table__)
                 .where(MetadataLog.pk_id.in_(ids))
