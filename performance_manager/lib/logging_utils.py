@@ -12,6 +12,17 @@ class ProcessLogger:
     Class to help with logging events that happen inside of a function.
     """
 
+    # default_data keys that can not be added as metadata
+    protected_keys = [
+        "parent",
+        "process_name",
+        "process_id",
+        "uuid",
+        "status",
+        "duration",
+        "error_type",
+    ]
+
     def __init__(self, process_name: str, **metadata: MdValues) -> None:
         """
         create a process logger with a name and optional metadata. a start time
@@ -22,17 +33,6 @@ class ProcessLogger:
 
         self.default_data["parent"] = "performance_manager"
         self.default_data["process_name"] = process_name
-
-        # default_data keys that can not be added as metadata
-        self.protected_keys = [
-            "parent",
-            "process_name",
-            "process_id",
-            "uuid",
-            "status",
-            "duration",
-            "error_type",
-        ]
 
         self.start_time = 0.0
 
@@ -56,7 +56,7 @@ class ProcessLogger:
         for key, value in metadata.items():
             # skip metadata key if protected as default_data key
             # maybe raise on this? instead of fail silently
-            if key in self.protected_keys:
+            if key in ProcessLogger.protected_keys:
                 continue
             self.metadata[str(key)] = str(value)
 
@@ -88,4 +88,3 @@ class ProcessLogger:
         self.default_data["error_type"] = type(exception).__name__
 
         logging.exception(self._get_log_string())
-        logging.exception(exception)

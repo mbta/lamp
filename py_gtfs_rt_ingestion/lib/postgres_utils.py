@@ -197,14 +197,14 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
                 if retry_attempt == retry_count - 1:
                     bad_insert += 1
                     process_logger.log_failure(exception)
+                else:
+                    # wait for gremlins to disappear
+                    time.sleep(15)
 
             else:
                 good_insert += 1
                 process_logger.log_complete()
                 break
-
-            # wait for gremlins to disappear
-            time.sleep(15)
 
     process_logger.add_metadata(
         insert_success_count=good_insert, insert_fail_count=bad_insert
