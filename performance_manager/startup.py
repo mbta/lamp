@@ -22,7 +22,7 @@ from lib import (
 
 logging.getLogger().setLevel("INFO")
 
-DESCRIPTION = """Entry Point to RDS Manipulating Performance Manager Scripts"""
+DESCRIPTION = """Entry Point to Performance Manager"""
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
