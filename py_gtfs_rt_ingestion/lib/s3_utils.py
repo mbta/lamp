@@ -38,7 +38,9 @@ def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     )
 
 
-def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
+def file_list_from_s3(
+    bucket_name: str, file_prefix: str, max_list_size: int = 250_000
+) -> List[str]:
     """
     generate filename, filesize tuples for every file in an s3 bucket
 
@@ -63,6 +65,9 @@ def file_list_from_s3(bucket_name: str, file_prefix: str) -> List[str]:
                 continue
             for obj in page["Contents"]:
                 filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+
+            if len(filepaths) > max_list_size:
+                break
 
         process_logger.add_metadata(list_size=len(filepaths))
         process_logger.log_complete()

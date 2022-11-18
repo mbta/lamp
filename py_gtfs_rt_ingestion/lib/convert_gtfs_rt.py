@@ -65,6 +65,7 @@ class GtfsRtConverter(Converter):
         self.active_fs = fs.LocalFileSystem()
 
     def convert(self) -> None:
+        max_tables_to_convert = 10
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -82,6 +83,11 @@ class GtfsRtConverter(Converter):
                 # only count table if it contains data
                 if table.num_rows > 0:
                     table_count += 1
+
+                # limit number of tables produced on each event loop
+                if table_count >= max_tables_to_convert:
+                    break
+
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
@@ -90,8 +96,9 @@ class GtfsRtConverter(Converter):
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
-        iterate through all of the files to be converted, yielding a new table
-        everytime the timestamps cross over an hour.
+        iterate through all of the files to be converted
+
+        only yield a new table when the timestamps cross over an hour.
         """
         table = pyarrow.table(
             self.detail.empty_table(),
@@ -114,12 +121,6 @@ class GtfsRtConverter(Converter):
         for file in self.files:
             try:
                 timestamp, new_data = self.gz_to_pyarrow(file)
-
-                # skip files that have been generated after the start of the
-                # current hour. don't add them to archive or error so that they
-                # are picked up next go around.
-                if timestamp >= self.start_of_hour:
-                    break
 
                 if current_time is None:
                     current_time = timestamp
@@ -153,6 +154,12 @@ class GtfsRtConverter(Converter):
                     process_logger.add_metadata(file_count=0)
                     process_logger.log_start()
 
+                # skip files that have been generated after the start of the
+                # current hour. don't add them to archive or error so that they
+                # are picked up next go around.
+                if timestamp >= self.start_of_hour:
+                    break
+
                 table = pyarrow.concat_tables([table, new_data])
                 self.archive_files.append(file)
                 file_count += 1
@@ -160,11 +167,8 @@ class GtfsRtConverter(Converter):
             except Exception:
                 self.error_files.append(file)
 
-        process_logger.add_metadata(
-            file_count=file_count, number_of_rows=table.num_rows
-        )
+        process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
-        yield table
 
     def record_from_entity(self, entity: dict) -> dict:
         """

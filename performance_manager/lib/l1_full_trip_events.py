@@ -308,7 +308,7 @@ def update_with_new_events(
     alternate approach is used here where just hashes are selected that represent
     update records and each column is updated seperatly from insert_dataframe
     """
-    process_logger = ProcessLogger("l1_update_events")
+    process_logger = ProcessLogger("l1_load_table")
     process_logger.log_start()
 
     # get dataframe of hashes represnting records in FullTripEvent table that
@@ -319,7 +319,7 @@ def update_with_new_events(
     )
     hashes_to_update = db_manager.select_as_dataframe(hash_to_update_query)
 
-    process_logger.add_metadata(trip_events_to_update=hashes_to_update.shape[0])
+    process_logger.add_metadata(total_updated=hashes_to_update.shape[0])
 
     # gate to see if any records need updating
     if hashes_to_update.shape[0] == 0:
@@ -340,6 +340,7 @@ def update_with_new_events(
         to_update_mask
     )
     # if mask shows records need updating, execute update
+    process_logger.add_metadata(fk_vp_moving_events_updated=0)
     if vp_moving_mask.sum() > 0:
         result = db_manager.execute_with_data(
             update_query,
@@ -348,14 +349,13 @@ def update_with_new_events(
             ].rename(columns={"hash": "b_hash"}),
         )
         process_logger.add_metadata(fk_vp_moving_events_updated=result.rowcount)
-    else:
-        process_logger.add_metadata(fk_vp_moving_events_updated=0)
 
     # mask for insert dataframe and vp_stopped events
     vp_stopped_mask = (~insert_dataframe["fk_vp_stopped_event"].isna()) & (
         to_update_mask
     )
     # if mask shows records need updating, execute update
+    process_logger.add_metadata(fk_vp_stopped_events_updated=0)
     if vp_stopped_mask.sum() > 0:
         result = db_manager.execute_with_data(
             update_query,
@@ -366,14 +366,13 @@ def update_with_new_events(
         process_logger.add_metadata(
             fk_vp_stopped_events_updated=result.rowcount
         )
-    else:
-        process_logger.add_metadata(fk_vp_stopped_events_updated=0)
 
     # mask for insert dataframe and tu_stopped events
     tu_stopped_mask = (~insert_dataframe["fk_tu_stopped_event"].isna()) & (
         to_update_mask
     )
     # if mask shows records need updating, execute update
+    process_logger.add_metadata(fk_tu_stopped_events_updated=0)
     if tu_stopped_mask.sum() > 0:
         result = db_manager.execute_with_data(
             update_query,
@@ -384,8 +383,6 @@ def update_with_new_events(
         process_logger.add_metadata(
             fk_tu_stopped_events_updated=result.rowcount
         )
-    else:
-        process_logger.add_metadata(fk_tu_stopped_events_updated=0)
 
     process_logger.log_complete()
 
@@ -402,7 +399,7 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
         "fk_tu_stopped_event",
     ]
 
-    process_logger = ProcessLogger("l1_insert_events")
+    process_logger = ProcessLogger("l1_load_table")
     process_logger.log_start()
     insert_query = (
         FullTripEvents.metadata.tables[FullTripEvents.__tablename__]
@@ -425,7 +422,7 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
     )
     result = db_manager.execute(insert_query)
 
-    process_logger.add_metadata(rows_inserted=result.rowcount)
+    process_logger.add_metadata(total_inserted=result.rowcount)
     process_logger.log_complete()
 
 
@@ -469,7 +466,7 @@ def process_full_trip_events(db_manager: DatabaseManager) -> None:
     try:
         insert_dataframe = pull_and_transform(db_manager)
         process_logger.add_metadata(
-            new_full_trip_records=insert_dataframe.shape[0]
+            temp_table_record_count=insert_dataframe.shape[0]
         )
 
         # gate to check for no records needing update / insert

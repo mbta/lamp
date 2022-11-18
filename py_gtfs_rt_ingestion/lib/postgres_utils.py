@@ -21,6 +21,7 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
     processed = sa.Column(sa.Boolean, default=sa.false())
+    process_fail = sa.Column(sa.Boolean, default=sa.false())
     path = sa.Column(sa.String(256), nullable=False, unique=True)
     created_on = sa.Column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
@@ -157,11 +158,7 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
 
     if None recieved from queue, process will exit
     """
-    retry_count = 3
-
-    process_logger = ProcessLogger(
-        "rds_writer_process", retry_count=retry_count
-    )
+    process_logger = ProcessLogger("rds_writer_process")
     process_logger.log_start()
     engine = get_local_engine()
 
@@ -171,8 +168,6 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
         postgres_event_update_db_password,
     )
 
-    good_insert = 0
-    bad_insert = 0
     while True:
         metadata = metadata_queue.get()
 
@@ -187,28 +182,24 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
             "metadata_insert", filepath=metadata_path
         )
         process_logger.log_start()
-        for retry_attempt in range(retry_count):
+        retry_attempt = 0
+
+        # All metatdata_insert attempts must succeed, keep attempting until success
+        while True:
             try:
-                process_logger.add_metadata(retry_attempts=retry_attempt)
                 with engine.begin() as cursor:
                     cursor.execute(insert_statement)
 
-            except Exception as exception:
-                if retry_attempt == retry_count - 1:
-                    bad_insert += 1
-                    process_logger.log_failure(exception)
-                else:
-                    # wait for gremlins to disappear
-                    time.sleep(15)
+            except Exception as _:
+                retry_attempt += 1
+                # wait for gremlins to disappear
+                time.sleep(15)
 
             else:
-                good_insert += 1
+                process_logger.add_metadata(retry_attempts=retry_attempt)
                 process_logger.log_complete()
                 break
 
-    process_logger.add_metadata(
-        insert_success_count=good_insert, insert_fail_count=bad_insert
-    )
     process_logger.log_complete()
 
 
