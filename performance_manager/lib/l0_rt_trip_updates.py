@@ -195,7 +195,7 @@ def join_gtfs_static(
             .where(
                 (StaticFeedInfo.feed_start_date <= date)
                 & (StaticFeedInfo.feed_end_date >= date)
-                & (StaticFeedInfo.timestamp < min_timestamp)
+                # & (StaticFeedInfo.timestamp < min_timestamp)
             )
             .order_by(StaticFeedInfo.timestamp.desc())
             .limit(1)
