@@ -19,8 +19,8 @@ RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev --no-interaction --no-ansi
 
 # Fetch Amazon RDS certificate chain
-RUN curl https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /usr/local/share/amazon-certs.pem
-RUN echo "976de749e16140c2e91e2ea1daa508ef716be5decafbb9f0f77087abc879487b /usr/local/share/amazon-certs.pem" | sha256sum -c -
+RUN curl https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem -o /usr/local/share/amazon-certs.pem
+RUN echo "d464378fbb8b981d2b28a1deafffd0113554e6adfb34535134f411bf3c689e73 /usr/local/share/amazon-certs.pem" | sha256sum -c -
 RUN chmod a=r /usr/local/share/amazon-certs.pem
 
 CMD ["python", "ingest.py"]
