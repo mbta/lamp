@@ -20,7 +20,7 @@ RUN poetry install --no-dev --no-interaction --no-ansi
 
 # Fetch Amazon RDS certificate chain
 RUN curl https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /usr/local/share/amazon-certs.pem
-RUN echo "6f99a8eac41b1b76bdc4f402c4a1f3d12d24fcae75ce08818ee3349bda075e93 /usr/local/share/amazon-certs.pem" | sha256sum -c -
+RUN echo "976de749e16140c2e91e2ea1daa508ef716be5decafbb9f0f77087abc879487b /usr/local/share/amazon-certs.pem" | sha256sum -c -
 RUN chmod a=r /usr/local/share/amazon-certs.pem
 
 CMD ["python", "startup.py"]
