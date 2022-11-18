@@ -292,7 +292,7 @@ def load_temp_headways(db_manager: DatabaseManager) -> bool:
     db_manager.truncate_table(TempHeadways)
     result = db_manager.execute(insert_query)
 
-    process_logger.add_metadata(temp_rows_inserted=result.rowcount)
+    process_logger.add_metadata(temp_table_record_count=result.rowcount)
     process_logger.log_complete()
 
     if result.rowcount > 0:
@@ -305,7 +305,7 @@ def update_headways_from_temp(db_manager: DatabaseManager) -> None:
     """
     update headways tables with UPDATE from SELECT of TempHeadways table
     """
-    process_logger = ProcessLogger("l2_headways_update")
+    process_logger = ProcessLogger("l2_load_table", table_type="headways")
     process_logger.log_start()
     update_query = (
         Headways.metadata.tables[Headways.__tablename__]
@@ -321,7 +321,7 @@ def update_headways_from_temp(db_manager: DatabaseManager) -> None:
 
     result = db_manager.execute(update_query)
 
-    process_logger.add_metadata(rows_updated=result.rowcount)
+    process_logger.add_metadata(total_updated=result.rowcount)
     process_logger.log_complete()
 
 
@@ -337,7 +337,7 @@ def insert_new_headways(db_manager: DatabaseManager) -> None:
         "headway_seconds",
     ]
 
-    process_logger = ProcessLogger("l2_headways_insert")
+    process_logger = ProcessLogger("l2_load_table", table_type="headways")
     process_logger.log_start()
     insert_query = (
         Headways.metadata.tables[Headways.__tablename__]
@@ -360,7 +360,7 @@ def insert_new_headways(db_manager: DatabaseManager) -> None:
     )
     result = db_manager.execute(insert_query)
 
-    process_logger.add_metadata(rows_inserted=result.rowcount)
+    process_logger.add_metadata(total_inserted=result.rowcount)
     process_logger.log_complete()
 
 

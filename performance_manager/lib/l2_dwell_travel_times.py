@@ -16,7 +16,7 @@ def dwell_times(db_manager: DatabaseManager) -> None:
 
     executed as delete and insert
     """
-    process_logger = ProcessLogger("update_l2_dwell_times")
+    process_logger = ProcessLogger("l2_load_table", table_type="dwell_times")
     process_logger.log_start()
 
     # base select for insert of records dwell times
@@ -62,14 +62,14 @@ def dwell_times(db_manager: DatabaseManager) -> None:
         .execution_options(synchronize_session="fetch")
     )
     delete_result = db_manager.execute(delete_query)
-    process_logger.add_metadata(rows_updated=delete_result.rowcount)
+    process_logger.add_metadata(total_updated=delete_result.rowcount)
 
     # insert new dwell time records
     insert_query = DwellTimes.__table__.insert().from_select(
         ["fk_dwell_time_id", "dwell_time_seconds"], insert_select
     )
     insert_result = db_manager.execute(insert_query)
-    process_logger.add_metadata(rows_inserted=insert_result.rowcount)
+    process_logger.add_metadata(total_inserted=insert_result.rowcount)
 
     process_logger.log_complete()
 
@@ -80,7 +80,7 @@ def travel_times(db_manager: DatabaseManager) -> None:
 
     executed as delete and insert
     """
-    process_logger = ProcessLogger("update_l2_travel_times")
+    process_logger = ProcessLogger("l2_load_table", table_type="travel_times")
     process_logger.log_start()
 
     # base select for insert of records travel times
@@ -126,14 +126,14 @@ def travel_times(db_manager: DatabaseManager) -> None:
         .execution_options(synchronize_session="fetch")
     )
     delete_result = db_manager.execute(delete_query)
-    process_logger.add_metadata(rows_updated=delete_result.rowcount)
+    process_logger.add_metadata(total_updated=delete_result.rowcount)
 
     # insert new travel time records
     insert_query = TravelTimes.__table__.insert().from_select(
         ["fk_travel_time_id", "travel_time_seconds"], insert_select
     )
     insert_result = db_manager.execute(insert_query)
-    process_logger.add_metadata(rows_inserted=insert_result.rowcount)
+    process_logger.add_metadata(total_inserted=insert_result.rowcount)
 
     process_logger.log_complete()
 
@@ -154,7 +154,7 @@ def process_dwell_travel_times(db_manager: DatabaseManager) -> None:
     records requiring updating are first deleted and then all new/updated
     records are inserted
     """
-    process_logger = ProcessLogger("process_l2_dwell_and_travel")
+    process_logger = ProcessLogger("l2_load_tables")
     process_logger.log_start()
     try:
 
