@@ -117,6 +117,7 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
         source_object.delete()
 
     except Exception as _:
+        _init_process_session()
         return None
 
     return filename

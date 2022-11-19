@@ -1,4 +1,5 @@
 import os
+import logging
 
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List
@@ -20,10 +21,13 @@ class NoImplConverter(Converter):
     """
 
     def convert(self) -> None:
-        move_s3_objects(
-            self.files,
-            os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
-        )
+        try:
+            move_s3_objects(
+                self.files,
+                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+            )
+        except Exception as exception:
+            logging.exception(exception)
 
 
 def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
