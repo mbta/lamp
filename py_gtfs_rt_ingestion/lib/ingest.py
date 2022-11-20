@@ -39,6 +39,13 @@ def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
     return GtfsRtConverter(config_type, metadata_queue)
 
 
+def run_converter(converter: Converter) -> None:
+    """
+    Run converters in subprocess
+    """
+    converter.convert()
+
+
 def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     """
     sort the incoming file list by type and create a converter for each type.
@@ -79,7 +86,4 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
 
     # The remaining converters can be run in parallel
     with Pool(processes=len(converters)) as pool:
-        for converter in converters.values():
-            pool.apply_async(converter.convert)
-        pool.close()
-        pool.join()
+        pool.map(run_converter, converters.values())
