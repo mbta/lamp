@@ -1,8 +1,8 @@
 import os
 import time
 
-from multiprocessing.pool import Pool
-from multiprocessing import current_process
+from concurrent.futures import ThreadPoolExecutor
+from threading import current_thread
 from io import BytesIO
 from typing import IO, List, Tuple, cast, Callable, Optional
 
@@ -90,7 +90,7 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
     :return - 'None' if exception occured during move, otherwise 'filename'
     """
     try:
-        s3_resource = current_process().__dict__["boto_s3_resource"]
+        s3_resource = current_thread().__dict__["boto_s3_resource"]
 
         # trim off leading s3://
         copy_key = filename.replace("s3://", "")
@@ -134,7 +134,7 @@ def _init_process_session() -> None:
     not totally sure this is the best way to retain the session on process initialization
     but it seems to work
     """
-    process_data = current_process()
+    process_data = current_thread()
     process_data.__dict__["boto_session"] = boto3.session.Session()
     process_data.__dict__["boto_s3_resource"] = process_data.__dict__[
         "boto_session"
@@ -174,15 +174,15 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         max_pool_size = max(1, int(len(files_to_move) / files_per_pool))
         pool_size = min(32, cpu_count + 4, max_pool_size)
         process_logger.add_metadata(pool_size=pool_size)
+        results = []
         try:
-            with Pool(pool_size, initializer=_init_process_session) as pool:
-                for file_moved in pool.starmap(
-                    _move_s3_object,
-                    [(filename, to_bucket) for filename in files_to_move],
-                ):
-                    # remove filename from set if moved without exception
-                    if isinstance(file_moved, str):
-                        files_to_move.discard(file_moved)
+            with ThreadPoolExecutor(max_workers=pool_size, initializer=_init_process_session) as pool:
+                for filename in files_to_move:
+                    results.append(pool.submit(_move_s3_object, filename, to_bucket))
+            for result in results:
+                current_result = result.result()
+                if isinstance(current_result, str):
+                    files_to_move.discard(current_result)
 
         except Exception as exception:
             found_exception = exception
