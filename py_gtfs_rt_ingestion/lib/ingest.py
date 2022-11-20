@@ -1,9 +1,8 @@
 import os
 import logging
 
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List
-from multiprocessing import Queue
+from multiprocessing import Queue, Pool
 
 from .converter import ConfigType, Converter
 from .convert_gtfs import GtfsConverter
@@ -79,6 +78,8 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     converters[ConfigType.ERROR].add_files(error_files)
 
     # The remaining converters can be run in parallel
-    with ThreadPoolExecutor(max_workers=len(converters)) as executor:
+    with Pool(processes=len(converters)) as pool:
         for converter in converters.values():
-            executor.submit(converter.convert)
+            pool.apply_async(converter.convert)
+        pool.close()
+        pool.join()
