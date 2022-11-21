@@ -17,8 +17,9 @@ jobs:
       environment: dev
       dockerfile-path: ./py_gtfs_rt_ingestion/
       cluster: lamp
+      docker-additional-tags: lamp_ingestion
     secrets:
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      docker-repo: ${{ secrets.DOCKER_REPO }}
+      docker-repo: ${{ secrets.INGESTION_DOCKER_URI }}
       slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
