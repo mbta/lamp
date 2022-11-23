@@ -20,13 +20,10 @@ class NoImplConverter(Converter):
     """
 
     def convert(self) -> None:
-        try:
-            move_s3_objects(
-                self.files,
-                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
-            )
-        except Exception as exception:
-            logging.exception(exception)
+        move_s3_objects(
+            self.files,
+            os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+        )
 
 
 def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:

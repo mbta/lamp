@@ -176,9 +176,13 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         process_logger.add_metadata(pool_size=pool_size)
         results = []
         try:
-            with ThreadPoolExecutor(max_workers=pool_size, initializer=_init_process_session) as pool:
+            with ThreadPoolExecutor(
+                max_workers=pool_size, initializer=_init_process_session
+            ) as pool:
                 for filename in files_to_move:
-                    results.append(pool.submit(_move_s3_object, filename, to_bucket))
+                    results.append(
+                        pool.submit(_move_s3_object, filename, to_bucket)
+                    )
             for result in results:
                 current_result = result.result()
                 if isinstance(current_result, str):
