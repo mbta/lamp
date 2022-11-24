@@ -30,7 +30,7 @@ from .config_rt_vehicle import RtVehicleDetail
 class TableData:
     tables: List[pyarrow.table] = field(default_factory=list)
     files: List[str] = field(default_factory=list)
-    next_hour_count: int = 0
+    next_hr_cnt: int = 0
 
 
 class GtfsRtConverter(Converter):
@@ -70,7 +70,7 @@ class GtfsRtConverter(Converter):
         now = datetime.now(tz=timezone.utc)
         self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
 
-        self.converted_tables: Dict[datetime, TableData] = {}
+        self.table_groups: Dict[datetime, TableData] = {}
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
@@ -121,9 +121,11 @@ class GtfsRtConverter(Converter):
 
         only yield a new table when the timestamps cross over an hour.
         """
-        max_workers = 6
-        yield_threshold = max_workers * 2
-        count_past_start_of_hour = 0
+        max_workers = 4
+
+        # this is the number of files created in an hour after the processing 
+        # hour that will trigger a table to be yielding for writing
+        yield_threshold = max(10, max_workers * 3)
 
         process_logger = ProcessLogger(
             "create_parquet_table",
@@ -145,97 +147,68 @@ class GtfsRtConverter(Converter):
                     )
                     continue
 
-                # create key for self.converted_tables dictionary
-                timestamp_hour = result_dt.replace(
+                # create key for self.table_groups dictionary
+                timestamp_hr = result_dt.replace(
                     minute=0, second=0, microsecond=0
                 )
 
-                # create new self.converted_tables entry for key if it doesn't exist
-                if timestamp_hour not in self.converted_tables:
-                    self.converted_tables[timestamp_hour] = TableData()
+                # create new self.table_groups entry for key if it doesn't exist
+                if timestamp_hr not in self.table_groups:
+                    self.table_groups[timestamp_hr] = TableData()
 
-                # loop through all keys in self.converted_tables
-                for table_timestamp_hour in list(self.converted_tables.keys()):
-                    # add result to matching timestamp_hour key
-                    if table_timestamp_hour == timestamp_hour:
-                        self.converted_tables[
-                            table_timestamp_hour
-                        ].files.append(result_filename)
-                        self.converted_tables[
-                            table_timestamp_hour
-                        ].tables.append(result_table)
-                    # increment next_hour_count if key is before timestamp_hour
-                    elif timestamp_hour > table_timestamp_hour:
-                        self.converted_tables[
-                            table_timestamp_hour
-                        ].next_hour_count += 1
+                # process results into self.table_groups
+                for iter_ts, table_group in self.table_groups.items():
+                    # add result to matching timestamp_hr key
+                    if iter_ts == timestamp_hr:
+                        table_group.files.append(result_filename)
+                        table_group.tables.append(result_table)
+                        table_group.next_hr_cnt = 0
+                    # increment next_hr_cnt if key is before timestamp_hr
+                    elif timestamp_hr > iter_ts:
+                        table_group.next_hr_cnt += 1
 
-                    # Check if key is ready to yield
-                    if (
-                        self.converted_tables[
-                            table_timestamp_hour
-                        ].next_hour_count
-                        > yield_threshold
-                    ):
-                        self.archive_files += self.converted_tables[
-                            table_timestamp_hour
-                        ].files
-                        table = pyarrow.concat_tables(
-                            self.converted_tables[table_timestamp_hour].tables
-                        )
-                        process_logger.add_metadata(
-                            file_count=len(
-                                self.converted_tables[
-                                    table_timestamp_hour
-                                ].files
-                            ),
-                            number_of_rows=table.num_rows,
-                        )
-                        process_logger.log_complete()
-                        yield table
-                        del self.converted_tables[table_timestamp_hour]
+                yield from self.yield_check(yield_threshold, process_logger)
 
-                        process_logger.add_metadata(
-                            file_count=0, number_of_rows=0
-                        )
-                        process_logger.log_start()
-
-                # check if ready to tend work because processing files past start_of_hour
-                # waiting for count_past_start_of_hour > max_workers * 2 should allow for
+                # check if ready to end work because processing files past start_of_hour
+                # waiting for count of files > yield_threshold should allow for
                 # any work from previous hour to finish before exiting
-                if result_dt >= self.start_of_hour:
-                    count_past_start_of_hour += 1
-                    if count_past_start_of_hour > yield_threshold:
-                        break
-                else:
-                    count_past_start_of_hour = 0
+                if (
+                    result_dt >= self.start_of_hour
+                    and len(self.table_groups[timestamp_hr].files) > yield_threshold
+                ):
+                    break
 
-        # yeild any remaining tables with next_hour_count > 0
+        # yeild any remaining tables with next_hr_cnt > 0
         # guaranteeing that the end of the hour was hit
         # not sure if we would ever actually hit this
-        for table_timestamp_hour in list(self.converted_tables.keys()):
-            if self.converted_tables[table_timestamp_hour].next_hour_count > 0:
-                self.archive_files += self.converted_tables[
-                    table_timestamp_hour
-                ].files
-                table = pyarrow.concat_tables(
-                    self.converted_tables[table_timestamp_hour].tables
-                )
+        yield from self.yield_check(0, process_logger)
+
+        process_logger.add_metadata(file_count=0, number_of_rows=0)
+        process_logger.log_complete()
+
+    def yield_check(self, yield_threshold: int, process_logger: ProcessLogger) -> Iterable[pyarrow.table]:
+        """
+        interate through all self.table_group keys and see if any are ready
+        to yield
+        """
+        for iter_ts in list(self.table_groups.keys()):
+            if (
+                self.table_groups[iter_ts].next_hr_cnt > yield_threshold
+                and iter_ts < self.start_of_hour
+            ):
+                self.archive_files += self.table_groups[iter_ts].files
+                table = pyarrow.concat_tables(self.table_groups[iter_ts].tables)
                 process_logger.add_metadata(
-                    file_count=len(
-                        self.converted_tables[table_timestamp_hour].files
-                    ),
+                    file_count=len(self.table_groups[iter_ts].files),
                     number_of_rows=table.num_rows,
                 )
                 process_logger.log_complete()
-                yield table
-                del self.converted_tables[table_timestamp_hour]
 
                 process_logger.add_metadata(file_count=0, number_of_rows=0)
                 process_logger.log_start()
 
-        process_logger.add_metadata(file_count=0, number_of_rows=0)
-        process_logger.log_complete()
+                yield table
+                del self.table_groups[iter_ts]
 
     def record_from_entity(self, entity: dict) -> dict:
         """
