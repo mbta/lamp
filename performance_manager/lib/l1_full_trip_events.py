@@ -14,7 +14,9 @@ from .postgres_schema import (
 from .gtfs_utils import add_event_hash_column
 
 
-def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
+def pull_and_transform(
+    db_manager: DatabaseManager, min_ts_process: int, max_ts_process: int
+) -> pandas.DataFrame:
     """
     pull new events from events tables and transform
     """
@@ -47,8 +49,16 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         "hash",
     ]
 
+    # add 12 hour buffer to min/max timestamps
+    min_ts_process -= 60 * 60 * 12
+    max_ts_process += 60 * 60 * 12
+
     dupe_hash_cte = (
         sa.select(VehiclePositionEvents.hash)
+        .where(
+            (VehiclePositionEvents.timestamp_start > min_ts_process)
+            & (VehiclePositionEvents.timestamp_end < max_ts_process)
+        )
         .group_by(VehiclePositionEvents.hash)
         .having(sa.func.count() > 1)
     ).cte("dupe_hash")
@@ -91,6 +101,8 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         )
         .where(
             (VehiclePositionEvents.is_moving == sa.true())
+            & (VehiclePositionEvents.timestamp_start > min_ts_process)
+            & (VehiclePositionEvents.timestamp_end < max_ts_process)
             & (VehiclePositionEvents.stop_sequence.isnot(None))
             & (VehiclePositionEvents.stop_id.isnot(None))
             & (VehiclePositionEvents.direction_id.isnot(None))
@@ -142,6 +154,8 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         )
         .where(
             (VehiclePositionEvents.is_moving == sa.false())
+            & (VehiclePositionEvents.timestamp_start > min_ts_process)
+            & (VehiclePositionEvents.timestamp_end < max_ts_process)
             & (VehiclePositionEvents.stop_sequence.isnot(None))
             & (VehiclePositionEvents.stop_id.isnot(None))
             & (VehiclePositionEvents.direction_id.isnot(None))
@@ -187,6 +201,8 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         )
         .where(
             (TripUpdateEvents.stop_sequence.isnot(None))
+            & (TripUpdateEvents.timestamp_start > min_ts_process)
+            & (TripUpdateEvents.timestamp_start < max_ts_process)
             & (TripUpdateEvents.stop_id.isnot(None))
             & (TripUpdateEvents.direction_id.isnot(None))
             & (TripUpdateEvents.route_id.isnot(None))
@@ -426,7 +442,9 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
-def process_full_trip_events(db_manager: DatabaseManager) -> None:
+def process_full_trip_events(
+    db_manager: DatabaseManager, min_ts_process: int, max_ts_process: int
+) -> None:
     """
     process new events from L0 tables and insert to L1 FullTripEvents RDS table
 
@@ -464,7 +482,9 @@ def process_full_trip_events(db_manager: DatabaseManager) -> None:
     process_logger = ProcessLogger("process_l1_events")
     process_logger.log_start()
     try:
-        insert_dataframe = pull_and_transform(db_manager)
+        insert_dataframe = pull_and_transform(
+            db_manager, min_ts_process, max_ts_process
+        )
         process_logger.add_metadata(
             temp_table_record_count=insert_dataframe.shape[0]
         )

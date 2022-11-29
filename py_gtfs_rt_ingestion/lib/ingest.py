@@ -1,8 +1,7 @@
 import os
 
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List
-from multiprocessing import Queue
+from multiprocessing import Queue, Pool
 
 from .converter import ConfigType, Converter
 from .convert_gtfs import GtfsConverter
@@ -34,6 +33,13 @@ def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
     if config_type.is_gtfs():
         return GtfsConverter(config_type, metadata_queue)
     return GtfsRtConverter(config_type, metadata_queue)
+
+
+def run_converter(converter: Converter) -> None:
+    """
+    Run converters in subprocess
+    """
+    converter.convert()
 
 
 def ingest_files(files: List[str], metadata_queue: Queue) -> None:
@@ -75,6 +81,5 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     converters[ConfigType.ERROR].add_files(error_files)
 
     # The remaining converters can be run in parallel
-    with ThreadPoolExecutor(max_workers=len(converters)) as executor:
-        for converter in converters.values():
-            executor.submit(converter.convert)
+    with Pool(processes=len(converters)) as pool:
+        pool.map(run_converter, converters.values())

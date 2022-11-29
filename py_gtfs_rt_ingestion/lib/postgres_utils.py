@@ -3,7 +3,7 @@ import platform
 import time
 from typing import Any, Tuple, Dict
 import urllib.parse as urlparse
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Manager
 
 import boto3
 import sqlalchemy as sa
@@ -209,7 +209,9 @@ def start_rds_writer_process() -> Tuple[Queue, Process]:
 
     return metadata queue
     """
-    metadata_queue: Queue = Queue()
+    # mypy: Function "multiprocessing.Manager" is not valid as a type
+    queue_manager: Manager = Manager()  # type: ignore
+    metadata_queue: Queue = queue_manager.Queue()  # type: ignore
 
     writer_process = Process(target=_rds_writer_process, args=(metadata_queue,))
     writer_process.start()
