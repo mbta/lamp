@@ -1,5 +1,4 @@
 import os
-import logging
 
 from typing import Dict, List
 from multiprocessing import Queue, Pool

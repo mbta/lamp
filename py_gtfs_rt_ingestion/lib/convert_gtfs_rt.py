@@ -28,6 +28,16 @@ from .config_rt_vehicle import RtVehicleDetail
 
 @dataclass
 class TableData:
+    """
+    Data structure for holding data related to yielding a parquet table
+
+    tables: list of pyarrow tables that will joined together for final table yield
+    files: list of files that make up tables
+    next_hr_cnt: keeps track of how many files in the next hour have been
+                 processed, when this hits a certain threshold the table
+                 can be yielded
+    """
+
     tables: List[pyarrow.table] = field(default_factory=list)
     files: List[str] = field(default_factory=list)
     next_hr_cnt: int = 0
@@ -107,8 +117,12 @@ class GtfsRtConverter(Converter):
             process_logger.log_complete()
 
     def thread_init(self) -> None:
-        # update the active fs to use the s3 filesystem for all loading if the
-        # first file starts with s3
+        """
+        initialize the filesystem in each convert thread
+
+        update the active fs to use the s3 filesystem for all loading if the
+        first file starts with s3
+        """
         thread_data = current_thread()
         if self.files and self.files[0].startswith("s3://"):
             thread_data.__dict__["file_system"] = fs.S3FileSystem()
@@ -123,7 +137,7 @@ class GtfsRtConverter(Converter):
         """
         max_workers = 4
 
-        # this is the number of files created in an hour after the processing 
+        # this is the number of files created in an hour after the processing
         # hour that will trigger a table to be yielding for writing
         yield_threshold = max(10, max_workers * 3)
 
@@ -143,7 +157,8 @@ class GtfsRtConverter(Converter):
                 if result_dt is None:
                     self.error_files.append(result_filename)
                     logging.error(
-                        f"gz_to_pyarrow exception for: {result_filename}"
+                        "gz_to_pyarrow exception when loading: %s",
+                        result_filename,
                     )
                     continue
 
@@ -174,7 +189,8 @@ class GtfsRtConverter(Converter):
                 # any work from previous hour to finish before exiting
                 if (
                     result_dt >= self.start_of_hour
-                    and len(self.table_groups[timestamp_hr].files) > yield_threshold
+                    and len(self.table_groups[timestamp_hr].files)
+                    > yield_threshold
                 ):
                     break
 
@@ -186,7 +202,9 @@ class GtfsRtConverter(Converter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(self, yield_threshold: int, process_logger: ProcessLogger) -> Iterable[pyarrow.table]:
+    def yield_check(
+        self, yield_threshold: int, process_logger: ProcessLogger
+    ) -> Iterable[pyarrow.table]:
         """
         interate through all self.table_group keys and see if any are ready
         to yield

@@ -209,8 +209,9 @@ def start_rds_writer_process() -> Tuple[Queue, Process]:
 
     return metadata queue
     """
-    queue_manager: Manager = Manager()
-    metadata_queue: Queue = queue_manager.Queue()
+    # mypy: Function "multiprocessing.Manager" is not valid as a type
+    queue_manager: Manager = Manager()  # type: ignore
+    metadata_queue: Queue = queue_manager.Queue()  # type: ignore
 
     writer_process = Process(target=_rds_writer_process, args=(metadata_queue,))
     writer_process.start()

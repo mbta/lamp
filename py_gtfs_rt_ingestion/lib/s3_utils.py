@@ -141,6 +141,8 @@ def _init_process_session() -> None:
     ].resource("s3")
 
 
+# pylint: disable=R0914
+# pylint too many local variables (more than 15)
 def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
     """
     Move list of S3 objects to to_bucket bucket, retaining the object path.
@@ -208,6 +210,9 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         process_logger.log_failure(exception=found_exception)
 
     return list(files_to_move)
+
+
+# pylint: enable=R0914
 
 
 def write_parquet_file(
