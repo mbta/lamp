@@ -71,7 +71,7 @@ jobs:
       DB_PASSWORD: postgres
     services:
       postgres:
-        image: postgres
+        image: postgres:14.4
         ports:
           - 5432:5432
         env:
