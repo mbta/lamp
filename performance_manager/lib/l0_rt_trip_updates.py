@@ -1,4 +1,4 @@
-from typing import Optional, Union, List, Dict, Any, Iterator
+from typing import Optional, Union, List, Dict, Any, Iterator, Tuple
 
 import pathlib
 import pandas
@@ -376,7 +376,7 @@ def merge_trip_update_events(  # pylint: disable=too-many-locals
     process_logger.log_complete()
 
 
-def process_trip_updates(db_manager: DatabaseManager) -> None:
+def process_trip_updates(db_manager: DatabaseManager) -> Tuple[int, int]:
     """
     process trip updates parquet files from metadataLog table
     """
@@ -391,6 +391,9 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
     )
 
     process_logger.add_metadata(count_of_paths=len(paths_to_load))
+
+    min_ts_processed = 10_000_000_000
+    max_ts_processed = 0
 
     for folder_data in paths_to_load:
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
@@ -417,6 +420,12 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
                 new_events = join_gtfs_static(new_events, db_manager)
 
                 new_events = hash_events(new_events)
+                min_ts_processed = min(
+                    min_ts_processed, int(new_events["timestamp_start"].min())
+                )
+                max_ts_processed = max(
+                    max_ts_processed, int(new_events["timestamp_start"].max())
+                )
 
                 merge_trip_update_events(
                     new_events=new_events,
@@ -444,4 +453,9 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
             subprocess_logger.log_failure(exception)
         # pylint: enable=duplicate-code
 
+    process_logger.add_metadata(
+        min_ts_processed=min_ts_processed, max_ts_processed=max_ts_processed
+    )
     process_logger.log_complete()
+
+    return (min_ts_processed, max_ts_processed)
