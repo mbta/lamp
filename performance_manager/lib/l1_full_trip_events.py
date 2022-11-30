@@ -55,10 +55,6 @@ def pull_and_transform(
 
     dupe_hash_cte = (
         sa.select(VehiclePositionEvents.hash)
-        .where(
-            (VehiclePositionEvents.timestamp_start > min_ts_process)
-            & (VehiclePositionEvents.timestamp_end < max_ts_process)
-        )
         .group_by(VehiclePositionEvents.hash)
         .having(sa.func.count() > 1)
     ).cte("dupe_hash")
@@ -101,8 +97,6 @@ def pull_and_transform(
         )
         .where(
             (VehiclePositionEvents.is_moving == sa.true())
-            & (VehiclePositionEvents.timestamp_start > min_ts_process)
-            & (VehiclePositionEvents.timestamp_end < max_ts_process)
             & (VehiclePositionEvents.stop_sequence.isnot(None))
             & (VehiclePositionEvents.stop_id.isnot(None))
             & (VehiclePositionEvents.direction_id.isnot(None))
@@ -154,8 +148,6 @@ def pull_and_transform(
         )
         .where(
             (VehiclePositionEvents.is_moving == sa.false())
-            & (VehiclePositionEvents.timestamp_start > min_ts_process)
-            & (VehiclePositionEvents.timestamp_end < max_ts_process)
             & (VehiclePositionEvents.stop_sequence.isnot(None))
             & (VehiclePositionEvents.stop_id.isnot(None))
             & (VehiclePositionEvents.direction_id.isnot(None))
@@ -201,8 +193,6 @@ def pull_and_transform(
         )
         .where(
             (TripUpdateEvents.stop_sequence.isnot(None))
-            & (TripUpdateEvents.timestamp_start > min_ts_process)
-            & (TripUpdateEvents.timestamp_start < max_ts_process)
             & (TripUpdateEvents.stop_id.isnot(None))
             & (TripUpdateEvents.direction_id.isnot(None))
             & (TripUpdateEvents.route_id.isnot(None))
