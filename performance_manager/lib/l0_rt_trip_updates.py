@@ -1,9 +1,9 @@
 from typing import (
-    Optional, 
-    Union, 
-    List, 
-    Dict, 
-    Any, 
+    Optional,
+    Union,
+    List,
+    Dict,
+    Any,
     Iterator,
 )
 

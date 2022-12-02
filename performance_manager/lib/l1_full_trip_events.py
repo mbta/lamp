@@ -48,10 +48,12 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
     ]
 
     last_full_event_update_query = (
-        sa.select(sa.func.coalesce(
-            sa.func.max(FullTripEvents.updated_on),
-            sa.func.to_timestamp(0),
-        ))
+        sa.select(
+            sa.func.coalesce(
+                sa.func.max(FullTripEvents.updated_on),
+                sa.func.to_timestamp(0),
+            )
+        )
     ).scalar_subquery()
 
     dupe_hash_cte = (
@@ -222,8 +224,7 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
                 move_vp_cte.c.vehicle_id,
                 stop_tu_cte.c.vehicle_id,
             ).label("vehicle_id"),
-        )
-        .join(
+        ).join(
             stop_tu_cte,
             sa.and_(
                 move_vp_cte.c.stop_sequence == stop_tu_cte.c.stop_sequence,
@@ -238,55 +239,52 @@ def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
         )
     ).cte(name="first_join")
 
-    merged_query = (
-        sa.select(
-            first_join_cte.c.fk_vp_moving_event,
-            first_join_cte.c.fk_tu_stopped_event,
-            stop_vp_cte.c.fk_vp_stopped_event,
-            sa.func.coalesce(
-                first_join_cte.c.stop_sequence,
-                stop_vp_cte.c.stop_sequence,
-            ).label("stop_sequence"),
-            sa.func.coalesce(
-                first_join_cte.c.parent_station,
-                stop_vp_cte.c.parent_station,
-            ).label("parent_station"),
-            sa.func.coalesce(
-                first_join_cte.c.direction_id,
-                stop_vp_cte.c.direction_id,
-            ).label("direction_id"),
-            sa.func.coalesce(
-                first_join_cte.c.route_id,
-                stop_vp_cte.c.route_id,
-            ).label("route_id"),
-            sa.func.coalesce(
-                first_join_cte.c.start_date,
-                stop_vp_cte.c.start_date,
-            ).label("start_date"),
-            sa.func.coalesce(
-                first_join_cte.c.start_time,
-                stop_vp_cte.c.start_time,
-            ).label("start_time"),
-            sa.func.coalesce(
-                first_join_cte.c.vehicle_id,
-                stop_vp_cte.c.vehicle_id,
-            ).label("vehicle_id"),
-        )
-        .join(
-            stop_vp_cte,
-            sa.and_(
-                first_join_cte.c.stop_sequence == stop_vp_cte.c.stop_sequence,
-                first_join_cte.c.parent_station == stop_vp_cte.c.parent_station,
-                first_join_cte.c.direction_id == stop_vp_cte.c.direction_id,
-                first_join_cte.c.route_id == stop_vp_cte.c.route_id,
-                first_join_cte.c.start_date == stop_vp_cte.c.start_date,
-                first_join_cte.c.start_time == stop_vp_cte.c.start_time,
-                first_join_cte.c.vehicle_id == stop_vp_cte.c.vehicle_id,
-            ),
-            full=True,
-        )
+    merged_query = sa.select(
+        first_join_cte.c.fk_vp_moving_event,
+        first_join_cte.c.fk_tu_stopped_event,
+        stop_vp_cte.c.fk_vp_stopped_event,
+        sa.func.coalesce(
+            first_join_cte.c.stop_sequence,
+            stop_vp_cte.c.stop_sequence,
+        ).label("stop_sequence"),
+        sa.func.coalesce(
+            first_join_cte.c.parent_station,
+            stop_vp_cte.c.parent_station,
+        ).label("parent_station"),
+        sa.func.coalesce(
+            first_join_cte.c.direction_id,
+            stop_vp_cte.c.direction_id,
+        ).label("direction_id"),
+        sa.func.coalesce(
+            first_join_cte.c.route_id,
+            stop_vp_cte.c.route_id,
+        ).label("route_id"),
+        sa.func.coalesce(
+            first_join_cte.c.start_date,
+            stop_vp_cte.c.start_date,
+        ).label("start_date"),
+        sa.func.coalesce(
+            first_join_cte.c.start_time,
+            stop_vp_cte.c.start_time,
+        ).label("start_time"),
+        sa.func.coalesce(
+            first_join_cte.c.vehicle_id,
+            stop_vp_cte.c.vehicle_id,
+        ).label("vehicle_id"),
+    ).join(
+        stop_vp_cte,
+        sa.and_(
+            first_join_cte.c.stop_sequence == stop_vp_cte.c.stop_sequence,
+            first_join_cte.c.parent_station == stop_vp_cte.c.parent_station,
+            first_join_cte.c.direction_id == stop_vp_cte.c.direction_id,
+            first_join_cte.c.route_id == stop_vp_cte.c.route_id,
+            first_join_cte.c.start_date == stop_vp_cte.c.start_date,
+            first_join_cte.c.start_time == stop_vp_cte.c.start_time,
+            first_join_cte.c.vehicle_id == stop_vp_cte.c.vehicle_id,
+        ),
+        full=True,
     )
-        
+
     process_logger = ProcessLogger("l1_pull_events")
     process_logger.log_start()
 
