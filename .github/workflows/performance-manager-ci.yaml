@@ -34,7 +34,7 @@ jobs:
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: performance_manager
-      - run: poetry run black . --check
+      - run: . $HOME/.asdf/asdf.sh && poetry run black . --check
 
   typing:
     name: Type Check
@@ -45,7 +45,7 @@ jobs:
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: performance_manager
-      - run: poetry run mypy .
+      - run: . $HOME/.asdf/asdf.sh && poetry run mypy .
 
   lint:
     name: Lint
@@ -56,7 +56,7 @@ jobs:
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: performance_manager
-      - run: poetry run pylint *.py lib/ tests/
+      - run: . $HOME/.asdf/asdf.sh && poetry run pylint *.py lib/ tests/
 
   test:
     name: Test
@@ -84,4 +84,4 @@ jobs:
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: performance_manager
-      - run: poetry run pytest
+      - run: . $HOME/.asdf/asdf.sh && poetry run pytest
