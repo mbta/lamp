@@ -18,7 +18,7 @@ defaults:
 jobs:
   setup:
     name: Setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/poetry_deps
@@ -27,7 +27,7 @@ jobs:
 
   format:
     name: Format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: setup
     steps:
       - uses: actions/checkout@v2
@@ -35,12 +35,11 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          source $ASDF_DIR/asdf.sh
           poetry run black . --check
 
   typing:
     name: Type Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: setup
     steps:
       - uses: actions/checkout@v2
@@ -48,12 +47,11 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          source $ASDF_DIR/asdf.sh
           poetry run mypy .
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: setup
     steps:
       - uses: actions/checkout@v2
@@ -61,12 +59,11 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          source $ASDF_DIR/asdf.sh
           poetry run pylint *.py lib/ tests/
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: setup
     env:
       BOOTSTRAPPED: 1
@@ -91,5 +88,4 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          source $ASDF_DIR/asdf.sh
           poetry run pytest
