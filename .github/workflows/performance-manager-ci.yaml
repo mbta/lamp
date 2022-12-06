@@ -35,7 +35,7 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          . /home/runner/.asdf/asdf.sh
+          source $ASDF_DIR/asdf.sh
           poetry run black . --check
 
   typing:
@@ -48,7 +48,7 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          . /home/runner/.asdf/asdf.sh 
+          source $ASDF_DIR/asdf.sh
           poetry run mypy .
 
   lint:
@@ -61,7 +61,7 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          . /home/runner/.asdf/asdf.sh
+          source $ASDF_DIR/asdf.sh
           poetry run pylint *.py lib/ tests/
 
   test:
@@ -91,5 +91,5 @@ jobs:
         with:
           poetry-dir: performance_manager
       - run: |
-          . /home/runner/.asdf/asdf.sh
+          source $ASDF_DIR/asdf.sh
           poetry run pytest
