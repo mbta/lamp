@@ -54,7 +54,7 @@ def get_tu_dataframe_chunks(
 
 # pylint: disable=too-many-arguments
 def explode_stop_time_update(
-    stop_time_update: List[Dict[str, Any]],
+    stop_time_update: Optional[List[Dict[str, Any]]],
     timestamp: int,
     direction_id: int,
     route_id: Any,
@@ -75,13 +75,20 @@ def explode_stop_time_update(
         "vehicle_id": vehicle_id,
     }
     return_list: List[Dict[str, Any]] = []
+
+    # fix: https://app.asana.com/0/1203185331040541/1203495730837934
+    # it appears that numpy.vectorize batches function inputs which can
+    # result in None being passed in for stop_time_update
+    if stop_time_update is None:
+        return None
+
     for record in stop_time_update:
         try:
             arrival_time = int(record["arrival"]["time"])
         except (TypeError, KeyError):
             continue
         # filter out stop event predictions that are too far into the future
-        # and are unlikel to be used as a final stop event prediction
+        # and are unlikely to be used as a final stop event prediction
         # (2 minutes) or predictions that go into the past (negative values)
         if arrival_time - timestamp < 0 or arrival_time - timestamp > 120:
             continue
