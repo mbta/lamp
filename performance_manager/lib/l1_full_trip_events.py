@@ -14,9 +14,7 @@ from .postgres_schema import (
 from .gtfs_utils import add_event_hash_column
 
 
-def pull_and_transform(
-    db_manager: DatabaseManager, min_ts_process: int, max_ts_process: int
-) -> pandas.DataFrame:
+def pull_and_transform(db_manager: DatabaseManager) -> pandas.DataFrame:
     """
     pull new events from events tables and transform
     """
@@ -49,16 +47,17 @@ def pull_and_transform(
         "hash",
     ]
 
-    # add 12 hour buffer to min/max timestamps
-    min_ts_process -= 60 * 60 * 12
-    max_ts_process += 60 * 60 * 12
+    last_full_event_update_query = (
+        sa.select(
+            sa.func.coalesce(
+                sa.func.max(FullTripEvents.updated_on),
+                sa.func.to_timestamp(0),
+            )
+        )
+    ).scalar_subquery()
 
     dupe_hash_cte = (
         sa.select(VehiclePositionEvents.hash)
-        .where(
-            (VehiclePositionEvents.timestamp_start > min_ts_process)
-            & (VehiclePositionEvents.timestamp_end < max_ts_process)
-        )
         .group_by(VehiclePositionEvents.hash)
         .having(sa.func.count() > 1)
     ).cte("dupe_hash")
@@ -81,11 +80,6 @@ def pull_and_transform(
             VehiclePositionEvents.vehicle_id,
         )
         .join(
-            FullTripEvents,
-            VehiclePositionEvents.pk_id == FullTripEvents.fk_vp_moving_event,
-            isouter=True,
-        )
-        .join(
             dupe_hash_cte,
             VehiclePositionEvents.hash == dupe_hash_cte.c.hash,
             isouter=True,
@@ -100,9 +94,8 @@ def pull_and_transform(
             isouter=True,
         )
         .where(
-            (VehiclePositionEvents.is_moving == sa.true())
-            & (VehiclePositionEvents.timestamp_start > min_ts_process)
-            & (VehiclePositionEvents.timestamp_end < max_ts_process)
+            (VehiclePositionEvents.updated_on > last_full_event_update_query)
+            & (VehiclePositionEvents.is_moving == sa.true())
             & (VehiclePositionEvents.stop_sequence.isnot(None))
             & (VehiclePositionEvents.stop_id.isnot(None))
             & (VehiclePositionEvents.direction_id.isnot(None))
@@ -110,7 +103,6 @@ def pull_and_transform(
             & (VehiclePositionEvents.start_date.isnot(None))
             & (VehiclePositionEvents.start_time.isnot(None))
             & (VehiclePositionEvents.vehicle_id.isnot(None))
-            & (FullTripEvents.fk_vp_moving_event.is_(None))
             & (dupe_hash_cte.c.hash.is_(None))
         )
         .cte(name="move_vp")
@@ -134,11 +126,6 @@ def pull_and_transform(
             VehiclePositionEvents.vehicle_id,
         )
         .join(
-            FullTripEvents,
-            VehiclePositionEvents.pk_id == FullTripEvents.fk_vp_stopped_event,
-            isouter=True,
-        )
-        .join(
             dupe_hash_cte,
             VehiclePositionEvents.hash == dupe_hash_cte.c.hash,
             isouter=True,
@@ -153,9 +140,8 @@ def pull_and_transform(
             isouter=True,
         )
         .where(
-            (VehiclePositionEvents.is_moving == sa.false())
-            & (VehiclePositionEvents.timestamp_start > min_ts_process)
-            & (VehiclePositionEvents.timestamp_end < max_ts_process)
+            (VehiclePositionEvents.updated_on > last_full_event_update_query)
+            & (VehiclePositionEvents.is_moving == sa.false())
             & (VehiclePositionEvents.stop_sequence.isnot(None))
             & (VehiclePositionEvents.stop_id.isnot(None))
             & (VehiclePositionEvents.direction_id.isnot(None))
@@ -163,7 +149,6 @@ def pull_and_transform(
             & (VehiclePositionEvents.start_date.isnot(None))
             & (VehiclePositionEvents.start_time.isnot(None))
             & (VehiclePositionEvents.vehicle_id.isnot(None))
-            & (FullTripEvents.fk_vp_stopped_event.is_(None))
             & (dupe_hash_cte.c.hash.is_(None))
         )
         .cte(name="stop_vp")
@@ -187,11 +172,6 @@ def pull_and_transform(
             TripUpdateEvents.vehicle_id,
         )
         .join(
-            FullTripEvents,
-            TripUpdateEvents.pk_id == FullTripEvents.fk_tu_stopped_event,
-            isouter=True,
-        )
-        .join(
             StaticStops,
             sa.and_(
                 TripUpdateEvents.fk_static_timestamp == StaticStops.timestamp,
@@ -200,50 +180,51 @@ def pull_and_transform(
             isouter=True,
         )
         .where(
-            (TripUpdateEvents.stop_sequence.isnot(None))
-            & (TripUpdateEvents.timestamp_start > min_ts_process)
-            & (TripUpdateEvents.timestamp_start < max_ts_process)
+            (TripUpdateEvents.updated_on > last_full_event_update_query)
+            & (TripUpdateEvents.stop_sequence.isnot(None))
             & (TripUpdateEvents.stop_id.isnot(None))
             & (TripUpdateEvents.direction_id.isnot(None))
             & (TripUpdateEvents.route_id.isnot(None))
             & (TripUpdateEvents.start_date.isnot(None))
             & (TripUpdateEvents.start_time.isnot(None))
             & (TripUpdateEvents.vehicle_id.isnot(None))
-            & (FullTripEvents.fk_tu_stopped_event.is_(None))
         )
         .cte(name="stop_tu")
     )
 
-    merged_query = (
+    first_join_cte = (
         sa.select(
-            move_vp_cte.c.fk_vp_moving_event,
-            stop_tu_cte.c.fk_tu_stopped_event,
-            stop_vp_cte.c.fk_vp_stopped_event,
+            move_vp_cte.c.fk_vp_moving_event.label("fk_vp_moving_event"),
+            stop_tu_cte.c.fk_tu_stopped_event.label("fk_tu_stopped_event"),
             sa.func.coalesce(
                 move_vp_cte.c.stop_sequence,
-                stop_vp_cte.c.stop_sequence,
+                stop_tu_cte.c.stop_sequence,
             ).label("stop_sequence"),
             sa.func.coalesce(
-                move_vp_cte.c.parent_station, stop_vp_cte.c.parent_station
+                move_vp_cte.c.parent_station,
+                stop_tu_cte.c.parent_station,
             ).label("parent_station"),
             sa.func.coalesce(
                 move_vp_cte.c.direction_id,
-                stop_vp_cte.c.direction_id,
+                stop_tu_cte.c.direction_id,
             ).label("direction_id"),
             sa.func.coalesce(
-                move_vp_cte.c.route_id, stop_vp_cte.c.route_id
+                move_vp_cte.c.route_id,
+                stop_tu_cte.c.route_id,
             ).label("route_id"),
             sa.func.coalesce(
-                move_vp_cte.c.start_date, stop_vp_cte.c.start_date
+                move_vp_cte.c.start_date,
+                stop_tu_cte.c.start_date,
             ).label("start_date"),
             sa.func.coalesce(
-                move_vp_cte.c.start_time, stop_vp_cte.c.start_time
+                move_vp_cte.c.start_time,
+                stop_tu_cte.c.start_time,
             ).label("start_time"),
             sa.func.coalesce(
-                move_vp_cte.c.vehicle_id, stop_vp_cte.c.vehicle_id
+                move_vp_cte.c.vehicle_id,
+                stop_tu_cte.c.vehicle_id,
             ).label("vehicle_id"),
-        )
-        .join(
+        ).join(
             stop_tu_cte,
             sa.and_(
                 move_vp_cte.c.stop_sequence == stop_tu_cte.c.stop_sequence,
@@ -254,21 +235,54 @@ def pull_and_transform(
                 move_vp_cte.c.start_time == stop_tu_cte.c.start_time,
                 move_vp_cte.c.vehicle_id == stop_tu_cte.c.vehicle_id,
             ),
-            isouter=True,
-        )
-        .join(
-            stop_vp_cte,
-            sa.and_(
-                move_vp_cte.c.stop_sequence == stop_vp_cte.c.stop_sequence,
-                move_vp_cte.c.parent_station == stop_vp_cte.c.parent_station,
-                move_vp_cte.c.direction_id == stop_vp_cte.c.direction_id,
-                move_vp_cte.c.route_id == stop_vp_cte.c.route_id,
-                move_vp_cte.c.start_date == stop_vp_cte.c.start_date,
-                move_vp_cte.c.start_time == stop_vp_cte.c.start_time,
-                move_vp_cte.c.vehicle_id == stop_vp_cte.c.vehicle_id,
-            ),
             full=True,
         )
+    ).cte(name="first_join")
+
+    merged_query = sa.select(
+        first_join_cte.c.fk_vp_moving_event,
+        first_join_cte.c.fk_tu_stopped_event,
+        stop_vp_cte.c.fk_vp_stopped_event,
+        sa.func.coalesce(
+            first_join_cte.c.stop_sequence,
+            stop_vp_cte.c.stop_sequence,
+        ).label("stop_sequence"),
+        sa.func.coalesce(
+            first_join_cte.c.parent_station,
+            stop_vp_cte.c.parent_station,
+        ).label("parent_station"),
+        sa.func.coalesce(
+            first_join_cte.c.direction_id,
+            stop_vp_cte.c.direction_id,
+        ).label("direction_id"),
+        sa.func.coalesce(
+            first_join_cte.c.route_id,
+            stop_vp_cte.c.route_id,
+        ).label("route_id"),
+        sa.func.coalesce(
+            first_join_cte.c.start_date,
+            stop_vp_cte.c.start_date,
+        ).label("start_date"),
+        sa.func.coalesce(
+            first_join_cte.c.start_time,
+            stop_vp_cte.c.start_time,
+        ).label("start_time"),
+        sa.func.coalesce(
+            first_join_cte.c.vehicle_id,
+            stop_vp_cte.c.vehicle_id,
+        ).label("vehicle_id"),
+    ).join(
+        stop_vp_cte,
+        sa.and_(
+            first_join_cte.c.stop_sequence == stop_vp_cte.c.stop_sequence,
+            first_join_cte.c.parent_station == stop_vp_cte.c.parent_station,
+            first_join_cte.c.direction_id == stop_vp_cte.c.direction_id,
+            first_join_cte.c.route_id == stop_vp_cte.c.route_id,
+            first_join_cte.c.start_date == stop_vp_cte.c.start_date,
+            first_join_cte.c.start_time == stop_vp_cte.c.start_time,
+            first_join_cte.c.vehicle_id == stop_vp_cte.c.vehicle_id,
+        ),
+        full=True,
     )
 
     process_logger = ProcessLogger("l1_pull_events")
@@ -433,7 +447,13 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
                 FullTripEvents.hash == TempFullTripEvents.hash,
                 isouter=True,
             )
-            .where((FullTripEvents.hash.is_(None))),
+            .where(
+                (FullTripEvents.hash.is_(None))
+                & sa.or_(
+                    TempFullTripEvents.fk_vp_moving_event.isnot(None),
+                    TempFullTripEvents.fk_vp_stopped_event.isnot(None),
+                )
+            ),
         )
     )
     result = db_manager.execute(insert_query)
@@ -442,9 +462,7 @@ def insert_new_events(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
-def process_full_trip_events(
-    db_manager: DatabaseManager, min_ts_process: int, max_ts_process: int
-) -> None:
+def process_full_trip_events(db_manager: DatabaseManager) -> None:
     """
     process new events from L0 tables and insert to L1 FullTripEvents RDS table
 
@@ -482,9 +500,7 @@ def process_full_trip_events(
     process_logger = ProcessLogger("process_l1_events")
     process_logger.log_start()
     try:
-        insert_dataframe = pull_and_transform(
-            db_manager, min_ts_process, max_ts_process
-        )
+        insert_dataframe = pull_and_transform(db_manager)
         process_logger.add_metadata(
             temp_table_record_count=insert_dataframe.shape[0]
         )

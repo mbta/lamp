@@ -138,21 +138,11 @@ def main(args: argparse.Namespace) -> None:
 
         try:
             process_static_tables(db_manager)
-
-            min_ts_processed, max_ts_processed = process_vehicle_positions(
-                db_manager
-            )
-            min_ts, max_ts = process_trip_updates(db_manager)
-
-            min_ts_processed = min(min_ts_processed, min_ts)
-            max_ts_processed = max(max_ts_processed, max_ts)
-
-            if max_ts_processed > 0:
-                process_full_trip_events(
-                    db_manager, min_ts_processed, max_ts_processed
-                )
-                process_dwell_travel_times(db_manager)
-                process_headways(db_manager)
+            process_vehicle_positions(db_manager)
+            process_trip_updates(db_manager)
+            process_full_trip_events(db_manager)
+            process_dwell_travel_times(db_manager)
+            process_headways(db_manager)
 
             process_logger.log_complete()
         except Exception as exception:

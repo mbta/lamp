@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple
+from typing import List, Union
 
 import pathlib
 import numpy
@@ -363,7 +363,7 @@ def merge_vehicle_position_events(
     process_logger.log_complete()
 
 
-def process_vehicle_positions(db_manager: DatabaseManager) -> Tuple[int, int]:
+def process_vehicle_positions(db_manager: DatabaseManager) -> None:
     """
     process a bunch of vehicle position files
     create events for them
@@ -379,9 +379,6 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> Tuple[int, int]:
         "RT_VEHICLE_POSITIONS", db_manager, file_limit=6
     )
     process_logger.add_metadata(count_of_paths=len(paths_to_load))
-
-    min_ts_processed = 10_000_000_000
-    max_ts_processed = 0
 
     for folder_data in paths_to_load:
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
@@ -409,12 +406,6 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> Tuple[int, int]:
 
             new_events = transform_vp_timestamps(new_events)
             sizes["merge_events_count"] = new_events.shape[0]
-            min_ts_processed = min(
-                min_ts_processed, int(new_events["timestamp_start"].min())
-            )
-            max_ts_processed = max(
-                max_ts_processed, int(new_events["timestamp_end"].max())
-            )
 
             subprocess_logger.add_metadata(**sizes)
 
@@ -441,5 +432,3 @@ def process_vehicle_positions(db_manager: DatabaseManager) -> Tuple[int, int]:
             subprocess_logger.log_failure(exception)
 
     process_logger.log_complete()
-
-    return (min_ts_processed, max_ts_processed)
