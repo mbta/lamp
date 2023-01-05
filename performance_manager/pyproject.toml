@@ -2,8 +2,11 @@
 name = "performance_manager"
 version = "0.1.0"
 description = "Compare Static Schedule and Real Time GTFS"
-authors = ["MBTA CTD <developer@mbta.com>",
-           "Mike Zappitello <mzappitello@mbta.com>"]
+authors = [
+  "MBTA CTD <developer@mbta.com>",
+  "Ryan Rymarczyk <rrymarczyk@mbta.com>",
+  "Mike Zappitello <mzappitello@mbta.com>",
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -31,24 +34,6 @@ target-version = ['py39']
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.pylint]
-disable = [
-  # disable doc string requirements
-  "missing-module-docstring",
-  # allow catching a generic exception
-  "broad-except",
-  # caught by black
-  "line-too-long",
-  # we're logging everything so its "ok"
-  "lost-exception"
-]
-good-names = ["i", "s"]
-max-line-length = 80
-min-similarity-lines = 10
-# ignore session maker as it gives pylint fits
-# https://github.com/PyCQA/pylint/issues/7090
-ignored-classes = ['sqlalchemy.orm.session.sessionmaker' ]
-
 [tool.mypy]
 python_version = 3.9
 ignore_missing_imports = true
@@ -56,7 +41,4 @@ disallow_untyped_defs = true
 warn_unused_ignores = true
 warn_unreachable = true
 pretty = true
-plugins = [
-  "sqlalchemy.ext.mypy.plugin"
-]
-
+plugins = ["sqlalchemy.ext.mypy.plugin"]
