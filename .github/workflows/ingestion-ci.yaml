@@ -56,4 +56,4 @@ jobs:
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: py_gtfs_rt_ingestion
-      - run: poetry run pylint *.py lib/ tests/
+      - run: poetry run pylint --rcfile ../.pylintrc *.py lib/ tests/
