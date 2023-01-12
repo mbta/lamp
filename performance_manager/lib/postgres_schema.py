@@ -231,6 +231,11 @@ class TravelTimes(SqlBase):  # pylint: disable=too-few-public-methods
         sa.Integer,
         nullable=False,
     )
+    expected_travel_time_seconds = sa.Column(
+        sa.Integer,
+        nullable=True,
+        default=sa.null(),
+    )
     created_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 

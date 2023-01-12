@@ -1,3 +1,5 @@
+import datetime
+import calendar
 import sqlalchemy as sa
 
 from .logging_utils import ProcessLogger
@@ -7,6 +9,10 @@ from .postgres_schema import (
     FullTripEvents,
     DwellTimes,
     TravelTimes,
+    StaticCalendar,
+    StaticStops,
+    StaticStopTimes,
+    StaticTrips,
 )
 
 
@@ -138,6 +144,209 @@ def travel_times(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
+def expected_travel_times(db_manager: DatabaseManager) -> None:
+    """
+    update travel times table to add expected travel times from GTFS
+    static schedule data
+
+    executed as update from
+    """
+    process_logger = ProcessLogger(
+        "l2_load_table", table_type="expected_travel_times"
+    )
+    process_logger.log_start()
+
+    rows_updated = 0
+
+    seed_vars_query = (
+        sa.select(
+            (
+                VehiclePositionEvents.start_date,
+                VehiclePositionEvents.fk_static_timestamp,
+            ),
+            distinct=(
+                VehiclePositionEvents.start_date,
+                VehiclePositionEvents.fk_static_timestamp,
+            ),
+        )
+        .join(
+            TravelTimes,
+            TravelTimes.fk_travel_time_id == VehiclePositionEvents.pk_id,
+        )
+        .where(
+            (TravelTimes.expected_travel_time_seconds.is_(sa.null())),
+        )
+        .order_by(
+            VehiclePositionEvents.start_date,
+            VehiclePositionEvents.fk_static_timestamp,
+        )
+    )
+
+    # update a maximum of 3 start_date and static timestamp combinations
+    for seed in db_manager.select_as_list(seed_vars_query)[:3]:
+        seed_start_date = seed["start_date"]
+        seed_timestamp = seed["fk_static_timestamp"]
+
+        date = datetime.datetime.strptime(str(seed_start_date), "%Y%m%d")
+        day_of_week = calendar.day_name[date.weekday()].lower()
+
+        # CTE to produce expected travels time from GTFS static calendar data
+        expect_travel_time_cte = (
+            sa.select(
+                StaticTrips.route_id,
+                sa.cast(StaticTrips.direction_id, sa.Integer).label(
+                    "direction_id"
+                ),
+                sa.func.coalesce(
+                    StaticStops.parent_station,
+                    StaticStops.stop_id,
+                ).label("parent_station"),
+                sa.func.min(StaticStopTimes.arrival_time)
+                .over(
+                    partition_by=StaticStopTimes.trip_id,
+                )
+                .label(name="start_time"),
+                (
+                    StaticStopTimes.arrival_time
+                    - sa.func.lag(StaticStopTimes.departure_time).over(
+                        partition_by=StaticStopTimes.trip_id,
+                        order_by=StaticStopTimes.arrival_time,
+                    )
+                ).label("expected_travel_time_seconds"),
+            )
+            .select_from(StaticStopTimes)
+            .join(
+                StaticTrips,
+                sa.and_(
+                    StaticStopTimes.timestamp == StaticTrips.timestamp,
+                    StaticStopTimes.trip_id == StaticTrips.trip_id,
+                ),
+            )
+            .join(
+                StaticStops,
+                sa.and_(
+                    StaticStopTimes.timestamp == StaticStops.timestamp,
+                    StaticStopTimes.stop_id == StaticStops.stop_id,
+                ),
+            )
+            .join(
+                StaticCalendar,
+                sa.and_(
+                    StaticStopTimes.timestamp == StaticCalendar.timestamp,
+                    StaticTrips.service_id == StaticCalendar.service_id,
+                ),
+            )
+            .where(
+                (StaticStopTimes.timestamp == seed_timestamp)
+                & (StaticTrips.timestamp == seed_timestamp)
+                & (StaticStops.timestamp == seed_timestamp)
+                & (StaticCalendar.timestamp == seed_timestamp)
+                & (getattr(StaticCalendar, day_of_week) == sa.true())
+                & (StaticCalendar.start_date <= int(seed_start_date))
+                & (StaticCalendar.end_date >= int(seed_start_date))
+            )
+            .cte(name="expect_travel_time")
+        )
+
+        # CTE to gather actual travel time records needing updating
+        # CAST direction_id as integer because direction_id stored as different
+        # var types between GTFS-RT and GTFS Static data (smallint vs bool)
+        actual_travel_time_cte = (
+            sa.select(
+                TravelTimes.fk_travel_time_id,
+                VehiclePositionEvents.route_id,
+                sa.cast(VehiclePositionEvents.direction_id, sa.Integer).label(
+                    "direction_id"
+                ),
+                sa.func.coalesce(
+                    StaticStops.parent_station,
+                    StaticStops.stop_id,
+                ).label("parent_station"),
+                VehiclePositionEvents.start_time,
+            )
+            .select_from(VehiclePositionEvents)
+            .join(
+                StaticStops,
+                sa.and_(
+                    StaticStops.stop_id == VehiclePositionEvents.stop_id,
+                    StaticStops.timestamp
+                    == VehiclePositionEvents.fk_static_timestamp,
+                ),
+            )
+            .join(
+                TravelTimes,
+                TravelTimes.fk_travel_time_id == VehiclePositionEvents.pk_id,
+            )
+            .where(
+                (VehiclePositionEvents.fk_static_timestamp == seed_timestamp)
+                & (VehiclePositionEvents.start_date == int(seed_start_date))
+                & (StaticStops.timestamp == seed_timestamp)
+                & (TravelTimes.expected_travel_time_seconds.is_(sa.null()))
+            )
+            .limit(250_000)
+            .cte(name="actual_travel_time")
+        )
+
+        # select to generate expected_travel_time_seconds from gtfs static data
+        # this query does not JOIN on sequence_id because sequence_id's are
+        # not guaranteed to matched between the actual and expected data.
+        #
+        # where no matching expected_travel_time exists in the gtfs data,
+        # value will be filled with -1
+        update_select = (
+            sa.select(
+                (
+                    actual_travel_time_cte.c.fk_travel_time_id,
+                    sa.func.coalesce(
+                        expect_travel_time_cte.c.expected_travel_time_seconds,
+                        -1,
+                    ).label("expected_travel_time_seconds"),
+                ),
+                distinct=actual_travel_time_cte.c.fk_travel_time_id,
+            )
+            .select_from(actual_travel_time_cte)
+            .join(
+                expect_travel_time_cte,
+                sa.and_(
+                    actual_travel_time_cte.c.route_id
+                    == expect_travel_time_cte.c.route_id,
+                    actual_travel_time_cte.c.direction_id
+                    == expect_travel_time_cte.c.direction_id,
+                    actual_travel_time_cte.c.parent_station
+                    == expect_travel_time_cte.c.parent_station,
+                    actual_travel_time_cte.c.start_time
+                    <= expect_travel_time_cte.c.start_time,
+                ),
+                isouter=True,
+            )
+            .order_by(
+                actual_travel_time_cte.c.fk_travel_time_id,
+                expect_travel_time_cte.c.start_time,
+            )
+            .subquery(name="expect_travel_time_updates")
+        )
+
+        # update query will update existing TravelTimes table from update_select
+        # statemet
+        update_query = (
+            sa.update(TravelTimes)
+            .where(
+                TravelTimes.fk_travel_time_id
+                == update_select.c.fk_travel_time_id
+            )
+            .values(
+                expected_travel_time_seconds=update_select.c.expected_travel_time_seconds
+            )
+        )
+
+        update_result = db_manager.execute(update_query)
+        rows_updated += update_result.rowcount
+
+    process_logger.add_metadata(total_updated=rows_updated)
+
+    process_logger.log_complete()
+
+
 def process_dwell_travel_times(db_manager: DatabaseManager) -> None:
     """
     responsible for inserting new records into dwell and travel times tables
@@ -160,6 +369,7 @@ def process_dwell_travel_times(db_manager: DatabaseManager) -> None:
 
         dwell_times(db_manager=db_manager)
         travel_times(db_manager=db_manager)
+        expected_travel_times(db_manager=db_manager)
 
         process_logger.log_complete()
 
