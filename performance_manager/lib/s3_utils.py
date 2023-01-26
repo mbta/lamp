@@ -1,13 +1,13 @@
-import os
-from typing import Optional, List, Tuple, Union, Sequence, Iterator
 import datetime
+import os
 import re
+from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
 import boto3
 import pandas
+import pyarrow
 import pyarrow.parquet as pq
 from pyarrow import fs
-import pyarrow
 
 
 def _get_pyarrow_table(

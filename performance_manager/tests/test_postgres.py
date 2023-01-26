@@ -2,27 +2,34 @@ import logging
 import os
 from typing import Iterator, List
 
-import pandas as pa
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
-from lib import (
-    process_dwell_travel_times,
-    process_full_trip_events,
-    process_headways,
-    process_static_tables,
-    process_trip_updates,
-    process_vehicle_positions,
+from lib import process_static_tables
+from lib.l0_rt_trip_updates import (
+    get_and_unwrap_tu_dataframe,
+    join_tu_with_gtfs_static,
+    merge_tu_with_events,
+    update_and_insert_db_events,
+)
+from lib.l0_rt_vehicle_positions import (
+    get_vp_dataframe,
+    insert_db_events,
+    join_vp_with_gtfs_static,
+    merge_with_overlapping_events,
+    split_events,
+    transform_vp_dtypes,
+    transform_vp_timestamps,
+    update_db_events,
 )
 from lib.postgres_schema import (
-    DwellTimes,
     MetadataLog,
     StaticCalendar,
     StaticRoutes,
     StaticStops,
     StaticStopTimes,
     StaticTrips,
-    VehiclePositionEvents,
+    VehicleEvents,
 )
 from lib.postgres_utils import DatabaseManager
 
@@ -77,6 +84,8 @@ def fixture_add_files(db_manager: DatabaseManager) -> Iterator[None]:
 
         for root, _, files in os.walk(LAMP_DIR):
             for file in files:
+                if "DS_Store" in file:
+                    continue
                 path = os.path.join(root, file)
                 if "FEED_INFO" in path:
                     paths.append(path)
@@ -95,7 +104,7 @@ def fixture_add_files(db_manager: DatabaseManager) -> Iterator[None]:
                 sa.insert(MetadataLog.__table__), [{"path": p} for p in paths]
             )
 
-        yield
+            yield
 
 
 def test_static_tables(
@@ -130,8 +139,6 @@ def test_static_tables(
         )
     )
 
-    # assert len(unprocessed_static_schedules) == 1
-
     process_static_tables(db_manager)
 
     # these are the row counts in the parquet files computed in a jupyter
@@ -165,296 +172,84 @@ def test_static_tables(
     assert len(unprocessed_static_schedules) == 0
 
 
-def test_gtfs_rt_processing(db_manager: DatabaseManager) -> None:
+def test_vp_processing(db_manager: DatabaseManager) -> None:
     """
     test that vehicle position and trip updates files can be consumed properly
+    """
+    db_manager.truncate_table(VehicleEvents)
+
+    sql_list = db_manager.select_as_list(
+        sa.select(MetadataLog.path).where(MetadataLog.processed == sa.false())
+    )
+    unprocessed_paths = [
+        o["path"] for o in sql_list if "RT_VEHICLE_POSITIONS" in o["path"]
+    ]
+
+    first_pass = True
+    for path in unprocessed_paths:
+        # check that the path is the right type
+        assert "RT_VEHICLE_POSITIONS" in path
+
+        # check that we can load the parquet file into a dataframe correctly
+        positions = get_vp_dataframe(path)
+        position_size = positions.shape[0]
+        assert positions.shape[1] == 9
+
+        # check that the types can be set correctly
+        positions = transform_vp_dtypes(positions)
+        assert positions.shape[1] == 9
+        assert position_size == positions.shape[0]
+
+        # check that it can be combined with the static schedule
+        positions = join_vp_with_gtfs_static(positions, db_manager)
+        found_keys = positions[positions["fk_static_timestamp"].notna()].shape[
+            0
+        ]
+        assert found_keys != 0
+        assert positions.shape[1] == 11
+        assert position_size == positions.shape[0]
+
+        new_events = transform_vp_timestamps(positions)
+        assert new_events.shape[1] == 13
+        assert new_events.shape[0] < position_size
+
+        new_and_old_events = merge_with_overlapping_events(
+            new_events, db_manager
+        )
+
+        if first_pass:
+            assert new_and_old_events.shape[0] == new_events.shape[0]
+        else:
+            assert new_and_old_events.shape[0] >= new_events.shape[0]
+
+        (update_events, insert_events) = split_events(new_and_old_events)
+
+        update_db_events(update_events, db_manager)
+        insert_db_events(insert_events, db_manager)
+
+        first_pass = False
+
+
+def test_tu_processing(db_manager: DatabaseManager) -> None:
+    """
+    test that trip updates are processed correctly
     """
     sql_list = db_manager.select_as_list(
         sa.select(MetadataLog.path).where(MetadataLog.processed == sa.false())
     )
-    unprocessed_paths = [o["path"] for o in sql_list]
+    unprocessed_paths = [
+        o["path"] for o in sql_list if "RT_TRIP_UPDATES" in o["path"]
+    ]
 
     for path in unprocessed_paths:
-        assert "RT_VEHICLE_POSITIONS" in path or "RT_TRIP_UPDATES" in path
+        trip_updates = get_and_unwrap_tu_dataframe(path)
+        assert trip_updates.shape[1] == 12
 
-    process_vehicle_positions(db_manager)
-    process_trip_updates(db_manager)
-    process_full_trip_events(db_manager)
+        trip_updates = join_tu_with_gtfs_static(trip_updates, db_manager)
+        assert trip_updates.shape[1] == 14
 
-    process_dwell_travel_times(db_manager)
-    process_headways(db_manager)
-
-    with db_manager.session.begin() as session:
-        vp_count = session.query(VehiclePositionEvents).count()
-        assert vp_count > 0
-
-
-def test_l0_vehicle_positions(db_manager: DatabaseManager) -> None:
-    """
-    check that the events vehicle positions table is hitting each of the stops that was found in the source parquet files.
-    """
-    stops_per_trip = {
-        14400: {
-            "in_station_events": [
-                "70063",
-                "70065",
-                "70067",
-                "70069",
-                "70071",
-                "70073",
-                "70075",
-                "70077",
-                "70079",
-                "70081",
-                "70083",
-                "70095",
-                "70097",
-                "70099",
-                "70101",
-                "70103",
-            ],
-            "in_transit_events": [
-                "70063",
-                "70065",
-                "70067",
-                "70069",
-                "70071",
-                "70073",
-                "70075",
-                "70077",
-                "70079",
-                "70081",
-                "70083",
-                "70095",
-                "70097",
-                "70099",
-                "70101",
-                "70103",
-                "70105",
-            ],
-        },
-        18968: {
-            "in_station_events": [
-                "Braintree-01",
-                "70104",
-                "70102",
-                "70100",
-                "70098",
-                "70096",
-                "70084",
-                "70082",
-                "70080",
-                "70078",
-                "70076",
-                "70074",
-                "70072",
-                "70070",
-                "70068",
-                "70066",
-                "70064",
-            ],
-            "in_transit_events": [
-                "70104",
-                "70102",
-                "70100",
-                "70098",
-                "70096",
-                "70084",
-                "70082",
-                "70080",
-                "70078",
-                "70074",
-                "70072",
-                "70070",
-                "70068",
-                "70066",
-                "70064",
-                "70061",
-            ],
-        },
-        19022: {
-            "in_station_events": [
-                "70092",
-                "70090",
-                "70088",
-                "70086",
-                "70084",
-                "70082",
-                "70080",
-                "70078",
-                "70076",
-                "70074",
-                "70072",
-                "70070",
-                "70068",
-                "70066",
-                "70064",
-                "70061",
-            ],
-            "in_transit_events": [
-                "70092",
-                "70090",
-                "70088",
-                "70086",
-                "70084",
-                "70082",
-                "70080",
-                "70078",
-                "70074",
-                "70072",
-                "70070",
-                "70068",
-                "70066",
-                "70064",
-                "70061",
-            ],
-        },
-        18960: {
-            "in_station_events": [
-                "70094",
-                "70092",
-                "70090",
-                "70088",
-                "70086",
-                "70084",
-                "70082",
-                "70080",
-                "70078",
-                "70076",
-                "70074",
-                "70072",
-                "70070",
-                "70068",
-                "70066",
-                "70064",
-                "70061",
-            ],
-            "in_transit_events": [
-                "70094",
-                "70092",
-                "70090",
-                "70088",
-                "70086",
-                "70084",
-                "70082",
-                "70080",
-                "70078",
-                "70074",
-                "70072",
-                "70070",
-                "70068",
-                "70066",
-                "70064",
-                "70061",
-            ],
-        },
-        19398: {
-            "in_station_events": [
-                "70063",
-                "70065",
-                "70067",
-                "70069",
-                "70071",
-                "70073",
-                "70075",
-                "70077",
-                "70079",
-                "70081",
-                "70083",
-                "70085",
-                "70087",
-                "70089",
-                "70091",
-                "70093",
-            ],
-            "in_transit_events": [
-                "70063",
-                "70065",
-                "70067",
-                "70069",
-                "70071",
-                "70073",
-                "70075",
-                "70077",
-                "70079",
-                "70081",
-                "70083",
-                "70085",
-                "70087",
-                "70089",
-                "70091",
-                "70093",
-            ],
-        },
-    }
-
-    for start_time, trip_info in stops_per_trip.items():
-        events = db_manager.select_as_dataframe(
-            sa.select(
-                VehiclePositionEvents.stop_id, VehiclePositionEvents.is_moving
-            ).where(
-                (VehiclePositionEvents.route_id == "Red")
-                & (VehiclePositionEvents.start_time == start_time)
-            )
+        (update_events, insert_events) = merge_tu_with_events(
+            trip_updates, db_manager
         )
 
-        for stop_id in trip_info["in_station_events"]:
-            stop_events = events[events.stop_id == stop_id]
-            stop_events = stop_events[~stop_events.is_moving]
-            assert (
-                len(stop_events) > 0
-            ), f"missing stop event for {start_time} at {stop_id}"
-
-        for stop_id in trip_info["in_transit_events"]:
-            transit_events = events[events.stop_id == stop_id]
-            transit_events = transit_events[transit_events.is_moving]
-            assert (
-                len(transit_events) > 0
-            ), f"missing transit event for {start_time} towards {stop_id}"
-
-
-def test_dwell_time_data(db_manager: DatabaseManager) -> None:
-    """
-    test that dwell times in the performance manager database match values that
-    were precomputed from looking at parquet data
-    """
-    pre_computed_dwell_times = pa.DataFrame(
-        [
-            {"stop_id": "70092", "start_time": 24120, "dwell_time_seconds": 5},
-            {"stop_id": "70092", "start_time": 19177, "dwell_time_seconds": 6},
-            {"stop_id": "70074", "start_time": 19669, "dwell_time_seconds": 10},
-            {"stop_id": "70065", "start_time": 23955, "dwell_time_seconds": 10},
-            # {"stop_id": "70066", "start_time": 18968, "dwell_time": 29},
-            # {"stop_id": "70066", "start_time": 18555, "dwell_time": 36},
-            # {"stop_id": "70070", "start_time": 18960, "dwell_time": 38},
-            # {"stop_id": "70074", "start_time": 22380, "dwell_time": 115},
-        ]
-    )
-
-    computed_dwell_times = db_manager.select_as_dataframe(
-        sa.select(
-            VehiclePositionEvents.stop_id,
-            VehiclePositionEvents.start_time,
-            DwellTimes.dwell_time_seconds,
-        )
-        .join(
-            VehiclePositionEvents,
-            DwellTimes.fk_dwell_time_id == VehiclePositionEvents.pk_id,
-        )
-        .where(
-            (DwellTimes.dwell_time_seconds != 0)
-            & (VehiclePositionEvents.route_id == "Red")
-        )
-        .order_by(
-            VehiclePositionEvents.stop_id, VehiclePositionEvents.start_time
-        )
-    )
-
-    # sort the values and reset the index so that it can be compared against the precomputed dwll times
-    computed_dwell_times = computed_dwell_times.sort_values(
-        by=["dwell_time_seconds", "start_time", "stop_id"]
-    ).reset_index(drop=True)
-
-    pa.testing.assert_frame_equal(
-        pre_computed_dwell_times, computed_dwell_times, check_like=True
-    )
+        update_and_insert_db_events(update_events, insert_events, db_manager)

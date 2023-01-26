@@ -1,27 +1,20 @@
-from typing import (
-    Optional,
-    Union,
-    List,
-    Dict,
-    Any,
-    Iterator,
-)
-
 import pathlib
-import pandas
-import numpy
+from typing import Any, Dict, Iterator, List, Optional, Union
 
+import numpy
+import pandas
 import sqlalchemy as sa
 
-from .gtfs_utils import start_time_to_seconds, add_event_hash_column
+from .gtfs_utils import add_event_hash_column, start_time_to_seconds
 from .logging_utils import ProcessLogger
 from .postgres_schema import (
-    TripUpdateEvents,
     MetadataLog,
     StaticFeedInfo,
     StaticStops,
+    TempHashCompare,
+    VehicleEvents,
 )
-from .postgres_utils import get_unprocessed_files, DatabaseManager
+from .postgres_utils import DatabaseManager, get_unprocessed_files
 from .s3_utils import read_parquet_chunks
 
 
@@ -103,7 +96,7 @@ def explode_stop_time_update(
             {
                 "stop_id": record.get("stop_id"),
                 "stop_sequence": record.get("stop_sequence"),
-                "timestamp_start": arrival_time,
+                "tu_stop_timestamp": arrival_time,
             }
         )
         return_list.append(append_dict.copy())
@@ -137,10 +130,10 @@ def get_and_unwrap_tu_dataframe(
             batch_events["start_date"]
         ).astype("int64")
 
-        # store direction_id as int64
+        # store direction_id as int
         batch_events["direction_id"] = pandas.to_numeric(
             batch_events["direction_id"]
-        ).astype("int8")
+        ).astype("int64")
 
         # store start_time as seconds from start of day int64
         batch_events["start_time"] = (
@@ -169,15 +162,14 @@ def get_and_unwrap_tu_dataframe(
     # transform Series of list of dicts into dataframe
     events = pandas.json_normalize(events.explode())
 
-    # is_moving column to indicate all stop events
-    # needed for later join with vehicle_position_event by hash
-    events["is_moving"] = False
     events["pk_id"] = None
+    events["vp_move_timestamp"] = None
+    events["vp_stop_timestamp"] = None
 
     return events
 
 
-def join_gtfs_static(
+def join_tu_with_gtfs_static(
     trip_updates: pandas.DataFrame, db_manager: DatabaseManager
 ) -> pandas.DataFrame:
     """
@@ -186,13 +178,15 @@ def join_gtfs_static(
     adds "fk_static_timestamp" and "parent_station" columns to dataframe
     """
     # get unique "start_date" values from trip update dataframe
-    # with associated minimum "timestamp_start"
-    date_groups = trip_updates.groupby(by="start_date")["timestamp_start"].min()
+    # with associated minimum "tu_stop_timestamp"
+    date_groups = trip_updates.groupby(by="start_date")[
+        "tu_stop_timestamp"
+    ].min()
 
     # pylint: disable=duplicate-code
     # TODO(ryan): the following code is duplicated in rt_vehicle_positions.py
 
-    # dictionary used to match minimum "timestamp_start" values to
+    # dictionary used to match minimum "tu_stop_timestamp" values to
     # "timestamp" from StaticFeedInfo table, to be used as foreign key
     timestamp_lookup = {}
     for (date, min_timestamp) in date_groups.iteritems():
@@ -200,7 +194,7 @@ def join_gtfs_static(
         min_timestamp = int(min_timestamp)
         # "start_date" from trip updates must be between "feed_start_date"
         # and "feed_end_date" in StaticFeedInfo
-        # minimum "timestamp_start" must also be less than "timestamp" from
+        # minimum "tu_stop_timestamp" must also be less than "timestamp" from
         # StaticFeedInfo, order by "timestamp" descending and limit to 1 result
         # this should deal with multiple static schedules with possible
         # overlapping times of applicability
@@ -233,7 +227,7 @@ def join_gtfs_static(
     # loop is to handle batches vehicle position batches that are applicable to
     # overlapping static gtfs data
     for min_timestamp in sorted(timestamp_lookup.keys()):
-        timestamp_mask = trip_updates["timestamp_start"] >= min_timestamp
+        timestamp_mask = trip_updates["tu_stop_timestamp"] >= min_timestamp
         trip_updates.loc[
             timestamp_mask, "fk_static_timestamp"
         ] = timestamp_lookup[min_timestamp]
@@ -265,129 +259,128 @@ def join_gtfs_static(
     return trip_updates
 
 
-def hash_events(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
+def merge_tu_with_events(
+    trip_updates: pandas.DataFrame, db_manager: DatabaseManager
+) -> tuple[pandas.DataFrame, pandas.DataFrame]:
     """
-    hash category columns of rows and return data frame with "hash" column
-    """
-    # add hash column, hash should be consistent across trip_update and
-    # vehicle_position events
-    trip_updates = add_event_hash_column(trip_updates).sort_values(
-        by=["hash", "timestamp"]
-    )
-
-    # after sort, drop all duplicates by hash, keep last record
-    # last record will be most recent arrival time prediction for event
-    trip_updates = trip_updates.drop_duplicates(subset=["hash"], keep="last")
-
-    # after hash and sort, "timestamp" and "parent_station" no longer needed
-    trip_updates = trip_updates.drop(columns=["timestamp", "parent_station"])
-
-    return trip_updates
-
-
-def merge_trip_update_events(  # pylint: disable=too-many-locals
-    new_events: pandas.DataFrame, session: sa.orm.session.sessionmaker
-) -> None:
-    """
-    merge new trip update evetns with existing events found in database
-    merge performed on hash of records
+    * add in the "trip_stop_hash" into trip updates and reduce the data
+      frame to a single record per trip / stop.
+    * merge these trip updates with existing vehicle events
+    * split the merged trip updates into new vehicle events to be inserted
+      and old vehicle events that need to be updated
     """
     process_logger = ProcessLogger("tu_merge_events")
     process_logger.log_start()
 
-    hash_list = new_events["hash"].tolist()
-    get_db_events = sa.select(
-        (
-            TripUpdateEvents.pk_id,
-            TripUpdateEvents.hash,
-            TripUpdateEvents.timestamp_start,
+    # add trip_stop_hash column that is unique to a trip and station
+    trip_updates = add_event_hash_column(
+        trip_updates,
+        hash_column_name="trip_stop_hash",
+        expected_hash_columns=[
+            "stop_sequence",
+            "parent_station",
+            "direction_id",
+            "route_id",
+            "start_date",
+            "start_time",
+            "vehicle_id",
+        ],
+    )
+
+    # sort all trip updates by reverse timestamp, then drop all of the updates
+    # for the same trip and same station but the first one. the first update will
+    # be the most recent arrival time prediction
+    trip_updates = trip_updates.sort_values(by=["timestamp"], ascending=False)
+    trip_updates = trip_updates.drop_duplicates(
+        subset=["trip_stop_hash"], keep="first"
+    )
+
+    # after hash and sort, "timestamp" longer needed
+    trip_updates = trip_updates.drop(columns=["timestamp"])
+
+    # remove everything from the temporary hash table and inser the trip stop
+    # hashes from the new events
+    db_manager.truncate_table(TempHashCompare)
+    db_manager.execute_with_data(
+        sa.insert(TempHashCompare.__table__), trip_updates[["trip_stop_hash"]]
+    )
+
+    # pull existing vehicle events out of the database that match these trip
+    # stop hashes
+    existing_events = db_manager.select_as_dataframe(
+        sa.select(
+            VehicleEvents.pk_id,
+            VehicleEvents.trip_stop_hash,
+            VehicleEvents.tu_stop_timestamp,
+        ).join(
+            TempHashCompare,
+            TempHashCompare.trip_stop_hash == VehicleEvents.trip_stop_hash,
         )
-    ).where(TripUpdateEvents.hash.in_(hash_list))
-
-    with session.begin() as curosr:
-        merge_events = pandas.concat(
-            [
-                pandas.DataFrame(
-                    [r._asdict() for r in curosr.execute(get_db_events)]
-                ),
-                new_events,
-            ]
-        ).sort_values(by=["hash", "timestamp_start"])
-
-    # pylint: disable=duplicate-code
-    # TODO(zap): the following code is duplicated in rt_vehicle_positions.py
-
-    # Identify records that are continuing from existing db
-    # If such records are found, update timestamp_end with latest value
-    first_of_consecutive_events = merge_events["hash"] == merge_events[
-        "hash"
-    ].shift(-1)
-    last_of_consecutive_events = merge_events["hash"] == merge_events[
-        "hash"
-    ].shift(1)
-
-    merge_events["timestamp_start"] = numpy.where(
-        first_of_consecutive_events,
-        merge_events["timestamp_start"].shift(-1),
-        merge_events["timestamp_start"],
     )
 
-    existing_was_updated_mask = (
-        ~(merge_events["pk_id"].isna()) & first_of_consecutive_events
-    )
+    update_events = pandas.DataFrame()
+    insert_events = pandas.DataFrame()
 
-    existing_to_del_mask = (
-        ~(merge_events["pk_id"].isna()) & last_of_consecutive_events
-    )
-
-    # new events that will be inserted into db table
-    new_to_insert_mask = (
-        merge_events["pk_id"].isna()
-    ) & ~last_of_consecutive_events
-
-    # add counts to process logger metadata
-    process_logger.add_metadata(
-        updated_count=existing_was_updated_mask.sum(),
-        deleted_count=existing_to_del_mask.sum(),
-        inserted_count=new_to_insert_mask.sum(),
-    )
-    # pylint: enable=duplicate-code
-
-    # DB UPDATE operation
-    if existing_was_updated_mask.sum() > 0:
-        update_db_events = sa.update(TripUpdateEvents.__table__).where(
-            TripUpdateEvents.pk_id == sa.bindparam("b_pk_id")
+    if existing_events.shape[0] == 0:
+        # if no existing events, all trip updates are inserted
+        insert_events = trip_updates
+    else:
+        # merge the trip updates with the existing events on the trip stop
+        # hash to get all of the events that need to be updated
+        update_events = pandas.merge(
+            trip_updates.drop(columns=["pk_id"]),
+            existing_events[["pk_id", "trip_stop_hash"]],
+            how="inner",
+            on="trip_stop_hash",
         )
-        with session.begin() as cursor:
-            cursor.execute(
-                update_db_events,
-                merge_events.rename(columns={"pk_id": "b_pk_id"})
-                .loc[existing_was_updated_mask, ["b_pk_id", "timestamp_start"]]
-                .to_dict(orient="records"),
-            )
 
-    # DB DELETE operation
-    if existing_to_del_mask.sum() > 0:
-        delete_db_events = sa.delete(TripUpdateEvents.__table__).where(
-            TripUpdateEvents.pk_id.in_(
-                merge_events.loc[existing_to_del_mask, "pk_id"]
+        # new events are trip updates whose hash is not in existing events
+        insert_events = trip_updates[
+            ~trip_updates["trip_stop_hash"].isin(
+                existing_events["trip_stop_hash"]
             )
+        ]
+
+    return (update_events, insert_events)
+
+
+def update_and_insert_db_events(
+    update_events: pandas.DataFrame,
+    insert_events: pandas.DataFrame,
+    db_manager: DatabaseManager,
+) -> None:
+    """insert a dataframe of events into the vehicle events table"""
+
+    update_cols = [
+        "pk_id",
+        "tu_stop_timestamp",
+    ]
+
+    if update_events.shape[0] > 0:
+        db_manager.execute_with_data(
+            sa.update(VehicleEvents.__table__).where(
+                VehicleEvents.pk_id == sa.bindparam("b_pk_id")
+            ),
+            update_events[update_cols].rename(columns={"pk_id": "b_pk_id"}),
         )
-        with session.begin() as cursor:
-            cursor.execute(delete_db_events)
 
-    # DB INSERT operation
-    if new_to_insert_mask.sum() > 0:
-        insert_cols = list(set(merge_events.columns) - {"pk_id"})
-        with session.begin() as cursor:
-            cursor.execute(
-                sa.insert(TripUpdateEvents.__table__),
-                merge_events.loc[new_to_insert_mask, insert_cols].to_dict(
-                    orient="records"
-                ),
-            )
+    insert_cols = [
+        "direction_id",
+        "route_id",
+        "start_date",
+        "start_time",
+        "vehicle_id",
+        "stop_sequence",
+        "stop_id",
+        "trip_stop_hash",
+        "tu_stop_timestamp",
+        "fk_static_timestamp",
+    ]
 
-    process_logger.log_complete()
+    if insert_events.shape[0] > 0:
+        db_manager.execute_with_data(
+            sa.insert(VehicleEvents.__table__), insert_events[insert_cols]
+        )
 
 
 def process_trip_updates(db_manager: DatabaseManager) -> None:
@@ -422,19 +415,24 @@ def process_trip_updates(db_manager: DatabaseManager) -> None:
         try:
             sizes = {}
 
-            new_events = get_and_unwrap_tu_dataframe(paths)
-            new_events_records = new_events.shape[0]
+            trip_updates = get_and_unwrap_tu_dataframe(paths)
+            new_events_records = trip_updates.shape[0]
             sizes["merge_events_count"] = new_events_records
 
             # skip processing if no new records in file
             if new_events_records > 0:
-                new_events = join_gtfs_static(new_events, db_manager)
+                trip_updates = join_tu_with_gtfs_static(
+                    trip_updates, db_manager
+                )
 
-                new_events = hash_events(new_events)
+                (update_events, insert_events) = merge_tu_with_events(
+                    trip_updates, db_manager
+                )
 
-                merge_trip_update_events(
-                    new_events=new_events,
-                    session=db_manager.get_session(),
+                update_and_insert_db_events(
+                    update_events,
+                    insert_events,
+                    db_manager,
                 )
 
             subprocess_logger.add_metadata(**sizes)

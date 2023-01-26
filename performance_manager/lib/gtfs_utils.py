@@ -1,14 +1,14 @@
-from typing import Optional, Sequence
 import hashlib
+from typing import Optional, Sequence
+
 import numpy
 import pandas
 
 
 def add_event_hash_column(
     df_to_hash: pandas.DataFrame,
-    hash_column_name: str = "hash",
+    hash_column_name: str = "stop_hash",
     expected_hash_columns: Sequence[str] = (
-        "is_moving",
         "stop_sequence",
         "parent_station",
         "direction_id",
