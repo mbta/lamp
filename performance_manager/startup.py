@@ -12,8 +12,7 @@ from lib import (
     DatabaseManager,
     ProcessLogger,
     process_static_tables,
-    process_trip_updates,
-    process_vehicle_positions,
+    process_gtfs_rt_files,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -134,8 +133,7 @@ def main(args: argparse.Namespace) -> None:
 
         try:
             process_static_tables(db_manager)
-            process_vehicle_positions(db_manager)
-            process_trip_updates(db_manager)
+            process_gtfs_rt_files(db_manager)
 
             process_logger.log_complete()
         except Exception as exception:

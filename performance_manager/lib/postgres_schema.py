@@ -20,19 +20,20 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     pk_id = sa.Column(sa.Integer, primary_key=True)
 
     # trip identifiers
-    direction_id = sa.Column(sa.SmallInteger, nullable=True)
-    route_id = sa.Column(sa.String(60), nullable=True)
-    start_date = sa.Column(sa.Integer, nullable=True)
-    start_time = sa.Column(sa.Integer, nullable=True)
+    direction_id = sa.Column(sa.Boolean, nullable=False)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    start_date = sa.Column(sa.Integer, nullable=False)
+    start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
 
     # stop identifiers
-    stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
-    stop_id = sa.Column(sa.String(60), nullable=True)
+    stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
+    stop_id = sa.Column(sa.String(60), nullable=False)
+    parent_station = sa.Column(sa.String(60), nullable=False)
 
     # hash of trip and stop identifiers
     trip_stop_hash = sa.Column(
-        sa.LargeBinary(16), nullable=False, index=True, unique=False
+        sa.LargeBinary(16), nullable=False, index=True, unique=True
     )
 
     # event timestamps used for metrics
@@ -56,30 +57,6 @@ class TempHashCompare(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "temp_hash_compare"
 
     trip_stop_hash = sa.Column(sa.LargeBinary(16), primary_key=True)
-
-
-class PerformanceMetrics(SqlBase):  # pylint: disable=too-few-public-methods
-    """Table for loading new Level-2 headways"""
-
-    __tablename__ = "loadHeadways"
-
-    fk_trip_event_hash = sa.Column(
-        sa.LargeBinary(16),
-        nullable=False,
-        primary_key=True,
-    )
-    fk_vp_stopped_event = sa.Column(
-        sa.Integer,
-        nullable=True,
-    )
-    fk_tu_stopped_event = sa.Column(
-        sa.Integer,
-        nullable=True,
-    )
-    headway_seconds = sa.Column(
-        sa.Integer,
-        nullable=True,
-    )
 
 
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods

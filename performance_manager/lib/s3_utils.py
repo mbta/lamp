@@ -21,17 +21,9 @@ def _get_pyarrow_table(
     active_fs = fs.S3FileSystem()
 
     if isinstance(filename, list):
-        if filename[0].startswith("s3://"):
-            to_load = [f.replace("s3://", "") for f in filename]
-        else:
-            active_fs = fs.LocalFileSystem()
-            to_load = filename
+        to_load = [f.replace("s3://", "") for f in filename]
     else:
-        if filename.startswith("s3://"):
-            to_load = [filename.replace("s3://", "")]
-        else:
-            active_fs = fs.LocalFileSystem()
-            to_load = [filename]
+        to_load = [filename.replace("s3://", "")]
 
     # using `read_pandas` because `read` with "columns" parameter results in
     # much slower file downloads for some reason...

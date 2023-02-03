@@ -1,26 +1,30 @@
 import logging
 import os
-from typing import Iterator, List
+from functools import lru_cache
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
+import pyarrow
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
+from pyarrow import fs, parquet
 from lib import process_static_tables
+from lib.l0_gtfs_rt_events import (
+    combine_events,
+    get_gtfs_rt_paths,
+    process_gtfs_rt_files,
+    upload_to_database,
+)
 from lib.l0_rt_trip_updates import (
     get_and_unwrap_tu_dataframe,
     join_tu_with_gtfs_static,
-    merge_tu_with_events,
-    update_and_insert_db_events,
+    reduce_trip_updates,
 )
 from lib.l0_rt_vehicle_positions import (
     get_vp_dataframe,
-    insert_db_events,
     join_vp_with_gtfs_static,
-    merge_with_overlapping_events,
-    split_events,
-    transform_vp_dtypes,
+    transform_vp_datatypes,
     transform_vp_timestamps,
-    update_db_events,
 )
 from lib.postgres_schema import (
     MetadataLog,
@@ -35,6 +39,23 @@ from lib.postgres_utils import DatabaseManager
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAMP_DIR = os.path.join(HERE, "test_files", "lamp")
+
+
+@lru_cache
+def test_files() -> List[str]:
+    """
+    collaps all of the files in the lamp test files dir into a list
+    """
+    paths = []
+
+    for root, _, files in os.walk(LAMP_DIR):
+        for file in files:
+            if "DS_Store" in file:
+                continue
+            paths.append(os.path.join(root, file))
+
+    paths.sort()
+    return paths
 
 
 def set_env_vars() -> None:
@@ -64,54 +85,15 @@ def fixture_db_manager() -> DatabaseManager:
     generate a database manager for all of our tests
     """
     set_env_vars()
-    return DatabaseManager()
+    db_manager = DatabaseManager()
+    return db_manager
 
 
-@pytest.fixture(autouse=True, scope="module", name="add_files")
-def fixture_add_files(db_manager: DatabaseManager) -> Iterator[None]:
+@pytest.fixture(autouse=True, name="s3_patch")
+def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     """
-    seed the files in our test files filesystem into the metadata tablPae
-    """
-    metadata_rows = 0
-    with db_manager.session.begin() as session:
-        metadata_rows = session.query(MetadataLog).count()
-
-    if metadata_rows != 0:
-        yield
-    else:
-
-        paths = []
-
-        for root, _, files in os.walk(LAMP_DIR):
-            for file in files:
-                if "DS_Store" in file:
-                    continue
-                path = os.path.join(root, file)
-                if "FEED_INFO" in path:
-                    paths.append(path)
-                elif (
-                    "RT_VEHICLE_POSITIONS" in path or "RT_TRIP_UPDATES" in path
-                ):
-                    if "hour=10" in path or "hour=11" in path:
-                        paths.append(path)
-
-        logging.info("Seeding %s paths", len(paths))
-
-        paths.sort()
-
-        with db_manager.session.begin() as session:
-            session.execute(
-                sa.insert(MetadataLog.__table__), [{"path": p} for p in paths]
-            )
-
-            yield
-
-
-def test_static_tables(
-    db_manager: DatabaseManager, monkeypatch: MonkeyPatch
-) -> None:
-    """
-    test that static schedule files are loaded correctly into our db
+    insert a monkeypatch over s3 related functions. our tests use local
+    files instead of s3, so we read these files differently
     """
 
     def mock_get_static_parquet_paths(
@@ -121,16 +103,115 @@ def test_static_tables(
         instead of mocking up s3 responses, just rewrite this method and
         monkeypatch it
         """
-        logging.debug("input %s", feed_info_path)
+        logging.debug(
+            "Mock Static Parquet Paths table_type=%s, feed_info_path=%s",
+            table_type,
+            feed_info_path,
+        )
         table_dir = feed_info_path.replace("FEED_INFO", table_type)
         files = [os.path.join(table_dir, f) for f in os.listdir(table_dir)]
-        logging.debug("Mock Static Parquet Paths: %s", files)
+        logging.debug("Mock Static Parquet Paths return%s", files)
         return files
 
     monkeypatch.setattr(
         "lib.l0_gtfs_static_table.get_static_parquet_paths",
         mock_get_static_parquet_paths,
     )
+
+    def mock__get_pyarrow_table(
+        filename: Union[str, List[str]],
+        filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
+    ) -> pyarrow.Table:
+        logging.debug(
+            "Mock Get Pyarrow Table filename=%s, filters=%s", filename, filters
+        )
+        active_fs = fs.LocalFileSystem()
+
+        if isinstance(filename, list):
+            to_load = filename
+        else:
+            to_load = [filename]
+
+        if len(to_load) == 0:
+            return pyarrow.Table.from_pydict({})
+
+        return parquet.ParquetDataset(
+            to_load, filesystem=active_fs, filters=filters
+        ).read_pandas()
+
+    monkeypatch.setattr(
+        "lib.s3_utils._get_pyarrow_table", mock__get_pyarrow_table
+    )
+    yield
+
+
+def check_logs(caplog: pytest.LogCaptureFixture) -> None:
+    """
+    utility to check that all logged statements were properly formatted, no
+    errors were reported, and that all processes had a log start and log complete.
+    """
+
+    def message_to_dict(message: str) -> Dict[str, str]:
+        """convert our log messages into dict of properties"""
+        message_dict = {}
+
+        for part in message.replace(",", "").split(" "):
+            try:
+                (key, value) = part.split("=", 1)
+                message_dict[key] = value
+            except Exception as exception:
+                pytest.fail(
+                    f"Unable to parse log message {message}. Reason {exception}"
+                )
+        return message_dict
+
+    # keep track of logged processes to ensure order is correct
+    process_stack: List[Dict[str, str]] = []
+
+    for record in caplog.records:
+        # if the record was an Error Level, fail immediately
+        if record.levelname == "ERROR":
+            pytest.fail(f"Error messages encountered {record.message}")
+
+        # skip debug level logs
+        if record.levelname == "DEBUG":
+            continue
+
+        log = message_to_dict(record.message)
+
+        # check for keys that must be present
+        must_keys = ["status", "uuid", "parent", "process_id", "process_name"]
+        for key in must_keys:
+            if key not in log:
+                pytest.fail(f"Log missing {key} key - {record.message}")
+
+        # process the record, ensuring proper ordering
+        if log["status"] == "complete":
+            # process should be at the end of the stack
+            if process_stack[-1]["uuid"] != log["uuid"]:
+                pytest.fail(
+                    f"Improper Ordering of Log Statements {caplog.text}"
+                )
+            if "duration" not in log:
+                pytest.fail(f"Log missing duration key - {record.message}")
+            process_stack.pop()
+        elif log["status"] == "started":
+            process_stack.append(log)
+
+    if len(process_stack) != 0:
+        pytest.fail(f"Not all processes logged completion {caplog.text}")
+
+
+def test_static_tables(
+    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+) -> None:
+    """
+    test that static schedule files are loaded correctly into our db
+    """
+    caplog.set_level(logging.INFO)
+
+    paths = [file for file in test_files() if "FEED_INFO" in file]
+    db_manager.add_metadata_paths(paths)
 
     unprocessed_static_schedules = db_manager.select_as_list(
         sa.select(MetadataLog.path).where(
@@ -171,85 +252,155 @@ def test_static_tables(
 
     assert len(unprocessed_static_schedules) == 0
 
+    check_logs(caplog)
 
-def test_vp_processing(db_manager: DatabaseManager) -> None:
+
+def test_gtfs_rt_processing(
+    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+) -> None:
     """
     test that vehicle position and trip updates files can be consumed properly
     """
+    caplog.set_level(logging.INFO)
     db_manager.truncate_table(VehicleEvents)
 
-    sql_list = db_manager.select_as_list(
-        sa.select(MetadataLog.path).where(MetadataLog.processed == sa.false())
+    db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
+        )
     )
-    unprocessed_paths = [
-        o["path"] for o in sql_list if "RT_VEHICLE_POSITIONS" in o["path"]
-    ]
 
-    first_pass = True
-    for path in unprocessed_paths:
-        # check that the path is the right type
-        assert "RT_VEHICLE_POSITIONS" in path
+    paths = [
+        file
+        for file in test_files()
+        if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file)
+        and ("hour=10" in file or "hour=11" in file)
+    ]
+    db_manager.add_metadata_paths(paths)
+
+    grouped_files = get_gtfs_rt_paths(db_manager)
+
+    for files in grouped_files:
+        for path in files["vp_paths"]:
+            assert "RT_VEHICLE_POSITIONS" in path
 
         # check that we can load the parquet file into a dataframe correctly
-        positions = get_vp_dataframe(path)
+        positions = get_vp_dataframe(files["vp_paths"])
         position_size = positions.shape[0]
         assert positions.shape[1] == 9
 
         # check that the types can be set correctly
-        positions = transform_vp_dtypes(positions)
+        positions = transform_vp_datatypes(positions)
         assert positions.shape[1] == 9
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
         positions = join_vp_with_gtfs_static(positions, db_manager)
-        found_keys = positions[positions["fk_static_timestamp"].notna()].shape[
-            0
-        ]
-        assert found_keys != 0
         assert positions.shape[1] == 11
         assert position_size == positions.shape[0]
 
-        new_events = transform_vp_timestamps(positions)
-        assert new_events.shape[1] == 13
-        assert new_events.shape[0] < position_size
+        positions = transform_vp_timestamps(positions)
+        assert positions.shape[1] == 12
+        assert positions.shape[0] < position_size
 
-        new_and_old_events = merge_with_overlapping_events(
-            new_events, db_manager
-        )
-
-        if first_pass:
-            assert new_and_old_events.shape[0] == new_events.shape[0]
-        else:
-            assert new_and_old_events.shape[0] >= new_events.shape[0]
-
-        (update_events, insert_events) = split_events(new_and_old_events)
-
-        update_db_events(update_events, db_manager)
-        insert_db_events(insert_events, db_manager)
-
-        first_pass = False
-
-
-def test_tu_processing(db_manager: DatabaseManager) -> None:
-    """
-    test that trip updates are processed correctly
-    """
-    sql_list = db_manager.select_as_list(
-        sa.select(MetadataLog.path).where(MetadataLog.processed == sa.false())
-    )
-    unprocessed_paths = [
-        o["path"] for o in sql_list if "RT_TRIP_UPDATES" in o["path"]
-    ]
-
-    for path in unprocessed_paths:
-        trip_updates = get_and_unwrap_tu_dataframe(path)
-        assert trip_updates.shape[1] == 12
+        trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"])
+        trip_update_size = trip_updates.shape[0]
+        assert trip_updates.shape[1] == 9
 
         trip_updates = join_tu_with_gtfs_static(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 14
+        assert trip_updates.shape[1] == 11
+        assert trip_update_size == trip_updates.shape[0]
 
-        (update_events, insert_events) = merge_tu_with_events(
-            trip_updates, db_manager
+        trip_updates = reduce_trip_updates(trip_updates)
+        assert trip_update_size > trip_updates.shape[0]
+
+        events = combine_events(positions, trip_updates)
+
+        ve_columns = [c.key for c in VehicleEvents.__table__.columns]
+        expected_columns = set(ve_columns) - {"pk_id", "updated_on"}
+        assert len(expected_columns) == len(events.columns)
+
+        missing_columns = set(events.columns) - expected_columns
+        assert len(missing_columns) == 0
+
+        upload_to_database(events, db_manager)
+
+    check_logs(caplog)
+
+
+def test_vp_only(
+    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+) -> None:
+    """
+    test the vehicle positions can be updated without trip updates
+    """
+    caplog.set_level(logging.INFO)
+
+    db_manager.truncate_table(VehicleEvents)
+    db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
+    )
 
-        update_and_insert_db_events(update_events, insert_events, db_manager)
+    paths = [
+        p
+        for p in test_files()
+        if "RT_VEHICLE_POSITIONS" in p and ("hourt=10" in p or "hour=11" in p)
+    ]
+    db_manager.add_metadata_paths(paths)
+
+    process_gtfs_rt_files(db_manager)
+
+    check_logs(caplog)
+
+
+def test_tu_only(
+    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+) -> None:
+    """
+    test the trip updates can be processed without vehicle positions
+    """
+    caplog.set_level(logging.INFO)
+
+    db_manager.truncate_table(VehicleEvents)
+    db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
+        )
+    )
+
+    paths = [
+        p
+        for p in test_files()
+        if "RT_TRIP_UPDATES" in p and ("hourt=10" in p or "hour=11" in p)
+    ]
+
+    db_manager.add_metadata_paths(paths)
+
+    process_gtfs_rt_files(db_manager)
+
+    check_logs(caplog)
+
+
+def test_vp_and_tu(
+    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+) -> None:
+    """
+    test that vehicle positions and trip updates can be processed together
+    """
+    caplog.set_level(logging.INFO)
+
+    db_manager.truncate_table(VehicleEvents)
+    db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
+        )
+    )
+
+    paths = [p for p in test_files() if "hourt=10" in p or "hour=11" in p]
+    db_manager.add_metadata_paths(paths)
+
+    process_gtfs_rt_files(db_manager)
+
+    check_logs(caplog)
