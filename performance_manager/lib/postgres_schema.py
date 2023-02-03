@@ -29,6 +29,7 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     # stop identifiers
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=True)
+    parent_station = sa.Column(sa.String(60), nullable=True)
 
     # hash of trip and stop identifiers
     trip_stop_hash = sa.Column(

@@ -2,25 +2,26 @@ import logging
 import os
 from typing import Iterator, List
 
+import pandas
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from lib import process_static_tables
+from lib.l0_gtfs_rt_events import (
+    collapse_events,
+    get_gtfs_rt_paths,
+    upload_to_database,
+)
 from lib.l0_rt_trip_updates import (
     get_and_unwrap_tu_dataframe,
     join_tu_with_gtfs_static,
-    merge_tu_with_events,
-    update_and_insert_db_events,
+    reduce_trip_updates,
 )
 from lib.l0_rt_vehicle_positions import (
     get_vp_dataframe,
-    insert_db_events,
     join_vp_with_gtfs_static,
-    merge_with_overlapping_events,
-    split_events,
     transform_vp_dtypes,
     transform_vp_timestamps,
-    update_db_events,
 )
 from lib.postgres_schema import (
     MetadataLog,
@@ -64,7 +65,8 @@ def fixture_db_manager() -> DatabaseManager:
     generate a database manager for all of our tests
     """
     set_env_vars()
-    return DatabaseManager()
+    db_manager = DatabaseManager()
+    return db_manager
 
 
 @pytest.fixture(autouse=True, scope="module", name="add_files")
@@ -104,7 +106,7 @@ def fixture_add_files(db_manager: DatabaseManager) -> Iterator[None]:
                 sa.insert(MetadataLog.__table__), [{"path": p} for p in paths]
             )
 
-            yield
+        yield
 
 
 def test_static_tables(
@@ -172,26 +174,22 @@ def test_static_tables(
     assert len(unprocessed_static_schedules) == 0
 
 
-def test_vp_processing(db_manager: DatabaseManager) -> None:
+def test_gtfs_rt_processing(db_manager: DatabaseManager) -> None:
     """
     test that vehicle position and trip updates files can be consumed properly
     """
     db_manager.truncate_table(VehicleEvents)
 
-    sql_list = db_manager.select_as_list(
-        sa.select(MetadataLog.path).where(MetadataLog.processed == sa.false())
-    )
-    unprocessed_paths = [
-        o["path"] for o in sql_list if "RT_VEHICLE_POSITIONS" in o["path"]
-    ]
+    grouped_files = get_gtfs_rt_paths(db_manager)
+    assert len(grouped_files) == 2
 
-    first_pass = True
-    for path in unprocessed_paths:
-        # check that the path is the right type
-        assert "RT_VEHICLE_POSITIONS" in path
+    for files in grouped_files:
+        vp_files = files["vp_paths"]
+        for path in files["vp_paths"]:
+            assert "RT_VEHICLE_POSITIONS" in path
 
         # check that we can load the parquet file into a dataframe correctly
-        positions = get_vp_dataframe(path)
+        positions = get_vp_dataframe(vp_files)
         position_size = positions.shape[0]
         assert positions.shape[1] == 9
 
@@ -202,54 +200,46 @@ def test_vp_processing(db_manager: DatabaseManager) -> None:
 
         # check that it can be combined with the static schedule
         positions = join_vp_with_gtfs_static(positions, db_manager)
-        found_keys = positions[positions["fk_static_timestamp"].notna()].shape[
-            0
-        ]
-        assert found_keys != 0
         assert positions.shape[1] == 11
         assert position_size == positions.shape[0]
 
-        new_events = transform_vp_timestamps(positions)
-        assert new_events.shape[1] == 13
-        assert new_events.shape[0] < position_size
+        positions = transform_vp_timestamps(positions)
+        assert positions.shape[1] == 13
+        assert positions.shape[0] < position_size
 
-        new_and_old_events = merge_with_overlapping_events(
-            new_events, db_manager
-        )
-
-        if first_pass:
-            assert new_and_old_events.shape[0] == new_events.shape[0]
-        else:
-            assert new_and_old_events.shape[0] >= new_events.shape[0]
-
-        (update_events, insert_events) = split_events(new_and_old_events)
-
-        update_db_events(update_events, db_manager)
-        insert_db_events(insert_events, db_manager)
-
-        first_pass = False
-
-
-def test_tu_processing(db_manager: DatabaseManager) -> None:
-    """
-    test that trip updates are processed correctly
-    """
-    sql_list = db_manager.select_as_list(
-        sa.select(MetadataLog.path).where(MetadataLog.processed == sa.false())
-    )
-    unprocessed_paths = [
-        o["path"] for o in sql_list if "RT_TRIP_UPDATES" in o["path"]
-    ]
-
-    for path in unprocessed_paths:
-        trip_updates = get_and_unwrap_tu_dataframe(path)
+        tu_files = files["tu_paths"]
+        trip_updates = get_and_unwrap_tu_dataframe(tu_files)
+        trip_update_size = trip_updates.shape[0]
         assert trip_updates.shape[1] == 12
 
         trip_updates = join_tu_with_gtfs_static(trip_updates, db_manager)
         assert trip_updates.shape[1] == 14
+        assert trip_update_size == trip_updates.shape[0]
 
-        (update_events, insert_events) = merge_tu_with_events(
-            trip_updates, db_manager
-        )
+        trip_updates = reduce_trip_updates(trip_updates)
+        assert trip_update_size > trip_updates.shape[0]
 
-        update_and_insert_db_events(update_events, insert_events, db_manager)
+        events = collapse_events(positions, trip_updates)
+
+        expected_columns = {
+            "pk_id",
+            "direction_id",
+            "route_id",
+            "start_date",
+            "start_time",
+            "vehicle_id",
+            "stop_sequence",
+            "stop_id",
+            "parent_station",
+            "trip_stop_hash",
+            "vp_move_timestamp",
+            "vp_stop_timestamp",
+            "tu_stop_timestamp",
+            "fk_static_timestamp",
+        }
+        actual_columns = set(events.columns)
+        missing_columns = actual_columns - expected_columns
+        assert len(missing_columns) == 0
+
+        upload_to_database(events, db_manager)
+        break

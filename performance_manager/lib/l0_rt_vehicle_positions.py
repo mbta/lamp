@@ -1,4 +1,3 @@
-import pathlib
 from typing import List, Union
 
 import numpy
@@ -7,14 +6,8 @@ import sqlalchemy as sa
 
 from .gtfs_utils import add_event_hash_column, start_time_to_seconds
 from .logging_utils import ProcessLogger
-from .postgres_schema import (
-    MetadataLog,
-    StaticFeedInfo,
-    StaticStops,
-    TempHashCompare,
-    VehicleEvents,
-)
-from .postgres_utils import DatabaseManager, get_unprocessed_files
+from .postgres_schema import StaticFeedInfo, StaticStops
+from .postgres_utils import DatabaseManager
 from .s3_utils import read_parquet
 
 
@@ -102,6 +95,9 @@ def join_vp_with_gtfs_static(
 
     adds "fk_static_timestamp" and "parent_station" columns to dataframe
     """
+    process_logger = ProcessLogger("join_vp_with_gtfs_static")
+    process_logger.log_start()
+
     # get unique "start_date" values from vehicle position dataframe
     # with associated minimum "vehicle_timestamp"
     date_groups = vehicle_positions.groupby(by="start_date")[
@@ -176,6 +172,7 @@ def join_vp_with_gtfs_static(
         vehicle_positions["parent_station"],
     )
 
+    process_logger.log_complete()
     return vehicle_positions
 
 
@@ -193,6 +190,9 @@ def transform_vp_timestamps(
 
     this method will remove "is_moving" and "vehicle_timestamp"
     """
+    process_logger = ProcessLogger("transform_vp_timestamps")
+    process_logger.log_start()
+
     vehicle_positions = add_event_hash_column(
         vehicle_positions,
         hash_column_name="trip_stop_hash",
@@ -216,14 +216,14 @@ def transform_vp_timestamps(
         vehicle_positions["is_moving"],
         vehicle_positions["vehicle_timestamp"],
         numpy.nan,
-    )
+    ).astype("int64")
 
     # get the stop timestamp from all events where "is moving" is false
     vehicle_positions["vp_stop_timestamp"] = numpy.where(
         ~vehicle_positions["is_moving"],
         vehicle_positions["vehicle_timestamp"],
         numpy.nan,
-    )
+    ).astype("int64")
 
     # copy all of the move timestamps into rows with stop timestamps
     vehicle_positions["vp_move_timestamp"] = numpy.where(
@@ -236,7 +236,7 @@ def transform_vp_timestamps(
         ),
         vehicle_positions["vp_move_timestamp"].shift(-1),
         vehicle_positions["vp_move_timestamp"],
-    )
+    ).astype("int64")
 
     # for stops that have both moving and stop events, we'll have two rows in
     # the dataframe. the first will have the move and stop timestamps and the
@@ -252,257 +252,25 @@ def transform_vp_timestamps(
     )
     vehicle_positions.insert(0, "pk_id", numpy.nan)
 
+    process_logger.log_complete()
     return vehicle_positions
 
 
-def merge_with_overlapping_events(
-    new_events: pandas.DataFrame, db_manager: DatabaseManager
+def process_vp_files(
+    paths: Union[str, List[str]], db_manager: DatabaseManager
 ) -> pandas.DataFrame:
     """
-    merge events from parquet with existing vehicle events in the database
+    Generate a dataframe of Vehicle Events froom gtfs_rt vehicle position parquet files.
     """
-    # remove everything from the temporary hash table and inser the trip stop
-    # hashes from the new events
-    db_manager.truncate_table(TempHashCompare)
-    db_manager.execute_with_data(
-        sa.insert(TempHashCompare.__table__), new_events[["trip_stop_hash"]]
-    )
-
-    # pull existing vehicle events out of the database that match these trip
-    # stop hashes
-    existing_events = db_manager.select_as_dataframe(
-        sa.select(
-            VehicleEvents.pk_id,
-            VehicleEvents.trip_stop_hash,
-            VehicleEvents.vp_move_timestamp,
-            VehicleEvents.vp_stop_timestamp,
-        ).join(
-            TempHashCompare,
-            TempHashCompare.trip_stop_hash == VehicleEvents.trip_stop_hash,
-        )
-    )
-
-    # combine the existing vehicle events with the new events. sort them by
-    # trip stop hash so that vehicle events from the same trip and stop will be
-    # consecutive. the existing events will have a pk id while the new ones
-    # will not. sorting those with na=last ensures they are ordered existing
-    # first and new second
-    return pandas.concat([existing_events, new_events]).sort_values(
-        by=["trip_stop_hash", "pk_id"], na_position="last"
-    )
-
-
-def split_events(
-    merge_events: pandas.DataFrame,
-) -> tuple[pandas.DataFrame, pandas.DataFrame]:
-    """
-    split events that have been merged with existing events into update and insert events
-    """
-    # create a mask of duplicate records that will then be used by the insert
-    # and update masks.
-    duplicate_mask = merge_events.duplicated(
-        subset="trip_stop_hash", keep=False
-    )
-
-    # insert events aren't caught by the duplicate mask and also won't yet have
-    # a primary key (those that do are brought in from existing events)
-    insert_mask = ~duplicate_mask & merge_events.pk_id.isna()
-
-    # update events will be the first row of the duplicated hash and have
-    # either a move or stop timestamp that will need to be updated
-    update_mask = (
-        (duplicate_mask)
-        & (
-            merge_events["trip_stop_hash"]
-            == merge_events["trip_stop_hash"].shift(-1)
-        )
-        & (
-            (
-                (~merge_events["vp_move_timestamp"].shift(-1).isna())
-                & (
-                    (merge_events["vp_move_timestamp"].isna())
-                    | (
-                        merge_events["vp_move_timestamp"]
-                        > merge_events["vp_move_timestamp"].shift(-1)
-                    )
-                )
-            )
-            | (
-                (~merge_events["vp_stop_timestamp"].shift(-1).isna())
-                & (
-                    (merge_events["vp_stop_timestamp"].isna())
-                    | (
-                        merge_events["vp_stop_timestamp"]
-                        > merge_events["vp_stop_timestamp"].shift(-1)
-                    )
-                )
-            )
-        )
-    )
-    update_events = pandas.DataFrame()
-    insert_events = pandas.DataFrame()
-
-    if update_mask.sum() > 0:
-        update_hashes = merge_events.loc[update_mask, "trip_stop_hash"]
-        update_events = merge_events[
-            merge_events["trip_stop_hash"].isin(update_hashes)
-        ]
-
-        update_events["vp_move_timestamp"] = numpy.where(
-            (
-                update_events["trip_stop_hash"]
-                == update_events["trip_stop_hash"].shift(-1)
-            )
-            & (
-                (
-                    update_events["vp_move_timestamp"]
-                    > update_events["vp_move_timestamp"].shift(-1)
-                )
-                | (update_events["vp_move_timestamp"].isna())
-            ),
-            update_events["vp_move_timestamp"].shift(-1),
-            update_events["vp_move_timestamp"],
-        )
-
-        update_events["vp_stop_timestamp"] = numpy.where(
-            (
-                update_events["trip_stop_hash"]
-                == update_events["trip_stop_hash"].shift(-1)
-            )
-            & (
-                (
-                    update_events["vp_stop_timestamp"]
-                    > update_events["vp_stop_timestamp"].shift(-1)
-                )
-                | (update_events["vp_stop_timestamp"].isna())
-            ),
-            update_events["vp_stop_timestamp"].shift(-1),
-            update_events["vp_stop_timestamp"],
-        )
-
-        update_events = update_events[update_events["pk_id"].notna()]
-
-    if insert_mask.sum() > 0:
-        insert_events = merge_events.loc[insert_mask, :]
-
-    return (update_events, insert_events)
-
-
-def update_db_events(
-    update_events: pandas.DataFrame, db_manager: DatabaseManager
-) -> None:
-    """
-    update events in a database with new vp move and stop timestamps based on
-    their primary key
-    """
-    update_cols = [
-        "pk_id",
-        "vp_move_timestamp",
-        "vp_stop_timestamp",
-    ]
-
-    if update_events.shape[0] > 0:
-        db_manager.execute_with_data(
-            sa.update(VehicleEvents.__table__).where(
-                VehicleEvents.pk_id == sa.bindparam("b_pk_id")
-            ),
-            update_events[update_cols].rename(columns={"pk_id": "b_pk_id"}),
-        )
-
-
-def insert_db_events(
-    insert_events: pandas.DataFrame, db_manager: DatabaseManager
-) -> None:
-    """insert a dataframe of events into the vehicle events table"""
-    insert_cols = [
-        "direction_id",
-        "route_id",
-        "start_date",
-        "start_time",
-        "vehicle_id",
-        "stop_sequence",
-        "stop_id",
-        "trip_stop_hash",
-        "vp_move_timestamp",
-        "vp_stop_timestamp",
-        "fk_static_timestamp",
-    ]
-
-    if insert_events.shape[0] > 0:
-        db_manager.execute_with_data(
-            sa.insert(VehicleEvents.__table__), insert_events[insert_cols]
-        )
-
-
-def process_vehicle_positions(db_manager: DatabaseManager) -> None:
-    """
-    process a bunch of vehicle position files
-    create events for them
-    merge those events with existing events
-    """
-    process_logger = ProcessLogger(
-        "l0_tables_loader", table_type="rt_vehicle_position"
-    )
+    process_logger = ProcessLogger("process_vehicle_positions")
     process_logger.log_start()
 
-    # check metadata table for unprocessed parquet files
-    paths_to_load = get_unprocessed_files(
-        "RT_VEHICLE_POSITIONS", db_manager, file_limit=6
+    vehicle_positions = get_vp_dataframe(paths)
+    vehicle_positions = transform_vp_dtypes(vehicle_positions)
+    vehicle_positions = join_vp_with_gtfs_static(
+        vehicle_positions=vehicle_positions, db_manager=db_manager
     )
-    process_logger.add_metadata(count_of_paths=len(paths_to_load))
-
-    for folder_data in paths_to_load:
-        folder = str(pathlib.Path(folder_data["paths"][0]).parent)
-        ids = folder_data["ids"]
-        paths = folder_data["paths"]
-
-        subprocess_logger = ProcessLogger(
-            "l0_load_table",
-            table_type="rt_vehicle_position",
-            s3_path=folder,
-            file_count=len(paths),
-        )
-        subprocess_logger.log_start()
-
-        try:
-            sizes = {}
-
-            new_events = get_vp_dataframe(paths)
-            new_events = transform_vp_dtypes(new_events)
-            new_events = join_vp_with_gtfs_static(new_events, db_manager)
-            sizes["parquet_events_count"] = new_events.shape[0]
-
-            new_events = transform_vp_timestamps(new_events)
-            sizes["station_events_count"] = new_events.shape[0]
-
-            new_events = merge_with_overlapping_events(new_events, db_manager)
-
-            (update_events, insert_events) = split_events(new_events)
-
-            if update_events.shape[0] > 0:
-                update_db_events(update_events, db_manager)
-
-            if insert_events.shape[0] > 0:
-                insert_db_events(insert_events, db_manager)
-
-            subprocess_logger.add_metadata(**sizes)
-
-            update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
-                .values(processed=1)
-            )
-            db_manager.execute(update_md_log)
-
-            subprocess_logger.log_complete()
-        except Exception as exception:
-            update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
-                .values(processed=1, process_fail=1)
-            )
-            db_manager.execute(update_md_log)
-
-            subprocess_logger.log_failure(exception)
+    vehicle_positions = transform_vp_timestamps(vehicle_positions)
 
     process_logger.log_complete()
+    return vehicle_positions

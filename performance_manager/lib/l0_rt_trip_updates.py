@@ -1,4 +1,3 @@
-import pathlib
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 import numpy
@@ -7,14 +6,8 @@ import sqlalchemy as sa
 
 from .gtfs_utils import add_event_hash_column, start_time_to_seconds
 from .logging_utils import ProcessLogger
-from .postgres_schema import (
-    MetadataLog,
-    StaticFeedInfo,
-    StaticStops,
-    TempHashCompare,
-    VehicleEvents,
-)
-from .postgres_utils import DatabaseManager, get_unprocessed_files
+from .postgres_schema import StaticFeedInfo, StaticStops
+from .postgres_utils import DatabaseManager
 from .s3_utils import read_parquet_chunks
 
 
@@ -259,9 +252,7 @@ def join_tu_with_gtfs_static(
     return trip_updates
 
 
-def merge_tu_with_events(
-    trip_updates: pandas.DataFrame, db_manager: DatabaseManager
-) -> tuple[pandas.DataFrame, pandas.DataFrame]:
+def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
     """
     * add in the "trip_stop_hash" into trip updates and reduce the data
       frame to a single record per trip / stop.
@@ -269,8 +260,9 @@ def merge_tu_with_events(
     * split the merged trip updates into new vehicle events to be inserted
       and old vehicle events that need to be updated
     """
-    process_logger = ProcessLogger("tu_merge_events")
+    process_logger = ProcessLogger("tu_reduce_events")
     process_logger.log_start()
+    process_logger.add_metadata(start_count=trip_updates.shape[0])
 
     # add trip_stop_hash column that is unique to a trip and station
     trip_updates = add_event_hash_column(
@@ -298,162 +290,19 @@ def merge_tu_with_events(
     # after hash and sort, "timestamp" longer needed
     trip_updates = trip_updates.drop(columns=["timestamp"])
 
-    # remove everything from the temporary hash table and inser the trip stop
-    # hashes from the new events
-    db_manager.truncate_table(TempHashCompare)
-    db_manager.execute_with_data(
-        sa.insert(TempHashCompare.__table__), trip_updates[["trip_stop_hash"]]
-    )
-
-    # pull existing vehicle events out of the database that match these trip
-    # stop hashes
-    existing_events = db_manager.select_as_dataframe(
-        sa.select(
-            VehicleEvents.pk_id,
-            VehicleEvents.trip_stop_hash,
-            VehicleEvents.tu_stop_timestamp,
-        ).join(
-            TempHashCompare,
-            TempHashCompare.trip_stop_hash == VehicleEvents.trip_stop_hash,
-        )
-    )
-
-    update_events = pandas.DataFrame()
-    insert_events = pandas.DataFrame()
-
-    if existing_events.shape[0] == 0:
-        # if no existing events, all trip updates are inserted
-        insert_events = trip_updates
-    else:
-        # merge the trip updates with the existing events on the trip stop
-        # hash to get all of the events that need to be updated
-        update_events = pandas.merge(
-            trip_updates.drop(columns=["pk_id"]),
-            existing_events[["pk_id", "trip_stop_hash"]],
-            how="inner",
-            on="trip_stop_hash",
-        )
-
-        # new events are trip updates whose hash is not in existing events
-        insert_events = trip_updates[
-            ~trip_updates["trip_stop_hash"].isin(
-                existing_events["trip_stop_hash"]
-            )
-        ]
-
-    return (update_events, insert_events)
-
-
-def update_and_insert_db_events(
-    update_events: pandas.DataFrame,
-    insert_events: pandas.DataFrame,
-    db_manager: DatabaseManager,
-) -> None:
-    """insert a dataframe of events into the vehicle events table"""
-
-    update_cols = [
-        "pk_id",
-        "tu_stop_timestamp",
-    ]
-
-    if update_events.shape[0] > 0:
-        db_manager.execute_with_data(
-            sa.update(VehicleEvents.__table__).where(
-                VehicleEvents.pk_id == sa.bindparam("b_pk_id")
-            ),
-            update_events[update_cols].rename(columns={"pk_id": "b_pk_id"}),
-        )
-
-    insert_cols = [
-        "direction_id",
-        "route_id",
-        "start_date",
-        "start_time",
-        "vehicle_id",
-        "stop_sequence",
-        "stop_id",
-        "trip_stop_hash",
-        "tu_stop_timestamp",
-        "fk_static_timestamp",
-    ]
-
-    if insert_events.shape[0] > 0:
-        db_manager.execute_with_data(
-            sa.insert(VehicleEvents.__table__), insert_events[insert_cols]
-        )
-
-
-def process_trip_updates(db_manager: DatabaseManager) -> None:
-    """
-    process trip updates parquet files from metadataLog table
-    """
-    process_logger = ProcessLogger(
-        "l0_tables_loader", table_type="rt_trip_update"
-    )
-    process_logger.log_start()
-
-    # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files(
-        "RT_TRIP_UPDATES", db_manager, file_limit=6
-    )
-
-    process_logger.add_metadata(count_of_paths=len(paths_to_load))
-
-    for folder_data in paths_to_load:
-        folder = str(pathlib.Path(folder_data["paths"][0]).parent)
-        ids = folder_data["ids"]
-        paths = folder_data["paths"]
-
-        subprocess_logger = ProcessLogger(
-            "l0_load_table",
-            table_type="rt_trip_update",
-            file_count=len(paths),
-            s3_path=folder,
-        )
-        subprocess_logger.log_start()
-
-        try:
-            sizes = {}
-
-            trip_updates = get_and_unwrap_tu_dataframe(paths)
-            new_events_records = trip_updates.shape[0]
-            sizes["merge_events_count"] = new_events_records
-
-            # skip processing if no new records in file
-            if new_events_records > 0:
-                trip_updates = join_tu_with_gtfs_static(
-                    trip_updates, db_manager
-                )
-
-                (update_events, insert_events) = merge_tu_with_events(
-                    trip_updates, db_manager
-                )
-
-                update_and_insert_db_events(
-                    update_events,
-                    insert_events,
-                    db_manager,
-                )
-
-            subprocess_logger.add_metadata(**sizes)
-
-            # same found in l0_rt_vehicle_positions.py
-            # pylint: disable=duplicate-code
-            update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
-                .values(processed=1)
-            )
-            db_manager.execute(update_md_log)
-            subprocess_logger.log_complete()
-        except Exception as exception:
-            update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
-                .values(processed=1, process_fail=1)
-            )
-            db_manager.execute(update_md_log)
-            subprocess_logger.log_failure(exception)
-        # pylint: enable=duplicate-code
-
+    process_logger.add_metadata(end_count=trip_updates.shape[0])
     process_logger.log_complete()
+
+    return trip_updates
+
+
+def process_tu_files(
+    paths: Union[str, List[str]], db_manager: DatabaseManager
+) -> pandas.DataFrame:
+    """
+    Generate a dataframe of Vehicle Events from gtfs_rt trip updates parquet files.
+    """
+    trip_updates = get_and_unwrap_tu_dataframe(paths)
+    trip_updates = join_tu_with_gtfs_static(trip_updates, db_manager)
+    trip_updates = reduce_trip_updates(trip_updates)
+    return trip_updates
