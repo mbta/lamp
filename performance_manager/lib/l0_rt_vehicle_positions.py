@@ -243,6 +243,10 @@ def transform_vp_timestamps(
             ("vehicle_timestamp", True): "vp_move_timestamp",
         }
     )
+    # verify timestamp columns were created
+    for column in ("vp_stop_timestamp", "vp_move_timestamp"):
+        if column not in vp_timestamps.columns:
+            vp_timestamps[column] = None
 
     # we no longer need is moving or vehicle timestamp as those are all
     # stored in the vp_timestamps dataframe. drop duplicated trip stop hash
