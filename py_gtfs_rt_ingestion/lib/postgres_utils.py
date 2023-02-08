@@ -17,7 +17,7 @@ SqlBase: Any = declarative_base()
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
     """Table for keeping track of parquet files in S3"""
 
-    __tablename__ = "metadataLog"
+    __tablename__ = "metadata_log"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
     processed = sa.Column(sa.Boolean, default=sa.false())

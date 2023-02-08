@@ -5,6 +5,7 @@ import numpy
 import pandas
 import sqlalchemy as sa
 
+from .gtfs_utils import add_event_hash_column
 from .l0_rt_trip_updates import process_tu_files
 from .l0_rt_vehicle_positions import process_vp_files
 from .logging_utils import ProcessLogger
@@ -139,6 +140,21 @@ def upload_to_database(
     )
     process_logger.log_start()
 
+    # add in column for trip hash that will be unique to the trip. this will
+    # be useful for metrics and querries users want to run.
+    events = add_event_hash_column(
+        events,
+        hash_column_name="trip_hash",
+        expected_hash_columns=[
+            "direction_id",
+            "route_id",
+            "start_date",
+            "start_time",
+            "vehicle_id",
+        ],
+    )
+    events["trip_hash"] = events["trip_hash"].str.decode("hex")
+
     # remove everything from the temp hash table and insert the trip stop hashs
     # from the new events. then pull events from the VehicleEvents table by
     # matching those hashes, which will be the events that will potentially be
@@ -266,6 +282,7 @@ def upload_to_database(
             "start_date",
             "start_time",
             "vehicle_id",
+            "trip_hash",
             "stop_sequence",
             "stop_id",
             "parent_station",
@@ -280,7 +297,6 @@ def upload_to_database(
             sa.insert(VehicleEvents.__table__),
             events.loc[insert_mask, insert_cols],
         )
-        process_logger.add_metadata(db_insert_rowcount=result.rowcount)
 
     process_logger.log_complete()
 

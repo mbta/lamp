@@ -317,7 +317,13 @@ def test_gtfs_rt_processing(
         events = combine_events(positions, trip_updates)
 
         ve_columns = [c.key for c in VehicleEvents.__table__.columns]
-        expected_columns = set(ve_columns) - {"pk_id", "updated_on"}
+        # pk id and updated on are handled by postgres. trip hash is added just
+        # before inserting new rows to the db.
+        expected_columns = set(ve_columns) - {
+            "pk_id",
+            "updated_on",
+            "trip_hash",
+        }
         assert len(expected_columns) == len(events.columns)
 
         missing_columns = set(events.columns) - expected_columns
