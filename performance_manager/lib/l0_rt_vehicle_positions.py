@@ -244,7 +244,7 @@ def transform_vp_timestamps(
         }
     )
     # verify timestamp columns were created
-    for column in ("vp_stop_timestamp","vp_move_timestamp"):
+    for column in ("vp_stop_timestamp", "vp_move_timestamp"):
         if column not in vp_timestamps.columns:
             vp_timestamps[column] = None
 
