@@ -1,13 +1,13 @@
-import os
-from typing import Optional, List, Tuple, Union, Sequence, Iterator
 import datetime
+import os
 import re
+from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
 import boto3
 import pandas
+import pyarrow
 import pyarrow.parquet as pq
 from pyarrow import fs
-import pyarrow
 
 
 def _get_pyarrow_table(
@@ -17,7 +17,9 @@ def _get_pyarrow_table(
     """
     internal function to get pyarrow table from parquet file(s)
     """
+
     active_fs = fs.S3FileSystem()
+
     if isinstance(filename, list):
         to_load = [f.replace("s3://", "") for f in filename]
     else:

@@ -1,12 +1,11 @@
-from typing import Dict, List, Any, Optional, Union, Tuple
 import json
 import os
 import platform
 import urllib.parse as urlparse
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas
-
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
@@ -315,6 +314,15 @@ class DatabaseManager:
         truncat_as.drop(self.engine)
         truncat_as.create(self.engine)
 
+    def add_metadata_paths(self, paths: List[str]) -> None:
+        """
+        add metadata filepaths to metadata table for testing
+        """
+        with self.session.begin() as session:
+            session.execute(
+                sa.insert(MetadataLog.__table__), [{"path": p} for p in paths]
+            )
+
     def seed_metadata(self) -> None:
         """
         seed metadata table for dev environment
@@ -326,10 +334,9 @@ class DatabaseManager:
                 HERE, "..", "tests", "july_17_filepaths.json"
             )
             with open(seed_file, "r", encoding="utf8") as seed_json:
-                load_paths = json.load(seed_json)
+                paths = json.load(seed_json)
 
-            with self.session.begin() as session:
-                session.execute(sa.insert(MetadataLog.__table__), load_paths)
+            self.add_metadata_paths(paths)
 
             process_logger.log_complete()
         except Exception as exception:

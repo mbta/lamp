@@ -1,22 +1,14 @@
-from typing import Optional, Sequence
 import hashlib
+from typing import Optional, Sequence
+
 import numpy
 import pandas
 
 
 def add_event_hash_column(
     df_to_hash: pandas.DataFrame,
-    hash_column_name: str = "hash",
-    expected_hash_columns: Sequence[str] = (
-        "is_moving",
-        "stop_sequence",
-        "parent_station",
-        "direction_id",
-        "route_id",
-        "start_date",
-        "start_time",
-        "vehicle_id",
-    ),
+    hash_column_name: str,
+    expected_hash_columns: Sequence[str],
 ) -> pandas.DataFrame:
     """
     provide consistent hash values for category columns of gtfs-rt events
@@ -28,8 +20,8 @@ def add_event_hash_column(
 
     # function to be used for hashing each record,
     # requires string as input returns raw bytes object
-    def apply_func(record: str) -> bytes:
-        return hashlib.md5(record.encode("utf8")).digest()
+    def apply_func(record: str) -> str:
+        return hashlib.md5(record.encode("utf8")).hexdigest()
 
     # vectorize apply_func so it can be used on numpy.ndarray object
     vectorized_function = numpy.vectorize(apply_func)
@@ -39,6 +31,7 @@ def add_event_hash_column(
 
     # convert rows of dataframe to concatenated string and apply vectorized
     # hashing function
+    expected_hash_columns = sorted(expected_hash_columns)
     df_to_hash[hash_column_name] = vectorized_function(
         df_to_hash[list(expected_hash_columns)].astype(str).values.sum(axis=1)
     )
