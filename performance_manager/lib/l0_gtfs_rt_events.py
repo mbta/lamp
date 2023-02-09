@@ -248,6 +248,13 @@ def upload_to_database(
         events["vp_stop_timestamp"],
     )
 
+    # convert the hex hashes to bytes, convert timestamps and pk ids to ints
+    events["trip_stop_hash"] = events["trip_stop_hash"].str.decode("hex")
+    events["vp_move_timestamp"] = events["vp_move_timestamp"].astype("Int64")
+    events["vp_stop_timestamp"] = events["vp_stop_timestamp"].astype("Int64")
+    events["tu_stop_timestamp"] = events["tu_stop_timestamp"].astype("Int64")
+    events["pk_id"] = events["pk_id"].astype("Int64")
+
     process_logger.log_complete()
     process_logger = ProcessLogger("gtfs_rt.update_events")
     process_logger.log_start()
@@ -260,11 +267,9 @@ def upload_to_database(
     )
 
     # drop the db timestamps that have now been moved to the event timestamps
-    # where appropriate, fill all nan's with nones for db insertion, and
-    # convert the hex hashes back to bytes
+    # where appropriate and fill all nan's with nones for db insertion
     events = events.drop(columns=["vp_move_db", "vp_stop_db"])
     events = events.fillna(numpy.nan).replace([numpy.nan], [None])
-    events["trip_stop_hash"] = events["trip_stop_hash"].str.decode("hex")
 
     if update_mask.sum() > 0:
         update_cols = [
@@ -286,7 +291,6 @@ def upload_to_database(
     process_logger.log_complete()
     process_logger = ProcessLogger("gtfs_rt.insert_events")
     process_logger.log_start()
-
 
     # any event that doesn't have a pk_id need to be inserted
     insert_mask = events["pk_id"].isna()
