@@ -12,6 +12,7 @@ from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, TempHashCompare, VehicleEvents
 from .postgres_utils import DatabaseManager, get_unprocessed_files
 from .s3_utils import get_utc_from_partition_path
+from .ecs import check_for_sigterm
 
 
 def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
@@ -135,7 +136,7 @@ def upload_to_database(
     events where appropriate and insert the new ones.
     """
     process_logger = ProcessLogger(
-        "gtfs_rt.upload_to_db",
+        "gtfs_rt.add_trip_hash",
         event_count=events.shape[0],
     )
     process_logger.log_start()
@@ -154,6 +155,13 @@ def upload_to_database(
         ],
     )
     events["trip_hash"] = events["trip_hash"].str.decode("hex")
+
+    process_logger.log_complete()
+    process_logger = ProcessLogger(
+        "gtfs_rt.pull_overlapping_events",
+        event_count=events.shape[0],
+    )
+    process_logger.log_start()
 
     # remove everything from the temp hash table and insert the trip stop hashs
     # from the new events. then pull events from the VehicleEvents table by
@@ -191,6 +199,9 @@ def upload_to_database(
         )
 
     process_logger.add_metadata(db_event_count=database_events.shape[0])
+    process_logger.log_complete()
+    process_logger = ProcessLogger("gtfs_rt.merge_existing_and_new_events")
+    process_logger.log_start()
 
     # merge all of the database data into the events we already have based on
     # trip stop hash. events that potentially need updated will have a pk_id
@@ -238,6 +249,17 @@ def upload_to_database(
         events["vp_stop_timestamp"],
     )
 
+    # convert the hex hashes to bytes, convert timestamps and pk ids to ints
+    events["trip_stop_hash"] = events["trip_stop_hash"].str.decode("hex")
+    events["vp_move_timestamp"] = events["vp_move_timestamp"].astype("Int64")
+    events["vp_stop_timestamp"] = events["vp_stop_timestamp"].astype("Int64")
+    events["tu_stop_timestamp"] = events["tu_stop_timestamp"].astype("Int64")
+    events["pk_id"] = events["pk_id"].astype("Int64")
+
+    process_logger.log_complete()
+    process_logger = ProcessLogger("gtfs_rt.update_events")
+    process_logger.log_start()
+
     # update all of the events that have pk_ids and new timestamps.
     update_mask = (events["pk_id"].notna()) & (
         (events["tu_stop_timestamp"].notna())
@@ -246,13 +268,9 @@ def upload_to_database(
     )
 
     # drop the db timestamps that have now been moved to the event timestamps
-    # where appropriate, fill all nan's with nones for db insertion, and
-    # convert the hex hashes back to bytes
+    # where appropriate and fill all nan's with nones for db insertion
     events = events.drop(columns=["vp_move_db", "vp_stop_db"])
     events = events.fillna(numpy.nan).replace([numpy.nan], [None])
-    events["trip_stop_hash"] = events["trip_stop_hash"].str.decode("hex")
-
-    process_logger.add_metadata(update_event_count=update_mask.sum())
 
     if update_mask.sum() > 0:
         update_cols = [
@@ -270,6 +288,10 @@ def upload_to_database(
             ),
         )
         process_logger.add_metadata(db_update_rowcount=result.rowcount)
+
+    process_logger.log_complete()
+    process_logger = ProcessLogger("gtfs_rt.insert_events")
+    process_logger.log_start()
 
     # any event that doesn't have a pk_id need to be inserted
     insert_mask = events["pk_id"].isna()
@@ -329,6 +351,7 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
     process_logger.log_start()
 
     for files in get_gtfs_rt_paths(db_manager):
+        check_for_sigterm()
         if hours_to_process == 0:
             break
         hours_to_process -= 1
