@@ -20,6 +20,7 @@ from .postgres_schema import (
     StaticCalendar,
 )
 from .gtfs_utils import start_time_to_seconds
+from .ecs import check_for_sigterm
 
 
 @dataclass
@@ -263,6 +264,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     process_logger.add_metadata(count_of_paths=len(paths_to_load))
 
     for folder_data in paths_to_load:
+        check_for_sigterm()
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
         individual_logger = ProcessLogger(
             "l0_load_table", table_type="static_schedule", s3_path=folder

@@ -12,6 +12,7 @@ from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, TempHashCompare, VehicleEvents
 from .postgres_utils import DatabaseManager, get_unprocessed_files
 from .s3_utils import get_utc_from_partition_path
+from .ecs import check_for_sigterm
 
 
 def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
@@ -350,6 +351,7 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
     process_logger.log_start()
 
     for files in get_gtfs_rt_paths(db_manager):
+        check_for_sigterm()
         if hours_to_process == 0:
             break
         hours_to_process -= 1

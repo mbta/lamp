@@ -6,6 +6,7 @@ import os
 import sched
 import sys
 import time
+import signal
 from typing import List
 
 from lib import (
@@ -13,6 +14,8 @@ from lib import (
     ProcessLogger,
     process_static_tables,
     process_gtfs_rt_files,
+    handle_ecs_sigterm,
+    check_for_sigterm,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -128,6 +131,7 @@ def main(args: argparse.Namespace) -> None:
     # end of each iteration
     def iteration() -> None:
         """function to invoke on a scheduled routine"""
+        check_for_sigterm()
         process_logger = ProcessLogger("event_loop")
         process_logger.log_start()
 
@@ -147,6 +151,7 @@ def main(args: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, handle_ecs_sigterm)
     load_environment()
     validate_environment()
     parsed_args = parse_args(sys.argv[1:])

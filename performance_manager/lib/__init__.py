@@ -8,5 +8,6 @@ from .l0_gtfs_static_table import process_static_tables
 from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, SqlBase
 from .postgres_utils import DatabaseManager
+from .ecs import handle_ecs_sigterm, check_for_sigterm
 
 __version__ = "0.1.0"
