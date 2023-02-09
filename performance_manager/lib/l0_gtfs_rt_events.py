@@ -135,7 +135,7 @@ def upload_to_database(
     events where appropriate and insert the new ones.
     """
     process_logger = ProcessLogger(
-        "gtfs_rt.upload_to_db",
+        "gtfs_rt.add_trip_hash",
         event_count=events.shape[0],
     )
     process_logger.log_start()
@@ -154,6 +154,13 @@ def upload_to_database(
         ],
     )
     events["trip_hash"] = events["trip_hash"].str.decode("hex")
+
+    process_logger.log_complete()
+    process_logger = ProcessLogger(
+        "gtfs_rt.pull_overlapping_events",
+        event_count=events.shape[0],
+    )
+    process_logger.log_start()
 
     # remove everything from the temp hash table and insert the trip stop hashs
     # from the new events. then pull events from the VehicleEvents table by
@@ -191,6 +198,9 @@ def upload_to_database(
         )
 
     process_logger.add_metadata(db_event_count=database_events.shape[0])
+    process_logger.log_complete()
+    process_logger = ProcessLogger("gtfs_rt.merge_existing_and_new_events")
+    process_logger.log_start()
 
     # merge all of the database data into the events we already have based on
     # trip stop hash. events that potentially need updated will have a pk_id
@@ -238,6 +248,10 @@ def upload_to_database(
         events["vp_stop_timestamp"],
     )
 
+    process_logger.log_complete()
+    process_logger = ProcessLogger("gtfs_rt.update_events")
+    process_logger.log_start()
+
     # update all of the events that have pk_ids and new timestamps.
     update_mask = (events["pk_id"].notna()) & (
         (events["tu_stop_timestamp"].notna())
@@ -251,8 +265,6 @@ def upload_to_database(
     events = events.drop(columns=["vp_move_db", "vp_stop_db"])
     events = events.fillna(numpy.nan).replace([numpy.nan], [None])
     events["trip_stop_hash"] = events["trip_stop_hash"].str.decode("hex")
-
-    process_logger.add_metadata(update_event_count=update_mask.sum())
 
     if update_mask.sum() > 0:
         update_cols = [
@@ -270,6 +282,11 @@ def upload_to_database(
             ),
         )
         process_logger.add_metadata(db_update_rowcount=result.rowcount)
+
+    process_logger.log_complete()
+    process_logger = ProcessLogger("gtfs_rt.insert_events")
+    process_logger.log_start()
+
 
     # any event that doesn't have a pk_id need to be inserted
     insert_mask = events["pk_id"].isna()
