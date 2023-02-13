@@ -42,7 +42,7 @@ class RtVehicleDetail(GTFSRTDetail):
                 ("schedule_relationship", pyarrow.string()),
                 ("start_date", pyarrow.string()),
                 ("start_time", pyarrow.string()),
-                ("trip_id", pyarrow.string()),  # actual label: id
+                ("trip_id", pyarrow.string()),
                 # entity -> vehicle -> vehicle
                 ("vehicle_id", pyarrow.string()),  # actual label: id
                 ("vehicle_label", pyarrow.string()),  # actual label: label
@@ -83,7 +83,7 @@ class RtVehicleDetail(GTFSRTDetail):
                 ("schedule_relationship",),
                 ("start_date",),
                 ("start_time",),
-                ("id", "trip_id"),
+                ("trip_id",),
             ),
             "entity,vehicle,vehicle": (
                 (
