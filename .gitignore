@@ -22,3 +22,5 @@ package
 dist
 *.zip
 *.sh
+.devcontainer/*
+.vscode/*
