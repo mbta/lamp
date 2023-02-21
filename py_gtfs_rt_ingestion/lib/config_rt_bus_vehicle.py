@@ -21,6 +21,10 @@ class RtBusVehicleDetail(GTFSRTDetail):
                 ("feed_timestamp", pyarrow.int64()),
                 # entity
                 ("entity_id", pyarrow.string()),  # actual label: id
+                (
+                    "entity_is_deleted",
+                    pyarrow.bool_(),
+                ),  # actual label: is_deleted
                 # entity -> vehicle
                 ("block_id", pyarrow.string()),
                 ("capacity", pyarrow.int64()),
@@ -64,7 +68,10 @@ class RtBusVehicleDetail(GTFSRTDetail):
     @property
     def transformation_schema(self) -> dict:
         return {
-            "entity": (("id", "entity_id"),),
+            "entity": (
+                ("id", "entity_id"),
+                ("is_deleted", "entity_is_deleted"),
+            ),
             "entity,vehicle": (
                 ("block_id",),
                 ("capacity",),

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import signal
 from multiprocessing import Queue
 
 import time
@@ -13,6 +14,8 @@ from lib import (
     DEFAULT_S3_PREFIX,
     ProcessLogger,
     start_rds_writer_process,
+    handle_ecs_sigterm,
+    check_for_sigterm,
 )
 
 logging.getLogger().setLevel("INFO")
@@ -90,6 +93,7 @@ def ingest(metadata_queue: Queue) -> None:
     filepaths to the metadata table as unprocessed, and move gtfs files to the
     archive bucket (or error bucket in the event of an error)
     """
+    check_for_sigterm()
     process_logger = ProcessLogger("ingest_all")
     process_logger.log_start()
 
@@ -123,6 +127,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     logging.info("Starting Ingestion Container")
+    signal.signal(signal.SIGTERM, handle_ecs_sigterm)
     load_environment()
     validate_environment()
     main()
