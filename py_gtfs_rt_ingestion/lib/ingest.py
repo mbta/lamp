@@ -82,4 +82,6 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
 
     # The remaining converters can be run in parallel
     with Pool(processes=len(converters)) as pool:
-        pool.map(run_converter, converters.values())
+        _ = pool.map_async(run_converter, converters.values())
+        pool.close()
+        pool.join()
