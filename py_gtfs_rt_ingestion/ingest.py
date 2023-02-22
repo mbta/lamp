@@ -93,7 +93,6 @@ def ingest(metadata_queue: Queue) -> None:
     filepaths to the metadata table as unprocessed, and move gtfs files to the
     archive bucket (or error bucket in the event of an error)
     """
-    check_for_sigterm()
     process_logger = ProcessLogger("ingest_all")
     process_logger.log_start()
 
@@ -116,6 +115,7 @@ def main() -> None:
     schedule.every(5).minutes.do(ingest, metadata_queue=metadata_queue)
 
     while True:
+        check_for_sigterm(metadata_queue)
         schedule.run_pending()
         time.sleep(1)
 
