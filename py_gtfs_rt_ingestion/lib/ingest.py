@@ -81,7 +81,12 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     converters[ConfigType.ERROR].add_files(error_files)
 
     # The remaining converters can be run in parallel
+    #
+    # the use of signal.signal, multiprocessing.Manager and multiprocessing.Pool.map, in combination,
+    # causes inadvertant SIGTERM signals to be sent by application and main event loop to be blocked
+    #
+    # launching converter processes with map_async avoids throwing of SIGTERM signals and blocking
     with Pool(processes=len(converters)) as pool:
-        _ = pool.map_async(run_converter, converters.values())
+        pool.map_async(run_converter, converters.values())
         pool.close()
         pool.join()
