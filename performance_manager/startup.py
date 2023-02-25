@@ -16,9 +16,26 @@ from lib import (
     process_gtfs_rt_files,
     handle_ecs_sigterm,
     check_for_sigterm,
+    process_trips_and_metrics,
 )
 
-logging.getLogger().setLevel("INFO")
+
+
+# logging.getLogger().setLevel("INFO")
+
+formatter = logging.Formatter(logging.BASIC_FORMAT)
+
+fh = logging.FileHandler("error.log")
+fh.setLevel(logging.INFO)
+fh.setFormatter(formatter)
+
+sh = logging.StreamHandler()
+sh.setLevel(logging.INFO)
+sh.setFormatter(formatter)
+
+logging.getLogger().addHandler(sh)
+logging.getLogger().addHandler(fh)
+logging.getLogger().setLevel(logging.INFO)
 
 DESCRIPTION = """Entry Point to Performance Manager"""
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -123,6 +140,7 @@ def main(args: argparse.Namespace) -> None:
 
     # get the engine that manages sessions that read and write to the db
     db_manager = DatabaseManager(verbose=args.verbose, seed=args.seed)
+    db_manager.reset_tables()
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)
@@ -138,6 +156,7 @@ def main(args: argparse.Namespace) -> None:
         try:
             process_static_tables(db_manager)
             process_gtfs_rt_files(db_manager)
+            process_trips_and_metrics(db_manager)
 
             process_logger.log_complete()
         except Exception as exception:

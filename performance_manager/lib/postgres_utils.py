@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, SqlBase
 from .s3_utils import get_utc_from_partition_path
+from .postgres_schema import VehicleEventMetrics, VehicleEvents, VehicleTrips, MetadataLog
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -114,6 +115,7 @@ def get_local_engine(
         # accessed via the "0.0.0.0" ip address (mac specific)
         if db_host == "local_rds" and "macos" in platform.platform().lower():
             db_host = "0.0.0.0"
+        # db_host = "localhost"
 
         assert db_host is not None
         assert db_name is not None
@@ -341,6 +343,17 @@ class DatabaseManager:
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
+
+    def reset_tables(self) -> None:
+        self.truncate_table(VehicleTrips)
+        self.truncate_table(VehicleEventMetrics)
+        self.truncate_table(VehicleEvents)
+
+        reset_q = sa.update(MetadataLog.__table__).values(
+            processed = False,
+            process_fail = False,
+        ).where(MetadataLog.path.like("%RT_%"))
+        self.execute(reset_q)
 
 
 def get_unprocessed_files(
