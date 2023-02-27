@@ -19,23 +19,7 @@ from lib import (
     process_trips_and_metrics,
 )
 
-
-
-# logging.getLogger().setLevel("INFO")
-
-formatter = logging.Formatter(logging.BASIC_FORMAT)
-
-fh = logging.FileHandler("error.log")
-fh.setLevel(logging.INFO)
-fh.setFormatter(formatter)
-
-sh = logging.StreamHandler()
-sh.setLevel(logging.INFO)
-sh.setFormatter(formatter)
-
-logging.getLogger().addHandler(sh)
-logging.getLogger().addHandler(fh)
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = """Entry Point to Performance Manager"""
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -130,6 +114,20 @@ def parse_args(args: List[str]) -> argparse.Namespace:
         help="if set, verbose sql logging",
     )
 
+    parser.add_argument(
+        "--clear-rt",
+        action="store_true",
+        dest="clear_rt",
+        help="if set, clear gtfs-rt database tables",
+    )
+
+    parser.add_argument(
+        "--clear-static",
+        action="store_true",
+        dest="clear_static",
+        help="if set, clear gtfs static database tables",
+    )
+
     return parser.parse_args(args)
 
 
@@ -139,8 +137,12 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(verbose=args.verbose, seed=args.seed)
-    db_manager.reset_tables()
+    db_manager = DatabaseManager(
+        verbose=args.verbose,
+        seed=args.seed,
+        clear_rt=args.clear_rt,
+        clear_static=args.clear_static,
+    )
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)
