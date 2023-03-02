@@ -22,6 +22,9 @@ def get_seed_data(db_manager: DatabaseManager) -> Dict[int, List[int]]:
     """
     get seed data for populating trip and metrics tables
 
+    distinct combinations of start_date and fk_static_timestamp allow for the pulling
+    of all records associated with a full service date
+
     return: Dict[start_date:int : List[fk_static_timestamps]]
     """
     last_metric_update = sa.select(
@@ -64,7 +67,11 @@ def process_tables(
     db_manager: DatabaseManager, seed_data: Dict[int, List[int]]
 ) -> None:
     """
-    process updates to multiple days of trips
+    process updates to multiple days of trips / metrics
+
+    during normal running this will coninually process one day at a time, but
+    during initial loading this number could be increased to speed up loading of
+    trips and metrics table
     """
 
     max_days_to_process = 3
@@ -94,13 +101,14 @@ def process_trips_table(
 ) -> None:
     """
     processs updates to trips table
-
     """
     process_logger = ProcessLogger("l1_rt_trips_table_loader")
     process_logger.log_start()
 
     static_trips_cte = get_static_trips_cte(seed_timestamps, seed_start_date)
 
+    # to build a 'summary' trips table only the first and last records for each
+    # static trip are needed.
     first_stop_static_cte = (
         sa.select(
             static_trips_cte.c.timestamp,
@@ -113,6 +121,7 @@ def process_trips_table(
         .cte(name="first_stop_static_cte")
     )
 
+    # join first_stop_static_cte with last stop records to create trip summary records
     static_trips_summary_cte = (
         sa.select(
             static_trips_cte.c.timestamp,
@@ -140,6 +149,8 @@ def process_trips_table(
 
     rt_trips_cte = get_rt_trips_cte(seed_start_date)
 
+    # same methodology as static stop trips summary, but for RT trips
+    # pulling values associated with first stop of trips based on trip_hash
     first_stop_rt_cte = (
         sa.select(
             rt_trips_cte.c.trip_hash,
@@ -149,6 +160,7 @@ def process_trips_table(
         .where(rt_trips_cte.c.rt_trip_first_stop_flag == sa.true())
     ).cte(name="first_stop_rt_cte")
 
+    # join first_stop_rt_cte with values from last stop
     rt_trips_summary_cte = (
         sa.select(
             rt_trips_cte.c.fk_static_timestamp.label("timestamp"),
@@ -170,6 +182,10 @@ def process_trips_table(
         .where(rt_trips_cte.c.rt_trip_last_stop_flag == sa.true())
     ).cte(name="rt_trips_summary_cte")
 
+    # perform matching between static trips summary records and RT trips summary records
+    #
+    # first match is "exact" indicating that the first stop station and last stop station
+    # are equivalent and trip start times are within one of
     exact_trips_match = (
         sa.select(
             rt_trips_summary_cte.c.timestamp,
@@ -219,6 +235,8 @@ def process_trips_table(
         )
     ).cte(name="exact_trips_match")
 
+    # backup matching logic, should match all remaining RT trips to static trips,
+    # assuming that the route_id exists in the static schedule data
     backup_trips_match = (
         sa.select(
             exact_trips_match.c.timestamp,
@@ -260,6 +278,7 @@ def process_trips_table(
         )
     ).cte(name="backup_trips_match")
 
+    # union exact and backup trip matching records for final "new" trips summary records
     all_new_trips = (
         sa.union(
             sa.select(exact_trips_match).where(
@@ -269,6 +288,16 @@ def process_trips_table(
         )
     ).cte(name="all_new_trips")
 
+    # compare all_new_trips records to existing records in RDS based on trip_hash
+    #
+    # if trip_hash does not exist in RDS, insert records
+    # if trip_hash does exist and specified fields are not equivlanet, update records
+    # update based on:
+    # - stop_count
+    # - static_trip_id_guess
+    # - static_start_time
+    # - static_stop_count
+    # - first_last_station_match (exact matching)
     update_insert_query = (
         sa.select(
             all_new_trips.c.trip_hash,
@@ -324,6 +353,7 @@ def process_trips_table(
         )
     )
 
+    # perform update/insert opertions with dataframe pulled from RDS
     update_insert_trips = db_manager.select_as_dataframe(update_insert_query)
 
     if update_insert_trips.shape[0] == 0:
@@ -422,6 +452,9 @@ def process_metrics_table(
 
     trips_for_metrics = get_trips_for_metrics(seed_timestamps, seed_start_date)
 
+    # straight forward travel_times calculation
+    # limited to records where stop_timestamp > move_timestamp to avoid negative
+    # travel_time values, these are basically error records, shoud flag???
     travel_times_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
@@ -438,6 +471,15 @@ def process_metrics_table(
         .cte(name="travel_times")
     )
 
+    # dwell_times calculations are different for the first stop of a trip
+    # the first stop of a trip includes the dwell time since the stop_timestamp of
+    # the end of the previous trip going in the opposite direcion at that station
+    #
+    # all remaining dwell_times calcuations are based on subtracting the a stop_timestamp
+    # of a vehcile from the next move_timestamp of a vehicle
+    #
+    # the where statement of this CTE filters out any vehicle trips comprised of only 1 stop
+    # on the assumption that those are not valid trips to include in the metrics calculations
     dwell_times_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
@@ -478,6 +520,17 @@ def process_metrics_table(
         .cte(name="dwell_times")
     )
 
+    # this headways CTE calculation is incomplete
+    #
+    # trunk and branch headways are the same except for one is partiioned on
+    # trunk_route_id and the later on route_id. route_id does not correctly
+    # partition red line branch headways.
+    #
+    # first stop headways are calculated with move_timestamp to move_timestamp
+    # for the next station in a trip
+    #
+    # all other headways are calculated with stop_timstamp to stop_timestamp by
+    # subsequent vehicles on the same route/direction
     headways_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
@@ -541,6 +594,10 @@ def process_metrics_table(
         .cte(name="headways")
     )
 
+    # all_new_metrics combines travel_times, dwell_times and headways into one
+    # table of results
+    # this attempts to limit negative value calculations (which should be bad records)
+    # however negative values can still get in for one of the headways values
     all_new_metrics = (
         sa.select(
             sa.func.coalesce(
@@ -592,6 +649,9 @@ def process_metrics_table(
         )
     ).cte(name="all_new_metrics")
 
+    # update / insert logic matches what is done for the trips table
+    # all_new_metrics are matched to existing RDS records by trip_stop_hash
+    # and flagged for update, if needed
     update_insert_query = (
         sa.select(
             all_new_metrics.c.trip_stop_hash,
@@ -629,6 +689,9 @@ def process_metrics_table(
         .where(all_new_metrics.c.travel_time_seconds > 0)
     )
 
+    # this logic is again very similar to trips dataframe insert/update operation
+    # some possibility of removing duplicate code and having common insert/update
+    # function
     update_insert_metrics = db_manager.select_as_dataframe(update_insert_query)
 
     if update_insert_metrics.shape[0] == 0:

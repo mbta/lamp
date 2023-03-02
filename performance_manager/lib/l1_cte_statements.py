@@ -18,7 +18,14 @@ def get_static_trips_cte(
     timestamps: List[int], start_date: int
 ) -> sa.sql.selectable.CTE:
     """
-    return CTE named "static_trip_cte" for all static trips on given date
+    return CTE named "static_trip_cte" representing all static trips on given service date
+
+    a "set" of static trips will be returned for every "timestamp" key value.
+
+    created fields to be returnted:
+        - static_trip_first_stop (bool indicating first stop of trip)
+        - static_trip_last_stop (bool indicating last stop of trip)
+        - static_stop_rank (rank field counting from 1 to N number of stops on trip)
     """
     start_date_dt = datetime.datetime.strptime(str(start_date), "%Y%m%d")
     day_of_week = calendar.day_name[start_date_dt.weekday()].lower()
@@ -100,7 +107,12 @@ def get_static_trips_cte(
 
 def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
     """
-    return CTE named "rt_trips_cte" for all RT trips on a given date
+    return CTE named "rt_trips_cte" representing all RT trips on a given service date
+
+    created fields to be returnted:
+        - rt_trip_first_stop_flag (bool indicating first stop of trip by trip_hash)
+        - rt_trip_last_stop_flag (bool indicating last stop of trip by trip_hash)
+        - static_stop_rank (rank field counting from 1 to N number of stops on trip by trip_hash)
     """
 
     return (
@@ -156,8 +168,17 @@ def get_trips_for_metrics(
     timestamps: List[int], start_date: int
 ) -> sa.sql.selectable.CTE:
     """
-    return CTE named "trips_for_metrics" to develop metrics tables
+    return CTE named "trips_for_metrics" with fields needed to develop metrics tables
 
+    will return one record for every trip_stop_hash on 'start_date'
+
+    joins rt_trips_cte to VehicleTrips on trip_hash field
+
+    then joins static_trips_cte on static_trip_id_guess, timestamp, parent_station and static_stop_rank,
+
+    the join with satic_stop_rank is required for routes that may visit the same
+    parent station more than once on the same route, I think this only occurs on
+    bus routes, so we may be able to drop this for performance_manager
     """
 
     static_trips_cte = get_static_trips_cte(timestamps, start_date)
