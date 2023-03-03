@@ -10,8 +10,14 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from .logging_utils import ProcessLogger
-from .postgres_schema import MetadataLog, SqlBase
 from .s3_utils import get_utc_from_partition_path
+from .postgres_schema import (
+    SqlBase,
+    VehicleEventMetrics,
+    VehicleEvents,
+    VehicleTrips,
+    MetadataLog,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -114,6 +120,7 @@ def get_local_engine(
         # accessed via the "0.0.0.0" ip address (mac specific)
         if db_host == "local_rds" and "macos" in platform.platform().lower():
             db_host = "0.0.0.0"
+        # db_host = "localhost"
 
         assert db_host is not None
         assert db_name is not None
@@ -195,6 +202,8 @@ class DatabaseManager:
         self,
         verbose: bool = False,
         seed: bool = False,
+        clear_rt: bool = False,
+        clear_static: bool = False,
     ):
         """
         initialize db manager object, creates engine and sessionmaker
@@ -217,6 +226,8 @@ class DatabaseManager:
 
         # create tables in SqlBase
         SqlBase.metadata.create_all(self.engine)
+
+        self.reset_tables(clear_rt, clear_static)
 
         if seed:
             self.seed_metadata()
@@ -341,6 +352,29 @@ class DatabaseManager:
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
+
+    def reset_tables(self, clear_rt: bool, clear_static: bool) -> None:
+        """
+        reset tables for dev environment
+        """
+        if clear_rt:
+            self.truncate_table(VehicleTrips)
+            self.truncate_table(VehicleEventMetrics)
+            self.truncate_table(VehicleEvents)
+
+            reset_rt_processed = (
+                sa.update(MetadataLog.__table__)
+                .values(
+                    processed=False,
+                    process_fail=False,
+                )
+                .where(MetadataLog.path.like("%RT_%"))
+            )
+            self.execute(reset_rt_processed)
+
+        if clear_static:
+            SqlBase.metadata.drop_all(self.engine)
+            SqlBase.metadata.create_all(self.engine)
 
 
 def get_unprocessed_files(

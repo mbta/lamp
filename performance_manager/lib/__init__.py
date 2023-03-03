@@ -9,5 +9,6 @@ from .logging_utils import ProcessLogger
 from .postgres_schema import MetadataLog, SqlBase
 from .postgres_utils import DatabaseManager
 from .ecs import handle_ecs_sigterm, check_for_sigterm
+from .l1_rt_metrics import process_trips_and_metrics
 
 __version__ = "0.1.0"

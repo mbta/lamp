@@ -56,6 +56,52 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
+class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
+    """
+    Table that holds GTFS-RT Trips
+    """
+
+    __tablename__ = "vehicle_trips"
+
+    trip_hash = sa.Column(sa.LargeBinary(16), nullable=False, primary_key=True)
+
+    # trip identifiers
+    direction_id = sa.Column(sa.Boolean, nullable=False)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    trunk_route_id = sa.Column(sa.String(60), nullable=False)
+    start_date = sa.Column(sa.Integer, nullable=False)
+    start_time = sa.Column(sa.Integer, nullable=False)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
+    stop_count = sa.Column(sa.SmallInteger, nullable=False)
+
+    # static trip matching
+    static_trip_id_guess = sa.Column(sa.String(128), nullable=True)
+    static_start_time = sa.Column(sa.Integer, nullable=True)
+    static_stop_count = sa.Column(sa.SmallInteger, nullable=True)
+    first_last_station_match = sa.Column(sa.Boolean, nullable=False)
+
+    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
+class VehicleEventMetrics(SqlBase):  # pylint: disable=too-few-public-methods
+    """
+    Tables that holds pre-computed metrics for GTFS-RT Events
+    """
+
+    __tablename__ = "vehicle_event_metrics"
+
+    trip_stop_hash = sa.Column(
+        sa.LargeBinary(16), nullable=False, primary_key=True
+    )
+
+    travel_time_seconds = sa.Column(sa.Integer, nullable=True)
+    dwell_time_seconds = sa.Column(sa.Integer, nullable=True)
+    headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
+    headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
+
+    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+
 class TempHashCompare(SqlBase):  # pylint: disable=too-few-public-methods
     """Hold temporary hash values for comparison to Vehicle Events table"""
 
