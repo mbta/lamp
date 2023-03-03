@@ -27,6 +27,8 @@ def get_seed_data(db_manager: DatabaseManager) -> Dict[int, List[int]]:
 
     return: Dict[start_date:int : List[fk_static_timestamps]]
     """
+    max_days_to_process = 3
+
     last_metric_update = sa.select(
         sa.func.coalesce(
             sa.func.max(VehicleTrips.updated_on),
@@ -57,7 +59,10 @@ def get_seed_data(db_manager: DatabaseManager) -> Dict[int, List[int]]:
         timestamp = record.get("fk_static_timestamp")
 
         if start_date not in seed_data_return:
-            seed_data_return[start_date] = []
+            if len(seed_data_return) < max_days_to_process:
+                seed_data_return[start_date] = []
+            else:
+                break
         seed_data_return[start_date].append(timestamp)
 
     return seed_data_return
@@ -73,16 +78,13 @@ def process_tables(
     during initial loading this number could be increased to speed up loading of
     trips and metrics table
     """
-
-    max_days_to_process = 3
-
     process_logger = ProcessLogger(
         "l1_tables_loader", seed_data_size=len(seed_data)
     )
     process_logger.log_start()
 
     days_processed = 0
-    for seed_start_date in sorted(seed_data.keys())[:max_days_to_process]:
+    for seed_start_date in sorted(seed_data.keys()):
         seed_timestamps = seed_data[seed_start_date]
         process_trips_table(db_manager, seed_start_date, seed_timestamps)
         process_metrics_table(db_manager, seed_start_date, seed_timestamps)
@@ -101,6 +103,8 @@ def process_trips_table(
 ) -> None:
     """
     processs updates to trips table
+
+    TODO: Move to L0 processing when events table no longer has trip data
     """
     process_logger = ProcessLogger("l1_rt_trips_table_loader")
     process_logger.log_start()
@@ -480,6 +484,9 @@ def process_metrics_table(
     #
     # the where statement of this CTE filters out any vehicle trips comprised of only 1 stop
     # on the assumption that those are not valid trips to include in the metrics calculations
+    #
+    # for consecutive trips that do not have same vehicle ID the first_stop headway
+    # logic could have issues
     dwell_times_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
