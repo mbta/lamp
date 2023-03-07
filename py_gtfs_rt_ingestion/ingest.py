@@ -93,7 +93,6 @@ def ingest(metadata_queue: Queue) -> None:
     filepaths to the metadata table as unprocessed, and move gtfs files to the
     archive bucket (or error bucket in the event of an error)
     """
-    check_for_sigterm()
     process_logger = ProcessLogger("ingest_all")
     process_logger.log_start()
 
@@ -111,11 +110,12 @@ def main() -> None:
     """every second run jobs that are currently pending"""
     # start rds writer process
     # this will create only one rds engine while app is running
-    metadata_queue, _rds_process = start_rds_writer_process()
+    metadata_queue, rds_process = start_rds_writer_process()
 
     schedule.every(5).minutes.do(ingest, metadata_queue=metadata_queue)
 
     while True:
+        check_for_sigterm(metadata_queue, rds_process)
         schedule.run_pending()
         time.sleep(1)
 
