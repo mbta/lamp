@@ -1,0 +1,75 @@
+[tool.poetry]
+name = "lamp_py"
+version = "0.1.0"
+description = "Lightweight Application for Monitoring Performance"
+authors = [
+    "MBTA CTD <developer@mbta.com>",
+    "Ryan Rymarczyk <rrymarczyk@mbta.com>",
+    "Mike Zappitello <mzappitello@mbta.com>",
+]
+
+[tool.poetry.scripts]
+ingestion = 'lamp_py.scripts.start_ingestion:start'
+performance_manager = 'lamp_py.scripts.start_performance_manager:start'
+
+[tool.poetry.dependencies]
+python = "^3.9"
+SQLAlchemy = "^1.4.39"
+pyarrow = "^8.0.0"
+boto3 = "^1.23.3"
+pandas = "^1.4.3"
+numpy = "^1.23.1"
+psycopg2 = "^2.9.3"
+psutil = "^5.9.1"
+schedule = "^1.1.0"
+
+[tool.poetry.dev-dependencies]
+black = "^23.1.0"
+mypy = "^1.1.1"
+pylint = "^2.17.0"
+pytest = "^7.1.2"
+sqlalchemy2-stubs = "^0.0.2-alpha.27"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 80
+target-version = ['py39']
+
+[tool.mypy]
+disallow_untyped_defs = true
+ignore_missing_imports = true
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+pretty = true
+python_version = 3.9
+warn_unreachable = true
+warn_unused_ignores = true
+
+[tool.pytest]
+log_cli = true
+log_cli_level = "DEBUG"
+verbose = true
+
+[tool.pylint]
+disable = [
+  # disable doc string requirements
+  "missing-module-docstring",
+  # allow catching a generic exception
+  "broad-except",
+  # caught by black
+  "line-too-long",
+  # we're logging everything so its "ok"
+  "lost-exception",
+  # for some reason Iterable[type] is triggering this error on github
+  "unsubscriptable-object",
+  # Converter abstract base class only has one common function
+  "too-few-public-methods"
+]
+good-names = ["e", "i", "s"]
+max-line-length = 80
+min-similarity-lines = 10
+# ignore session maker as it gives pylint fits
+# https://github.com/PyCQA/pylint/issues/7090
+ignored-classes = ['sqlalchemy.orm.session.sessionmaker' ]
