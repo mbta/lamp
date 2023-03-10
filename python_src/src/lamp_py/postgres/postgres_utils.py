@@ -332,6 +332,7 @@ class DatabaseManager:
         """
         add metadata filepaths to metadata table for testing
         """
+        print(paths)
         with self.session.begin() as session:
             session.execute(
                 sa.insert(MetadataLog.__table__), [{"path": p} for p in paths]

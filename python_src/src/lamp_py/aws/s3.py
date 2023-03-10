@@ -27,6 +27,12 @@ from pyarrow.util import guid
 
 from lamp_py.logging_utils import ProcessLogger
 
+
+def get_s3_client() -> boto3.client:
+    """Thin function needed for stubbing tests"""
+    return boto3.client("s3")
+
+
 def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     """
     Get a buffer for a zip file from s3 so that it can be read by zipfile
@@ -63,7 +69,7 @@ def file_list_from_s3(
     process_logger.log_start()
 
     try:
-        s3_client = boto3.client("s3")
+        s3_client = get_s3_client()
         paginator = s3_client.get_paginator("list_objects_v2")
         pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
 

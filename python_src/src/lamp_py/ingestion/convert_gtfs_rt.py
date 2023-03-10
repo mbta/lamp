@@ -196,7 +196,7 @@ class GtfsRtConverter(Converter):
         # yeild any remaining tables with next_hr_cnt > 0
         # guaranteeing that the end of the hour was hit
         # not sure if we would ever actually hit this
-        yield from self.yield_check(0, process_logger)
+        yield from self.yield_check(-1, process_logger)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
