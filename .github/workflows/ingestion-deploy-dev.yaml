@@ -15,7 +15,7 @@ jobs:
     with:
       app-name: lamp-ingestion
       environment: dev
-      dockerfile-path: ./py_gtfs_rt_ingestion/
+      dockerfile-path: ./python_src/ingestion.dockerfile
       cluster: lamp
     secrets:
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
