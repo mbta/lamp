@@ -1,19 +1,19 @@
-name: Performance Manager CI
+name: Continuous Integration
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'performance_manager/**'
+      - 'python_src/**'
   pull_request:
     paths:
-      - 'performance_manager/**'
+      - 'python_src/**'
 
 defaults:
   run:
     shell: bash
-    working-directory: performance_manager
+    working-directory: python_src 
 
 jobs:
   setup:
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/poetry_deps
         with:
-          poetry-dir: performance_manager
+          poetry-dir: python_src 
 
   format:
     name: Format
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/poetry_deps
         with:
-          poetry-dir: performance_manager
+          poetry-dir: python_src
       - run: poetry run black . --check
 
   typing:
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/poetry_deps
         with:
-          poetry-dir: performance_manager
+          poetry-dir: python_src
       - run: poetry run mypy .
 
   lint:
@@ -55,8 +55,8 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/poetry_deps
         with:
-          poetry-dir: performance_manager
-      - run: poetry run pylint --rcfile ../.pylintrc *.py lib/ tests/
+          poetry-dir: python_src
+      - run: poetry run pylint src
 
   test:
     name: Test
@@ -83,5 +83,5 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/poetry_deps
         with:
-          poetry-dir: performance_manager
+          poetry-dir: python_src
       - run: poetry run pytest

@@ -1,0 +1,39 @@
+name: Deploy Ingestion to Dev
+
+on:
+  workflow_run:
+    workflows: ["Ingestion CI"]
+    types: [completed]
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy_ingestion:
+    name: Deploy Ingestion
+    uses: mbta/workflows/.github/workflows/deploy-ecs.yml@main
+    with:
+      app-name: lamp-ingestion
+      environment: dev
+      dockerfile-path: ./python_src/ingestion.dockerfile
+      cluster: lamp
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      docker-repo: ${{ secrets.INGESTION_DOCKER_URI }}
+      slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+
+jobs:
+  deploy_performance_manager:
+    name: Deploy
+    uses: mbta/workflows/.github/workflows/deploy-ecs.yml@main
+    with:
+      app-name: lamp-performance-manager
+      environment: dev
+      dockerfile-path: ./python_src/performance_manager.dockerfile
+      cluster: lamp
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      docker-repo: ${{ secrets.PERFORMANCE_MANAGER_DOCKER_URI }}
+      slack-webhook: ${{ secrets.SLACK_WEBHOOK }}

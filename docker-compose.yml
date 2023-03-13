@@ -1,4 +1,3 @@
-
 version: '3'
 
 services:
@@ -12,17 +11,17 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
-    command: ["postgres", "-c", "log_statement=all"]
+    command: [ "postgres", "-c", "log_statement=all" ]
 
   performance_manager:
     container_name: performance_manager
     env_file: .env
     build:
-      context: performance_manager
-      dockerfile: Dockerfile
+      context: ./python_src
+      dockerfile: performance_manager.dockerfile
     depends_on:
       - local_rds
-    working_dir: /performance_manager
+    working_dir: /python_src
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
 
@@ -30,10 +29,10 @@ services:
     container_name: ingestion
     env_file: .env
     build:
-      context: py_gtfs_rt_ingestion
-      dockerfile: Dockerfile
+      context: ./python_src 
+      dockerfile: ingestion.dockerfile
     depends_on:
       - local_rds
-    working_dir: /py_gtfs_rt_ingestion
+    working_dir: /python_src
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
