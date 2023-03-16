@@ -15,7 +15,7 @@ jobs:
     with:
       app-name: lamp-performance-manager
       environment: dev
-      dockerfile-path: ./performance_manager/
+      dockerfile-path: ./python_src/performance_manager.dockerfile
       cluster: lamp
     secrets:
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
