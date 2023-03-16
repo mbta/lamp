@@ -18,21 +18,21 @@ services:
     env_file: .env
     build:
       context: ./python_src
-      dockerfile: performance_manager.dockerfile
     depends_on:
       - local_rds
     working_dir: /lamp
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
+    command: [ "poetry", "run", "performance_manager" ]
 
   ingestion:
     container_name: ingestion
     env_file: .env
     build:
       context: ./python_src
-      dockerfile: ingestion.dockerfile
     depends_on:
       - local_rds
     working_dir: /lamp
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
+    command: [ "poetry", "run", "ingestion" ]
