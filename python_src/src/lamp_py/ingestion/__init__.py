@@ -1,11 +1,5 @@
 """
-This module is used by CTD's LAMP application to process rt gtfs json formatted
-data and convert it into a parquet format for more efficient data analysis.
+Pipeline for processing ingesting GTFS static schedule files and GTFS real time
+files from an s3 bucket. The realtime files are collapsed into parquet files
+for long term storage.
 """
-
-from .converter import ConfigType
-from .error import ArgumentException
-from .ingest import ingest_files
-from .utils import group_sort_file_list, DEFAULT_S3_PREFIX
-
-__version__ = "0.1.0"

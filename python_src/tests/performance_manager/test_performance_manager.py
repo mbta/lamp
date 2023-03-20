@@ -9,8 +9,9 @@ import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from pyarrow import fs, parquet
 
-from lamp_py.performance_manager import process_static_tables
-
+from lamp_py.performance_manager.l0_gtfs_static_table import (
+    process_static_tables,
+)
 from lamp_py.performance_manager.l0_gtfs_rt_events import (
     combine_events,
     get_gtfs_rt_paths,

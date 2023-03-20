@@ -6,7 +6,7 @@ import os
 from multiprocessing import Queue
 import pytest
 
-from lamp_py.ingestion import ConfigType
+from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.error import NoImplException
 from lamp_py.ingestion.ingest import get_converter
 from lamp_py.ingestion.convert_gtfs import GtfsConverter
