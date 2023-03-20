@@ -9,7 +9,7 @@ import time
 import schedule
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.aws.s3 import file_list_from_s3_ingestion
+from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.import_env import load_environment
 from lamp_py.ingestion import ingest_files, DEFAULT_S3_PREFIX
 from lamp_py.logging_utils import ProcessLogger
@@ -65,7 +65,7 @@ def ingest(metadata_queue: Queue) -> None:
     process_logger = ProcessLogger("ingest_all")
     process_logger.log_start()
 
-    files = file_list_from_s3_ingestion(
+    files = file_list_from_s3(
         bucket_name=os.environ["INCOMING_BUCKET"],
         file_prefix=DEFAULT_S3_PREFIX,
     )

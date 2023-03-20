@@ -14,7 +14,7 @@ import pytest
 from botocore.stub import Stubber
 from botocore.stub import ANY
 
-from lamp_py.aws.s3 import file_list_from_s3_ingestion
+from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.aws.s3 import move_s3_objects
 
 from ..test_resources import incoming_dir
@@ -45,7 +45,7 @@ def test_file_list_s3(s3_stub):  # type: ignore
     }
     s3_stub.add_response("list_objects_v2", page_obj_response, page_obj_params)
     with s3_stub:
-        files = list(file_list_from_s3_ingestion("mbta-gtfs-s3", ""))
+        files = file_list_from_s3("mbta-gtfs-s3", "")
 
     assert len(files) == page_obj_response["KeyCount"]
     assert not files
@@ -71,7 +71,7 @@ def test_file_list_s3(s3_stub):  # type: ignore
     }
     s3_stub.add_response("list_objects_v2", page_obj_response, page_obj_params)
     with s3_stub:
-        files = list(file_list_from_s3_ingestion("mbta-gtfs-s3", ""))
+        files = file_list_from_s3("mbta-gtfs-s3", "")
 
     assert len(files) == page_obj_response["KeyCount"]
     should_files = []
@@ -97,7 +97,7 @@ def test_file_list_s3(s3_stub):  # type: ignore
     s3_stub.add_response("list_objects_v2", page_obj_response, page_obj_params)
 
     with s3_stub:
-        files = list(file_list_from_s3_ingestion("mbta-gtfs-s3", ""))
+        files = file_list_from_s3("mbta-gtfs-s3", "")
 
     assert len(files) == page_obj_response["KeyCount"]
 

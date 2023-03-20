@@ -52,7 +52,7 @@ def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     )
 
 
-def file_list_from_s3_ingestion(
+def file_list_from_s3(
     bucket_name: str, file_prefix: str, max_list_size: int = 250_000
 ) -> List[str]:
     """
@@ -89,29 +89,6 @@ def file_list_from_s3_ingestion(
     except Exception as exception:
         process_logger.log_failure(exception)
         return []
-
-
-def file_list_from_s3_pm(bucket_name: str, file_prefix: str) -> Iterator[str]:
-    """
-    generate filename, filesize tuples for every file in an s3 bucket
-
-    :param bucket_name: the name of the bucket to look inside of
-    :param file_prefix: prefix for files to generate
-
-    :yield filename, filesize tuples from inside of the bucket
-    """
-    s3_client = boto3.client("s3")
-    paginator = s3_client.get_paginator("list_objects_v2")
-    pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
-    for page in pages:
-        if page["KeyCount"] == 0:
-            continue
-        for obj in page["Contents"]:
-            # skip if this object is a "directory"
-            if obj["Size"] == 0:
-                continue
-            uri = os.path.join("s3://", bucket_name, obj["Key"])
-            yield uri
 
 
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
