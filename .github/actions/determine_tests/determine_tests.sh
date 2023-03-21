@@ -53,6 +53,9 @@ for SUBDIR in $CHANGED_SUBDIRS; do
   elif [[ "$SUBDIR" == "runtime_utils" ]]; then
     TEST_INGESTION=true
     TEST_PM=true
+  else
+    echo "Encountered unkonwn subdir $SUBDIR"
+    exit 1
   fi
 done
 
