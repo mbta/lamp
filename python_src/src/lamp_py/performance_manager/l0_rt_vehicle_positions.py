@@ -4,9 +4,9 @@ import numpy
 import pandas
 import sqlalchemy as sa
 from lamp_py.aws.s3 import read_parquet
-from lamp_py.logging_utils import ProcessLogger
 from lamp_py.postgres.postgres_schema import StaticFeedInfo, StaticStops
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import add_event_hash_column, start_time_to_seconds
 

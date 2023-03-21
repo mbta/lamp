@@ -9,8 +9,8 @@ authors = [
 ]
 
 [tool.poetry.scripts]
-ingestion = 'lamp_py.startup.start_ingestion:start'
-performance_manager = 'lamp_py.startup.start_performance_manager:start'
+ingestion = 'lamp_py.ingestion.pipeline:start'
+performance_manager = 'lamp_py.performance_manager.pipeline:start'
 
 [tool.poetry.dependencies]
 python = "^3.9"

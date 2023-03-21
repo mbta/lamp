@@ -50,6 +50,9 @@ for SUBDIR in $CHANGED_SUBDIRS; do
     TEST_POSTGRES=true
   elif [[ "$SUBDIR" == "performance_manager" ]]; then
     TEST_PM=true
+  elif [[ "$SUBDIR" == "runtime_utils" ]]; then
+    TEST_INGESTION=true
+    TEST_PM=true
   fi
 done
 

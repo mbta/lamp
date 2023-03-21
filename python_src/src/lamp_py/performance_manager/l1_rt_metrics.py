@@ -4,13 +4,13 @@ import logging
 import numpy
 import sqlalchemy as sa
 
-from lamp_py.logging_utils import ProcessLogger
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.postgres.postgres_schema import (
     VehicleEvents,
     VehicleTrips,
     VehicleEventMetrics,
 )
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .l1_cte_statements import (
     get_rt_trips_cte,
     get_static_trips_cte,

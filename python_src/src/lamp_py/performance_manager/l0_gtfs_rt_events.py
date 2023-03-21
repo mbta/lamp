@@ -4,9 +4,9 @@ from typing import Dict, List
 import numpy
 import pandas
 import sqlalchemy as sa
+
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import get_utc_from_partition_path
-from lamp_py.logging_utils import ProcessLogger
 from lamp_py.postgres.postgres_schema import (
     MetadataLog,
     TempHashCompare,
@@ -16,6 +16,7 @@ from lamp_py.postgres.postgres_utils import (
     DatabaseManager,
     get_unprocessed_files,
 )
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import add_event_hash_column
 from .l0_rt_trip_updates import process_tu_files

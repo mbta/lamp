@@ -10,10 +10,12 @@ import schedule
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3
-from lamp_py.import_env import load_environment
-from lamp_py.ingestion import ingest_files, DEFAULT_S3_PREFIX
-from lamp_py.logging_utils import ProcessLogger
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
+from lamp_py.runtime_utils.import_env import load_environment
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+from .ingest import ingest_files
+from .utils import DEFAULT_S3_PREFIX
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""

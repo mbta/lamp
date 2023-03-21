@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from lamp_py.aws.s3 import get_utc_from_partition_path
-from lamp_py.logging_utils import ProcessLogger
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .postgres_schema import (
     MetadataLog,

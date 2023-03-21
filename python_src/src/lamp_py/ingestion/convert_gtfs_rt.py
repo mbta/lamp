@@ -12,7 +12,7 @@ import pyarrow
 from pyarrow import fs
 
 from lamp_py.aws.s3 import move_s3_objects, write_parquet_file
-from lamp_py.logging_utils import ProcessLogger
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .config_rt_alerts import RtAlertsDetail
 from .config_rt_bus_trip import RtBusTripDetail

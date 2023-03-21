@@ -25,7 +25,7 @@ import pyarrow.parquet as pq
 from pyarrow import Table, fs
 from pyarrow.util import guid
 
-from lamp_py.logging_utils import ProcessLogger
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 def get_s3_client() -> boto3.client:
