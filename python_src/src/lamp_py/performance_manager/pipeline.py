@@ -10,14 +10,13 @@ import signal
 from typing import List
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.import_env import load_environment
-from lamp_py.logging_utils import ProcessLogger
-from lamp_py.performance_manager import (
-    process_static_tables,
-    process_gtfs_rt_files,
-    process_trips_and_metrics,
-)
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.import_env import load_environment
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+from .l0_gtfs_static_table import process_static_tables
+from .l0_gtfs_rt_events import process_gtfs_rt_files
+from .l1_rt_metrics import process_trips_and_metrics
 
 logging.getLogger().setLevel("INFO")
 

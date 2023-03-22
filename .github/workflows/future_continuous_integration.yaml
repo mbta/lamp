@@ -1,0 +1,41 @@
+name: Potential CI Workflow
+
+on: push
+
+jobs:
+  test_changed_subdirectories:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        ref: main
+        fetch-depth: 1
+
+    - name: Determine Tests to Run
+      id: determine_tests 
+      uses: ./.github/actions/determine_tests
+
+    - name: Print all outputs
+      run: |
+        echo "Test Ingestion: ${{ env.TEST_INGESTION }}"
+        echo "Test AWS: ${{ env.TEST_AWS }}"
+        echo "Test Performance Manager: ${{ env.TEST_PERFORMANCE_MANAGER }}"
+        echo "Test Postgres: ${{ env.TEST_POSTGRES }}"
+
+    - name: Test Ingestion
+      if: env.TEST_INGESTION == 'true'
+      run: echo "Running Ingestion tests..."
+
+    - name: Test AWS
+      if: env.TEST_AWS == 'true'
+      run: echo "Running AWS tests..."
+
+    - name: Test Performance Manager
+      if: env.TEST_PERFORMANCE_MANAGER == 'true'
+      run: echo "Running Performance Manager tests..."
+
+    - name: Test Postgres 
+      if: env.TEST_POSTGRES == 'true'
+      run: echo "Running Postgres tests..."

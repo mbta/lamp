@@ -5,12 +5,12 @@ from typing import IO, List, Tuple, Union
 import pyarrow
 from pyarrow import csv
 
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import (
     get_zip_buffer,
     move_s3_objects,
     write_parquet_file,
 )
-from lamp_py.logging_utils import ProcessLogger
 
 from .converter import Converter
 from .utils import DEFAULT_S3_PREFIX
