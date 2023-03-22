@@ -3,11 +3,11 @@ description: 'Deduce which tests need to be run by looking at what files have ch
 runs:
   using: 'composite'
   steps:
-    - run: |
-      ${{ github.action_path }}/determine_tests.sh
-
-      echo "TEST_INGESTION=$TEST_INGESTION" >> $GITHUB_ENV
-      echo "TEST_AWS=$TEST_AWS" >> $GITHUB_ENV
-      echo "TEST_PERFORMANCE_MANAGER=$TEST_PM" >> $GITHUB_ENV
-      echo "TEST_POSTGRES=$TEST_POSTGRES" >> $GITHUB_ENV
-    shell: bash
+    - name: Run Script and Output
+      shell: bash
+      run: |
+        ${{ github.action_path }}/determine_tests.sh
+        echo "TEST_INGESTION=$TEST_INGESTION" >> $GITHUB_ENV
+        echo "TEST_AWS=$TEST_AWS" >> $GITHUB_ENV
+        echo "TEST_PERFORMANCE_MANAGER=$TEST_PM" >> $GITHUB_ENV
+        echo "TEST_POSTGRES=$TEST_POSTGRES" >> $GITHUB_ENV
