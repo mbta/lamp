@@ -74,3 +74,4 @@ min-similarity-lines = 10
 # ignore session maker as it gives pylint fits
 # https://github.com/PyCQA/pylint/issues/7090
 ignored-classes = ['sqlalchemy.orm.session.sessionmaker' ]
+ignore = ["migrations"]

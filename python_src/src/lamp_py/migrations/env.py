@@ -16,7 +16,7 @@ config = context.config
 if config.config_ini_section == "alembic":
     raise Exception("Run alembic with -n flag to specifiy Database name.")
 
-# get database name from -n flag when alembic is run from cmd line 
+# get database name from -n flag when alembic is run from cmd line
 db_name = config.config_ini_section
 
 # Interpret the config file for Python logging.
@@ -75,7 +75,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # support for multiple engines to manage multiple dbs 
+    # support for multiple engines to manage multiple dbs
     engines = {
         "performance_manager": get_local_engine(),
     }

@@ -3,19 +3,20 @@ import logging
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 
-def run_alembic_migration(db_name) -> None:
+
+def run_alembic_migration(db_name: str) -> None:
     """
     run alembic migration command at application startup
     """
 
     if db_name == "performance_manager":
-        # if database is clean, call to DatabaseManager will trigger 
+        # if database is clean, call to DatabaseManager will trigger
         # SqlBase.metadata.create_all(self.engine)
         # creating all database tables
         db_manager = DatabaseManager()
     else:
-        raise Exception(f"Migration for {db_name} not implemented.")
-    
+        raise NotImplementedError(f"Migration for {db_name} not implemented.")
+
     # check if alembic_version table exists in rds
     try:
         db_manager.select_as_list("SELECT 1 FROM alembic_version")
@@ -43,7 +44,8 @@ def run_alembic_migration(db_name) -> None:
             "head",
         ]
 
-    result = subprocess.run(migration_command, capture_output=True, text=True)
+    result = subprocess.run(
+        migration_command, capture_output=True, text=True, check=True
+    )
     logging.info(result.stdout)
     logging.info(result.stderr)
-    
