@@ -11,7 +11,7 @@ def load_environment() -> None:
             return
 
         here = os.path.dirname(os.path.abspath(__file__))
-        env_file = os.path.join(here, "..", "..", "..", ".env")
+        env_file = os.path.join(here, "..", "..", "..", "..", ".env")
         env_file = os.path.abspath(env_file)
         logging.info("bootstrapping with env file %s", env_file)
 
