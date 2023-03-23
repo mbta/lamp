@@ -14,7 +14,7 @@ config = context.config
 
 # gate to make sure alembic is run using -n flag
 if config.config_ini_section == "alembic":
-    raise Exception("Run alembic with -n flag to specifiy Database name.")
+    raise SyntaxError("Run alembic with -n flag to specifiy Database name.")
 
 # get database name from -n flag when alembic is run from cmd line
 db_name = config.config_ini_section
@@ -30,11 +30,14 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from lamp_py.postgres.postgres_schema import SqlBase
 
-# using dictionary for target_metadata to support migrating multiple dbs
+# using dictionary for engine and target_metadata to support migrating multiple dbs
 # each dictionary name should have a section defined in alembic.ini that
-# matches the keys used in the target_metadata dictionary
-target_metadata = {
-    "performance_manager": SqlBase.metadata,
+# matches the key used in the db_details dictionary
+db_details = {
+    "performance_manager": {
+        "engine": get_local_engine(),
+        "target_metadata": SqlBase.metadata,
+    }
 }
 
 # other values from the config, defined by the needs of env.py,
@@ -43,29 +46,28 @@ target_metadata = {
 # ... etc.
 
 
-def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+# def run_migrations_offline() -> None:
+#     """Run migrations in 'offline' mode.
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
+#     This configures the context with just a URL
+#     and not an Engine, though an Engine is acceptable
+#     here as well.  By skipping the Engine creation
+#     we don't even need a DBAPI to be available.
 
-    Calls to context.execute() here emit the given string to the
-    script output.
+#     Calls to context.execute() here emit the given string to the
+#     script output.
 
-    """
-    raise Exception("Alembic offline migration not implemented.")
-    # url = config.get_main_option("sqlalchemy.url")
-    # context.configure(
-    #     url=url,
-    #     target_metadata=target_metadata,
-    #     literal_binds=True,
-    #     dialect_opts={"paramstyle": "named"},
-    # )
+#     """
+#     url = config.get_main_option("sqlalchemy.url")
+#     context.configure(
+#         url=url,
+#         target_metadata=target_metadata,
+#         literal_binds=True,
+#         dialect_opts={"paramstyle": "named"},
+#     )
 
-    # with context.begin_transaction():
-    #     context.run_migrations()
+#     with context.begin_transaction():
+#         context.run_migrations()
 
 
 def run_migrations_online() -> None:
@@ -75,16 +77,12 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # support for multiple engines to manage multiple dbs
-    engines = {
-        "performance_manager": get_local_engine(),
-    }
-
-    connectable = engines[db_name]
+    connectable = db_details[db_name]["engine"]
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata[db_name]
+            connection=connection, 
+            target_metadata=db_details[db_name]["target_metadata"],
         )
 
         with context.begin_transaction():
@@ -92,6 +90,7 @@ def run_migrations_online() -> None:
 
 
 if context.is_offline_mode():
-    run_migrations_offline()
+    raise NotImplementedError("Alembic offline migration not implemented.")
+    # run_migrations_offline()
 else:
     run_migrations_online()
