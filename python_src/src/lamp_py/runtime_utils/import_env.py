@@ -1,8 +1,9 @@
 import os
 import logging
+from typing import Optional
 
 
-def load_environment() -> None:
+def load_environment(env_file: Optional[str] = None) -> None:
     """
     Load environment variables from .env file if it exists
     """
@@ -10,9 +11,11 @@ def load_environment() -> None:
         if int(os.environ.get("BOOTSTRAPPED", 0)) == 1:
             return
 
-        here = os.path.dirname(os.path.abspath(__file__))
-        env_file = os.path.join(here, "..", "..", "..", "..", ".env")
-        env_file = os.path.abspath(env_file)
+        if env_file is None:
+            here = os.path.dirname(os.path.abspath(__file__))
+            env_file = os.path.join(here, "..", "..", "..", "..", ".env")
+            env_file = os.path.abspath(env_file)
+
         logging.info("bootstrapping with env file %s", env_file)
 
         with open(env_file, "r", encoding="utf8") as reader:

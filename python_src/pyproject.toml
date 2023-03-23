@@ -3,14 +3,15 @@ name = "lamp_py"
 version = "0.1.0"
 description = "Lightweight Application for Monitoring Performance"
 authors = [
-    "MBTA CTD <developer@mbta.com>",
-    "Ryan Rymarczyk <rrymarczyk@mbta.com>",
-    "Mike Zappitello <mzappitello@mbta.com>",
+  "MBTA CTD <developer@mbta.com>",
+  "Ryan Rymarczyk <rrymarczyk@mbta.com>",
+  "Mike Zappitello <mzappitello@mbta.com>",
 ]
 
 [tool.poetry.scripts]
 ingestion = 'lamp_py.ingestion.pipeline:start'
 performance_manager = 'lamp_py.performance_manager.pipeline:start'
+seed_metadata = 'lamp_py.postgres.seed_metadata:run'
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -66,7 +67,7 @@ disable = [
   # for some reason Iterable[type] is triggering this error on github
   "unsubscriptable-object",
   # Converter abstract base class only has one common function
-  "too-few-public-methods"
+  "too-few-public-methods",
 ]
 good-names = ["e", "i", "s"]
 max-line-length = 80
