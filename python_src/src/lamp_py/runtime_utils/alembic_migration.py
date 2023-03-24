@@ -1,5 +1,8 @@
-import subprocess
+import os
 import logging
+
+from alembic.config import Config
+from alembic import command
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 
@@ -8,6 +11,10 @@ def run_alembic_migration(db_name: str) -> None:
     """
     run alembic migration command at application startup
     """
+    here = os.path.dirname(os.path.abspath(__file__))
+    alembic_cfg_file = os.path.join(here, "..", "..", "..", "alembic.ini")
+    alembic_cfg_file = os.path.abspath(alembic_cfg_file)
+    logging.info("running alembic with config file %s", alembic_cfg_file)
 
     if db_name == "performance_manager":
         # if database is clean, call to DatabaseManager will trigger
@@ -17,14 +24,8 @@ def run_alembic_migration(db_name: str) -> None:
     else:
         raise NotImplementedError(f"Migration for {db_name} not implemented.")
 
-    # normal migration command, for if version table exists
-    migration_command = [
-        "alembic",
-        "-n",
-        db_name,
-        "upgrade",
-        "head",
-    ]
+    # load alembic configuation for db_name
+    alembic_cfg = Config(alembic_cfg_file, ini_section=db_name)
 
     # check if alembic_version table exists in rds
     try:
@@ -32,16 +33,7 @@ def run_alembic_migration(db_name: str) -> None:
     except Exception as _:
         # if no version table, create version table and stamp with current head
         # this assumes the head matches current rds state
-        migration_command = [
-            "alembic",
-            "-n",
-            db_name,
-            "stamp",
-            "head",
-        ]
+        command.stamp(alembic_cfg, revision="head")
 
-    result = subprocess.run(
-        migration_command, capture_output=True, text=True, check=True
-    )
-    logging.info(result.stdout)
-    logging.info(result.stderr)
+    # normal migration command, for if version table exists
+    command.upgrade(alembic_cfg, revision="head")

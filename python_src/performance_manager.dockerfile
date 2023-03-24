@@ -24,5 +24,5 @@ RUN echo "d464378fbb8b981d2b28a1deafffd0113554e6adfb34535134f411bf3c689e73 /usr/
 RUN chmod a=r /usr/local/share/amazon-certs.pem
 
 # uncommnt this if you want to run locally and seed the metadata table
-# CMD [ "poetry", "run", "performance_manager" "--seed" ]
+# CMD [ "poetry", "run", "performance_manager", "--seed", "--clear-static"]
 CMD [ "poetry", "run", "performance_manager" ]
