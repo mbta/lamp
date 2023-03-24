@@ -78,6 +78,8 @@ def file_list_from_s3(
             if page["KeyCount"] == 0:
                 continue
             for obj in page["Contents"]:
+                if obj["Size"] == 0:
+                    continue
                 filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
             if len(filepaths) > max_list_size:
