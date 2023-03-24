@@ -17,23 +17,19 @@ def run_alembic_migration(db_name: str) -> None:
     else:
         raise NotImplementedError(f"Migration for {db_name} not implemented.")
 
+    # normal migration command, for if version table exists
+    migration_command = [
+        "alembic",
+        "-n",
+        db_name,
+        "upgrade",
+        "head",
+    ]
+
     # check if alembic_version table exists in rds
     try:
         db_manager.select_as_list("SELECT 1 FROM alembic_version")
-        version_table_exists = True
     except Exception as _:
-        version_table_exists = False
-
-    if version_table_exists:
-        # run normal migration if version table exists
-        migration_command = [
-            "alembic",
-            "-n",
-            db_name,
-            "upgrade",
-            "head",
-        ]
-    else:
         # if no version table, create version table and stamp with current head
         # this assumes the head matches current rds state
         migration_command = [
