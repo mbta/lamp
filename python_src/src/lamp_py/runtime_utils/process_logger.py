@@ -28,6 +28,8 @@ class ProcessLogger:
         create a process logger with a name and optional metadata. a start time
         and uuid will be created for timing and unique identification
         """
+        logging.getLogger().setLevel("INFO")
+
         self.default_data: Dict[str, Any] = {}
         self.metadata: Dict[str, Any] = {}
 
