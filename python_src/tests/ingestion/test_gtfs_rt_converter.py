@@ -6,7 +6,7 @@ from unittest.mock import patch
 from pyarrow import fs
 
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
-from lamp_py.ingestion import ConfigType
+from lamp_py.ingestion.converter import ConfigType
 
 from ..test_resources import incoming_dir
 
