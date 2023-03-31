@@ -707,7 +707,12 @@ def process_metrics_table(
             == VehicleEventMetrics.trip_stop_hash,
             isouter=True,
         )
-        .where(all_new_metrics.c.travel_time_seconds > 0)
+        .where(
+            sa.or_(
+                all_new_metrics.c.travel_time_seconds > 0,
+                all_new_metrics.c.travel_time_seconds.is_(None),
+            ),
+        )
     )
 
     # this logic is again very similar to trips dataframe insert/update operation
