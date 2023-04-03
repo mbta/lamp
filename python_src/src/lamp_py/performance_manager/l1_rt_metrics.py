@@ -695,33 +695,27 @@ def process_metrics_table(
         )
         .join(
             dwell_times_cte,
-            sa.and_(
-                travel_times_cte.c.trip_stop_hash
-                == dwell_times_cte.c.trip_stop_hash,
-            ),
+            travel_times_cte.c.trip_stop_hash
+            == dwell_times_cte.c.trip_stop_hash,
             full=True,
         )
         .join(
             headways_branch_cte,
-            sa.and_(
-                sa.func.coalesce(
-                    travel_times_cte.c.trip_stop_hash,
-                    dwell_times_cte.c.trip_stop_hash,
-                )
-                == headways_branch_cte.c.trip_stop_hash,
-            ),
+            sa.func.coalesce(
+                travel_times_cte.c.trip_stop_hash,
+                dwell_times_cte.c.trip_stop_hash,
+            )
+            == headways_branch_cte.c.trip_stop_hash,
             full=True,
         )
         .join(
             headways_trunk_cte,
-            sa.and_(
-                sa.func.coalesce(
-                    travel_times_cte.c.trip_stop_hash,
-                    dwell_times_cte.c.trip_stop_hash,
-                    headways_branch_cte.c.trip_stop_hash,
-                )
-                == headways_trunk_cte.c.trip_stop_hash,
-            ),
+            sa.func.coalesce(
+                travel_times_cte.c.trip_stop_hash,
+                dwell_times_cte.c.trip_stop_hash,
+                headways_branch_cte.c.trip_stop_hash,
+            )
+            == headways_trunk_cte.c.trip_stop_hash,
             full=True,
         )
     ).cte(name="all_new_metrics")
