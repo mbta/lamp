@@ -456,9 +456,10 @@ def process_metrics_table(
 
     trips_for_metrics = get_trips_for_metrics(seed_timestamps, seed_start_date)
 
-    # straight forward travel_times calculation
-    # limited to records where stop_timestamp > move_timestamp to avoid negative
-    # travel_time values, these are basically error records, shoud flag???
+    # travel_times calculation:
+    # limited to records where stop_timestamp > move_timestamp to avoid negative travel times
+    # limited to non NULL stop and move timestmaps to avoid NULL results
+    # negative travel times are error records, should flag???
     travel_times_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
@@ -469,6 +470,8 @@ def process_metrics_table(
         )
         .where(
             trips_for_metrics.c.first_stop_flag == sa.false(),
+            trips_for_metrics.c.stop_timestamp.is_not(None),
+            trips_for_metrics.c.move_timestamp.is_not(None),
             trips_for_metrics.c.stop_timestamp
             > trips_for_metrics.c.move_timestamp,
         )
@@ -487,7 +490,7 @@ def process_metrics_table(
     #
     # for consecutive trips that do not have same vehicle ID the first_stop headway
     # logic could have issues
-    dwell_times_cte = (
+    t_dwell_times_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
             sa.case(
@@ -530,6 +533,20 @@ def process_metrics_table(
                 trips_for_metrics.c.first_stop_flag == sa.false(),
             ),
         )
+        .cte(name="t_dwell_times")
+    )
+
+    # limit dwell times caluclations to NON-NULL positivie integers
+    # would be nice if this could be done in the first CTE, but I can't 
+    # get it to work with sqlalchemy
+    dwell_times_cte = (
+        sa.select(
+            t_dwell_times_cte.c.trip_stop_hash,
+            t_dwell_times_cte.c.dwell_time_seconds,
+        ).where(
+            t_dwell_times_cte.c.dwell_time_seconds.is_not(None),
+            t_dwell_times_cte.c.dwell_time_seconds > 0,
+        )
         .cte(name="dwell_times")
     )
 
@@ -544,7 +561,7 @@ def process_metrics_table(
     #
     # all other headways are calculated with stop_timstamp to stop_timestamp by
     # subsequent vehicles on the same route/direction
-    headways_cte = (
+    t_headways_branch_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
             sa.case(
@@ -576,6 +593,34 @@ def process_metrics_table(
                     order_by=trips_for_metrics.c.sort_timestamp,
                 ),
             ).label("headway_branch_seconds"),
+        )
+        .where(
+            sa.or_(
+                trips_for_metrics.c.stop_count > 1,
+                trips_for_metrics.c.first_stop_flag == sa.false(),
+            ),
+        )
+        .cte(name="t_headways_branch")
+    )
+
+    # limit headways branch calculations to NON-NULL positive integers
+    # would be nice if this could be done in the first CTE, but I can't 
+    # get it to work with sqlalchemy
+    headways_branch_cte = (
+        sa.select(
+            t_headways_branch_cte.c.trip_stop_hash,
+            t_headways_branch_cte.c.headway_branch_seconds,
+        )
+        .where(
+            t_headways_branch_cte.c.headway_branch_seconds.is_not(None),
+            t_headways_branch_cte.c.headway_branch_seconds > 0,
+        )
+        .cte(name="headways_branch")
+    )
+
+    t_headways_trunk_cte = (
+        sa.select(
+            trips_for_metrics.c.trip_stop_hash,
             sa.case(
                 [
                     (
@@ -610,26 +655,42 @@ def process_metrics_table(
             sa.or_(
                 trips_for_metrics.c.stop_count > 1,
                 trips_for_metrics.c.first_stop_flag == sa.false(),
-            )
+            ),
         )
-        .cte(name="headways")
+        .cte(name="t_headways_trunk")
     )
 
-    # all_new_metrics combines travel_times, dwell_times and headways into one
-    # table of results
-    # this attempts to limit negative value calculations (which should be bad records)
-    # however negative values can still get in for one of the headways values
+    # limit headways trunk calculations to NON-NULL positive integers
+    # would be nice if this could be done in the first CTE, but I can't 
+    # get it to work with sqlalchemy
+    headways_trunk_cte = (
+        sa.select(
+            t_headways_trunk_cte.c.trip_stop_hash,
+            t_headways_trunk_cte.c.headway_trunk_seconds,
+        )
+        .where(
+            t_headways_trunk_cte.c.headway_trunk_seconds.is_not(None),
+            t_headways_trunk_cte.c.headway_trunk_seconds > 0,
+        )
+        .cte(name="headways_trunk")
+    )
+
+    # all_new_metrics combines travel_times, dwell_times and headways into one result set
+    # previous CTE's ensure that individual input tables will not have null or negative values
+    # would be nice to be able to use USING instead of COALESCE function for combining multiple
+    # tables with same key, but I can't locate support in sqlalchemy
     all_new_metrics = (
         sa.select(
             sa.func.coalesce(
                 travel_times_cte.c.trip_stop_hash,
                 dwell_times_cte.c.trip_stop_hash,
-                headways_cte.c.trip_stop_hash,
+                headways_branch_cte.c.trip_stop_hash,
+                headways_trunk_cte.c.trip_stop_hash,
             ).label("trip_stop_hash"),
             travel_times_cte.c.travel_time_seconds,
             dwell_times_cte.c.dwell_time_seconds,
-            headways_cte.c.headway_branch_seconds,
-            headways_cte.c.headway_trunk_seconds,
+            headways_branch_cte.c.headway_branch_seconds,
+            headways_trunk_cte.c.headway_trunk_seconds,
         )
         .select_from(
             travel_times_cte,
@@ -639,34 +700,31 @@ def process_metrics_table(
             sa.and_(
                 travel_times_cte.c.trip_stop_hash
                 == dwell_times_cte.c.trip_stop_hash,
-                sa.func.coalesce(dwell_times_cte.c.dwell_time_seconds, 0) > 0,
             ),
             full=True,
         )
         .join(
-            headways_cte,
+            headways_branch_cte,
             sa.and_(
                 sa.func.coalesce(
                     travel_times_cte.c.trip_stop_hash,
                     dwell_times_cte.c.trip_stop_hash,
                 )
-                == headways_cte.c.trip_stop_hash,
-                sa.or_(
-                    sa.func.coalesce(headways_cte.c.headway_branch_seconds, 0)
-                    > 0,
-                    sa.func.coalesce(headways_cte.c.headway_trunk_seconds, 0)
-                    > 0,
-                ),
+                == headways_branch_cte.c.trip_stop_hash,
             ),
             full=True,
         )
-        .where(
-            sa.or_(
-                sa.func.coalesce(travel_times_cte.c.travel_time_seconds, 0) > 0,
-                sa.func.coalesce(dwell_times_cte.c.dwell_time_seconds, 0) > 0,
-                sa.func.coalesce(headways_cte.c.headway_branch_seconds, 0) > 0,
-                sa.func.coalesce(headways_cte.c.headway_trunk_seconds, 0) > 0,
+        .join(
+            headways_trunk_cte,
+            sa.and_(
+                sa.func.coalesce(
+                    travel_times_cte.c.trip_stop_hash,
+                    dwell_times_cte.c.trip_stop_hash,
+                    headways_branch_cte.c.trip_stop_hash,
+                )
+                == headways_trunk_cte.c.trip_stop_hash,
             ),
+            full=True,
         )
     ).cte(name="all_new_metrics")
 
@@ -706,12 +764,6 @@ def process_metrics_table(
             all_new_metrics.c.trip_stop_hash
             == VehicleEventMetrics.trip_stop_hash,
             isouter=True,
-        )
-        .where(
-            sa.or_(
-                all_new_metrics.c.travel_time_seconds > 0,
-                all_new_metrics.c.travel_time_seconds.is_(None),
-            ),
         )
     )
 
