@@ -438,9 +438,6 @@ def process_trips_table(
     process_logger.log_complete()
 
 
-# pylint: enable=R0914
-
-
 def process_metrics_table(
     db_manager: DatabaseManager,
     seed_start_date: int,
@@ -537,13 +534,14 @@ def process_metrics_table(
     )
 
     # limit dwell times caluclations to NON-NULL positivie integers
-    # would be nice if this could be done in the first CTE, but I can't 
+    # would be nice if this could be done in the first CTE, but I can't
     # get it to work with sqlalchemy
     dwell_times_cte = (
         sa.select(
             t_dwell_times_cte.c.trip_stop_hash,
             t_dwell_times_cte.c.dwell_time_seconds,
-        ).where(
+        )
+        .where(
             t_dwell_times_cte.c.dwell_time_seconds.is_not(None),
             t_dwell_times_cte.c.dwell_time_seconds > 0,
         )
@@ -604,7 +602,7 @@ def process_metrics_table(
     )
 
     # limit headways branch calculations to NON-NULL positive integers
-    # would be nice if this could be done in the first CTE, but I can't 
+    # would be nice if this could be done in the first CTE, but I can't
     # get it to work with sqlalchemy
     headways_branch_cte = (
         sa.select(
@@ -661,7 +659,7 @@ def process_metrics_table(
     )
 
     # limit headways trunk calculations to NON-NULL positive integers
-    # would be nice if this could be done in the first CTE, but I can't 
+    # would be nice if this could be done in the first CTE, but I can't
     # get it to work with sqlalchemy
     headways_trunk_cte = (
         sa.select(
@@ -831,6 +829,9 @@ def process_metrics_table(
         )
 
     process_logger.log_complete()
+
+
+# pylint: enable=R0914
 
 
 def process_trips_and_metrics(db_manager: DatabaseManager) -> None:
