@@ -58,13 +58,6 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     """parse args for running this entrypoint script"""
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
-        "--experimental",
-        action="store_true",
-        dest="experimental",
-        help="if set, use a sqllite engine for quicker development",
-    )
-
-    parser.add_argument(
         "--interval",
         default=60,
         dest="interval",
@@ -72,31 +65,10 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--seed",
-        action="store_true",
-        dest="seed",
-        help="if set, seed metadataLog table with paths",
-    )
-
-    parser.add_argument(
         "--verbose",
         action="store_true",
         dest="verbose",
         help="if set, verbose sql logging",
-    )
-
-    parser.add_argument(
-        "--clear-rt",
-        action="store_true",
-        dest="clear_rt",
-        help="if set, clear gtfs-rt database tables",
-    )
-
-    parser.add_argument(
-        "--clear-static",
-        action="store_true",
-        dest="clear_static",
-        help="if set, clear gtfs static database tables",
     )
 
     return parser.parse_args(args)
@@ -108,12 +80,7 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(
-        verbose=args.verbose,
-        seed=args.seed,
-        clear_rt=args.clear_rt,
-        clear_static=args.clear_static,
-    )
+    db_manager = DatabaseManager(verbose=args.verbose)
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)

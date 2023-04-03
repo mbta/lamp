@@ -36,3 +36,20 @@ services:
     volumes:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
     command: [ "poetry", "run", "ingestion" ]
+
+  seed_metadata:
+    container_name: seed_metadata
+    env_file: .env
+    build:
+      context: ./python_src
+    depends_on:
+      - local_rds
+    working_dir: /lamp
+    volumes:
+      # map credentials to be used by boto3, read-only
+      - ~/.aws:/root/.aws:ro
+      # add in july 17 filepahs json that will be the default seed file path
+      - ./python_src/tests/test_files/july_17_filepaths.json:/july_17_filepaths.json
+    # entrypoint passes in seed file thats added as a volume. if you want to use a different filepath run
+    # docker-compose run -v /path/to/files.json:/seed.json seed_metadata --seed-file /seed.json
+    entrypoint: [ "poetry", "run", "seed_metadata", "--seed-file", "/july_17_filepaths.json"]
