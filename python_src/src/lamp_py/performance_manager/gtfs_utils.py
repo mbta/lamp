@@ -206,7 +206,7 @@ def remove_bus_records(
     assocated with route_type == 3
     """
     process_logger = ProcessLogger(
-        "remove_bus_records",
+        "gtfs_rt.remove_bus_records",
         start_row_count=events_dataframe.shape[0],
     )
     process_logger.log_start()
@@ -217,28 +217,20 @@ def remove_bus_records(
         for timestamp in events_dataframe["fk_static_timestamp"].unique()
     ]
 
-    # pull route type data for joining to events
-    route_type_query = sa.select(
+    # pull non-bus route_id's from RDS
+    non_bus_id_query = sa.select(
         StaticRoutes.timestamp.label("fk_static_timestamp"),
         StaticRoutes.route_id,
-        StaticRoutes.route_type,
-    ).where(StaticRoutes.timestamp.in_(static_timestamps))
-    route_types = db_manager.select_as_dataframe(route_type_query)
+    ).where(
+        StaticRoutes.timestamp.in_(static_timestamps),
+        StaticRoutes.route_type != 3,
+    )
+    non_bus_ids = db_manager.select_as_dataframe(non_bus_id_query)
 
-    # join route type to events on "route_id" and gtfs static
-    # timestamp foreign key
+    # join events on non-bus "route_id"s and gtfs static timestamp foreign key
     events_dataframe = events_dataframe.merge(
-        route_types, how="left", on=["fk_static_timestamp", "route_id"]
+        non_bus_ids, how="inner", on=["fk_static_timestamp", "route_id"]
     )
-    events_dataframe["route_type"] = events_dataframe["route_type"].astype(
-        "Int64"
-    )
-
-    # drop bus service recrods from dataframe
-    events_dataframe = events_dataframe[events_dataframe["route_type"] != 3]
-
-    # remove "route_type" field from dataframe
-    events_dataframe = events_dataframe.drop(columns=["route_type"])
 
     process_logger.add_metadata(after_row_count=events_dataframe.shape[0])
     process_logger.log_complete()
