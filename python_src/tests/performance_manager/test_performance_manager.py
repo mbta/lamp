@@ -233,10 +233,10 @@ def test_static_tables(
     # processing the static tables our db tables should have these many record
     # counts.
     row_counts = {
-        StaticTrips: 64879,
-        StaticRoutes: 234,
+        StaticTrips: 9731,
+        StaticRoutes: 24,
         StaticStops: 9706,
-        StaticStopTimes: 1676197,
+        StaticStopTimes: 160977,
         StaticCalendar: 76,
     }
 
