@@ -20,12 +20,10 @@ from lamp_py.performance_manager.l0_gtfs_rt_events import (
 )
 from lamp_py.performance_manager.l0_rt_trip_updates import (
     get_and_unwrap_tu_dataframe,
-    join_tu_with_gtfs_static,
     reduce_trip_updates,
 )
 from lamp_py.performance_manager.l0_rt_vehicle_positions import (
     get_vp_dataframe,
-    join_vp_with_gtfs_static,
     transform_vp_datatypes,
     transform_vp_timestamps,
 )
@@ -39,6 +37,12 @@ from lamp_py.postgres.postgres_schema import (
     VehicleEvents,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
+
+from lamp_py.performance_manager.gtfs_utils import (
+    add_fk_static_timestamp_column,
+    remove_bus_records,
+    add_parent_station_column,
+)
 
 from ..test_resources import springboard_dir
 
@@ -300,21 +304,46 @@ def test_gtfs_rt_processing(
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
-        positions = join_vp_with_gtfs_static(positions, db_manager)
-        assert positions.shape[1] == 11
+        positions = add_fk_static_timestamp_column(
+            positions, "vehicle_timestamp", db_manager
+        )
+        assert positions.shape[1] == 10
         assert position_size == positions.shape[0]
+
+        # remove bus records from dataframe
+        positions = remove_bus_records(positions, db_manager)
+        assert positions.shape[1] == 10
+        assert position_size > positions.shape[0]
+
+        # remove bus records from dataframe
+        positions = add_parent_station_column(positions, db_manager)
+        assert positions.shape[1] == 11
+        assert position_size > positions.shape[0]
 
         positions = transform_vp_timestamps(positions)
         assert positions.shape[1] == 12
-        assert positions.shape[0] < position_size
+        assert position_size > positions.shape[0]
 
         trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"])
         trip_update_size = trip_updates.shape[0]
         assert trip_updates.shape[1] == 9
 
-        trip_updates = join_tu_with_gtfs_static(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 11
+        # check that it can be combined with the static schedule
+        trip_updates = add_fk_static_timestamp_column(
+            trip_updates, "tu_stop_timestamp", db_manager
+        )
+        assert trip_updates.shape[1] == 10
         assert trip_update_size == trip_updates.shape[0]
+
+        # remove bus records from dataframe
+        trip_updates = remove_bus_records(trip_updates, db_manager)
+        assert trip_updates.shape[1] == 10
+        assert trip_update_size > trip_updates.shape[0]
+
+        # remove bus records from dataframe
+        trip_updates = add_parent_station_column(trip_updates, db_manager)
+        assert trip_updates.shape[1] == 11
+        assert trip_update_size > trip_updates.shape[0]
 
         trip_updates = reduce_trip_updates(trip_updates)
         assert trip_update_size > trip_updates.shape[0]

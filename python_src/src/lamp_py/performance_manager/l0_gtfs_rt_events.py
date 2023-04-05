@@ -143,6 +143,10 @@ def upload_to_database(
     already in the database and those that are brand new. update preexisting
     events where appropriate and insert the new ones.
     """
+    # handle empty events dataframe
+    if events.shape[0] == 0:
+        return
+
     process_logger = ProcessLogger(
         "gtfs_rt.add_trip_hash",
         event_count=events.shape[0],
