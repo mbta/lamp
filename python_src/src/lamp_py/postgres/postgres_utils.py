@@ -13,10 +13,19 @@ from sqlalchemy.orm import sessionmaker
 from lamp_py.aws.s3 import get_utc_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .postgres_schema import (
-    MetadataLog,
-    SqlBase,
-)
+from .postgres_schema import MetadataLog
+
+
+def running_in_docker() -> bool:
+    """
+    return true if running inside of a docker container
+    """
+    path = "/proc/self/cgroup"
+    return (
+        os.path.exists("/.dockerenv")
+        or os.path.isfile(path)
+        and any("docker" in line for line in open(path, encoding="UTF-8"))
+    )
 
 
 def get_db_password() -> str:
@@ -60,42 +69,6 @@ def postgres_event_update_db_password(
     process_logger.log_complete()
 
 
-def postgres_event_create_modified_trigger(
-    table: sa.schema.Table,
-    connection: sa.engine.Connection,
-    **_: Any,
-) -> None:
-    """
-    sqlalchemy will listen for new table create events and when detected,
-    run this function to suplement table creation by creating update_on
-    triggers for tables containing an 'update_on' field
-
-    this function will only be used for postgres db
-    """
-    update_column_name = "updated_on"
-    trigger_function_statement = sa.DDL(
-        f"CREATE OR REPLACE FUNCTION update_modified_columns() "
-        f"RETURNS TRIGGER AS $$ "
-        f"BEGIN "
-        f"NEW.{update_column_name} = CURRENT_TIMESTAMP; "
-        f"RETURN NEW; "
-        f"END; $$ LANGUAGE plpgsql"
-    )
-    connection.execute(trigger_function_statement)
-    if update_column_name in list(table.columns.keys()):
-        trigger_name = f"update_{table}_modified".lower()
-        trigger_statement = sa.DDL(
-            f"DO $$ BEGIN "
-            f"IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = '{trigger_name}') "
-            f"THEN "
-            f'    CREATE TRIGGER {trigger_name} BEFORE UPDATE ON "{table}" '
-            f"    FOR EACH ROW EXECUTE PROCEDURE update_modified_columns();"
-            f"END IF; "
-            f"END $$;"
-        )
-        connection.execute(trigger_statement)
-
-
 def get_local_engine(
     echo: bool = False,
 ) -> sa.future.engine.Engine:
@@ -117,7 +90,8 @@ def get_local_engine(
         # accessed via the "0.0.0.0" ip address (mac specific)
         if db_host == "local_rds" and "macos" in platform.platform().lower():
             db_host = "0.0.0.0"
-        # db_host = "localhost"
+        if not running_in_docker():
+            db_host = "127.0.0.1"
 
         assert db_host is not None
         assert db_name is not None
@@ -202,21 +176,12 @@ class DatabaseManager:
         self.engine = get_local_engine(echo=verbose)
 
         sa.event.listen(
-            sa.schema.Table,
-            "after_create",
-            postgres_event_create_modified_trigger,
-        )
-
-        sa.event.listen(
             self.engine,
             "do_connect",
             postgres_event_update_db_password,
         )
 
         self.session = sessionmaker(bind=self.engine)
-
-        # create tables in SqlBase
-        SqlBase.metadata.create_all(self.engine)
 
     def _get_schema_table(self, table: Any) -> sa.sql.schema.Table:
         if isinstance(table, sa.sql.schema.Table):
