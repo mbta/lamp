@@ -96,7 +96,7 @@ def run() -> None:
     if parsed_args.clear_static:
         SqlBase.metadata.drop_all(db_manager.engine)
         drop_alembic_sql = "DROP TABLE IF EXISTS alembic_version;"
-        db_manager.execute(drop_alembic_sql)
+        db_manager.execute(sa.text(drop_alembic_sql))
         run_alembic_migration("performance_manager")
     elif parsed_args.clear_rt:
         db_manager.truncate_table(VehicleTrips)
