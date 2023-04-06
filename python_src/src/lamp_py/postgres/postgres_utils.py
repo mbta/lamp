@@ -205,7 +205,7 @@ class DatabaseManager:
             sa.sql.dml.Update,
             sa.sql.dml.Delete,
             sa.sql.dml.Insert,
-            sa.sql.elements.TextClause
+            sa.sql.elements.TextClause,
         ],
     ) -> sa.engine.BaseCursorResult:
         """
