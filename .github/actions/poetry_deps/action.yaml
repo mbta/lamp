@@ -20,7 +20,9 @@ runs:
 
     - name: Install Poetry dependencies
       working-directory: ${{ inputs.poetry-dir }}
+      # env use python3.9 to force usage of python3.9 installed by asdf over system python version
       run: |
+        poetry env use python3.9
         poetry install -v 
       shell: bash
       if: "!steps.poetry-cache.outputs.cache-hit"
