@@ -2,13 +2,17 @@ from typing import List, Union
 
 import numpy
 import pandas
-import sqlalchemy as sa
 from lamp_py.aws.s3 import read_parquet
-from lamp_py.postgres.postgres_schema import StaticFeedInfo, StaticStops
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .gtfs_utils import add_event_hash_column, start_time_to_seconds
+from .gtfs_utils import (
+    add_event_hash_column,
+    start_time_to_seconds,
+    add_fk_static_timestamp_column,
+    add_parent_station_column,
+    remove_bus_records,
+)
 
 
 def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
@@ -95,97 +99,6 @@ def transform_vp_datatypes(
         vehicle_positions["start_time"]
         .apply(start_time_to_seconds)
         .astype("int64")
-    )
-
-    process_logger.log_complete()
-    return vehicle_positions
-
-
-def join_vp_with_gtfs_static(
-    vehicle_positions: pandas.DataFrame, db_manager: DatabaseManager
-) -> pandas.DataFrame:
-    """
-    join vehicle position dataframe to gtfs static records
-
-    adds "fk_static_timestamp" and "parent_station" columns to dataframe
-    """
-    process_logger = ProcessLogger(
-        "vp.join_with_gtfs_static", row_count=vehicle_positions.shape[0]
-    )
-    process_logger.log_start()
-
-    # get unique "start_date" values from vehicle position dataframe
-    # with associated minimum "vehicle_timestamp"
-    date_groups = vehicle_positions.groupby(by="start_date")[
-        "vehicle_timestamp"
-    ].min()
-
-    # dictionary used to match minimum "vehicle_timestamp" values to
-    # "timestamp" from StaticFeedInfo table, to be used as foreign key
-    timestamp_lookup = {}
-    for date, min_timestamp in date_groups.iteritems():
-        date = int(date)
-        min_timestamp = int(min_timestamp)
-        # "start_date" from vehicle timestamps must be between "feed_start_date"
-        # and "feed_end_date" in StaticFeedInfo
-        # minimum "vehicle_timestamp" must also be less than "timestamp" from
-        # StaticFeedInfo, order by "timestamp" descending and limit to 1 result
-        # this should deal with multiple static schedules with possible
-        # overlapping times of applicability
-        feed_timestamp_query = (
-            sa.select(StaticFeedInfo.timestamp)
-            .where(
-                (StaticFeedInfo.feed_start_date <= date)
-                & (StaticFeedInfo.feed_end_date >= date)
-                # & (StaticFeedInfo.timestamp < min_timestamp)
-            )
-            .order_by(StaticFeedInfo.timestamp.desc())
-            .limit(1)
-        )
-        result = db_manager.select_as_list(feed_timestamp_query)
-        # if this query does not produce a result, no static schedule info
-        # exists for this vehicle position data, so the vehicle position data
-        # should not be processed until valid static schedule data exists
-        if len(result) == 0:
-            raise IndexError(
-                f"StaticFeedInfo table has no matching schedule for start_date={date}, timestamp={min_timestamp}"
-            )
-        timestamp_lookup[min_timestamp] = int(result[0]["timestamp"])
-
-    vehicle_positions["fk_static_timestamp"] = timestamp_lookup[
-        min(timestamp_lookup.keys())
-    ]
-    # add "fk_static_timestamp" column to vehicle positions dataframe
-    # loop is to handle batches vehicle position batches that are applicable to
-    # overlapping static gtfs data
-    for min_timestamp in sorted(timestamp_lookup.keys()):
-        timestamp_mask = vehicle_positions["vehicle_timestamp"] >= min_timestamp
-        vehicle_positions.loc[
-            timestamp_mask, "fk_static_timestamp"
-        ] = timestamp_lookup[min_timestamp]
-
-    # unique list of "fk_static_timestamp" values for pulling parent stations
-    static_timestamps = list(set(timestamp_lookup.values()))
-
-    # pull parent station data for joining to vehicle position events
-    parent_station_query = sa.select(
-        StaticStops.timestamp.label("fk_static_timestamp"),
-        StaticStops.stop_id,
-        StaticStops.parent_station,
-    ).where(StaticStops.timestamp.in_(static_timestamps))
-    parent_stations = db_manager.select_as_dataframe(parent_station_query)
-
-    # join parent stations to vehicle positions on "stop_id" and gtfs static
-    # timestamp foreign key
-    vehicle_positions = vehicle_positions.merge(
-        parent_stations, how="left", on=["fk_static_timestamp", "stop_id"]
-    )
-    # is parent station is not provided, transfer "stop_id" value to
-    # "parent_station" column
-    vehicle_positions["parent_station"] = numpy.where(
-        vehicle_positions["parent_station"].isna(),
-        vehicle_positions["stop_id"],
-        vehicle_positions["parent_station"],
     )
 
     process_logger.log_complete()
@@ -291,9 +204,11 @@ def process_vp_files(
 
     vehicle_positions = get_vp_dataframe(paths)
     vehicle_positions = transform_vp_datatypes(vehicle_positions)
-    vehicle_positions = join_vp_with_gtfs_static(
-        vehicle_positions=vehicle_positions, db_manager=db_manager
+    vehicle_positions = add_fk_static_timestamp_column(
+        vehicle_positions, "vehicle_timestamp", db_manager
     )
+    vehicle_positions = remove_bus_records(vehicle_positions, db_manager)
+    vehicle_positions = add_parent_station_column(vehicle_positions, db_manager)
     vehicle_positions = transform_vp_timestamps(vehicle_positions)
 
     process_logger.add_metadata(vehicle_events_count=vehicle_positions.shape[0])

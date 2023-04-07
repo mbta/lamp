@@ -143,11 +143,9 @@ def upload_to_database(
     already in the database and those that are brand new. update preexisting
     events where appropriate and insert the new ones.
     """
-    process_logger = ProcessLogger(
-        "gtfs_rt.add_trip_hash",
-        event_count=events.shape[0],
-    )
-    process_logger.log_start()
+    # handle empty events dataframe
+    if events.shape[0] == 0:
+        return
 
     # add in column for trip hash that will be unique to the trip. this will
     # be useful for metrics and querries users want to run.
@@ -164,7 +162,6 @@ def upload_to_database(
     )
     events["trip_hash"] = events["trip_hash"].str.decode("hex")
 
-    process_logger.log_complete()
     process_logger = ProcessLogger(
         "gtfs_rt.pull_overlapping_events",
         event_count=events.shape[0],
@@ -208,8 +205,6 @@ def upload_to_database(
 
     process_logger.add_metadata(db_event_count=database_events.shape[0])
     process_logger.log_complete()
-    process_logger = ProcessLogger("gtfs_rt.merge_existing_and_new_events")
-    process_logger.log_start()
 
     # merge all of the database data into the events we already have based on
     # trip stop hash. events that potentially need updated will have a pk_id
@@ -220,8 +215,6 @@ def upload_to_database(
         how="left",
         on="trip_stop_hash",
     )
-
-    process_logger.add_metadata(overlap_event_count=events.shape[0])
 
     # to update the vp move timestamp in the case where the db event had one
     # and the processed event did not. then update again in the case where the
@@ -264,7 +257,6 @@ def upload_to_database(
     events["tu_stop_timestamp"] = events["tu_stop_timestamp"].astype("Int64")
     events["pk_id"] = events["pk_id"].astype("Int64")
 
-    process_logger.log_complete()
     process_logger = ProcessLogger("gtfs_rt.update_events")
     process_logger.log_start()
 
