@@ -1,7 +1,7 @@
 import os
 import pathlib
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import numpy
 import pandas
@@ -41,7 +41,7 @@ class StaticTableDetails:
     data_table: pandas.DataFrame = pandas.DataFrame()
 
 
-def get_table_objects() -> List[StaticTableDetails]:
+def get_table_objects() -> Dict[str, StaticTableDetails]:
     """
     getter function for clean list of gtfs static table details objects
     """
@@ -170,14 +170,14 @@ def get_table_objects() -> List[StaticTableDetails]:
         ],
     )
 
-    return [
-        feed_info,
-        trips,
-        routes,
-        stops,
-        stop_times,
-        calendar,
-    ]
+    return {
+        "feed_info": feed_info,
+        "trips": trips,
+        "routes": routes,
+        "stops": stops,
+        "stop_times": stop_times,
+        "calendar": calendar,
+    }
 
 
 def get_static_parquet_paths(table_type: str, feed_info_path: str) -> List[str]:
@@ -191,13 +191,13 @@ def get_static_parquet_paths(table_type: str, feed_info_path: str) -> List[str]:
 
 
 def load_parquet_files(
-    static_tables: List[StaticTableDetails], feed_info_path: str
+    static_tables: Dict[str, StaticTableDetails], feed_info_path: str
 ) -> None:
     """
     get parquet paths to load from feed_info_path and load parquet files as
     dataframe into StaticTableDetails objects
     """
-    for table in static_tables:
+    for table in static_tables.values():
         paths_to_load = get_static_parquet_paths(
             table.table_name, feed_info_path
         )
@@ -207,11 +207,11 @@ def load_parquet_files(
         assert table.data_table.shape[0] > 0
 
 
-def transform_data_tables(static_tables: List[StaticTableDetails]) -> None:
+def transform_data_tables(static_tables: Dict[str, StaticTableDetails]) -> None:
     """
     transform static gtfs schedule dataframe objects as required
     """
-    for table in static_tables:
+    for table in static_tables.values():
         table.data_table = table.data_table.drop_duplicates()
 
         if table.int64_cols is not None:
@@ -240,14 +240,57 @@ def transform_data_tables(static_tables: List[StaticTableDetails]) -> None:
         table.data_table = table.data_table.replace([""], [None])
 
 
+def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
+    """
+    remove bus records from "routes", "trips" and "stop_times" static tables
+    """
+    process_logger = ProcessLogger(
+        "gtfs.remove_bus_records",
+        stop_times_start_row_count=static_tables["stop_times"].data_table.shape[
+            0
+        ],
+    )
+    process_logger.log_start()
+
+    # remove bus routes (route_type == 3) from routes table
+    routes = static_tables["routes"].data_table
+    routes = routes[(routes["route_type"] != 3)]
+    # save non-bus route_id's to be joined with other dataframes
+    no_bus_route_ids = routes[["route_id"]]
+
+    # save new routes dataframe for RDS insertion
+    static_tables["routes"].data_table = routes
+
+    trips = static_tables["trips"].data_table
+    # inner join trips on non-bus route_ids to remove bus trips
+    trips = trips.merge(no_bus_route_ids, how="inner", on="route_id")
+    # save non-bus trip_id's to be joined with other dataframes
+    no_bus_trip_ids = trips[["trip_id"]]
+
+    # save new trips dataframe for RDS insertion
+    static_tables["trips"].data_table = trips
+
+    stop_times = static_tables["stop_times"].data_table
+    # inner join trips on non-bus trip_ids to remove bus stop times
+    stop_times = stop_times.merge(no_bus_trip_ids, how="inner", on="trip_id")
+
+    # save new stop_times dataframe for RDS insertion
+    static_tables["stop_times"].data_table = stop_times
+
+    process_logger.add_metadata(
+        stop_times_after_row_count=stop_times.shape[0],
+    )
+    process_logger.log_complete()
+
+
 def insert_data_tables(
-    static_tables: List[StaticTableDetails],
+    static_tables: Dict[str, StaticTableDetails],
     db_manager: DatabaseManager,
 ) -> None:
     """
     insert static gtfs data tables into rds tables
     """
-    for table in static_tables:
+    for table in static_tables.values():
         db_manager.insert_dataframe(table.data_table, table.insert_table)
 
 
@@ -279,6 +322,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
         try:
             load_parquet_files(static_tables, folder)
             transform_data_tables(static_tables)
+            drop_bus_records(static_tables)
             insert_data_tables(static_tables, db_manager)
 
             update_md_log = (
