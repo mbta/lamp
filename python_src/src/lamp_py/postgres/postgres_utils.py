@@ -90,8 +90,8 @@ def get_local_engine(
         # accessed via the "0.0.0.0" ip address (mac specific)
         if db_host == "local_rds" and "macos" in platform.platform().lower():
             db_host = "0.0.0.0"
-        if not running_in_docker():
-            db_host = "127.0.0.1"
+        # if not running_in_docker():
+        #     db_host = "127.0.0.1"
 
         assert db_host is not None
         assert db_name is not None
