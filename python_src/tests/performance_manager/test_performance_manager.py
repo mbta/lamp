@@ -34,9 +34,11 @@ from lamp_py.postgres.postgres_schema import (
     StaticStops,
     StaticStopTimes,
     StaticTrips,
+    StaticCalendarDates,
     VehicleEvents,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.alembic_migration import run_alembic_migration
 
 from lamp_py.performance_manager.gtfs_utils import (
     add_fk_static_timestamp_column,
@@ -95,6 +97,7 @@ def fixture_db_manager() -> DatabaseManager:
     """
     set_env_vars()
     db_manager = DatabaseManager()
+    run_alembic_migration("performance_manager")
     return db_manager
 
 
@@ -242,6 +245,7 @@ def test_static_tables(
         StaticStops: 9706,
         StaticStopTimes: 160977,
         StaticCalendar: 76,
+        StaticCalendarDates: 70,
     }
 
     with db_manager.session.begin() as session:

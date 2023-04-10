@@ -16,6 +16,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticStops,
     StaticStopTimes,
     StaticTrips,
+    StaticCalendarDates,
 )
 from lamp_py.postgres.postgres_utils import (
     DatabaseManager,
@@ -170,6 +171,23 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         ],
     )
 
+    calendar_dates = StaticTableDetails(
+        table_name="CALENDAR_DATES",
+        insert_table=StaticCalendarDates.__table__,
+        columns_to_pull=[
+            "service_id",
+            "date",
+            "exception_type",
+            "holiday_name",
+            "timestamp",
+        ],
+        int64_cols=[
+            "date",
+            "exception_type",
+            "timestamp",
+        ],
+    )
+
     return {
         "feed_info": feed_info,
         "trips": trips,
@@ -177,6 +195,7 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         "stops": stops,
         "stop_times": stop_times,
         "calendar": calendar,
+        "calendar_dates": calendar_dates,
     }
 
 

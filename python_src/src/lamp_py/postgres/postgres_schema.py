@@ -216,3 +216,16 @@ class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
     start_date = sa.Column(sa.Integer, nullable=False)
     end_date = sa.Column(sa.Integer, nullable=False)
     timestamp = sa.Column(sa.Integer, nullable=False)
+
+
+class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for GTFS Calendar Dates"""
+
+    __tablename__ = "static_calendar_dates"
+
+    pk_id = sa.Column(sa.Integer, primary_key=True)
+    service_id = sa.Column(sa.String(128), nullable=False, index=True)
+    date = sa.Column(sa.Integer, nullable=False, index=True)
+    exception_type = sa.Column(sa.SmallInteger, nullable=False)
+    holiday_name = sa.Column(sa.String(128), nullable=True)
+    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
