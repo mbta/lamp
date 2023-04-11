@@ -16,7 +16,7 @@ seed_metadata = 'lamp_py.postgres.seed_metadata:run'
 [tool.poetry.dependencies]
 python = "^3.9"
 SQLAlchemy = "^1.4.39"
-pyarrow = "^8.0.0"
+pyarrow = "^11.0.0"
 boto3 = "^1.23.3"
 pandas = "^1.4.3"
 numpy = "^1.23.1"
