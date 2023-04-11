@@ -20,7 +20,7 @@ jobs:
     name: Setup
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: python_src 
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: setup
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: python_src
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: setup
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: python_src
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: setup
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: python_src
@@ -80,7 +80,7 @@ jobs:
           POSTGRES_DB: ${{env.DB_NAME}}
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/poetry_deps
         with:
           poetry-dir: python_src

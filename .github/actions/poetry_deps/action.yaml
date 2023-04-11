@@ -9,8 +9,7 @@ runs:
   using: composite
   steps:
     - uses: ./.github/actions/tools
-
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       id: poetry-cache
       with:
         path: | 
