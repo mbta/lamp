@@ -12,7 +12,7 @@ db_config = Application.get_env(:api, Api.Repo)
 # that it is adding metadata to the appropriate database
 {output, result} =
   System.shell(
-    "poetry run seed_metadata --env-file ../.env --seed-file tests/test_files/july_17_filepaths.json --clear-static",
+    "poetry run snapshot reset",
     cd: "../python_src",
     stderr_to_stdout: true,
     env: %{

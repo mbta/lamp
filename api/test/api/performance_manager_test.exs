@@ -1,23 +1,66 @@
 defmodule Api.PerformanceManagerTest do
   use Api.DataCase
 
-  alias Api.PerformanceManager
+  alias Api.Repo
+  alias Api.PerformanceManager.MetadataLog
+  alias Api.PerformanceManager.StaticCalendar
+  alias Api.PerformanceManager.StaticCalendarDates
+  alias Api.PerformanceManager.StaticFeedInfo
+  alias Api.PerformanceManager.StaticRoutes
+  alias Api.PerformanceManager.StaticStopTimes
+  alias Api.PerformanceManager.StaticStops
+  alias Api.PerformanceManager.StaticTrips
+  alias Api.PerformanceManager.VehicleEventMetrics
+  alias Api.PerformanceManager.VehicleEvents
+  alias Api.PerformanceManager.VehicleTrips
 
-  describe "metadata_log" do
-    import Api.PerformanceManagerFixtures
+  describe "metadata log table" do
+    test "metadata log schema formatted correctly" do
+      assert Repo.all(MetadataLog) == []
+    end
+  end
 
-    test "list_metadata_log/0 returns all metadata_log" do
-      all_metadata = PerformanceManager.list_metadata_log()
-      assert Enum.count(all_metadata) == 101
+  describe "realtime tables" do
+    test "list vehicle event_metrics schema formatted correctly" do
+      assert Repo.all(VehicleEventMetrics) == []
     end
 
-    test "get_metadata_log!/1 returns the metadata_log with given id" do
-      first_entry = PerformanceManager.get_metadata_log!(1)
+    test "vehicle events schema formatted correctly" do
+      assert Repo.all(VehicleEvents) == []
+    end
 
-      assert first_entry.processed == false
+    test "vehicle trips schema formatted correctly" do
+      assert Repo.all(VehicleTrips) == []
+    end
+  end
 
-      assert first_entry.path ==
-               "mbta-ctd-dataplatform-dev-springboard/lamp/RT_VEHICLE_POSITIONS/year=2022/month=7/day=20/hour=0/6e247daf3469436aa574f93fa4cb7c48-0.parquet"
+  describe "static tables" do
+    test "static calendar dates schema formatted correctly" do
+      assert Repo.all(StaticCalendarDates) == []
+    end
+
+    test "static calendar schema formatted correctly" do
+      assert Repo.all(StaticCalendar) == []
+    end
+
+    test "static feed info schema formatted correctly" do
+      assert Repo.all(StaticFeedInfo) == []
+    end
+
+    test "static routes schema formatted correctly" do
+      assert Repo.all(StaticRoutes) == []
+    end
+
+    test "static stop times schema formatted correctly" do
+      assert Repo.all(StaticStopTimes) == []
+    end
+
+    test "static stops schema formatted correctly" do
+      assert Repo.all(StaticStops) == []
+    end
+
+    test "static trips schema formatted correctly" do
+      assert Repo.all(StaticTrips) == []
     end
   end
 end
