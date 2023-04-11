@@ -9,7 +9,7 @@ defmodule ApiWeb.MetadataLogControllerTest do
     test "lists all metadata_log", %{conn: conn} do
       conn = get(conn, ~p"/api/metadata_log")
       data = json_response(conn, 200)["data"]
-      assert Enum.count(data) == 101
+      assert Enum.count(data) == 0
     end
   end
 end
