@@ -1,5 +1,9 @@
 name: Set up tools
 description: Loads asdf tools for for a CI/CD job, installing them if not cached
+outputs:
+  cache-hit:
+    description: "Whether the ASDF cache was hit"
+    value: ${{ steps.asdf-cache.outputs-cache-hit }}
 runs:
   using: composite
   steps:
