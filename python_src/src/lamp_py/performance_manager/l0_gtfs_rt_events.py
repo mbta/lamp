@@ -21,6 +21,8 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import add_event_hash_column
 from .l0_rt_trip_updates import process_tu_files
 from .l0_rt_vehicle_positions import process_vp_files
+from .l1_rt_trips import process_trips
+from .l1_rt_metrics import process_metrics
 
 
 def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
@@ -123,18 +125,9 @@ def combine_events(
     return events
 
 
-def compute_metrics(events: pandas.DataFrame) -> pandas.DataFrame:
-    """
-    generate dwell times, stop times, and headways metrics for events
-    """
-    # TODO(zap / ryan) - figure out how 2 compute these. the update
-    # logic will also need to be updated.
-    return events
-
-
 def upload_to_database(
     events: pandas.DataFrame, db_manager: DatabaseManager
-) -> None:
+) -> pandas.DataFrame:
     """
     add vehicle event data to the database
 
@@ -143,10 +136,6 @@ def upload_to_database(
     already in the database and those that are brand new. update preexisting
     events where appropriate and insert the new ones.
     """
-    # handle empty events dataframe
-    if events.shape[0] == 0:
-        return
-
     # add in column for trip hash that will be unique to the trip. this will
     # be useful for metrics and querries users want to run.
     events = add_event_hash_column(
@@ -218,7 +207,7 @@ def upload_to_database(
 
     # to update the vp move timestamp in the case where the db event had one
     # and the processed event did not. then update again in the case where the
-    # prorcessed timestamp is later than the db timestamp.
+    # processed timestamp is later than the db timestamp.
     events["vp_move_timestamp"] = numpy.where(
         ((events["vp_move_db"].notna()) & (events["vp_move_timestamp"].isna())),
         events["vp_move_db"],
@@ -255,13 +244,16 @@ def upload_to_database(
     events["vp_move_timestamp"] = events["vp_move_timestamp"].astype("Int64")
     events["vp_stop_timestamp"] = events["vp_stop_timestamp"].astype("Int64")
     events["tu_stop_timestamp"] = events["tu_stop_timestamp"].astype("Int64")
+    events["vp_stop_db"] = events["vp_stop_db"].astype("Int64")
+    events["vp_move_db"] = events["vp_move_db"].astype("Int64")
     events["pk_id"] = events["pk_id"].astype("Int64")
+    events = events.fillna(numpy.nan).replace([numpy.nan], [None])
 
     process_logger = ProcessLogger("gtfs_rt.update_events")
     process_logger.log_start()
 
     # update all of the events that have pk_ids and new timestamps.
-    update_mask = (events["pk_id"].notna()) & (
+    events["do_update"] = (events["pk_id"].notna()) & (
         (events["tu_stop_timestamp"].notna())
         | (events["vp_move_timestamp"] != events["vp_move_db"])
         | (events["vp_stop_timestamp"] != events["vp_stop_db"])
@@ -270,9 +262,8 @@ def upload_to_database(
     # drop the db timestamps that have now been moved to the event timestamps
     # where appropriate and fill all nan's with nones for db insertion
     events = events.drop(columns=["vp_move_db", "vp_stop_db"])
-    events = events.fillna(numpy.nan).replace([numpy.nan], [None])
 
-    if update_mask.sum() > 0:
+    if events["do_update"].sum() > 0:
         update_cols = [
             "pk_id",
             "vp_move_timestamp",
@@ -283,7 +274,7 @@ def upload_to_database(
             sa.update(VehicleEvents.__table__).where(
                 VehicleEvents.pk_id == sa.bindparam("b_pk_id")
             ),
-            events.loc[update_mask, update_cols].rename(
+            events.loc[events["do_update"], update_cols].rename(
                 columns={"pk_id": "b_pk_id"}
             ),
         )
@@ -294,10 +285,10 @@ def upload_to_database(
     process_logger.log_start()
 
     # any event that doesn't have a pk_id need to be inserted
-    insert_mask = events["pk_id"].isna()
+    events["do_insert"] = events["pk_id"].isna()
 
-    process_logger.add_metadata(insert_event_count=insert_mask.sum())
-    if insert_mask.sum() > 0:
+    process_logger.add_metadata(insert_event_count=events["do_insert"].sum())
+    if events["do_insert"].sum() > 0:
         insert_cols = [
             "direction_id",
             "route_id",
@@ -317,10 +308,12 @@ def upload_to_database(
 
         result = db_manager.execute_with_data(
             sa.insert(VehicleEvents.__table__),
-            events.loc[insert_mask, insert_cols],
+            events.loc[events["do_insert"], insert_cols],
         )
 
     process_logger.log_complete()
+
+    return events
 
 
 def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
@@ -379,7 +372,17 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
                 tu_events = process_tu_files(files["tu_paths"], db_manager)
                 events = combine_events(vp_events, tu_events)
 
-            upload_to_database(events, db_manager)
+            # continue events processing if records exist
+            if events.shape[0] > 0:
+                events = upload_to_database(events, db_manager)
+                # drop all records that do not require update or insert
+                events = events[(events["do_update"]) | (events["do_insert"])]
+                # add new trips to VehicleTrips table
+                if events["do_insert"].sum() > 0:
+                    process_trips(db_manager, events)
+                # add new metrics to VehicleMetrics table
+                if events.shape[0] > 0:
+                    process_metrics(db_manager, events)
 
             db_manager.execute(
                 sa.update(MetadataLog.__table__)

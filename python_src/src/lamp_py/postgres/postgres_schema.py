@@ -68,17 +68,26 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     # trip identifiers
     direction_id = sa.Column(sa.Boolean, nullable=False)
     route_id = sa.Column(sa.String(60), nullable=False)
-    trunk_route_id = sa.Column(sa.String(60), nullable=False)
+    trunk_route_id = sa.Column(sa.String(60), nullable=True)
     start_date = sa.Column(sa.Integer, nullable=False)
     start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
-    stop_count = sa.Column(sa.SmallInteger, nullable=False)
+    stop_count = sa.Column(sa.SmallInteger, nullable=True)
 
     # static trip matching
     static_trip_id_guess = sa.Column(sa.String(128), nullable=True)
     static_start_time = sa.Column(sa.Integer, nullable=True)
     static_stop_count = sa.Column(sa.SmallInteger, nullable=True)
-    first_last_station_match = sa.Column(sa.Boolean, nullable=False)
+    first_last_station_match = sa.Column(
+        sa.Boolean, nullable=False, default=sa.false()
+    )
+
+    # forign key to static schedule expected values
+    fk_static_timestamp = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("static_feed_info.timestamp"),
+        nullable=False,
+    )
 
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
@@ -107,7 +116,9 @@ class TempHashCompare(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "temp_hash_compare"
 
-    trip_stop_hash = sa.Column(sa.LargeBinary(16), primary_key=True)
+    trip_stop_hash = sa.Column(
+        sa.LargeBinary(16), primary_key=True, nullable=False
+    )
 
 
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
