@@ -15,5 +15,4 @@ defmodule ApiWeb.MetadataLogController do
     metadata_log = PerformanceManager.get_metadata_log!(pk_id)
     render(conn, :show, metadata_log: metadata_log)
   end
-
 end

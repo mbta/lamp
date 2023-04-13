@@ -36,5 +36,4 @@ defmodule Api.PerformanceManager do
 
   """
   def get_metadata_log!(pk_id), do: Repo.get!(MetadataLog, pk_id)
-
 end

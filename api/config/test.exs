@@ -9,7 +9,7 @@ config :api, Api.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "performance_manager",
+  database: "performance_manager_test",
   port: "5432",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 10
