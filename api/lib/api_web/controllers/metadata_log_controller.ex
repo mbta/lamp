@@ -2,7 +2,6 @@ defmodule ApiWeb.MetadataLogController do
   use ApiWeb, :controller
 
   alias Api.PerformanceManager
-  alias Api.PerformanceManager.MetadataLog
 
   action_fallback ApiWeb.FallbackController
 
