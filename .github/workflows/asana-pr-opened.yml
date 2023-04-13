@@ -6,6 +6,7 @@ on:
 jobs:
   move-asana-ticket-job:
     runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     steps:
       - name: Github-Asana Move Ticket Action
         uses: mbta/github-asana-action@v4.3.0
