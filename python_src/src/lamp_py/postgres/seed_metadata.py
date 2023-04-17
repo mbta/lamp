@@ -9,11 +9,13 @@ from typing import List
 import sqlalchemy as sa
 
 from lamp_py.runtime_utils.import_env import load_environment
-from lamp_py.runtime_utils.alembic_migration import run_alembic_migration
+from lamp_py.runtime_utils.alembic_migration import (
+    alembic_upgrade_to_head,
+    alembic_downgrade_to_base,
+)
 
 from .postgres_schema import (
     MetadataLog,
-    SqlBase,
     VehicleEventMetrics,
     VehicleEvents,
     VehicleTrips,
@@ -94,10 +96,8 @@ def run() -> None:
     db_manager = DatabaseManager(parsed_args.verbose)
 
     if parsed_args.clear_static:
-        SqlBase.metadata.drop_all(db_manager.engine)
-        drop_alembic_sql = "DROP TABLE IF EXISTS alembic_version;"
-        db_manager.execute(sa.text(drop_alembic_sql))
-        run_alembic_migration("performance_manager")
+        alembic_downgrade_to_base("performance_manager")
+        alembic_upgrade_to_head("performance_manager")
     elif parsed_args.clear_rt:
         db_manager.truncate_table(VehicleTrips)
         db_manager.truncate_table(VehicleEventMetrics)

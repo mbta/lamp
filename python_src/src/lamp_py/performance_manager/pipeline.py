@@ -13,7 +13,7 @@ from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.import_env import load_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.alembic_migration import run_alembic_migration
+from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 
 from .l0_gtfs_static_table import process_static_tables
 from .l0_gtfs_rt_events import process_gtfs_rt_files
@@ -121,7 +121,7 @@ def start() -> None:
     validate_environment()
 
     # run rds migrations
-    run_alembic_migration(db_name="performance_manager")
+    alembic_upgrade_to_head(db_name="performance_manager")
 
     # run main method with parsed args
     main(parsed_args)

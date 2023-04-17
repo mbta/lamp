@@ -52,12 +52,14 @@ def downgrade() -> None:
         type_="foreignkey",
     )
     op.drop_column("vehicle_trips", "fk_static_timestamp")
+    op.execute("DELETE FROM vehicle_trips WHERE stop_count IS NULL;")
     op.alter_column(
         "vehicle_trips",
         "stop_count",
         existing_type=sa.SMALLINT(),
         nullable=False,
     )
+    op.execute("DELETE FROM vehicle_trips WHERE trunk_route_id IS NULL;")
     op.alter_column(
         "vehicle_trips",
         "trunk_route_id",
