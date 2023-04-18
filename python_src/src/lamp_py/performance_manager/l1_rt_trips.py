@@ -420,7 +420,7 @@ def process_trips_table(
 
 def process_trips(
     db_manager: DatabaseManager, events: pandas.DataFrame
-) -> pandas.DataFrame:
+) -> None:
     """
     insert new trips records from events dataframe into RDS
 
