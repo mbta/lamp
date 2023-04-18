@@ -10,6 +10,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticTrips,
     VehicleEvents,
     VehicleTrips,
+    StaticRoutes,
 )
 
 
@@ -94,8 +95,16 @@ def get_static_trips_cte(
                 StaticTrips.service_id == StaticCalendar.service_id,
             ),
         )
+        .join(
+            StaticRoutes,
+            sa.and_(
+                StaticStopTimes.timestamp == StaticRoutes.timestamp,
+                StaticTrips.route_id == StaticRoutes.route_id,
+            ),
+        )
         .where(
             (StaticStopTimes.timestamp.in_(timestamps))
+            & (StaticRoutes.route_type != 3)
             & (getattr(StaticCalendar, day_of_week) == sa.true())
             & (StaticCalendar.start_date <= int(start_date))
             & (StaticCalendar.end_date >= int(start_date))
@@ -116,12 +125,12 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
 
     return (
         sa.select(
-            VehicleEvents.fk_static_timestamp,
-            VehicleEvents.direction_id,
-            VehicleEvents.route_id,
-            VehicleEvents.start_date,
-            VehicleEvents.start_time,
-            VehicleEvents.vehicle_id,
+            VehicleTrips.fk_static_timestamp,
+            VehicleTrips.direction_id,
+            VehicleTrips.route_id,
+            VehicleTrips.start_date,
+            VehicleTrips.start_time,
+            VehicleTrips.vehicle_id,
             VehicleEvents.trip_hash,
             VehicleEvents.stop_sequence,
             VehicleEvents.parent_station,
@@ -153,8 +162,12 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
             .label("rt_trip_stop_rank"),
         )
         .select_from(VehicleEvents)
+        .join(
+            VehicleTrips,
+            VehicleTrips.trip_hash == VehicleEvents.trip_hash,
+        )
         .where(
-            VehicleEvents.start_date == start_date,
+            VehicleTrips.start_date == start_date,
             sa.or_(
                 VehicleEvents.vp_move_timestamp.is_not(None),
                 VehicleEvents.vp_stop_timestamp.is_not(None),
