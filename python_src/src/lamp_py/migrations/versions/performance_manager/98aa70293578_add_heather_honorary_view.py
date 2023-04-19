@@ -84,6 +84,14 @@ def upgrade() -> None:
                 "timestamp"
             FROM 
                 service_ids_special
+        ), trips_start_dates AS (
+            SELECT
+                start_date,
+                min(fk_static_timestamp) AS fk_timestamp
+            FROM
+                public.vehicle_trips
+            GROUP BY
+                start_date
         )
         SELECT
             st.route_id,
@@ -98,6 +106,11 @@ def upgrade() -> None:
             a_sid.service_id = e_sid.service_id
             AND a_sid.service_date = e_sid.service_date
             AND a_sid."timestamp" = e_sid."timestamp"
+        JOIN 
+            trips_start_dates trip_sd 
+        ON
+            trip_sd.start_date = a_sid.service_date
+            and trip_sd.fk_timestamp = a_sid."timestamp"
         JOIN 
             public.static_trips st 
         ON
