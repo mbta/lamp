@@ -32,7 +32,31 @@ def upgrade() -> None:
     )
     op.add_column(
         "vehicle_trips",
-        sa.Column("fk_static_timestamp", sa.Integer(), nullable=False),
+        sa.Column("fk_static_timestamp", sa.Integer(), nullable=True),
+    )
+    update_timestamp_query = """
+        UPDATE 
+            vehicle_trips 
+        SET 
+            fk_static_timestamp = subq.fk_static_timestamp
+        FROM 
+            (SELECT 
+                trip_hash, min(fk_static_timestamp) AS fk_static_timestamp 
+            FROM 
+                vehicle_events 
+            GROUP BY 
+                trip_hash
+            ) as subq
+        WHERE
+            subq.trip_hash = vehicle_trips.trip_hash
+        ;
+    """
+    op.execute(update_timestamp_query)
+    op.alter_column(
+        "vehicle_trips",
+        "fk_static_timestamp",
+        existing_type=sa.Integer(),
+        nullable=False,
     )
     op.create_foreign_key(
         "vehicle_trips_fk_static_timestamp_fkey",
