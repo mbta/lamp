@@ -12,6 +12,7 @@ authors = [
 ingestion = 'lamp_py.ingestion.pipeline:start'
 performance_manager = 'lamp_py.performance_manager.pipeline:start'
 seed_metadata = 'lamp_py.postgres.seed_metadata:run'
+snapshot = 'lamp_py.postgres.snapshot:run'
 
 [tool.poetry.dependencies]
 python = "^3.9"

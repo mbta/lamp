@@ -1,0 +1,5 @@
+[
+    "mbta-ctd-dataplatform-dev-springboard/lamp/RT_VEHICLE_POSITIONS/year=2022/month=7/day=20/hour=10/c7be65cb26f04b9c86874a8b40195a72-0.parquet",
+    "mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2022/month=7/day=20/hour=10/8dee9a06766042fb8adeb2fa2b999c1a-0.parquet",
+    "mbta-ctd-dataplatform-dev-springboard/lamp/FEED_INFO/timestamp=1668795415/dd9e9eb9f5d746a8ad3a0c0dbc73c521-0.parquet"
+]
