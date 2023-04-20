@@ -370,10 +370,8 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
         insert_statement = sa.insert(MetadataLog.__table__).values(
             processed=False, path=metadata_path
         )
-        process_logger = ProcessLogger(
-            "metadata_insert", filepath=metadata_path
-        )
-        process_logger.log_start()
+        insert_logger = ProcessLogger("metadata_insert", filepath=metadata_path)
+        insert_logger.log_start()
         retry_attempt = 0
 
         # All metatdata_insert attempts must succeed, keep attempting until success
@@ -388,8 +386,8 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
                 time.sleep(15)
 
             else:
-                process_logger.add_metadata(retry_attempts=retry_attempt)
-                process_logger.log_complete()
+                insert_logger.add_metadata(retry_attempts=retry_attempt)
+                insert_logger.log_complete()
                 break
 
     process_logger.log_complete()
