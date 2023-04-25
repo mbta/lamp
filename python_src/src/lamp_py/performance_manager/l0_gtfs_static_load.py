@@ -190,10 +190,10 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
 
     return {
         "feed_info": feed_info,
-        "trips": trips,
         "routes": routes,
         "stops": stops,
         "stop_times": stop_times,
+        "trips": trips,
         "calendar": calendar,
         "calendar_dates": calendar_dates,
     }

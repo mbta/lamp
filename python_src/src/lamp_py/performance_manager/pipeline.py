@@ -15,7 +15,7 @@ from lamp_py.runtime_utils.import_env import load_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 
-from .l0_gtfs_static_table import process_static_tables
+from .l0_gtfs_static_load import process_static_tables
 from .l0_gtfs_rt_events import process_gtfs_rt_files
 
 logging.getLogger().setLevel("INFO")

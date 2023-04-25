@@ -144,6 +144,7 @@ class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
     feed_start_date = sa.Column(sa.Integer, nullable=False)
     feed_end_date = sa.Column(sa.Integer, nullable=False)
     feed_version = sa.Column(sa.String(75), nullable=False, unique=True)
+    version_pub_date = sa.Column(sa.Integer, nullable=True, index=True)
     timestamp = sa.Column(sa.Integer, nullable=False, unique=True)
     created_on = sa.Column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
@@ -157,6 +158,8 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
     route_id = sa.Column(sa.String(60), nullable=False)
+    branch_route_id = sa.Column(sa.String(60), nullable=True)
+    trunk_route_id = sa.Column(sa.String(60), nullable=True)
     service_id = sa.Column(sa.String(60), nullable=False)
     trip_id = sa.Column(sa.String(128), nullable=False)
     direction_id = sa.Column(sa.Boolean)
