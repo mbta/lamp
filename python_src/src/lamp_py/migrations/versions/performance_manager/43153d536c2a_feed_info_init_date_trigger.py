@@ -1,4 +1,4 @@
-"""feed_info init_date trigger
+"""feed_info init_date triggerfeed_active_date
 
 Revision ID: 43153d536c2a
 Revises: 98aa70293578
@@ -19,13 +19,29 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "static_feed_info",
-        sa.Column("version_pub_date", sa.Integer(), nullable=True),
+        sa.Column("feed_active_date", sa.Integer(), nullable=True),
+    )
+
+    update_feed_active_date_query = """
+        UPDATE 
+            static_feed_info 
+        SET 
+            feed_active_date = replace((substring(feed_version from '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}')::timestamptz at time zone 'US/Eastern')::date::text,'-','')::integer
+        ;
+    """
+    op.execute(update_feed_active_date_query)
+
+    op.alter_column(
+        "static_feed_info",
+        "feed_active_date",
+        existing_type=sa.Integer(),
+        nullable=False,
     )
 
     op.create_index(
-        op.f("ix_static_feed_info_version_pub_date"),
+        op.f("ix_static_feed_info_feed_active_date"),
         "static_feed_info",
-        ["version_pub_date"],
+        ["feed_active_date"],
         unique=False,
     )
 
@@ -33,9 +49,9 @@ def upgrade() -> None:
         CREATE OR REPLACE FUNCTION insert_feed_info() RETURNS TRIGGER AS $$ 
         BEGIN 
             IF NEW.feed_version ~ '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}' THEN
-                NEW.version_pub_date := replace((substring(NEW.feed_version from '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}')::timestamptz at time zone 'US/Eastern')::date::text,'-','')::integer;
+                NEW.feed_active_date := replace((substring(NEW.feed_version from '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}')::timestamptz at time zone 'US/Eastern')::date::text,'-','')::integer;
             ELSE
-                NEW.version_pub_date := NEW.feed_start_date;
+                NEW.feed_active_date := NEW.feed_start_date;
             END IF;
             RETURN NEW;
         END;
@@ -60,8 +76,8 @@ def downgrade() -> None:
     op.execute(drop_function)
 
     op.drop_index(
-        op.f("ix_static_feed_info_version_pub_date"),
+        op.f("ix_static_feed_info_feed_active_date"),
         table_name="static_feed_info",
     )
 
-    op.drop_column("static_feed_info", "version_pub_date")
+    op.drop_column("static_feed_info", "feed_active_date")

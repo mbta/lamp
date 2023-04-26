@@ -144,7 +144,7 @@ class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
     feed_start_date = sa.Column(sa.Integer, nullable=False)
     feed_end_date = sa.Column(sa.Integer, nullable=False)
     feed_version = sa.Column(sa.String(75), nullable=False, unique=True)
-    version_pub_date = sa.Column(sa.Integer, nullable=True, index=True)
+    feed_active_date = sa.Column(sa.Integer, nullable=False, index=True)
     timestamp = sa.Column(sa.Integer, nullable=False, unique=True)
     created_on = sa.Column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
