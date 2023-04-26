@@ -80,14 +80,12 @@ def upgrade() -> None:
             ELSEIF NEW.route_id = 'Red' THEN
                 IF red_is_braintree_branch(NEW.trip_id, NEW."timestamp") THEN
                     NEW.branch_route_id := 'Red-Braintree';
-                    NEW.trunk_route_id := NEW.route_id;
                 ELSEIF red_is_ashmont_branch(NEW.trip_id, NEW."timestamp") THEN
                     NEW.branch_route_id := 'Red-Ashmont';
-                    NEW.trunk_route_id := NEW.route_id;
                 ELSE
                     NEW.branch_route_id := null;
-                    NEW.trunk_route_id := NEW.route_id;
                 END IF;
+                NEW.trunk_route_id := NEW.route_id;
             ELSE
                 NEW.branch_route_id := null;
                 NEW.trunk_route_id := NEW.route_id;

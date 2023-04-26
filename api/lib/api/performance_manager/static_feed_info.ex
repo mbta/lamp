@@ -6,6 +6,7 @@ defmodule Api.PerformanceManager.StaticFeedInfo do
     field(:feed_start_date, :integer)
     field(:feed_end_date, :integer)
     field(:feed_version, :string)
+    field(:feed_active_date, :integer)
     field(:timestamp, :integer)
     field(:created_on, :utc_datetime)
   end
