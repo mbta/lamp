@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from pyarrow import fs, parquet
 
-from lamp_py.performance_manager.l0_gtfs_static_table import (
+from lamp_py.performance_manager.l0_gtfs_static_load import (
     process_static_tables,
 )
 from lamp_py.performance_manager.l0_gtfs_rt_events import (
@@ -126,7 +126,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         return files
 
     monkeypatch.setattr(
-        "lamp_py.performance_manager.l0_gtfs_static_table.get_static_parquet_paths",
+        "lamp_py.performance_manager.l0_gtfs_static_load.get_static_parquet_paths",
         mock_get_static_parquet_paths,
     )
 

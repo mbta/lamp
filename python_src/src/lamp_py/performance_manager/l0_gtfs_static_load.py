@@ -188,12 +188,15 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         ],
     )
 
+    # this return order also dictates the order that tables are loaded into the RDS
+    # the 'static_trips_create_branch_trunk' trigger requires that the `stop_times` table
+    # be loaded prior to the `trips` table
     return {
         "feed_info": feed_info,
-        "trips": trips,
         "routes": routes,
         "stops": stops,
         "stop_times": stop_times,
+        "trips": trips,
         "calendar": calendar,
         "calendar_dates": calendar_dates,
     }
