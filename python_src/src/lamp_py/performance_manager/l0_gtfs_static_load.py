@@ -26,6 +26,8 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import start_time_to_seconds
 
+from .l0_gtfs_static_mod import modify_static_tables
+
 
 @dataclass
 class StaticTableDetails:
@@ -313,7 +315,12 @@ def insert_data_tables(
     insert static gtfs data tables into rds tables
     """
     for table in static_tables.values():
+        process_logger = ProcessLogger(
+            "gtfs_insert", table_name=table.table_name
+        )
+        process_logger.log_start()
         db_manager.insert_dataframe(table.data_table, table.insert_table)
+        process_logger.log_complete()
 
 
 def process_static_tables(db_manager: DatabaseManager) -> None:
@@ -346,6 +353,12 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             transform_data_tables(static_tables)
             drop_bus_records(static_tables)
             insert_data_tables(static_tables, db_manager)
+
+            static_timestamp = int(
+                static_tables["feed_info"].data_table.loc[0, "timestamp"]
+            )
+
+            modify_static_tables(static_timestamp, db_manager)
 
             update_md_log = (
                 sa.update(MetadataLog.__table__)
