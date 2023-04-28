@@ -227,9 +227,7 @@ def process_tu_files(
     process_logger.log_start()
 
     trip_updates = get_and_unwrap_tu_dataframe(paths)
-    trip_updates = add_fk_static_timestamp_column(
-        trip_updates, "tu_stop_timestamp", db_manager
-    )
+    trip_updates = add_fk_static_timestamp_column(trip_updates, db_manager)
     trip_updates = remove_bus_records(trip_updates, db_manager)
     trip_updates = add_parent_station_column(trip_updates, db_manager)
     trip_updates = reduce_trip_updates(trip_updates)

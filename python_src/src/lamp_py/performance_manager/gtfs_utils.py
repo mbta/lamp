@@ -67,7 +67,6 @@ def start_time_to_seconds(
 
 def add_fk_static_timestamp_column(
     events_dataframe: pandas.DataFrame,
-    timestamp_column: str,
     db_manager: DatabaseManager,
 ) -> pandas.DataFrame:
     """
@@ -79,58 +78,67 @@ def add_fk_static_timestamp_column(
     process_logger = ProcessLogger(
         "add_fk_static_timestamp",
         row_count=events_dataframe.shape[0],
-        timestamp_column=timestamp_column,
     )
     process_logger.log_start()
 
-    # get unique "start_date" values from events dataframe
-    # with associated minimum value of timestamp column
-    date_groups = events_dataframe.groupby(by="start_date")[
-        timestamp_column
-    ].min()
+    # initialize fk_static_timestamp column
+    events_dataframe["fk_static_timestamp"] = 0
 
-    # dictionary used to match minimum timestamp column values to
-    # "timestamp" from StaticFeedInfo table, to be used as foreign key
-    timestamp_lookup = {}
-    for date, min_timestamp in date_groups.items():
+    for date in events_dataframe["start_date"].unique():
         date = int(date)
-        min_timestamp = int(min_timestamp)
         # "start_date" from events dataframe must be between "feed_start_date" and "feed_end_date" in StaticFeedInfo
-        # minimum timestamp column must also be less than "timestamp" from
-        # StaticFeedInfo, order by "timestamp" descending and limit to 1 result
-        # this should deal with multiple static schedules with possible
-        # overlapping times of applicability
-        feed_timestamp_query = (
+        # "start_date" must also be less than or equal to "feed_active_date" in StaticFeedInfo
+        # StaticFeedInfo, order by feed_active_date descending and created_on date descending
+        # this should deal with multiple static schedules being issued on the same day
+        # if this occurs we will use the latest issued schedule
+        live_match_query = (
             sa.select(StaticFeedInfo.timestamp)
             .where(
-                (StaticFeedInfo.feed_start_date <= date)
-                & (StaticFeedInfo.feed_end_date >= date)
-                # & (StaticFeedInfo.timestamp < min_timestamp)
+                StaticFeedInfo.feed_start_date <= date,
+                StaticFeedInfo.feed_end_date >= date,
+                StaticFeedInfo.feed_active_date <= date,
             )
-            .order_by(StaticFeedInfo.timestamp.desc())
+            .order_by(
+                StaticFeedInfo.feed_active_date.desc(),
+                StaticFeedInfo.created_on.desc(),
+            )
             .limit(1)
         )
-        result = db_manager.select_as_list(feed_timestamp_query)
+
+        # "feed_start_date" and "feed_end_date" are modified for archived GTFS Schedule files
+        # If processing archived static schedules, these alternate rules must be used for matching
+        # GTFS static to GTFS-RT data
+        archive_match_query = (
+            sa.select(StaticFeedInfo.timestamp)
+            .where(
+                StaticFeedInfo.feed_start_date <= date,
+                StaticFeedInfo.feed_end_date >= date,
+            )
+            .order_by(
+                StaticFeedInfo.feed_start_date.desc(),
+                StaticFeedInfo.created_on.desc(),
+            )
+            .limit(1)
+        )
+
+        result = db_manager.select_as_list(live_match_query)
+
+        # if live_match_query fails, attempt to look for a match using the archive method
+        if len(result) == 0:
+            result = db_manager.select_as_list(archive_match_query)
+
         # if this query does not produce a result, no static schedule info
-        # exists for this trip update data, so the tri update data
+        # exists for this trip update data, so the data
         # should not be processed until valid static schedule data exists
         if len(result) == 0:
             raise IndexError(
-                f"StaticFeedInfo table has no matching schedule for start_date={date}, timestamp={min_timestamp}"
+                f"StaticFeedInfo table has no matching schedule for start_date={date}"
             )
-        timestamp_lookup[min_timestamp] = int(result[0]["timestamp"])
 
-    events_dataframe["fk_static_timestamp"] = timestamp_lookup[
-        min(timestamp_lookup.keys())
-    ]
-    # add "fk_static_timestamp" column to trip update dataframe
-    # loop is to handle batches vehicle position batches that are applicable to
-    # overlapping static gtfs data
-    for min_timestamp in sorted(timestamp_lookup.keys()):
-        timestamp_mask = events_dataframe[timestamp_column] >= min_timestamp
-        events_dataframe.loc[
-            timestamp_mask, "fk_static_timestamp"
-        ] = timestamp_lookup[min_timestamp]
+        start_date_mask = events_dataframe["start_date"] == date
+        events_dataframe.loc[start_date_mask, "fk_static_timestamp"] = int(
+            result[0]["timestamp"]
+        )
 
     process_logger.log_complete()
 
