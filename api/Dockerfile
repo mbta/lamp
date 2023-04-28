@@ -8,21 +8,28 @@ ARG ALPINE_VERSION=3.17.2
 # use this image to install dependencies and build the application
 FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-alpine-${ALPINE_VERSION} as builder
 
+RUN mix local.hex --force
+RUN mix local.rebar --force
+
 # create a directory and add the project files to it
 WORKDIR /root
 
 # define this as a prod environment
 ENV MIX_ENV=prod
 
-COPY assets assets
-COPY config config
-COPY lib lib
+# copy config and mix files over
+RUN mkdir config
+COPY config/config.exs config/config.exs
+COPY config/prod.exs config/prod.exs
 COPY mix.* /root/
 
-#  install hex, rebar, and dependencies
-RUN mix local.hex --force
-RUN mix local.rebar --force
+# get dependndencies
 RUN mix deps.get --only prod
+
+# copy code files over
+COPY assets assets
+COPY config/runtime.exs config
+COPY lib lib
 
 # build the application
 RUN mix release 
@@ -38,8 +45,6 @@ RUN apk add --no-cache --update dumb-init libstdc++ ncurses-libs libgcc libssl1.
 RUN mkdir /work /api
 RUN adduser -D api && chown api /api && chown api /work
 COPY --from=builder /root/_build/prod/rel/api /api
-
-ENV MIX_ENV=prod
 
 # create a user to own the work dir, switch to that user and dir
 USER api
