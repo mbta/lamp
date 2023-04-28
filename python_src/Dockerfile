@@ -13,9 +13,15 @@ RUN apt-get install -y libpq-dev gcc curl
 RUN pip install -U pip
 RUN pip install "poetry==1.1.14"
 
-# Copy src dir and pyproject file and create a virtualenv with all needed dependenciies using poetry
-COPY . /lamp/
+# copy poetry and pyproject files and install dependencies
 WORKDIR /lamp/
+COPY poetry.lock poetry.lock
+COPY pyproject.toml pyproject.toml
+RUN poetry install --no-dev --no-interaction --no-ansi -v
+
+# Copy src directory to run against and build lamp py
+COPY src src
+COPY alembic.ini alembic.ini
 RUN poetry install --no-dev --no-interaction --no-ansi -v
 
 # Fetch Amazon RDS certificate chain
