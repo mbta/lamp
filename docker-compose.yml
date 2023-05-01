@@ -34,8 +34,21 @@ services:
       - local_rds
     working_dir: /lamp
     volumes:
-      - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
+      # map credentials to be used by boto3, read-only
+      - ~/.aws:/root/.aws:ro
     command: [ "poetry", "run", "ingestion" ]
+
+  api_server:
+    container_name: api_server
+    # network_mode: "host"
+    env_file: .env
+    build:
+      context: ./api
+    ports:
+      # Mapping the port to make the Phoenix app accessible outside of the container.
+      - "4000:4000"
+    depends_on:
+      - local_rds
 
   seed_metadata:
     container_name: seed_metadata
@@ -52,4 +65,11 @@ services:
       - ./python_src/tests/test_files/july_17_filepaths.json:/july_17_filepaths.json
     # entrypoint passes in seed file thats added as a volume. if you want to use a different filepath run
     # docker-compose run -v /path/to/files.json:/seed.json seed_metadata --seed-file /seed.json
-    entrypoint: [ "poetry", "run", "seed_metadata", "--seed-file", "/july_17_filepaths.json"]
+    entrypoint:
+      [
+        "poetry",
+        "run",
+        "seed_metadata",
+        "--seed-file",
+        "/july_17_filepaths.json"
+      ]
