@@ -75,6 +75,15 @@ def add_fk_static_timestamp_column(
     using "fk_static_timestamp" column, events dataframe records may be joined to
     gtfs static record tables
     """
+    # based on discussions with OPMI, matching of GTFS-RT events to GTFS-static schedule versions
+    # will occur on a whole 'start_date' / service date basis
+    #
+    # when processing live GTFS-static schedule versions, matching can only apply to, at the earliest,
+    # the current `start_date` / service date when processed, no retroactive assignment to past days will occur.
+    #
+    # extraction of `feed_active_date` from `feed_version` of the GTFS-static FEED_INFO table
+    # is currently handled by an DB Trigger function added by alembic migration Revision ID: 43153d536c2a
+
     process_logger = ProcessLogger(
         "add_fk_static_timestamp",
         row_count=events_dataframe.shape[0],
