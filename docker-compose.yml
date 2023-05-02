@@ -63,6 +63,7 @@ services:
       - ~/.aws:/root/.aws:ro
       # add in july 17 filepahs json that will be the default seed file path
       - ./python_src/tests/test_files/july_17_filepaths.json:/july_17_filepaths.json
+      - ./python_src/tests/test_files/april_2023_filepaths.json:/april_2023_filepaths.json
     # entrypoint passes in seed file thats added as a volume. if you want to use a different filepath run
     # docker-compose run -v /path/to/files.json:/seed.json seed_metadata --seed-file /seed.json
     entrypoint:
@@ -70,6 +71,7 @@ services:
         "poetry",
         "run",
         "seed_metadata",
+        "--clear-static",
         "--seed-file",
-        "/july_17_filepaths.json"
+        "/april_2023_filepaths.json"
       ]

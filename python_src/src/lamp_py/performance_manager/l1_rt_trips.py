@@ -7,6 +7,7 @@ import sqlalchemy as sa
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.postgres.postgres_schema import (
+    VehicleEvents,
     VehicleTrips,
     TempHashCompare,
 )
@@ -17,14 +18,31 @@ from .l1_cte_statements import (
 )
 
 
-def insert_trips_hash_columns(
+def load_temp_for_hash_compare(
     db_manager: DatabaseManager, events: pandas.DataFrame
 ) -> None:
     """
-    Load new 'trip_hash' records and columns into RDS
+    Load "temp_hash_compare" table with "trip_hash" from newly inserted RT events
+    """
+    new_trip_hash_bytes = events.loc[
+        events["do_insert"], "trip_hash"
+    ].drop_duplicates()
+
+    db_manager.truncate_table(TempHashCompare)
+    db_manager.execute_with_data(
+        sa.insert(TempHashCompare.__table__),
+        new_trip_hash_bytes.to_frame("hash"),
+    )
+
+
+def load_new_trip_data(
+    db_manager: DatabaseManager, events: pandas.DataFrame
+) -> None:
+    """
+    Load new "vehicle_trip" table data columns into RDS
 
     This guarantees that all events represented in the events dataframe will have
-    matching trips data in the VehicleTrips table
+    matching trips data in the "vehicle_trips" table
     """
     insert_columns = [
         "trip_hash",
@@ -34,30 +52,19 @@ def insert_trips_hash_columns(
         "start_date",
         "start_time",
         "vehicle_id",
+        "trip_id",
     ]
     insert_events = events.loc[
         events["do_insert"], insert_columns
     ].drop_duplicates(subset="trip_hash")
-
-    new_trip_hash_bytes = insert_events["trip_hash"]
-
-    db_manager.truncate_table(TempHashCompare)
-    db_manager.execute_with_data(
-        sa.insert(TempHashCompare.__table__),
-        new_trip_hash_bytes.to_frame("trip_stop_hash"),
-    )
 
     db_trip_hashes = db_manager.select_as_dataframe(
         sa.select(
             VehicleTrips.trip_hash,
         ).join(
             TempHashCompare,
-            TempHashCompare.trip_stop_hash == VehicleTrips.trip_hash,
+            TempHashCompare.hash == VehicleTrips.trip_hash,
         )
-    )
-
-    insert_events["trip_hash"] = (
-        insert_events["trip_hash"].apply(binascii.hexlify).str.decode("utf-8")
     )
 
     if db_trip_hashes.shape[0] == 0:
@@ -69,7 +76,11 @@ def insert_trips_hash_columns(
             .str.decode("utf-8")
         )
 
-    # insert_events are records that don't have an existing trip_hash in the VehicleTrips table
+    insert_events["trip_hash"] = (
+        insert_events["trip_hash"].apply(binascii.hexlify).str.decode("utf-8")
+    )
+
+    # insert_events are records that don't have an existing trip_hash in the "vehicle_trips" table
     insert_events = insert_events.merge(
         db_trip_hashes, how="outer", on="trip_hash", indicator=True
     ).query('_merge=="left_only"')
@@ -83,6 +94,54 @@ def insert_trips_hash_columns(
             sa.insert(VehicleTrips.__table__),
             insert_events,
         )
+
+
+def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
+    """
+    Update "stop_count" field based on "trip_hash"s with new events
+    """
+    new_stop_counts_cte = (
+        sa.select(
+            VehicleEvents.trip_hash,
+            sa.func.count(VehicleEvents.trip_stop_hash).label("stop_count"),
+        )
+        .select_from(VehicleEvents)
+        .join(
+            TempHashCompare,
+            TempHashCompare.hash == VehicleEvents.trip_hash,
+        )
+        .where(
+            sa.or_(
+                VehicleEvents.vp_move_timestamp.is_not(None),
+                VehicleEvents.vp_stop_timestamp.is_not(None),
+            ),
+        )
+        .group_by(
+            VehicleEvents.trip_hash,
+        )
+        .cte("new_stop_counts")
+    )
+
+    update_query = (
+        sa.update(VehicleTrips.__table__)
+        .where(
+            VehicleTrips.trip_hash == new_stop_counts_cte.c.trip_hash,
+        )
+        .values(stop_count=new_stop_counts_cte.c.stop_count)
+    )
+
+    db_manager.execute(update_query)
+
+
+def load_new_trips_records(
+    db_manager: DatabaseManager, events: pandas.DataFrame
+) -> None:
+    """
+    Load data into "vehicle_trips" table for any new RT events
+    """
+    load_temp_for_hash_compare(db_manager, events)
+    load_new_trip_data(db_manager, events)
+    update_trip_stop_counts(db_manager)
 
 
 # pylint: disable=R0914
@@ -425,7 +484,7 @@ def process_trips(
     insert new trips records from events dataframe into RDS
 
     """
-    insert_trips_hash_columns(db_manager, events)
+    load_new_trips_records(db_manager, events)
 
     for start_date in events["start_date"].unique():
         timestamps = [

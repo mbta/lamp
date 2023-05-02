@@ -33,6 +33,7 @@ def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
         "start_date",
         "start_time",
         "vehicle_id",
+        "trip_id",
     ]
 
     vehicle_position_filters = [
@@ -136,6 +137,8 @@ def transform_vp_timestamps(
             "vehicle_id",
         ],
     )
+    # TODO: review trip_id processing # pylint: disable=fixme
+    #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
 
     # create a pivot table on the trip stop hash, finding the earliest time
     # that each vehicle/stop pair is and is not moving. rename the vehicle

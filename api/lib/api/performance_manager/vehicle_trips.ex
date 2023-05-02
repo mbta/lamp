@@ -11,6 +11,7 @@ defmodule Api.PerformanceManager.VehicleTrips do
     field(:start_time, :integer)
     field(:vehicle_id, :string)
     field(:stop_count, :integer)
+    field(:trip_id, :string)
 
     field(:trip_hash, :binary)
 

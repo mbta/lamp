@@ -275,7 +275,7 @@ def test_gtfs_rt_processing(
     test that vehicle position and trip updates files can be consumed properly
     """
     caplog.set_level(logging.INFO)
-    db_manager.truncate_table(VehicleEvents)
+    db_manager.truncate_table(VehicleEvents, restart_identity=True)
 
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
@@ -300,49 +300,49 @@ def test_gtfs_rt_processing(
         # check that we can load the parquet file into a dataframe correctly
         positions = get_vp_dataframe(files["vp_paths"])
         position_size = positions.shape[0]
-        assert positions.shape[1] == 9
+        assert positions.shape[1] == 10
 
         # check that the types can be set correctly
         positions = transform_vp_datatypes(positions)
-        assert positions.shape[1] == 9
+        assert positions.shape[1] == 10
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
         positions = add_fk_static_timestamp_column(positions, db_manager)
-        assert positions.shape[1] == 10
+        assert positions.shape[1] == 11
         assert position_size == positions.shape[0]
 
         # remove bus records from dataframe
         positions = remove_bus_records(positions, db_manager)
-        assert positions.shape[1] == 10
+        assert positions.shape[1] == 11
         assert position_size > positions.shape[0]
 
         # remove bus records from dataframe
         positions = add_parent_station_column(positions, db_manager)
-        assert positions.shape[1] == 11
+        assert positions.shape[1] == 12
         assert position_size > positions.shape[0]
 
         positions = transform_vp_timestamps(positions)
-        assert positions.shape[1] == 12
+        assert positions.shape[1] == 13
         assert position_size > positions.shape[0]
 
         trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"])
         trip_update_size = trip_updates.shape[0]
-        assert trip_updates.shape[1] == 9
+        assert trip_updates.shape[1] == 10
 
         # check that it can be combined with the static schedule
         trip_updates = add_fk_static_timestamp_column(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 10
+        assert trip_updates.shape[1] == 11
         assert trip_update_size == trip_updates.shape[0]
 
         # remove bus records from dataframe
         trip_updates = remove_bus_records(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 10
+        assert trip_updates.shape[1] == 11
         assert trip_update_size > trip_updates.shape[0]
 
         # remove bus records from dataframe
         trip_updates = add_parent_station_column(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 11
+        assert trip_updates.shape[1] == 12
         assert trip_update_size > trip_updates.shape[0]
 
         trip_updates = reduce_trip_updates(trip_updates)
@@ -353,11 +353,13 @@ def test_gtfs_rt_processing(
         ve_columns = [c.key for c in VehicleEvents.__table__.columns]
         # pk id and updated on are handled by postgres. trip hash is added just
         # before inserting new rows to the db.
+        # trip_id is pulled from parquet but not inserted into vehicle_events table
         expected_columns = set(ve_columns) - {
             "pk_id",
             "updated_on",
             "trip_hash",
         }
+        expected_columns.add("trip_id")
         assert len(expected_columns) == len(events.columns)
 
         missing_columns = set(events.columns) - expected_columns
@@ -376,7 +378,7 @@ def test_vp_only(
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents)
+    db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
             ~MetadataLog.path.contains("FEED_INFO")
@@ -403,7 +405,7 @@ def test_tu_only(
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents)
+    db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
             ~MetadataLog.path.contains("FEED_INFO")
@@ -431,7 +433,7 @@ def test_vp_and_tu(
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents)
+    db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
             ~MetadataLog.path.contains("FEED_INFO")
