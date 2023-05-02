@@ -11,7 +11,6 @@ import schedule
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
-from lamp_py.runtime_utils.import_env import load_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .ingest import ingest_files
@@ -97,7 +96,6 @@ def start() -> None:
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
 
     # configure the environment
-    load_environment()
     os.environ["SERVICE_NAME"] = "ingestion"
     validate_environment()
 

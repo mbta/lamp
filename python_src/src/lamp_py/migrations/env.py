@@ -3,10 +3,6 @@ from logging.config import fileConfig
 from alembic import context
 
 from lamp_py.postgres.postgres_utils import get_local_engine
-from lamp_py.runtime_utils.import_env import load_environment
-
-# load local environment, if running alembic locally
-load_environment()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
