@@ -308,9 +308,7 @@ def test_gtfs_rt_processing(
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
-        positions = add_fk_static_timestamp_column(
-            positions, "vehicle_timestamp", db_manager
-        )
+        positions = add_fk_static_timestamp_column(positions, db_manager)
         assert positions.shape[1] == 10
         assert position_size == positions.shape[0]
 
@@ -333,9 +331,7 @@ def test_gtfs_rt_processing(
         assert trip_updates.shape[1] == 9
 
         # check that it can be combined with the static schedule
-        trip_updates = add_fk_static_timestamp_column(
-            trip_updates, "tu_stop_timestamp", db_manager
-        )
+        trip_updates = add_fk_static_timestamp_column(trip_updates, db_manager)
         assert trip_updates.shape[1] == 10
         assert trip_update_size == trip_updates.shape[0]
 
