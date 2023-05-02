@@ -101,7 +101,7 @@ def run() -> None:
     elif parsed_args.clear_rt:
         db_manager.truncate_table(VehicleTrips)
         db_manager.truncate_table(VehicleEventMetrics)
-        db_manager.truncate_table(VehicleEvents)
+        db_manager.truncate_table(VehicleEvents, restart_identity=True)
 
         db_manager.execute(
             sa.update(MetadataLog.__table__)

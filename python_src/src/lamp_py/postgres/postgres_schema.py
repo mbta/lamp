@@ -73,6 +73,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     stop_count = sa.Column(sa.SmallInteger, nullable=True)
+    trip_id = sa.Column(sa.String(128), nullable=True)
 
     # static trip matching
     static_trip_id_guess = sa.Column(sa.String(128), nullable=True)

@@ -97,6 +97,8 @@ def combine_events(
     # concat all of the details that went into each trip stop hash, dropping
     # duplicates. this is now a dataframe mapping hashes back to the things
     # that went into them.
+    # TODO: review trip_id processing # pylint: disable=fixme
+    #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
     details_columns = [
         "direction_id",
         "fk_static_timestamp",
@@ -108,6 +110,7 @@ def combine_events(
         "stop_sequence",
         "trip_stop_hash",
         "vehicle_id",
+        "trip_id",
     ]
 
     event_details = pandas.concat(

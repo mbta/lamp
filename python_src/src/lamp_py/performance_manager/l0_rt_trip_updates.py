@@ -30,6 +30,7 @@ def get_tu_dataframe_chunks(
         "start_date",
         "start_time",
         "vehicle_id",
+        "trip_id",
     ]
     trip_update_filters = [
         ("direction_id", "in", (0, 1)),
@@ -58,6 +59,7 @@ def explode_stop_time_update(
     start_date: int,
     start_time: int,
     vehicle_id: Any,
+    trip_id: Any,
 ) -> Optional[List[dict]]:
     """
     explode nested list of dicts in stop_time_update column
@@ -71,6 +73,7 @@ def explode_stop_time_update(
         "start_date": start_date,
         "start_time": start_time,
         "vehicle_id": vehicle_id,
+        "trip_id": trip_id,
     }
     return_list: List[Dict[str, Any]] = []
 
@@ -156,6 +159,7 @@ def get_and_unwrap_tu_dataframe(
                 batch_events.start_date,
                 batch_events.start_time,
                 batch_events.vehicle_id,
+                batch_events.trip_id,
             )
         ).dropna()
         events = pandas.concat([events, batch_events])

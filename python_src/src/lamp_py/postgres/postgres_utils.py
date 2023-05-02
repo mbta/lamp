@@ -266,16 +266,29 @@ class DatabaseManager:
         with self.session.begin() as cursor:
             return [row._asdict() for row in cursor.execute(select_query)]
 
-    def truncate_table(self, table_to_truncate: Any) -> None:
+    def truncate_table(
+        self,
+        table_to_truncate: Any,
+        restart_identity: bool = False,
+        cascade: bool = False,
+    ) -> None:
         """
         truncate db table
 
-        sqlalchemy has no truncate operation so this is the closest equivalent
+        restart_identity: Automatically restart sequences owned by columns of the truncated table(s).
+        cascade: Automatically truncate all tables that have foreign-key references to any of the named tables, or to any tables added to the group due to CASCADE.
         """
         truncat_as = self._get_schema_table(table_to_truncate)
 
-        truncat_as.drop(self.engine)
-        truncat_as.create(self.engine)
+        truncate_query = f"TRUNCATE {truncat_as}"
+
+        if restart_identity:
+            truncate_query = f"{truncate_query} RESTART IDENTITY"
+
+        if cascade:
+            truncate_query = f"{truncate_query} CASCADE"
+
+        self.execute(sa.text(f"{truncate_query};"))
 
     def add_metadata_paths(self, paths: List[str]) -> None:
         """
