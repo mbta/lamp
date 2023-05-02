@@ -168,7 +168,7 @@ def upload_to_database(
     db_manager.truncate_table(TempHashCompare)
     db_manager.execute_with_data(
         sa.insert(TempHashCompare.__table__),
-        hash_bytes.to_frame("trip_stop_hash"),
+        hash_bytes.to_frame("hash"),
     )
 
     database_events = db_manager.select_as_dataframe(
@@ -179,7 +179,7 @@ def upload_to_database(
             VehicleEvents.vp_stop_timestamp.label("vp_stop_db"),
         ).join(
             TempHashCompare,
-            TempHashCompare.trip_stop_hash == VehicleEvents.trip_stop_hash,
+            TempHashCompare.hash == VehicleEvents.trip_stop_hash,
         )
     )
 

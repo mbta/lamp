@@ -31,7 +31,7 @@ def load_temp_for_hash_compare(
     db_manager.truncate_table(TempHashCompare)
     db_manager.execute_with_data(
         sa.insert(TempHashCompare.__table__),
-        new_trip_hash_bytes.to_frame("trip_stop_hash"),
+        new_trip_hash_bytes.to_frame("hash"),
     )
 
 
@@ -63,7 +63,7 @@ def load_new_trip_data(
             VehicleTrips.trip_hash,
         ).join(
             TempHashCompare,
-            TempHashCompare.trip_stop_hash == VehicleTrips.trip_hash,
+            TempHashCompare.hash == VehicleTrips.trip_hash,
         )
     )
 
@@ -108,7 +108,7 @@ def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
         .select_from(VehicleEvents)
         .join(
             TempHashCompare,
-            TempHashCompare.trip_stop_hash == VehicleEvents.trip_hash,
+            TempHashCompare.hash == VehicleEvents.trip_hash,
         )
         .where(
             sa.or_(

@@ -117,9 +117,7 @@ class TempHashCompare(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "temp_hash_compare"
 
-    trip_stop_hash = sa.Column(
-        sa.LargeBinary(16), primary_key=True, nullable=False
-    )
+    hash = sa.Column(sa.LargeBinary(16), primary_key=True, nullable=False)
 
 
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
