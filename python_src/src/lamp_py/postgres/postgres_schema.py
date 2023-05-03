@@ -159,10 +159,10 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
     route_id = sa.Column(sa.String(60), nullable=False)
     branch_route_id = sa.Column(sa.String(60), nullable=True)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
-    service_id = sa.Column(sa.String(60), nullable=False)
-    trip_id = sa.Column(sa.String(128), nullable=False)
-    direction_id = sa.Column(sa.Boolean)
-    timestamp = sa.Column(sa.Integer, nullable=False)
+    service_id = sa.Column(sa.String(60), nullable=False, index=True)
+    trip_id = sa.Column(sa.String(128), nullable=False, index=True)
+    direction_id = sa.Column(sa.Boolean, index=True)
+    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
@@ -189,13 +189,13 @@ class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_stops"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    stop_id = sa.Column(sa.String(128), nullable=False)
+    stop_id = sa.Column(sa.String(128), nullable=False, index=True)
     stop_name = sa.Column(sa.String(128), nullable=False)
     stop_desc = sa.Column(sa.String(256), nullable=True)
     platform_code = sa.Column(sa.String(10), nullable=True)
     platform_name = sa.Column(sa.String(60), nullable=True)
     parent_station = sa.Column(sa.String(30), nullable=True)
-    timestamp = sa.Column(sa.Integer, nullable=False)
+    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
@@ -204,15 +204,15 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_stop_times"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    trip_id = sa.Column(sa.String(128), nullable=False)
+    trip_id = sa.Column(sa.String(128), nullable=False, index=True)
     arrival_time = sa.Column(sa.Integer, nullable=False)
     departure_time = sa.Column(sa.Integer, nullable=False)
     schedule_travel_time_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
-    stop_id = sa.Column(sa.String(30), nullable=False)
+    stop_id = sa.Column(sa.String(30), nullable=False, index=True)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
-    timestamp = sa.Column(sa.Integer, nullable=False)
+    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
@@ -245,3 +245,20 @@ class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
     exception_type = sa.Column(sa.SmallInteger, nullable=False)
     holiday_name = sa.Column(sa.String(128), nullable=True)
     timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+
+
+class TempStaticHeadwaysGen(SqlBase):  # pylint: disable=too-few-public-methods
+    """
+    Temp table for used for caulcating scheduled headways when a new static schedule is loaded
+    added by migration de55dc40315d
+    """
+
+    __tablename__ = "temp_static_headways_gen"
+
+    pk_id = sa.Column(sa.Integer, primary_key=True, autoincrement=False)
+    departure_time = sa.Column(sa.Integer, nullable=False)
+    parent_station = sa.Column(sa.String(30), nullable=False)
+    service_id = sa.Column(sa.String(60), nullable=False)
+    direction_id = sa.Column(sa.Boolean)
+    trunk_route_id = sa.Column(sa.String(60), nullable=True)
+    branch_route_id = sa.Column(sa.String(60), nullable=True)
