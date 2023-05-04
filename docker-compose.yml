@@ -25,19 +25,6 @@ services:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
     command: [ "poetry", "run", "performance_manager" ]
 
-  ingestion:
-    container_name: ingestion
-    env_file: .env
-    build:
-      context: ./python_src
-    depends_on:
-      - local_rds
-    working_dir: /lamp
-    volumes:
-      # map credentials to be used by boto3, read-only
-      - ~/.aws:/root/.aws:ro
-    command: [ "poetry", "run", "ingestion" ]
-
   api_server:
     container_name: api_server
     # network_mode: "host"
