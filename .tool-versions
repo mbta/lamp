@@ -2,3 +2,4 @@ poetry 1.1.14
 python 3.9.12
 elixir 1.14.4-otp-25
 erlang 25.3
+direnv 2.32.2
