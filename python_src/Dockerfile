@@ -16,7 +16,7 @@ RUN chmod a=r /usr/local/share/amazon-certs.pem
 
 # Install poetry
 RUN pip install -U pip
-RUN pip install "poetry==1.1.14"
+RUN pip install "poetry==1.4.2"
 
 # copy poetry and pyproject files and install dependencies
 WORKDIR /lamp/
