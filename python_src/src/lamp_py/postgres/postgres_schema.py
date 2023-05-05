@@ -68,6 +68,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     # trip identifiers
     direction_id = sa.Column(sa.Boolean, nullable=False)
     route_id = sa.Column(sa.String(60), nullable=False)
+    branch_route_id = sa.Column(sa.String(60), nullable=True)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
     start_date = sa.Column(sa.Integer, nullable=False)
     start_time = sa.Column(sa.Integer, nullable=False)
@@ -262,3 +263,17 @@ class TempStaticHeadwaysGen(SqlBase):  # pylint: disable=too-few-public-methods
     direction_id = sa.Column(sa.Boolean)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
     branch_route_id = sa.Column(sa.String(60), nullable=True)
+
+
+class ServiceIdDates(SqlBase):  # pylint: disable=too-few-public-methods
+    """
+    Table representing service_id_by_date_and_route VIEW for use by performance_manager
+    """
+
+    __tablename__ = "static_service_id_lookup"
+
+    dummy_pk = sa.Column(sa.Integer, primary_key=True)
+    route_id = sa.Column(sa.String(60))
+    service_id = sa.Column(sa.String(60))
+    service_date = sa.Column(sa.Integer)
+    timestamp = sa.Column(sa.Integer)
