@@ -111,11 +111,28 @@ def combine_events(
         "trip_stop_hash",
         "vehicle_id",
         "trip_id",
+        "vehicle_label",
+        "vehicle_consist",
     ]
 
     event_details = pandas.concat(
         [vp_events[details_columns], tu_events[details_columns]]
-    ).drop_duplicates(subset="trip_stop_hash")
+    )
+
+    # create sort columns to indicate which records have null values for vehicle_label or vehicle_consist
+    # we want to drop these null value records whenever possible
+    event_details["na_sort"] = (
+        event_details[["vehicle_label", "vehicle_consist"]].isna().sum(axis=1)
+    )
+
+    event_details = (
+        event_details.sort_values(
+            by=["trip_stop_hash", "na_sort"],
+            ascending=True,
+        )
+        .drop_duplicates(subset="trip_stop_hash", keep="first")
+        .drop(columns="na_sort")
+    )
 
     # pull the details and add them to the events table
     events = events.merge(

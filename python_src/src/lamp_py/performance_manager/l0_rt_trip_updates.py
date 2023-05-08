@@ -213,6 +213,10 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
         "tu_stop_timestamp"
     ].astype("Int64")
 
+    # add vehicle_lable and vehicle_consist columns to combine with vehicle_events
+    trip_updates["vehicle_label"] = None
+    trip_updates["vehicle_consist"] = None
+
     process_logger.add_metadata(after_row_count=trip_updates.shape[0])
     process_logger.log_complete()
 

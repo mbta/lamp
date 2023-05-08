@@ -54,6 +54,8 @@ def load_new_trip_data(
         "start_time",
         "vehicle_id",
         "trip_id",
+        "vehicle_label",
+        "vehicle_consist",
     ]
     insert_events = events.loc[
         events["do_insert"], insert_columns

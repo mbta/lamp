@@ -74,7 +74,12 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     stop_count = sa.Column(sa.SmallInteger, nullable=True)
+
     trip_id = sa.Column(sa.String(128), nullable=True)
+    vehicle_label = sa.Column(sa.String(128), nullable=True)
+    vehicle_consist = sa.Column(
+        sa.ARRAY(sa.String(64), dimensions=1), nullable=True
+    )
 
     # static trip matching
     static_trip_id_guess = sa.Column(sa.String(128), nullable=True)
@@ -163,6 +168,7 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
     service_id = sa.Column(sa.String(60), nullable=False, index=True)
     trip_id = sa.Column(sa.String(128), nullable=False, index=True)
     direction_id = sa.Column(sa.Boolean, index=True)
+    block_id = sa.Column(sa.String(128), nullable=True)
     timestamp = sa.Column(sa.Integer, nullable=False, index=True)
 
 
