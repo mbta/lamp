@@ -30,7 +30,7 @@ def upgrade() -> None:
         "vehicle_trips",
         sa.Column(
             "vehicle_consist",
-            sa.ARRAY(sa.String(64), dimensions=1),
+            sa.String(),
             nullable=True,
         ),
     )

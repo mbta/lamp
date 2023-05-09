@@ -191,11 +191,11 @@ def transform_vp_timestamps(
         "vp_stop_timestamp"
     ].astype("Int64")
 
-    # change vehicle_consist to list of dicts to list of strings
+    # change vehicle_consist to pipe delimited string
     vehicle_positions["vehicle_consist"] = vehicle_positions[
         "vehicle_consist"
     ].map(
-        lambda list_of_dicts: [str(item["label"]) for item in list_of_dicts],
+        lambda vc: "|".join(str(vc_val["label"]) for vc_val in vc),
         na_action="ignore",
     )
 
