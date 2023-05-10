@@ -10,6 +10,7 @@ from lamp_py.postgres.postgres_schema import (
     VehicleTrips,
     StaticTrips,
     TempHashCompare,
+    StaticDirections,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .l1_cte_statements import (
@@ -188,6 +189,46 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
+def update_directions(db_manager: DatabaseManager) -> None:
+    """
+    Update direction and direction_destination from static tables
+    """
+    directions_cte = (
+        sa.select(
+            VehicleTrips.trip_hash,
+            StaticDirections.direction,
+            StaticDirections.direction_destination,
+        )
+        .select_from(VehicleTrips)
+        .join(TempHashCompare, TempHashCompare.hash == VehicleTrips.trip_hash)
+        .join(
+            StaticDirections,
+            sa.and_(
+                VehicleTrips.fk_static_timestamp == StaticDirections.timestamp,
+                VehicleTrips.direction_id == StaticDirections.direction_id,
+                VehicleTrips.route_id == StaticDirections.route_id,
+            ),
+        )
+        .cte("update_directions")
+    )
+
+    update_query = (
+        sa.update(VehicleTrips.__table__)
+        .where(
+            VehicleTrips.trip_hash == directions_cte.c.trip_hash,
+        )
+        .values(
+            direction=directions_cte.c.direction,
+            direction_destination=directions_cte.c.direction_destination,
+        )
+    )
+
+    process_logger = ProcessLogger("l1_trips.update_directions")
+    process_logger.log_start()
+    db_manager.execute(update_query)
+    process_logger.log_complete()
+
+
 def load_new_trips_records(
     db_manager: DatabaseManager, events: pandas.DataFrame
 ) -> None:
@@ -198,6 +239,7 @@ def load_new_trips_records(
     load_new_trip_data(db_manager, events)
     update_trip_stop_counts(db_manager)
     update_static_trip_id_guess_exact(db_manager)
+    update_directions(db_manager)
 
 
 # pylint: disable=R0914

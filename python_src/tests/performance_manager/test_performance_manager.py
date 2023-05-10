@@ -36,6 +36,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticTrips,
     StaticCalendarDates,
     VehicleEvents,
+    StaticDirections,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.alembic_migration import (
@@ -250,6 +251,7 @@ def test_static_tables(
         StaticStopTimes: 160977,
         StaticCalendar: 76,
         StaticCalendarDates: 70,
+        StaticDirections: 408,
     }
 
     with db_manager.session.begin() as session:
