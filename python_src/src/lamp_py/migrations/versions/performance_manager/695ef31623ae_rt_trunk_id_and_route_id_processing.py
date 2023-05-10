@@ -34,7 +34,7 @@ def upgrade() -> None:
                 vehicle_events ve
             WHERE 
                 ve.trip_hash = p_trip_hash
-                AND ve.stop_id IN ('70097', '70098', '70099', '70100', '70101', '70102', '70103', '70104', '70105')
+                AND ve.stop_id IN ('70097', '70098', '70099', '70100', '70101', '70102', '70103', '70104', '70105', '70095', '70096')
             LIMIT 1
             ;
             IF FOUND THEN
@@ -60,7 +60,7 @@ def upgrade() -> None:
                 vehicle_events ve
             WHERE 
                 ve.trip_hash = p_trip_hash
-                AND ve.stop_id IN ('70087', '70088', '70089', '70090', '70091', '70092', '70093', '70094')
+                AND ve.stop_id IN ('70087', '70088', '70089', '70090', '70091', '70092', '70093', '70094', '70085', '70086')
             LIMIT 1
             ;
             IF FOUND THEN
@@ -118,7 +118,7 @@ def upgrade() -> None:
             WHERE 
                 sst.trip_id = p_trip_id
                 AND sst."timestamp" = p_fk_ts
-                AND sst.stop_id IN ('70087', '70088', '70089', '70090', '70091', '70092', '70093', '70094')
+                AND sst.stop_id IN ('70087', '70088', '70089', '70090', '70091', '70092', '70093', '70094', '70085', '70086')
             LIMIT 1
             ;
 
@@ -146,7 +146,7 @@ def upgrade() -> None:
             WHERE 
                 sst.trip_id = p_trip_id
                 AND sst."timestamp" = p_fk_ts
-                AND sst.stop_id IN ('70097', '70098', '70099', '70100', '70101', '70102', '70103', '70104', '70105')
+                AND sst.stop_id IN ('70097', '70098', '70099', '70100', '70101', '70102', '70103', '70104', '70105', '70095', '70096')
             LIMIT 1
             ;
 
