@@ -289,6 +289,7 @@ class DatabaseManager:
             truncate_query = f"{truncate_query} CASCADE"
 
         self.execute(sa.text(f"{truncate_query};"))
+        self.execute(sa.text(f"ANALYZE {truncat_as};"))
 
     def add_metadata_paths(self, paths: List[str]) -> None:
         """

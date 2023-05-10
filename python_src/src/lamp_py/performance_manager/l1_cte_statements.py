@@ -1,10 +1,8 @@
-import calendar
-import datetime
 from typing import List
 
 import sqlalchemy as sa
 from lamp_py.postgres.postgres_schema import (
-    StaticCalendar,
+    ServiceIdDates,
     StaticStops,
     StaticStopTimes,
     StaticTrips,
@@ -27,9 +25,6 @@ def get_static_trips_cte(
         - static_trip_last_stop (bool indicating last stop of trip)
         - static_stop_rank (rank field counting from 1 to N number of stops on trip)
     """
-    start_date_dt = datetime.datetime.strptime(str(start_date), "%Y%m%d")
-    day_of_week = calendar.day_name[start_date_dt.weekday()].lower()
-
     return (
         sa.select(
             StaticStopTimes.timestamp,
@@ -71,6 +66,8 @@ def get_static_trips_cte(
             )
             .label("static_trip_stop_rank"),
             StaticTrips.route_id,
+            StaticTrips.branch_route_id,
+            StaticTrips.trunk_route_id,
             StaticTrips.direction_id,
         )
         .select_from(StaticStopTimes)
@@ -89,10 +86,11 @@ def get_static_trips_cte(
             ),
         )
         .join(
-            StaticCalendar,
+            ServiceIdDates,
             sa.and_(
-                StaticStopTimes.timestamp == StaticCalendar.timestamp,
-                StaticTrips.service_id == StaticCalendar.service_id,
+                StaticStopTimes.timestamp == ServiceIdDates.timestamp,
+                StaticTrips.service_id == ServiceIdDates.service_id,
+                StaticTrips.route_id == ServiceIdDates.route_id,
             ),
         )
         .join(
@@ -103,11 +101,9 @@ def get_static_trips_cte(
             ),
         )
         .where(
-            (StaticStopTimes.timestamp.in_(timestamps))
-            & (StaticRoutes.route_type != 3)
-            & (getattr(StaticCalendar, day_of_week) == sa.true())
-            & (StaticCalendar.start_date <= int(start_date))
-            & (StaticCalendar.end_date >= int(start_date))
+            StaticStopTimes.timestamp.in_(timestamps),
+            StaticRoutes.route_type != 3,
+            ServiceIdDates.service_date == int(start_date),
         )
         .cte(name="static_trips_cte")
     )
@@ -128,6 +124,8 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
             VehicleTrips.fk_static_timestamp,
             VehicleTrips.direction_id,
             VehicleTrips.route_id,
+            VehicleTrips.branch_route_id,
+            VehicleTrips.trunk_route_id,
             VehicleTrips.start_date,
             VehicleTrips.start_time,
             VehicleTrips.vehicle_id,
