@@ -38,7 +38,10 @@ from lamp_py.postgres.postgres_schema import (
     VehicleEvents,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
-from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
+from lamp_py.runtime_utils.alembic_migration import (
+    alembic_upgrade_to_head,
+    alembic_downgrade_to_base,
+)
 
 from lamp_py.performance_manager.gtfs_utils import (
     add_fk_static_timestamp_column,
@@ -97,6 +100,7 @@ def fixture_db_manager() -> DatabaseManager:
     """
     set_env_vars()
     db_manager = DatabaseManager()
+    alembic_downgrade_to_base("performance_manager")
     alembic_upgrade_to_head("performance_manager")
     return db_manager
 
@@ -268,6 +272,8 @@ def test_static_tables(
     check_logs(caplog)
 
 
+# pylint: disable=R0915
+# pylint Too many statements (51/50) (too-many-statements)
 def test_gtfs_rt_processing(
     db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -300,30 +306,30 @@ def test_gtfs_rt_processing(
         # check that we can load the parquet file into a dataframe correctly
         positions = get_vp_dataframe(files["vp_paths"])
         position_size = positions.shape[0]
-        assert positions.shape[1] == 10
+        assert positions.shape[1] == 12
 
         # check that the types can be set correctly
         positions = transform_vp_datatypes(positions)
-        assert positions.shape[1] == 10
+        assert positions.shape[1] == 12
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
         positions = add_fk_static_timestamp_column(positions, db_manager)
-        assert positions.shape[1] == 11
+        assert positions.shape[1] == 13
         assert position_size == positions.shape[0]
 
         # remove bus records from dataframe
         positions = remove_bus_records(positions, db_manager)
-        assert positions.shape[1] == 11
+        assert positions.shape[1] == 13
         assert position_size > positions.shape[0]
 
         # remove bus records from dataframe
         positions = add_parent_station_column(positions, db_manager)
-        assert positions.shape[1] == 12
+        assert positions.shape[1] == 14
         assert position_size > positions.shape[0]
 
         positions = transform_vp_timestamps(positions)
-        assert positions.shape[1] == 13
+        assert positions.shape[1] == 15
         assert position_size > positions.shape[0]
 
         trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"])
@@ -360,6 +366,8 @@ def test_gtfs_rt_processing(
             "trip_hash",
         }
         expected_columns.add("trip_id")
+        expected_columns.add("vehicle_label")
+        expected_columns.add("vehicle_consist")
         assert len(expected_columns) == len(events.columns)
 
         missing_columns = set(events.columns) - expected_columns
@@ -368,6 +376,9 @@ def test_gtfs_rt_processing(
         upload_to_database(events, db_manager)
 
     check_logs(caplog)
+
+
+# pylint: enable=R0915
 
 
 def test_vp_only(

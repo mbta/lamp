@@ -72,6 +72,7 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
             "service_id",
             "trip_id",
             "direction_id",
+            "block_id",
             "timestamp",
         ],
         int64_cols=[

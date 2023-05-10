@@ -213,6 +213,12 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
         "tu_stop_timestamp"
     ].astype("Int64")
 
+    # add vehicle_lable and vehicle_consist columns
+    # trip_updates and vehicle_positions dataframes must all have the same columns
+    # available to be correctly joined in combine_events function of l0_gtfs_rt_events.py
+    trip_updates["vehicle_label"] = None
+    trip_updates["vehicle_consist"] = None
+
     process_logger.add_metadata(after_row_count=trip_updates.shape[0])
     process_logger.log_complete()
 

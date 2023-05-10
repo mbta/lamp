@@ -34,6 +34,8 @@ def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
         "start_time",
         "vehicle_id",
         "trip_id",
+        "vehicle_label",
+        "vehicle_consist",
     ]
 
     vehicle_position_filters = [
@@ -188,6 +190,14 @@ def transform_vp_timestamps(
     vehicle_positions["vp_stop_timestamp"] = vehicle_positions[
         "vp_stop_timestamp"
     ].astype("Int64")
+
+    # change vehicle_consist to pipe delimited string
+    vehicle_positions["vehicle_consist"] = vehicle_positions[
+        "vehicle_consist"
+    ].map(
+        lambda vc: "|".join(str(vc_val["label"]) for vc_val in vc),
+        na_action="ignore",
+    )
 
     process_logger.add_metadata(after_row_count=vehicle_positions.shape[0])
     process_logger.log_complete()
