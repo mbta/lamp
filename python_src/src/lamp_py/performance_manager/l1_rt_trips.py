@@ -43,7 +43,7 @@ def load_new_trip_data(
     This guarantees that all events represented in the events dataframe will have
     matching trips data in the "vehicle_trips" table
     """
-    process_logger = ProcessLogger("l0_trips.load_new_trips")
+    process_logger = ProcessLogger("l1_trips.load_new_trips")
     process_logger.log_start()
     insert_columns = [
         "trip_hash",
@@ -135,7 +135,7 @@ def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
         .values(stop_count=new_stop_counts_cte.c.stop_count)
     )
 
-    process_logger = ProcessLogger("l0_trips.update_trip_stop_counts")
+    process_logger = ProcessLogger("l1_trips.update_trip_stop_counts")
     process_logger.log_start()
     db_manager.execute(update_query)
     process_logger.log_complete()
@@ -180,7 +180,7 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
         )
     )
 
-    process_logger = ProcessLogger("l0_trips.update_exact_trip_matches")
+    process_logger = ProcessLogger("l1_trips.update_exact_trip_matches")
     process_logger.log_start()
     db_manager.execute(update_query)
     process_logger.log_complete()
@@ -206,13 +206,11 @@ def backup_rt_static_trip_match(
     seed_timestamps: List[int],
 ) -> None:
     """
-    processs updates to trips table
+    perform "backup" match of RT trips to Static schedule trip
 
-    generate new trips table information
+    this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
+    and direction with the closest start_time
     """
-    process_logger = ProcessLogger("l1_rt_trips_table_loader")
-    process_logger.log_start()
-
     static_trips_cte = get_static_trips_cte(seed_timestamps, seed_start_date)
 
     # to build a 'summary' trips table only the first and last records for each
@@ -324,7 +322,6 @@ def backup_rt_static_trip_match(
     )
 
     db_manager.execute(update_query)
-    process_logger.log_complete()
 
 
 def process_trips(
@@ -336,7 +333,7 @@ def process_trips(
     """
     load_new_trips_records(db_manager, events)
 
-    process_logger = ProcessLogger("l0_trips.update_backup_trip_matches")
+    process_logger = ProcessLogger("l1_trips.update_backup_trip_matches")
     process_logger.log_start()
     for start_date in events["start_date"].unique():
         timestamps = [
