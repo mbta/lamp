@@ -129,6 +129,8 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
             VehicleTrips.start_date,
             VehicleTrips.start_time,
             VehicleTrips.vehicle_id,
+            VehicleTrips.stop_count,
+            VehicleTrips.static_trip_id_guess,
             VehicleEvents.trip_hash,
             VehicleEvents.stop_sequence,
             VehicleEvents.parent_station,
@@ -201,6 +203,9 @@ def get_trips_for_metrics(
             rt_trips_cte.c.trip_hash,
             rt_trips_cte.c.direction_id,
             rt_trips_cte.c.route_id,
+            rt_trips_cte.c.branch_route_id,
+            rt_trips_cte.c.trunk_route_id,
+            rt_trips_cte.c.stop_count,
             rt_trips_cte.c.start_time,
             rt_trips_cte.c.vehicle_id,
             rt_trips_cte.c.parent_station,
@@ -236,22 +241,15 @@ def get_trips_for_metrics(
                 ),
             )
             .label("next_station_move"),
-            VehicleTrips.stop_count,
-            VehicleTrips.trunk_route_id,
         )
         .distinct(
             rt_trips_cte.c.trip_stop_hash,
         )
         .select_from(rt_trips_cte)
         .join(
-            VehicleTrips,
-            rt_trips_cte.c.trip_hash == VehicleTrips.trip_hash,
-            isouter=True,
-        )
-        .join(
             static_trips_cte,
             sa.and_(
-                VehicleTrips.static_trip_id_guess
+                rt_trips_cte.c.static_trip_id_guess
                 == static_trips_cte.c.static_trip_id,
                 rt_trips_cte.c.fk_static_timestamp
                 == static_trips_cte.c.timestamp,
