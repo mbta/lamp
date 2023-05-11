@@ -17,6 +17,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticStopTimes,
     StaticTrips,
     StaticCalendarDates,
+    StaticDirections,
 )
 from lamp_py.postgres.postgres_utils import (
     DatabaseManager,
@@ -191,6 +192,24 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         ],
     )
 
+    directions = StaticTableDetails(
+        table_name="DIRECTIONS",
+        insert_table=StaticDirections.__table__,
+        columns_to_pull=[
+            "route_id",
+            "direction_id",
+            "direction",
+            "direction_destination",
+            "timestamp",
+        ],
+        int64_cols=[
+            "timestamp",
+        ],
+        bool_cols=[
+            "direction_id",
+        ],
+    )
+
     # this return order also dictates the order that tables are loaded into the RDS
     # the 'static_trips_create_branch_trunk' trigger requires that the `stop_times` table
     # be loaded prior to the `trips` table
@@ -202,6 +221,7 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         "trips": trips,
         "calendar": calendar,
         "calendar_dates": calendar_dates,
+        "directions": directions,
     }
 
 

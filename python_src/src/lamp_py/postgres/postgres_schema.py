@@ -78,6 +78,8 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     trip_id = sa.Column(sa.String(128), nullable=True)
     vehicle_label = sa.Column(sa.String(128), nullable=True)
     vehicle_consist = sa.Column(sa.String(), nullable=True)
+    direction = sa.Column(sa.String(30), nullable=True)
+    direction_destination = sa.Column(sa.String(60), nullable=True)
 
     # static trip matching
     static_trip_id_guess = sa.Column(sa.String(128), nullable=True)
@@ -249,6 +251,19 @@ class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
     date = sa.Column(sa.Integer, nullable=False, index=True)
     exception_type = sa.Column(sa.SmallInteger, nullable=False)
     holiday_name = sa.Column(sa.String(128), nullable=True)
+    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+
+
+class StaticDirections(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for GTFS Calendar Dates"""
+
+    __tablename__ = "static_directions"
+
+    pk_id = sa.Column(sa.Integer, primary_key=True)
+    route_id = sa.Column(sa.String(60), nullable=False, index=True)
+    direction_id = sa.Column(sa.Boolean, index=True)
+    direction = sa.Column(sa.String(30), nullable=False)
+    direction_destination = sa.Column(sa.String(60), nullable=False)
     timestamp = sa.Column(sa.Integer, nullable=False, index=True)
 
 
