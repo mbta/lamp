@@ -127,8 +127,7 @@ def process_metrics_table(
     # this headways CTE calculation is incomplete
     #
     # trunk and branch headways are the same except for one is partiioned on
-    # trunk_route_id and the later on route_id. route_id does not correctly
-    # partition red line branch headways.
+    # trunk_route_id and the later on branch_route_id.
     #
     # first stop headways are calculated with move_timestamp to move_timestamp
     # for the next station in a trip
@@ -148,10 +147,10 @@ def process_metrics_table(
                         ).over(
                             partition_by=(
                                 trips_for_metrics.c.parent_station,
-                                trips_for_metrics.c.route_id,
+                                trips_for_metrics.c.branch_route_id,
                                 trips_for_metrics.c.direction_id,
                             ),
-                            order_by=trips_for_metrics.c.sort_timestamp,
+                            order_by=trips_for_metrics.c.stop_timestamp,
                         ),
                     ),
                 ],
@@ -161,10 +160,10 @@ def process_metrics_table(
                 ).over(
                     partition_by=(
                         trips_for_metrics.c.parent_station,
-                        trips_for_metrics.c.route_id,
+                        trips_for_metrics.c.branch_route_id,
                         trips_for_metrics.c.direction_id,
                     ),
-                    order_by=trips_for_metrics.c.sort_timestamp,
+                    order_by=trips_for_metrics.c.next_station_move,
                 ),
             ).label("headway_branch_seconds"),
         )
@@ -173,6 +172,7 @@ def process_metrics_table(
                 trips_for_metrics.c.stop_count > 1,
                 trips_for_metrics.c.first_stop_flag == sa.false(),
             ),
+            trips_for_metrics.c.branch_route_id.is_not(None),
         )
         .cte(name="t_headways_branch")
     )
@@ -208,7 +208,7 @@ def process_metrics_table(
                                 trips_for_metrics.c.trunk_route_id,
                                 trips_for_metrics.c.direction_id,
                             ),
-                            order_by=trips_for_metrics.c.sort_timestamp,
+                            order_by=trips_for_metrics.c.stop_timestamp,
                         ),
                     ),
                 ],
@@ -221,7 +221,7 @@ def process_metrics_table(
                         trips_for_metrics.c.trunk_route_id,
                         trips_for_metrics.c.direction_id,
                     ),
-                    order_by=trips_for_metrics.c.sort_timestamp,
+                    order_by=trips_for_metrics.c.next_station_move,
                 ),
             ).label("headway_trunk_seconds"),
         )
@@ -230,6 +230,7 @@ def process_metrics_table(
                 trips_for_metrics.c.stop_count > 1,
                 trips_for_metrics.c.first_stop_flag == sa.false(),
             ),
+            trips_for_metrics.c.trunk_route_id.is_not(None),
         )
         .cte(name="t_headways_trunk")
     )
