@@ -51,7 +51,7 @@ def load_new_trip_data(
         "fk_static_timestamp",
         "direction_id",
         "route_id",
-        "start_date",
+        "service_date",
         "start_time",
         "vehicle_id",
         "trip_id",
@@ -246,7 +246,7 @@ def load_new_trips_records(
 # pylint too many local variables (more than 15)
 def backup_rt_static_trip_match(
     db_manager: DatabaseManager,
-    seed_start_date: int,
+    seed_service_date: int,
     seed_timestamps: List[int],
 ) -> None:
     """
@@ -255,7 +255,7 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_cte = get_static_trips_cte(seed_timestamps, seed_start_date)
+    static_trips_cte = get_static_trips_cte(seed_timestamps, seed_service_date)
 
     # to build a 'summary' trips table only the first and last records for each
     # static trip are needed.
@@ -312,7 +312,7 @@ def backup_rt_static_trip_match(
         .join(TempHashCompare, TempHashCompare.hash == VehicleTrips.trip_hash)
         .where(
             VehicleTrips.first_last_station_match == sa.false(),
-            VehicleTrips.start_date == int(seed_start_date),
+            VehicleTrips.service_date == int(seed_service_date),
             VehicleTrips.fk_static_timestamp.in_(seed_timestamps),
         )
         .cte("rt_trips_for_backup_match")
@@ -379,17 +379,17 @@ def process_trips(
 
     process_logger = ProcessLogger("l1_trips.update_backup_trip_matches")
     process_logger.log_start()
-    for start_date in events["start_date"].unique():
+    for service_date in events["service_date"].unique():
         timestamps = [
             int(s_d)
             for s_d in events.loc[
-                events["start_date"] == start_date, "fk_static_timestamp"
+                events["service_date"] == service_date, "fk_static_timestamp"
             ].unique()
         ]
 
         backup_rt_static_trip_match(
             db_manager,
-            seed_start_date=int(start_date),
+            seed_service_date=int(service_date),
             seed_timestamps=timestamps,
         )
     process_logger.log_complete()

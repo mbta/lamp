@@ -6,7 +6,7 @@ defmodule Api.PerformanceManager.VehicleEvents do
     # trip identifiers
     field(:direction_id, :boolean)
     field(:route_id, :string)
-    field(:start_date, :integer)
+    field(:service_date, :integer)
     field(:start_time, :integer)
     field(:vehicle_id, :string)
 

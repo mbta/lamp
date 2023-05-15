@@ -7,13 +7,18 @@ defmodule Api.PerformanceManager.VehicleTrips do
     field(:direction_id, :boolean)
     field(:route_id, :string)
     field(:trunk_route_id, :string)
-    field(:start_date, :integer)
+    field(:branch_route_id, :string)
+    field(:service_date, :integer)
     field(:start_time, :integer)
     field(:vehicle_id, :string)
     field(:stop_count, :integer)
     field(:trip_id, :string)
 
     field(:trip_hash, :binary)
+    field(:vehicle_label, :string)
+    field(:vehicle_consist, :string)
+    field(:direction, :string)
+    field(:direction_destination, :string)
 
     # static trip matching
     field(:static_trip_id_guess, :string)

@@ -78,12 +78,15 @@ def transform_vp_datatypes(
     ).astype(numpy.bool_)
     vehicle_positions = vehicle_positions.drop(columns=["current_status"])
 
-    # store start_date as int64 instead of string
-    vehicle_positions["start_date"] = pandas.to_numeric(
-        vehicle_positions["start_date"]
+    # rename start_date to service date and store as int64 instead of string
+    vehicle_positions.rename(
+        columns={"start_date": "service_date"}, inplace=True
+    )
+    vehicle_positions["service_date"] = pandas.to_numeric(
+        vehicle_positions["service_date"]
     ).astype("int64")
 
-    # rename current_stop_sequence as stop_sequence
+    # rename current_stop_sequence to stop_sequence
     # and convert to int64
     vehicle_positions.rename(
         columns={"current_stop_sequence": "stop_sequence"}, inplace=True
@@ -134,7 +137,7 @@ def transform_vp_timestamps(
             "parent_station",
             "direction_id",
             "route_id",
-            "start_date",
+            "service_date",
             "start_time",
             "vehicle_id",
         ],
