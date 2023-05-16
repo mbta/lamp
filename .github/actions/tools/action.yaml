@@ -1,5 +1,5 @@
-name: Set up tools
-description: Loads asdf tools for for a CI/CD job, installing them if not cached
+name: Setup ASDF Tools
+description: Loads ASDF tools for for a CI/CD job, installing them if not cached
 outputs:
   cache-hit:
     description: "Whether the ASDF cache was hit"
@@ -8,15 +8,16 @@ runs:
   using: composite
   steps:
       # cache the ASDF directory, using values from .tool-versions
-      - name: ASDF Cache
+      - name: ASDF Tools Cache
         uses: actions/cache@v3
         id: asdf-cache
         with:
           path: ~/.asdf
-          key: ${{ runner.os}}-asdf-${{ hashFiles('.tool-versions') }} #runner.os vs CACHE_UUID secret
+          key: ${{ runner.os}}-asdf-${{ hashFiles('**/.tool-versions') }} #runner.os vs CACHE_UUID secret
 
-      # run `asdf install` iff we can't find the cache
-      - uses: asdf-vm/actions/install@v2
+      - name: Install ASDF Tools
+        uses: asdf-vm/actions/install@v2
         if: steps.asdf-cache.outputs.cache-hit != 'true'
 
-      - uses: mbta/actions/reshim-asdf@v1
+      - name: Re-shim ASDF Install
+        uses: mbta/actions/reshim-asdf@v1

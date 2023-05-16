@@ -1,0 +1,26 @@
+name: Setup Python Dependencies
+description: Loads python dependencies for a CI/CD job, install them if not cached
+
+runs:
+  using: composite
+  steps:
+    - name: ASDF Tools Install
+      uses: ./.github/actions/tools
+
+    - name: Python Deps Cache
+      uses: actions/cache@v3
+      id: python-cache
+      with:
+        path: | 
+          ~/.cache/pypoetry
+          **/python_src/.venv
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install Python Deps
+      working-directory: python_src
+      # env use python3.9 to force usage of python3.9 installed by asdf over system python version
+      run: |
+        poetry env use python3.9
+        poetry install -v 
+      shell: bash
+      if: "!steps.python-cache.outputs.cache-hit"
