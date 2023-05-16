@@ -16,72 +16,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  asdf:
-    name: ASDF
+  setup:
+    name: Elixir Setup
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
-      - name: ASDF cache
-        id: asdf-cache
-        uses: ./.github/actions/tools
-      - run: |
-          mix local.rebar --force
-          mix local.hex --force
-        if: steps.asdf-cache.outputs.cache-hit != 'true'
+      - name: Checkout
+        uses: actions/checkout@v3
 
-  deps:
-    name: Get Dependencies
-    runs-on: ubuntu-22.04
-    needs: asdf
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: ASDF cache
-        uses: ./.github/actions/tools
-      - name: Restore dependencies cache
-        id: deps-cache
-        uses: actions/cache@v3
-        with:
-          path: api/deps
-          key: ${{ runner.os }}-mix-v2-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-v2-
-      - name: Install dependencies
-        run: mix deps.get
-        working-directory: api
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+      - name: Elixir Deps
+        uses: ./.github/actions/elixir_deps
 
   dev:
     name: Dev Tasks
     runs-on: ubuntu-22.04
-    needs: deps
+    needs: setup
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/tools
-      - name: Restore dependencies cache
-        id: deps-cache
-        uses: actions/cache@v3
-        with:
-          path: api/deps
-          key: ${{ runner.os }}-mix-v2-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-v2-
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Elixir Deps
+        uses: ./.github/actions/elixir_deps
+
       - name: Restore dev build cache
+        id: dev-tasks
         uses: actions/cache@v3
         with:
           path: api/_build/dev
           key: ${{ runner.os }}-mix-dev-${{ hashFiles('**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-dev-
+
       - name: Compile (warnings as errors)
         run: mix compile --force --warnings-as-errors
         working-directory: api
+        if: steps.dev-tasks.outputs.cache-hit != 'true'
+
       - name: Check formatting
         run: mix format --check-formatted
         working-directory: api
+        if: steps.dev-tasks.outputs.cache-hit != 'true'
 
   test:
     name: Test Tasks
     runs-on: ubuntu-22.04
-    needs: deps
+    needs: setup
 
     services:
       postgres:
@@ -95,20 +73,15 @@ jobs:
           POSTGRES_DB: performance_manager_test
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Elixir Deps
+        uses: ./.github/actions/elixir_deps
+
       - name: Setup Python
         uses: ./.github/actions/poetry_deps
-        with:
-          poetry-dir: python_src
-      - name: Restore dependencies cache
-        id: deps-cache
-        uses: actions/cache@v3
-        with:
-          path: api/deps
-          key: ${{ runner.os }}-mix-v2-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-v2-
-      # We don't cache the _build/test directory because it causes unusual
-      # failures (cannot start :ranch_app) -ps
+
       - name: Run tests
         run: mix test
         working-directory: api

@@ -20,20 +20,23 @@ jobs:
     name: Setup
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/poetry_deps
-        with:
-          poetry-dir: python_src 
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Poetry Install
+        uses: ./.github/actions/poetry_deps
 
   format:
     name: Format
     runs-on: ubuntu-22.04
     needs: setup
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/poetry_deps
-        with:
-          poetry-dir: python_src
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Poetry Install
+        uses: ./.github/actions/poetry_deps
+          
       - run: poetry run black . --check
 
   typing:
@@ -41,10 +44,12 @@ jobs:
     runs-on: ubuntu-22.04
     needs: setup
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/poetry_deps
-        with:
-          poetry-dir: python_src
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Poetry Install
+        uses: ./.github/actions/poetry_deps
+
       - run: poetry run mypy .
 
   lint:
@@ -52,10 +57,12 @@ jobs:
     runs-on: ubuntu-22.04
     needs: setup
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/poetry_deps
-        with:
-          poetry-dir: python_src
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Poetry Install
+        uses: ./.github/actions/poetry_deps
+
       - run: poetry run pylint src tests
 
   test:
@@ -80,8 +87,10 @@ jobs:
           POSTGRES_DB: ${{env.DB_NAME}}
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/poetry_deps
-        with:
-          poetry-dir: python_src
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Poetry Install
+        uses: ./.github/actions/poetry_deps
+
       - run: poetry run pytest

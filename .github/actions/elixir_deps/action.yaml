@@ -1,0 +1,28 @@
+name: Set up dependencies
+description: Loads elixir dependencies for a CI/CD job, install them if not cached
+
+runs:
+  using: composite
+  steps:
+    - name: ASDF Install 
+      uses: ./.github/actions/tools
+
+    - name: Elixir Deps Cache
+      uses: actions/cache@v3
+      id: elixir-cache
+      with:
+        path: |
+          api/deps
+          ~/.cache/mix
+          ~/.asdf/installs/elixir
+        key: ${{ runner.os }}-mix-v2-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-v2-
+
+    - name: Install Elixir Deps
+      working-directory: api
+      run: |
+          mix local.rebar --force
+          mix local.hex --force
+          mix deps.get
+      shell: bash
+      if: steps.elixir-cache.outputs.cache-hit != 'true'

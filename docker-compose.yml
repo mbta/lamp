@@ -25,17 +25,17 @@ services:
       - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
     command: [ "poetry", "run", "performance_manager" ]
 
-  api_server:
-    container_name: api_server
-    # network_mode: "host"
-    env_file: .env
-    build:
-      context: ./api
-    ports:
-      # Mapping the port to make the Phoenix app accessible outside of the container.
-      - "4000:4000"
-    depends_on:
-      - local_rds
+  # api_server:
+  #   container_name: api_server
+  #   # network_mode: "host"
+  #   env_file: .env
+  #   build:
+  #     context: ./api
+  #   ports:
+  #     # Mapping the port to make the Phoenix app accessible outside of the container.
+  #     - "4000:4000"
+  #   depends_on:
+  #     - local_rds
 
   seed_metadata:
     container_name: seed_metadata
@@ -58,6 +58,7 @@ services:
         "poetry",
         "run",
         "seed_metadata",
+        # "--clear-rt",
         "--clear-static",
         "--seed-file",
         "/april_2023_filepaths.json"

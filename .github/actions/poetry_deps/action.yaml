@@ -1,24 +1,23 @@
 name: Set up dependencies
 description: Loads poetry dependencies for a CI/CD job, install them if not cached
-inputs:
-  poetry-dir:
-    description: Directory containing poetry project
-    required: true
 
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/tools
-    - uses: actions/cache@v3
+    - name: ASDF Install 
+      uses: ./.github/actions/tools
+
+    - name: Poetry Cache
+      uses: actions/cache@v3
       id: poetry-cache
       with:
         path: | 
           ~/.cache/pypoetry
-          **/${{ inputs.poetry-dir }}/.venv
+          **/python_src/.venv
         key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
 
-    - name: Install Poetry dependencies
-      working-directory: ${{ inputs.poetry-dir }}
+    - name: Poetry Install
+      working-directory: python_src
       # env use python3.9 to force usage of python3.9 installed by asdf over system python version
       run: |
         poetry env use python3.9

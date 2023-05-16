@@ -13,10 +13,11 @@ runs:
         id: asdf-cache
         with:
           path: ~/.asdf
-          key: ${{ runner.os}}-asdf-${{ hashFiles('.tool-versions') }} #runner.os vs CACHE_UUID secret
+          key: ${{ runner.os}}-asdf-${{ hashFiles('**/.tool-versions') }} #runner.os vs CACHE_UUID secret
 
-      # run `asdf install` iff we can't find the cache
-      - uses: asdf-vm/actions/install@v2
+      # run `asdf install` if we can't find the cache
+      - name: Install tools from .tool-versions
+        uses: asdf-vm/actions/install@v2
         if: steps.asdf-cache.outputs.cache-hit != 'true'
 
       - uses: mbta/actions/reshim-asdf@v1
