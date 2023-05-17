@@ -13,7 +13,7 @@ from lamp_py.postgres.postgres_schema import (
 
 
 def get_static_trips_cte(
-    timestamps: List[int], start_date: int
+    timestamps: List[int], service_date: int
 ) -> sa.sql.selectable.CTE:
     """
     return CTE named "static_trip_cte" representing all static trips on given service date
@@ -103,13 +103,13 @@ def get_static_trips_cte(
         .where(
             StaticStopTimes.timestamp.in_(timestamps),
             StaticRoutes.route_type != 3,
-            ServiceIdDates.service_date == int(start_date),
+            ServiceIdDates.service_date == int(service_date),
         )
         .cte(name="static_trips_cte")
     )
 
 
-def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
+def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
     """
     return CTE named "rt_trips_cte" representing all RT trips on a given service date
 
@@ -126,7 +126,7 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
             VehicleTrips.route_id,
             VehicleTrips.branch_route_id,
             VehicleTrips.trunk_route_id,
-            VehicleTrips.start_date,
+            VehicleTrips.service_date,
             VehicleTrips.start_time,
             VehicleTrips.vehicle_id,
             VehicleTrips.stop_count,
@@ -167,7 +167,7 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
             VehicleTrips.trip_hash == VehicleEvents.trip_hash,
         )
         .where(
-            VehicleTrips.start_date == start_date,
+            VehicleTrips.service_date == service_date,
             sa.or_(
                 VehicleEvents.vp_move_timestamp.is_not(None),
                 VehicleEvents.vp_stop_timestamp.is_not(None),
@@ -177,12 +177,12 @@ def get_rt_trips_cte(start_date: int) -> sa.sql.selectable.CTE:
 
 
 def get_trips_for_metrics(
-    timestamps: List[int], start_date: int
+    timestamps: List[int], service_date: int
 ) -> sa.sql.selectable.CTE:
     """
     return CTE named "trips_for_metrics" with fields needed to develop metrics tables
 
-    will return one record for every trip_stop_hash on 'start_date'
+    will return one record for every trip_stop_hash on 'service_date'
 
     joins rt_trips_cte to VehicleTrips on trip_hash field
 
@@ -193,8 +193,8 @@ def get_trips_for_metrics(
     bus routes, so we may be able to drop this for performance_manager
     """
 
-    static_trips_cte = get_static_trips_cte(timestamps, start_date)
-    rt_trips_cte = get_rt_trips_cte(start_date)
+    static_trips_cte = get_static_trips_cte(timestamps, service_date)
+    rt_trips_cte = get_rt_trips_cte(service_date)
 
     return (
         sa.select(

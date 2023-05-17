@@ -16,7 +16,7 @@ from .l1_cte_statements import get_trips_for_metrics
 # pylint too many local variables (more than 15)
 def process_metrics_table(
     db_manager: DatabaseManager,
-    seed_start_date: int,
+    seed_service_date: int,
     seed_timestamps: List[int],
 ) -> None:
     """
@@ -27,7 +27,9 @@ def process_metrics_table(
     process_logger = ProcessLogger("l1_rt_metrics_table_loader")
     process_logger.log_start()
 
-    trips_for_metrics = get_trips_for_metrics(seed_timestamps, seed_start_date)
+    trips_for_metrics = get_trips_for_metrics(
+        seed_timestamps, seed_service_date
+    )
 
     # travel_times calculation:
     # limited to records where stop_timestamp > move_timestamp to avoid negative travel times
@@ -411,16 +413,16 @@ def process_metrics(
     """
     insert and update metrics table
     """
-    for start_date in events["start_date"].unique():
+    for service_date in events["service_date"].unique():
         timestamps = [
             int(s_d)
             for s_d in events.loc[
-                events["start_date"] == start_date, "fk_static_timestamp"
+                events["service_date"] == service_date, "fk_static_timestamp"
             ].unique()
         ]
 
         process_metrics_table(
             db_manager,
-            seed_start_date=int(start_date),
+            seed_service_date=int(service_date),
             seed_timestamps=timestamps,
         )

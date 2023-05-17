@@ -104,7 +104,7 @@ def combine_events(
         "fk_static_timestamp",
         "parent_station",
         "route_id",
-        "start_date",
+        "service_date",
         "start_time",
         "stop_id",
         "stop_sequence",
@@ -164,7 +164,7 @@ def upload_to_database(
         expected_hash_columns=[
             "direction_id",
             "route_id",
-            "start_date",
+            "service_date",
             "start_time",
             "vehicle_id",
         ],
@@ -312,7 +312,7 @@ def upload_to_database(
         insert_cols = [
             "direction_id",
             "route_id",
-            "start_date",
+            "service_date",
             "start_time",
             "vehicle_id",
             "trip_hash",

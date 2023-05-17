@@ -76,10 +76,10 @@ def add_fk_static_timestamp_column(
     gtfs static record tables
     """
     # based on discussions with OPMI, matching of GTFS-RT events to GTFS-static schedule versions
-    # will occur on a whole 'start_date' / service date basis
+    # will occur on a whole 'service_date' basis
     #
     # when processing live GTFS-static schedule versions, matching can only apply to, at the earliest,
-    # the current `start_date` / service date when processed, no retroactive assignment to past days will occur.
+    # the current `service_date` when processed, no retroactive assignment to past days will occur.
     #
     # extraction of `feed_active_date` from `feed_version` of the GTFS-static FEED_INFO table
     # is currently handled by an DB Trigger function added by alembic migration Revision ID: 43153d536c2a
@@ -93,10 +93,10 @@ def add_fk_static_timestamp_column(
     # initialize fk_static_timestamp column
     events_dataframe["fk_static_timestamp"] = 0
 
-    for date in events_dataframe["start_date"].unique():
+    for date in events_dataframe["service_date"].unique():
         date = int(date)
-        # "start_date" from events dataframe must be between "feed_start_date" and "feed_end_date" in StaticFeedInfo
-        # "start_date" must also be less than or equal to "feed_active_date" in StaticFeedInfo
+        # "service_date" from events dataframe must be between "feed_start_date" and "feed_end_date" in StaticFeedInfo
+        # "service_date" must also be less than or equal to "feed_active_date" in StaticFeedInfo
         # StaticFeedInfo, order by feed_active_date descending and created_on date descending
         # this should deal with multiple static schedules being issued on the same day
         # if this occurs we will use the latest issued schedule
@@ -141,11 +141,11 @@ def add_fk_static_timestamp_column(
         # should not be processed until valid static schedule data exists
         if len(result) == 0:
             raise IndexError(
-                f"StaticFeedInfo table has no matching schedule for start_date={date}"
+                f"StaticFeedInfo table has no matching schedule for service_date={date}"
             )
 
-        start_date_mask = events_dataframe["start_date"] == date
-        events_dataframe.loc[start_date_mask, "fk_static_timestamp"] = int(
+        service_date_mask = events_dataframe["service_date"] == date
+        events_dataframe.loc[service_date_mask, "fk_static_timestamp"] = int(
             result[0]["timestamp"]
         )
 

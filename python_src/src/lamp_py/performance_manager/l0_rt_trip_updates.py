@@ -56,7 +56,7 @@ def explode_stop_time_update(
     timestamp: int,
     direction_id: bool,
     route_id: Any,
-    start_date: int,
+    service_date: int,
     start_time: int,
     vehicle_id: Any,
     trip_id: Any,
@@ -70,7 +70,7 @@ def explode_stop_time_update(
         "timestamp": timestamp,
         "direction_id": direction_id,
         "route_id": route_id,
-        "start_date": start_date,
+        "service_date": service_date,
         "start_time": start_time,
         "vehicle_id": vehicle_id,
         "trip_id": trip_id,
@@ -129,9 +129,12 @@ def get_and_unwrap_tu_dataframe(
     # after batch goes through explod_stop_time_update vectorize operation,
     # resulting Series has negligible memory use
     for batch_events in get_tu_dataframe_chunks(paths):
-        # store start_date as int64
-        batch_events["start_date"] = pandas.to_numeric(
-            batch_events["start_date"]
+        # store start_date as int64 and rename to service_date
+        batch_events.rename(
+            columns={"start_date": "service_date"}, inplace=True
+        )
+        batch_events["service_date"] = pandas.to_numeric(
+            batch_events["service_date"]
         ).astype("int64")
 
         # store direction_id as bool
@@ -156,7 +159,7 @@ def get_and_unwrap_tu_dataframe(
                 batch_events.timestamp,
                 batch_events.direction_id,
                 batch_events.route_id,
-                batch_events.start_date,
+                batch_events.service_date,
                 batch_events.start_time,
                 batch_events.vehicle_id,
                 batch_events.trip_id,
@@ -192,7 +195,7 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
             "parent_station",
             "direction_id",
             "route_id",
-            "start_date",
+            "service_date",
             "start_time",
             "vehicle_id",
         ],

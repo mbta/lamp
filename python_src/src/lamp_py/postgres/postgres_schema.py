@@ -22,7 +22,7 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     # trip identifiers
     direction_id = sa.Column(sa.Boolean, nullable=False)
     route_id = sa.Column(sa.String(60), nullable=False)
-    start_date = sa.Column(sa.Integer, nullable=False)
+    service_date = sa.Column(sa.Integer, nullable=False)
     start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
 
@@ -70,7 +70,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     route_id = sa.Column(sa.String(60), nullable=False)
     branch_route_id = sa.Column(sa.String(60), nullable=True)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
-    start_date = sa.Column(sa.Integer, nullable=False)
+    service_date = sa.Column(sa.Integer, nullable=False)
     start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     stop_count = sa.Column(sa.SmallInteger, nullable=True)
