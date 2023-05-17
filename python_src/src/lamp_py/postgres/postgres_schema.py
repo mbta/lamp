@@ -19,13 +19,6 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
 
-    # trip identifiers
-    direction_id = sa.Column(sa.Boolean, nullable=False)
-    route_id = sa.Column(sa.String(60), nullable=False)
-    service_date = sa.Column(sa.Integer, nullable=False)
-    start_time = sa.Column(sa.Integer, nullable=False)
-    vehicle_id = sa.Column(sa.String(60), nullable=False)
-
     # hash of trip identifiers
     trip_hash = sa.Column(
         sa.LargeBinary(16), nullable=False, index=True, unique=False
