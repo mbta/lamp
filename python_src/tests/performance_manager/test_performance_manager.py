@@ -370,6 +370,11 @@ def test_gtfs_rt_processing(
         expected_columns.add("trip_id")
         expected_columns.add("vehicle_label")
         expected_columns.add("vehicle_consist")
+        expected_columns.add("direction_id")
+        expected_columns.add("route_id")
+        expected_columns.add("service_date")
+        expected_columns.add("start_time")
+        expected_columns.add("vehicle_id")
         assert len(expected_columns) == len(events.columns)
 
         missing_columns = set(events.columns) - expected_columns

@@ -310,11 +310,6 @@ def upload_to_database(
     process_logger.add_metadata(insert_event_count=events["do_insert"].sum())
     if events["do_insert"].sum() > 0:
         insert_cols = [
-            "direction_id",
-            "route_id",
-            "service_date",
-            "start_time",
-            "vehicle_id",
             "trip_hash",
             "stop_sequence",
             "stop_id",
