@@ -12,6 +12,6 @@ defmodule Api.PerformanceManager.StaticRoutes do
     field(:route_sort_order, :integer)
     field(:route_fare_class, :string)
     field(:line_id, :string)
-    field(:timestamp, :integer)
+    field(:static_version_key, :integer)
   end
 end

@@ -13,6 +13,6 @@ defmodule Api.PerformanceManager.StaticCalendar do
     field(:sunday, :boolean)
     field(:start_date, :integer)
     field(:end_date, :integer)
-    field(:timestamp, :integer)
+    field(:static_version_key, :integer)
   end
 end

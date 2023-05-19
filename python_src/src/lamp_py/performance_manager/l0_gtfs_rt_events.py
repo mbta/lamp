@@ -101,7 +101,7 @@ def combine_events(
     #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
     details_columns = [
         "direction_id",
-        "fk_static_timestamp",
+        "static_version_key",
         "parent_station",
         "route_id",
         "service_date",
@@ -318,7 +318,6 @@ def upload_to_database(
             "vp_move_timestamp",
             "vp_stop_timestamp",
             "tu_stop_timestamp",
-            "fk_static_timestamp",
         ]
 
         result = db_manager.execute_with_data(

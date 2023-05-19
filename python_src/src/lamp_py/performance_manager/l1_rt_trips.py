@@ -48,7 +48,7 @@ def load_new_trip_data(
     process_logger.log_start()
     insert_columns = [
         "trip_hash",
-        "fk_static_timestamp",
+        "static_version_key",
         "direction_id",
         "route_id",
         "service_date",
@@ -161,7 +161,8 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
         .join(
             StaticTrips,
             sa.and_(
-                StaticTrips.timestamp == VehicleTrips.fk_static_timestamp,
+                StaticTrips.static_version_key
+                == VehicleTrips.static_version_key,
                 StaticTrips.trip_id == VehicleTrips.trip_id,
                 StaticTrips.direction_id == VehicleTrips.direction_id,
                 StaticTrips.route_id == VehicleTrips.route_id,
@@ -204,7 +205,8 @@ def update_directions(db_manager: DatabaseManager) -> None:
         .join(
             StaticDirections,
             sa.and_(
-                VehicleTrips.fk_static_timestamp == StaticDirections.timestamp,
+                VehicleTrips.static_version_key
+                == StaticDirections.static_version_key,
                 VehicleTrips.direction_id == StaticDirections.direction_id,
                 VehicleTrips.route_id == StaticDirections.route_id,
             ),
@@ -247,7 +249,7 @@ def load_new_trips_records(
 def backup_rt_static_trip_match(
     db_manager: DatabaseManager,
     seed_service_date: int,
-    seed_timestamps: List[int],
+    version_keys: List[int],
 ) -> None:
     """
     perform "backup" match of RT trips to Static schedule trip
@@ -255,13 +257,13 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_cte = get_static_trips_cte(seed_timestamps, seed_service_date)
+    static_trips_cte = get_static_trips_cte(version_keys, seed_service_date)
 
     # to build a 'summary' trips table only the first and last records for each
     # static trip are needed.
     first_stop_static_cte = (
         sa.select(
-            static_trips_cte.c.timestamp,
+            static_trips_cte.c.static_version_key,
             static_trips_cte.c.static_trip_id,
             static_trips_cte.c.static_stop_timestamp.label("static_start_time"),
         )
@@ -273,7 +275,7 @@ def backup_rt_static_trip_match(
     # join first_stop_static_cte with last stop records to create trip summary records
     static_trips_summary_cte = (
         sa.select(
-            static_trips_cte.c.timestamp,
+            static_trips_cte.c.static_version_key,
             static_trips_cte.c.static_trip_id,
             sa.func.coalesce(
                 static_trips_cte.c.branch_route_id,
@@ -287,8 +289,8 @@ def backup_rt_static_trip_match(
         .join(
             first_stop_static_cte,
             sa.and_(
-                static_trips_cte.c.timestamp
-                == first_stop_static_cte.c.timestamp,
+                static_trips_cte.c.static_version_key
+                == first_stop_static_cte.c.static_version_key,
                 static_trips_cte.c.static_trip_id
                 == first_stop_static_cte.c.static_trip_id,
             ),
@@ -306,14 +308,14 @@ def backup_rt_static_trip_match(
                 VehicleTrips.branch_route_id, VehicleTrips.trunk_route_id
             ).label("route_id"),
             VehicleTrips.start_time,
-            VehicleTrips.fk_static_timestamp,
+            VehicleTrips.static_version_key,
         )
         .select_from(VehicleTrips)
         .join(TempHashCompare, TempHashCompare.hash == VehicleTrips.trip_hash)
         .where(
             VehicleTrips.first_last_station_match == sa.false(),
             VehicleTrips.service_date == int(seed_service_date),
-            VehicleTrips.fk_static_timestamp.in_(seed_timestamps),
+            VehicleTrips.static_version_key.in_(version_keys),
         )
         .cte("rt_trips_for_backup_match")
     )
@@ -335,8 +337,8 @@ def backup_rt_static_trip_match(
         .join(
             static_trips_summary_cte,
             sa.and_(
-                rt_trips_summary_cte.c.fk_static_timestamp
-                == static_trips_summary_cte.c.timestamp,
+                rt_trips_summary_cte.c.static_version_key
+                == static_trips_summary_cte.c.static_version_key,
                 rt_trips_summary_cte.c.direction_id
                 == static_trips_summary_cte.c.direction_id,
                 rt_trips_summary_cte.c.route_id
@@ -380,16 +382,16 @@ def process_trips(
     process_logger = ProcessLogger("l1_trips.update_backup_trip_matches")
     process_logger.log_start()
     for service_date in events["service_date"].unique():
-        timestamps = [
+        version_keys = [
             int(s_d)
             for s_d in events.loc[
-                events["service_date"] == service_date, "fk_static_timestamp"
+                events["service_date"] == service_date, "static_version_key"
             ].unique()
         ]
 
         backup_rt_static_trip_match(
             db_manager,
             seed_service_date=int(service_date),
-            seed_timestamps=timestamps,
+            version_keys=version_keys,
         )
     process_logger.log_complete()

@@ -9,7 +9,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import (
     add_event_hash_column,
     start_time_to_seconds,
-    add_fk_static_timestamp_column,
+    add_static_version_key_column,
     add_parent_station_column,
     remove_bus_records,
 )
@@ -220,7 +220,7 @@ def process_vp_files(
 
     vehicle_positions = get_vp_dataframe(paths)
     vehicle_positions = transform_vp_datatypes(vehicle_positions)
-    vehicle_positions = add_fk_static_timestamp_column(
+    vehicle_positions = add_static_version_key_column(
         vehicle_positions, db_manager
     )
     vehicle_positions = remove_bus_records(vehicle_positions, db_manager)

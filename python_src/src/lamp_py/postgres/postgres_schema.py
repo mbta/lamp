@@ -39,13 +39,6 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     vp_stop_timestamp = sa.Column(sa.Integer, nullable=True)
     tu_stop_timestamp = sa.Column(sa.Integer, nullable=True)
 
-    # forign key to static schedule expected values
-    fk_static_timestamp = sa.Column(
-        sa.Integer,
-        sa.ForeignKey("static_feed_info.timestamp"),
-        nullable=False,
-    )
-
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
 
@@ -83,9 +76,9 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
     # forign key to static schedule expected values
-    fk_static_timestamp = sa.Column(
+    static_version_key = sa.Column(
         sa.Integer,
-        sa.ForeignKey("static_feed_info.timestamp"),
+        sa.ForeignKey("static_feed_info.static_version_key"),
         nullable=False,
     )
 
@@ -143,7 +136,7 @@ class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
     feed_end_date = sa.Column(sa.Integer, nullable=False)
     feed_version = sa.Column(sa.String(75), nullable=False, unique=True)
     feed_active_date = sa.Column(sa.Integer, nullable=False, index=True)
-    timestamp = sa.Column(sa.Integer, nullable=False, unique=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False, unique=True)
     created_on = sa.Column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
     )
@@ -162,7 +155,7 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
     trip_id = sa.Column(sa.String(128), nullable=False, index=True)
     direction_id = sa.Column(sa.Boolean, index=True)
     block_id = sa.Column(sa.String(128), nullable=True)
-    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
@@ -180,7 +173,7 @@ class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
     route_sort_order = sa.Column(sa.Integer, nullable=False)
     route_fare_class = sa.Column(sa.String(30), nullable=False)
     line_id = sa.Column(sa.String(30), nullable=True)
-    timestamp = sa.Column(sa.Integer, nullable=False)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
@@ -195,7 +188,7 @@ class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
     platform_code = sa.Column(sa.String(10), nullable=True)
     platform_name = sa.Column(sa.String(60), nullable=True)
     parent_station = sa.Column(sa.String(30), nullable=True)
-    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
@@ -212,7 +205,7 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
     schedule_headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
     stop_id = sa.Column(sa.String(30), nullable=False, index=True)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
-    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
@@ -231,7 +224,7 @@ class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
     sunday = sa.Column(sa.Boolean)
     start_date = sa.Column(sa.Integer, nullable=False)
     end_date = sa.Column(sa.Integer, nullable=False)
-    timestamp = sa.Column(sa.Integer, nullable=False)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
@@ -244,7 +237,7 @@ class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
     date = sa.Column(sa.Integer, nullable=False, index=True)
     exception_type = sa.Column(sa.SmallInteger, nullable=False)
     holiday_name = sa.Column(sa.String(128), nullable=True)
-    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class StaticDirections(SqlBase):  # pylint: disable=too-few-public-methods
@@ -257,7 +250,7 @@ class StaticDirections(SqlBase):  # pylint: disable=too-few-public-methods
     direction_id = sa.Column(sa.Boolean, index=True)
     direction = sa.Column(sa.String(30), nullable=False)
     direction_destination = sa.Column(sa.String(60), nullable=False)
-    timestamp = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
 
 
 class TempStaticHeadwaysGen(SqlBase):  # pylint: disable=too-few-public-methods
@@ -288,4 +281,4 @@ class ServiceIdDates(SqlBase):  # pylint: disable=too-few-public-methods
     route_id = sa.Column(sa.String(60))
     service_id = sa.Column(sa.String(60))
     service_date = sa.Column(sa.Integer)
-    timestamp = sa.Column(sa.Integer)
+    static_version_key = sa.Column(sa.Integer)

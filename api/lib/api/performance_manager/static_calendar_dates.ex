@@ -7,6 +7,6 @@ defmodule Api.PerformanceManager.StaticCalendarDates do
     field(:date, :integer)
     field(:exception_type, :integer)
     field(:holiday_name, :string)
-    field(:timestamp, :integer)
+    field(:static_version_key, :integer)
   end
 end

@@ -9,6 +9,6 @@ defmodule Api.PerformanceManager.StaticTrips do
     field(:service_id, :string)
     field(:trip_id, :string)
     field(:direction_id, :boolean)
-    field(:timestamp, :integer)
+    field(:static_version_key, :integer)
   end
 end
