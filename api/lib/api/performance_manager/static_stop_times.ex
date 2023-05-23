@@ -11,6 +11,6 @@ defmodule Api.PerformanceManager.StaticStopTimes do
     field(:schedule_headway_branch_seconds, :integer)
     field(:stop_id, :string)
     field(:stop_sequence, :integer)
-    field(:timestamp, :integer)
+    field(:static_version_key, :integer)
   end
 end

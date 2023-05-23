@@ -284,6 +284,12 @@ def transform_data_tables(static_tables: Dict[str, StaticTableDetails]) -> None:
         )
         table.data_table = table.data_table.replace([""], [None])
 
+        table.data_table = table.data_table.rename(
+            columns={
+                "timestamp": "static_version_key",
+            }
+        )
+
 
 def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
     """
@@ -375,11 +381,13 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             drop_bus_records(static_tables)
             insert_data_tables(static_tables, db_manager)
 
-            static_timestamp = int(
-                static_tables["feed_info"].data_table.loc[0, "timestamp"]
+            static_version_key = int(
+                static_tables["feed_info"].data_table.loc[
+                    0, "static_version_key"
+                ]
             )
 
-            modify_static_tables(static_timestamp, db_manager)
+            modify_static_tables(static_version_key, db_manager)
 
             update_md_log = (
                 sa.update(MetadataLog.__table__)

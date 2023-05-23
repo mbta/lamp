@@ -12,7 +12,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 def generate_scheduled_travel_times(
-    fk_timestamp: int, db_manager: DatabaseManager
+    static_version_key: int, db_manager: DatabaseManager
 ) -> None:
     """
     generate scheduled travel_times and insert into static_stop_times table
@@ -30,7 +30,7 @@ def generate_scheduled_travel_times(
         )
         .select_from(StaticStopTimes)
         .where(
-            StaticStopTimes.timestamp == fk_timestamp,
+            StaticStopTimes.static_version_key == static_version_key,
         )
         .subquery("scheduled_travel_times")
     )
@@ -138,7 +138,7 @@ def generate_scheduled_trunk_headways(db_manager: DatabaseManager) -> None:
 
 
 def load_temp_table_headway_gen(
-    fk_timestamp: int, db_manager: DatabaseManager
+    static_version_key: int, db_manager: DatabaseManager
 ) -> None:
     """
     load static schedule data into temp table for generating scheduled headways
@@ -162,17 +162,19 @@ def load_temp_table_headway_gen(
             StaticStops,
             sa.and_(
                 StaticStops.stop_id == StaticStopTimes.stop_id,
-                StaticStops.timestamp == StaticStopTimes.timestamp,
+                StaticStops.static_version_key
+                == StaticStopTimes.static_version_key,
             ),
         )
         .join(
             StaticTrips,
             sa.and_(
                 StaticTrips.trip_id == StaticStopTimes.trip_id,
-                StaticTrips.timestamp == StaticStopTimes.timestamp,
+                StaticTrips.static_version_key
+                == StaticStopTimes.static_version_key,
             ),
         )
-        .where(StaticStopTimes.timestamp == fk_timestamp)
+        .where(StaticStopTimes.static_version_key == static_version_key)
     )
     columns_to_insert = [
         "pk_id",
@@ -195,7 +197,7 @@ def load_temp_table_headway_gen(
 
 
 def modify_static_tables(
-    fk_timestamp: int, db_manager: DatabaseManager
+    static_version_key: int, db_manager: DatabaseManager
 ) -> None:
     """
     This function is responsible for modifying any GTFS static schedule tables after
@@ -203,7 +205,7 @@ def modify_static_tables(
 
     currently, we are only addding pre-computed metrics values to the static_stop_times tables
     """
-    load_temp_table_headway_gen(fk_timestamp, db_manager)
-    generate_scheduled_travel_times(fk_timestamp, db_manager)
+    load_temp_table_headway_gen(static_version_key, db_manager)
+    generate_scheduled_travel_times(static_version_key, db_manager)
     generate_scheduled_branch_headways(db_manager)
     generate_scheduled_trunk_headways(db_manager)

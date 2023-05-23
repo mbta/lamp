@@ -9,6 +9,6 @@ defmodule Api.PerformanceManager.StaticStops do
     field(:platform_code, :string)
     field(:platform_name, :string)
     field(:parent_station, :string)
-    field(:timestamp, :integer)
+    field(:static_version_key, :integer)
   end
 end

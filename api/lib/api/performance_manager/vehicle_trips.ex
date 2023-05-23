@@ -28,8 +28,8 @@ defmodule Api.PerformanceManager.VehicleTrips do
 
     # foreign key to static schedule expected values
     belongs_to(:static_feed_info, Api.PerformanceManager.StaticFeedInfo,
-      foreign_key: :fk_static_timestamp,
-      references: :timestamp,
+      foreign_key: :static_version_key,
+      references: :static_version_key,
       define_field: false
     )
 

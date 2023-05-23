@@ -9,7 +9,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import (
     add_event_hash_column,
     start_time_to_seconds,
-    add_fk_static_timestamp_column,
+    add_static_version_key_column,
     add_parent_station_column,
     remove_bus_records,
 )
@@ -240,7 +240,7 @@ def process_tu_files(
     process_logger.log_start()
 
     trip_updates = get_and_unwrap_tu_dataframe(paths)
-    trip_updates = add_fk_static_timestamp_column(trip_updates, db_manager)
+    trip_updates = add_static_version_key_column(trip_updates, db_manager)
     trip_updates = remove_bus_records(trip_updates, db_manager)
     trip_updates = add_parent_station_column(trip_updates, db_manager)
     trip_updates = reduce_trip_updates(trip_updates)

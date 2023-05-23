@@ -45,7 +45,7 @@ from lamp_py.runtime_utils.alembic_migration import (
 )
 
 from lamp_py.performance_manager.gtfs_utils import (
-    add_fk_static_timestamp_column,
+    add_static_version_key_column,
     remove_bus_records,
     add_parent_station_column,
 )
@@ -316,7 +316,7 @@ def test_gtfs_rt_processing(
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
-        positions = add_fk_static_timestamp_column(positions, db_manager)
+        positions = add_static_version_key_column(positions, db_manager)
         assert positions.shape[1] == 13
         assert position_size == positions.shape[0]
 
@@ -339,7 +339,7 @@ def test_gtfs_rt_processing(
         assert trip_updates.shape[1] == 10
 
         # check that it can be combined with the static schedule
-        trip_updates = add_fk_static_timestamp_column(trip_updates, db_manager)
+        trip_updates = add_static_version_key_column(trip_updates, db_manager)
         assert trip_updates.shape[1] == 11
         assert trip_update_size == trip_updates.shape[0]
 
@@ -375,6 +375,7 @@ def test_gtfs_rt_processing(
         expected_columns.add("service_date")
         expected_columns.add("start_time")
         expected_columns.add("vehicle_id")
+        expected_columns.add("static_version_key")
         assert len(expected_columns) == len(events.columns)
 
         missing_columns = set(events.columns) - expected_columns

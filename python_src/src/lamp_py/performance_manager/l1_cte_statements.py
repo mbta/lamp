@@ -13,12 +13,12 @@ from lamp_py.postgres.postgres_schema import (
 
 
 def get_static_trips_cte(
-    timestamps: List[int], service_date: int
+    version_keys: List[int], service_date: int
 ) -> sa.sql.selectable.CTE:
     """
     return CTE named "static_trip_cte" representing all static trips on given service date
 
-    a "set" of static trips will be returned for every "timestamp" key value.
+    a "set" of static trips will be returned for every "static_version_key" key value.
 
     created fields to be returnted:
         - static_trip_first_stop (bool indicating first stop of trip)
@@ -27,7 +27,7 @@ def get_static_trips_cte(
     """
     return (
         sa.select(
-            StaticStopTimes.timestamp,
+            StaticStopTimes.static_version_key,
             StaticStopTimes.trip_id.label("static_trip_id"),
             StaticStopTimes.arrival_time.label("static_stop_timestamp"),
             sa.func.coalesce(
@@ -38,7 +38,7 @@ def get_static_trips_cte(
                 sa.func.lag(StaticStopTimes.departure_time)
                 .over(
                     partition_by=(
-                        StaticStopTimes.timestamp,
+                        StaticStopTimes.static_version_key,
                         StaticStopTimes.trip_id,
                     ),
                     order_by=StaticStopTimes.stop_sequence,
@@ -49,7 +49,7 @@ def get_static_trips_cte(
                 sa.func.lead(StaticStopTimes.departure_time)
                 .over(
                     partition_by=(
-                        StaticStopTimes.timestamp,
+                        StaticStopTimes.static_version_key,
                         StaticStopTimes.trip_id,
                     ),
                     order_by=StaticStopTimes.stop_sequence,
@@ -59,7 +59,7 @@ def get_static_trips_cte(
             sa.func.rank()
             .over(
                 partition_by=(
-                    StaticStopTimes.timestamp,
+                    StaticStopTimes.static_version_key,
                     StaticStopTimes.trip_id,
                 ),
                 order_by=StaticStopTimes.stop_sequence,
@@ -74,21 +74,24 @@ def get_static_trips_cte(
         .join(
             StaticTrips,
             sa.and_(
-                StaticStopTimes.timestamp == StaticTrips.timestamp,
+                StaticStopTimes.static_version_key
+                == StaticTrips.static_version_key,
                 StaticStopTimes.trip_id == StaticTrips.trip_id,
             ),
         )
         .join(
             StaticStops,
             sa.and_(
-                StaticStopTimes.timestamp == StaticStops.timestamp,
+                StaticStopTimes.static_version_key
+                == StaticStops.static_version_key,
                 StaticStopTimes.stop_id == StaticStops.stop_id,
             ),
         )
         .join(
             ServiceIdDates,
             sa.and_(
-                StaticStopTimes.timestamp == ServiceIdDates.timestamp,
+                StaticStopTimes.static_version_key
+                == ServiceIdDates.static_version_key,
                 StaticTrips.service_id == ServiceIdDates.service_id,
                 StaticTrips.route_id == ServiceIdDates.route_id,
             ),
@@ -96,12 +99,13 @@ def get_static_trips_cte(
         .join(
             StaticRoutes,
             sa.and_(
-                StaticStopTimes.timestamp == StaticRoutes.timestamp,
+                StaticStopTimes.static_version_key
+                == StaticRoutes.static_version_key,
                 StaticTrips.route_id == StaticRoutes.route_id,
             ),
         )
         .where(
-            StaticStopTimes.timestamp.in_(timestamps),
+            StaticStopTimes.static_version_key.in_(version_keys),
             StaticRoutes.route_type != 3,
             ServiceIdDates.service_date == int(service_date),
         )
@@ -121,7 +125,7 @@ def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
 
     return (
         sa.select(
-            VehicleTrips.fk_static_timestamp,
+            VehicleTrips.static_version_key,
             VehicleTrips.direction_id,
             VehicleTrips.route_id,
             VehicleTrips.branch_route_id,
@@ -177,7 +181,7 @@ def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
 
 
 def get_trips_for_metrics(
-    timestamps: List[int], service_date: int
+    version_keys: List[int], service_date: int
 ) -> sa.sql.selectable.CTE:
     """
     return CTE named "trips_for_metrics" with fields needed to develop metrics tables
@@ -193,13 +197,13 @@ def get_trips_for_metrics(
     bus routes, so we may be able to drop this for performance_manager
     """
 
-    static_trips_cte = get_static_trips_cte(timestamps, service_date)
+    static_trips_cte = get_static_trips_cte(version_keys, service_date)
     rt_trips_cte = get_rt_trips_cte(service_date)
 
     return (
         sa.select(
             rt_trips_cte.c.trip_stop_hash,
-            rt_trips_cte.c.fk_static_timestamp,
+            rt_trips_cte.c.static_version_key,
             rt_trips_cte.c.trip_hash,
             rt_trips_cte.c.direction_id,
             rt_trips_cte.c.route_id,
@@ -251,8 +255,8 @@ def get_trips_for_metrics(
             sa.and_(
                 rt_trips_cte.c.static_trip_id_guess
                 == static_trips_cte.c.static_trip_id,
-                rt_trips_cte.c.fk_static_timestamp
-                == static_trips_cte.c.timestamp,
+                rt_trips_cte.c.static_version_key
+                == static_trips_cte.c.static_version_key,
                 rt_trips_cte.c.parent_station
                 == static_trips_cte.c.parent_station,
                 rt_trips_cte.c.rt_trip_stop_rank
