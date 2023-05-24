@@ -28,7 +28,7 @@ def upgrade() -> None:
         type_="foreignkey",
     )
     op.drop_constraint(
-        "static_feed_info_timestamp_key", "static_feed_info", type_="unique"
+        "staticFeedInfo_timestamp_key", "static_feed_info", type_="unique"
     )
 
     op.drop_column("vehicle_events", "fk_static_timestamp")

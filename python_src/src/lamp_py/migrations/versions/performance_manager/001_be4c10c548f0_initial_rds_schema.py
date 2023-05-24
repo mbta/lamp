@@ -62,9 +62,11 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=True,
         ),
-        sa.PrimaryKeyConstraint("pk_id"),
-        sa.UniqueConstraint("feed_version"),
-        sa.UniqueConstraint("timestamp"),
+        sa.PrimaryKeyConstraint("pk_id", name="staticFeedInfo_pkey"),
+        sa.UniqueConstraint(
+            "feed_version", name="staticFeedInfo_feed_version_key"
+        ),
+        sa.UniqueConstraint("timestamp", name="staticFeedInfo_timestamp_key"),
     )
     op.create_table(
         "static_routes",
