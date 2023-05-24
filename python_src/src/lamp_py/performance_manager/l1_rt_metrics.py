@@ -137,24 +137,8 @@ def process_metrics_table(
     t_headways_branch_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
-            sa.case(
-                [
-                    (
-                        trips_for_metrics.c.first_stop_flag == sa.false(),
-                        trips_for_metrics.c.stop_timestamp
-                        - sa.func.lag(
-                            trips_for_metrics.c.stop_timestamp,
-                        ).over(
-                            partition_by=(
-                                trips_for_metrics.c.parent_station,
-                                trips_for_metrics.c.branch_route_id,
-                                trips_for_metrics.c.direction_id,
-                            ),
-                            order_by=trips_for_metrics.c.stop_timestamp,
-                        ),
-                    ),
-                ],
-                else_=trips_for_metrics.c.next_station_move
+            (
+                trips_for_metrics.c.next_station_move
                 - sa.func.lag(
                     trips_for_metrics.c.next_station_move,
                 ).over(
@@ -164,7 +148,7 @@ def process_metrics_table(
                         trips_for_metrics.c.direction_id,
                     ),
                     order_by=trips_for_metrics.c.next_station_move,
-                ),
+                )
             ).label("headway_branch_seconds"),
         )
         .where(
@@ -195,24 +179,8 @@ def process_metrics_table(
     t_headways_trunk_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,
-            sa.case(
-                [
-                    (
-                        trips_for_metrics.c.first_stop_flag == sa.false(),
-                        trips_for_metrics.c.stop_timestamp
-                        - sa.func.lag(
-                            trips_for_metrics.c.stop_timestamp,
-                        ).over(
-                            partition_by=(
-                                trips_for_metrics.c.parent_station,
-                                trips_for_metrics.c.trunk_route_id,
-                                trips_for_metrics.c.direction_id,
-                            ),
-                            order_by=trips_for_metrics.c.stop_timestamp,
-                        ),
-                    ),
-                ],
-                else_=trips_for_metrics.c.next_station_move
+            (
+                trips_for_metrics.c.next_station_move
                 - sa.func.lag(
                     trips_for_metrics.c.next_station_move,
                 ).over(
@@ -222,7 +190,7 @@ def process_metrics_table(
                         trips_for_metrics.c.direction_id,
                     ),
                     order_by=trips_for_metrics.c.next_station_move,
-                ),
+                )
             ).label("headway_trunk_seconds"),
         )
         .where(
