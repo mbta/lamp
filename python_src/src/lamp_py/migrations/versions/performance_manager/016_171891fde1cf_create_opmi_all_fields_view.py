@@ -9,8 +9,8 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = '171891fde1cf'
-down_revision = '4fe83fd4091d'
+revision = "171891fde1cf"
+down_revision = "4fe83fd4091d"
 branch_labels = None
 depends_on = None
 
@@ -19,20 +19,20 @@ def upgrade() -> None:
     update_view = """
         CREATE OR REPLACE VIEW opmi_all_rt_fields_joined AS 
         SELECT
-            ve.pk_id as vehicle_events_pk_id
+            vt.service_date
             , ve.trip_hash
             , ve.trip_stop_hash
             , ve.stop_sequence
             , ve.stop_id
+            , LAG (ve.stop_id, 1) OVER (PARTITION BY ve.trip_hash ORDER BY COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp, ve.vp_move_timestamp)) as previous_stop_id
             , ve.parent_station
+            , LAG (ve.parent_station, 1) OVER (PARTITION BY ve.trip_hash ORDER BY COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp, ve.vp_move_timestamp)) as previous_parent_station
             , ve.vp_move_timestamp
-            , ve.vp_stop_timestamp
-            , ve.tu_stop_timestamp
+            , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) as vp_tu_stop_timestamp
             , vt.direction_id
             , vt.route_id
             , vt.branch_route_id
             , vt.trunk_route_id
-            , vt.service_date
             , vt.start_time
             , vt.vehicle_id
             , vt.stop_count
