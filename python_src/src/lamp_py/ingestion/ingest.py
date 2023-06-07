@@ -18,31 +18,32 @@ class NoImplConverter(Converter):
     files.
     """
 
-    def convert(self) -> None:
+    def convert(self) -> List[str]:
         move_s3_objects(
             self.files,
             os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
         )
+        return self.files
 
 
 def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
     """
     get the correct converter for this config type. it may raise an exception if
-    the gtfs_rt file type does not have an implimented detail
+    the gtfs_rt file type does not have an implemented detail
     """
     if config_type.is_gtfs():
         return GtfsConverter(config_type, metadata_queue)
     return GtfsRtConverter(config_type, metadata_queue)
 
 
-def run_converter(converter: Converter) -> None:
+def run_converter(converter: Converter) -> List[str]:
     """
     Run converters in subprocess
     """
-    converter.convert()
+    return converter.convert()
 
 
-def ingest_files(files: List[str], metadata_queue: Queue) -> None:
+def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
     """
     sort the incoming file list by type and create a converter for each type.
     each converter will ingest and convert its files in its own thread.
@@ -58,7 +59,7 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
         # get the config type from the file name and create a converter for this
         # type if one does not already exist. add the files to their converter.
         # if something goes wrong, add these files to the error converter where
-        # they will be moved from incoming to errror s3 buckets.
+        # they will be moved from incoming to error s3 buckets.
         try:
             config_type = ConfigType.from_filename(file_group[0])
             if config_type not in converters:
@@ -72,7 +73,7 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     # GTFS Static Schedule must be processed first for performance manager to
     # work as expected
     if ConfigType.SCHEDULE in converters:
-        converters[ConfigType.SCHEDULE].convert()
+        moved_static_files = converters[ConfigType.SCHEDULE].convert()
         del converters[ConfigType.SCHEDULE]
 
     converters[ConfigType.ERROR] = NoImplConverter(
@@ -83,10 +84,12 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     # The remaining converters can be run in parallel
     #
     # the use of signal.signal, multiprocessing.Manager and multiprocessing.Pool.map, in combination,
-    # causes inadvertant SIGTERM signals to be sent by application and main event loop to be blocked
+    # causes inadvertent SIGTERM signals to be sent by application and main event loop to be blocked
     #
     # launching converter processes with map_async avoids throwing of SIGTERM signals and blocking
     with Pool(processes=len(converters)) as pool:
-        pool.map_async(run_converter, converters.values())
-        pool.close()
-        pool.join()
+        result = pool.map_async(run_converter, converters.values())
+        moved_realtime_files = result.get()
+
+    # join all of the lists of processed files into a single list and return
+    return sum(moved_realtime_files, moved_static_files)
