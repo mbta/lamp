@@ -47,7 +47,7 @@ def validate_environment() -> None:
         value = os.environ.get(key, None)
         if value is None:
             missing_required.append(key)
-        process_logger.add_metadata(**{key:value})
+        process_logger.add_metadata(**{key: value})
 
     # if db password is missing, db region is required to generate a token to
     # use as the password to the cloud database
@@ -63,7 +63,7 @@ def validate_environment() -> None:
         )
         process_logger.log_failure(exception)
         raise exception
-    
+
     process_logger.log_complete()
 
 
@@ -114,9 +114,9 @@ def wait_for_deletion(filenames: List[str]) -> None:
         if len(files_to_delete) == 0:
             break
 
-        # increment attempts and wait at most 30 seconds to check again
+        # increment attempts and wait 30 seconds to check again
         attempts += 1
-        time.sleep(min(30, int(len(files_to_delete) / 100)))
+        time.sleep(30)
 
     process_logger.add_metadata(
         attempts=attempts, files_not_deleted=list(files_to_delete)
@@ -142,6 +142,7 @@ def main() -> None:
     while True:
         check_for_sigterm(metadata_queue, rds_process)
         processed_files = ingest(metadata_queue=metadata_queue)
+        check_for_sigterm(metadata_queue, rds_process)
         wait_for_deletion(processed_files)
         time.sleep(60 * 5)
 

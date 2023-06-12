@@ -73,7 +73,7 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
     # GTFS Static Schedule must be processed first for performance manager to
     # work as expected
     if ConfigType.SCHEDULE in converters:
-        moved_static_files = converters[ConfigType.SCHEDULE].convert()
+        processed_static_files = converters[ConfigType.SCHEDULE].convert()
         del converters[ConfigType.SCHEDULE]
 
     converters[ConfigType.ERROR] = NoImplConverter(
@@ -89,7 +89,7 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
     # launching converter processes with map_async avoids throwing of SIGTERM signals and blocking
     with Pool(processes=len(converters)) as pool:
         result = pool.map_async(run_converter, converters.values())
-        moved_realtime_files = result.get()
+        processed_realtime_files = result.get()
 
     # join all of the lists of processed files into a single list and return
-    return sum(moved_realtime_files, moved_static_files)
+    return sum(processed_realtime_files, processed_static_files)
