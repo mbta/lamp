@@ -83,8 +83,9 @@ class GtfsRtConverter(Converter):
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
+        self.moved_files: List[str] = []
 
-    def convert(self) -> None:
+    def convert(self) -> List[str]:
         max_tables_to_convert = 12
         process_logger = ProcessLogger(
             "parquet_table_creator",
@@ -114,6 +115,8 @@ class GtfsRtConverter(Converter):
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
+        finally:
+            return self.moved_files
 
     def thread_init(self) -> None:
         """
@@ -141,7 +144,7 @@ class GtfsRtConverter(Converter):
         yield_threshold = max(10, max_workers * 3)
 
         process_logger = ProcessLogger(
-            "create_parquet_table",
+            "create_pyarrow_tables",
             config_type=str(self.config_type),
         )
         process_logger.log_start()
@@ -152,7 +155,9 @@ class GtfsRtConverter(Converter):
             for result_dt, result_filename, result_table in pool.map(
                 self.gz_to_pyarrow, self.files
             ):
-                # handle error in gz_to_pyarrow processing
+                # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
+                # function. if one is encountered, the datetime will be none. log
+                # the error and move on to the next file.
                 if result_dt is None:
                     self.error_files.append(result_filename)
                     logging.error(
@@ -193,7 +198,7 @@ class GtfsRtConverter(Converter):
                 ):
                     break
 
-        # yeild any remaining tables with next_hr_cnt > 0
+        # yield any remaining tables with next_hr_cnt > 0
         # guaranteeing that the end of the hour was hit
         # not sure if we would ever actually hit this
         yield from self.yield_check(0, process_logger)
@@ -205,8 +210,27 @@ class GtfsRtConverter(Converter):
         self, yield_threshold: int, process_logger: ProcessLogger
     ) -> Iterable[pyarrow.table]:
         """
-        interate through all self.table_group keys and see if any are ready
-        to yield
+        yield all tables in the table_groups map that have been sufficiently
+        processed.
+
+        gtfs realtime files are processed chronologically in a thread pool and
+        table groups are collections of gtfs realtime tables that are from the
+        same hour. if they were being processed in series we could yield a
+        table as soon as a realtime file from the next hour was processed.
+        instead, ensure that a sufficient number for files from the next hour
+        have been processed.
+
+        additionally, do not yield any tables from the current hour, as we want
+        limit the number of parquet files generated (ideally one per hour) and
+        more data for the current hour will be coming in later.
+
+        @yield_threshold - how many files from the next hour have to be
+            processed before considering _this_ hour complete.
+        @process_logger - a process logger for the conversion process. log a
+            completion and reset before a file is yielded.
+
+        @yield pyarrow.table - a concatenated table of all the gtfs realtime
+            data over the corse of an hour.
         """
         for iter_ts in list(self.table_groups.keys()):
             if (
@@ -258,8 +282,19 @@ class GtfsRtConverter(Converter):
         self, filename: str
     ) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
         """
-        Accepts filename as string. Converts gzipped json -> pyarrow table.
-        Will handle Local or S3 filenames.
+        Convert a gzipped json of gtfs realtime data into a pyarrow table. This
+        function is executed inside of a thread, so all exceptions must be
+        handled internally.
+
+        @filename file of gtfs rt data to be converted (file system chosen by
+            GtfsRtConverter in thread_init)
+
+        @return Optional[datetime] - datetime contained in header of gtfs rt
+            feed. (returns None if an Exception is thrown during conversion)
+        @return str - input filename with s3 prefix stripped out.
+        @return Optional[pyarrow.table] - the pyarrow table of gtfs rt data that
+            has been converted. (returns None if an Exception is thrown during
+            conversion)
         """
         try:
             file_system = current_thread().__dict__["file_system"]
@@ -291,6 +326,8 @@ class GtfsRtConverter(Converter):
                 for key, value in record.items():
                     table[key].append(value)
 
+        except FileNotFoundError as _:
+            return (None, filename, None)
         except Exception as _:
             self.thread_init()
             return (None, filename, None)
@@ -330,12 +367,14 @@ class GtfsRtConverter(Converter):
         move archive and error files to their respective s3 buckets.
         """
         if len(self.error_files) > 0:
+            self.moved_files += self.error_files
             self.error_files = move_s3_objects(
                 self.error_files,
                 os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
             )
 
         if len(self.archive_files) > 0:
+            self.moved_files += self.archive_files
             self.archive_files = move_s3_objects(
                 self.archive_files,
                 os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),

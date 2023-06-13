@@ -4,9 +4,9 @@ import logging
 import os
 import signal
 from multiprocessing import Queue
+from typing import List
 
 import time
-import schedule
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3
@@ -26,7 +26,10 @@ def validate_environment() -> None:
     ensure that the environment has all the variables its required to have
     before starting triggering main, making certain errors easier to debug.
     """
-    # these variables required for normal opperation, ensure they are present
+    process_logger = ProcessLogger("validate_env")
+    process_logger.log_start()
+
+    # these variables required for normal operation, ensure they are present
     required_variables = [
         "ARCHIVE_BUCKET",
         "ERROR_BUCKET",
@@ -39,23 +42,32 @@ def validate_environment() -> None:
         "INCOMING_BUCKET",
     ]
 
-    missing_required = [
-        key for key in required_variables if os.environ.get(key, None) is None
-    ]
+    missing_required = []
+    for key in required_variables:
+        value = os.environ.get(key, None)
+        if value is None:
+            missing_required.append(key)
+        process_logger.add_metadata(**{key: value})
 
     # if db password is missing, db region is required to generate a token to
     # use as the password to the cloud database
     if os.environ.get("DB_PASSWORD", None) is None:
-        if os.environ.get("DB_REGION", None) is None:
+        value = os.environ.get("DB_REGION", None)
+        if value is None:
             missing_required.append("DB_REGION")
+        process_logger.add_metadata(DB_REGION=value)
 
     if missing_required:
-        raise EnvironmentError(
+        exception = EnvironmentError(
             f"Missing required environment variables {missing_required}"
         )
+        process_logger.log_failure(exception)
+        raise exception
+
+    process_logger.log_complete()
 
 
-def ingest(metadata_queue: Queue) -> None:
+def ingest(metadata_queue: Queue) -> List[str]:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs files, convert each batch into tables, write the
@@ -71,23 +83,68 @@ def ingest(metadata_queue: Queue) -> None:
         file_prefix=DEFAULT_S3_PREFIX,
     )
 
-    ingest_files(files, metadata_queue)
+    processed_files = ingest_files(files, metadata_queue)
 
+    process_logger.log_complete()
+
+    return processed_files
+
+
+def wait_for_deletion(filenames: List[str]) -> None:
+    """
+    wait for all of the files in the filenames list to be removed from the
+    incoming bucket. log how many files are still
+    """
+    process_logger = ProcessLogger(
+        "wait_for_deletion", file_count=len(filenames)
+    )
+    process_logger.log_start()
+
+    files_to_delete = set(filenames)
+    attempts = 0
+    while len(files_to_delete) > 0 and attempts < 5:
+        existing_files = set(
+            file_list_from_s3(
+                bucket_name=os.environ["INCOMING_BUCKET"],
+                file_prefix=DEFAULT_S3_PREFIX,
+            )
+        )
+
+        files_to_delete &= existing_files
+        if len(files_to_delete) == 0:
+            break
+
+        # increment attempts and wait 30 seconds to check again
+        attempts += 1
+        time.sleep(30)
+
+    process_logger.add_metadata(
+        attempts=attempts, files_not_deleted=list(files_to_delete)
+    )
     process_logger.log_complete()
 
 
 def main() -> None:
-    """every second run jobs that are currently pending"""
+    """
+    run the ingestion pipeline
+
+    * setup metadata queue metadata writer proccess
+    * on a loop
+        * check to see if the pipeline should be terminated
+        * ingest files from incoming s3 bucket
+        * ensure processed files have been moved
+    """
     # start rds writer process
     # this will create only one rds engine while app is running
     metadata_queue, rds_process = start_rds_writer_process()
 
-    schedule.every(5).minutes.do(ingest, metadata_queue=metadata_queue)
-
+    # run the event loop every five minutes
     while True:
         check_for_sigterm(metadata_queue, rds_process)
-        schedule.run_pending()
-        time.sleep(1)
+        processed_files = ingest(metadata_queue=metadata_queue)
+        check_for_sigterm(metadata_queue, rds_process)
+        wait_for_deletion(processed_files)
+        time.sleep(60 * 5)
 
 
 def start() -> None:

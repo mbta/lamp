@@ -52,7 +52,7 @@ class GtfsConverter(Converter):
     Converter for GTFS Schedule Data
     """
 
-    def convert(self) -> None:
+    def convert(self) -> List[str]:
         archive_files = []
         error_files = []
 
@@ -95,3 +95,5 @@ class GtfsConverter(Converter):
                 archive_files,
                 os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
             )
+
+        return error_files + archive_files

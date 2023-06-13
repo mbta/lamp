@@ -106,6 +106,9 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
     :return - 'None' if exception occured during move, otherwise 'filename'
     """
     try:
+        process_logger = ProcessLogger("move_s3_object", filename=filename)
+        process_logger.log_start()
+
         s3_resource = current_thread().__dict__["boto_s3_resource"]
 
         # trim off leading s3://
@@ -130,12 +133,15 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
         # delete the source object
         source_bucket = s3_resource.Bucket(from_bucket)
         source_object = source_bucket.Object(copy_key)
-        source_object.delete()
+        response = source_object.delete()
+        process_logger.add_metadata(**response)
 
-    except Exception as _:
+    except Exception as error:
         _init_process_session()
+        process_logger.log_failure(error)
         return None
 
+    process_logger.log_complete()
     return filename
 
 
