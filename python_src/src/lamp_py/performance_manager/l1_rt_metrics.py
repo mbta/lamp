@@ -20,7 +20,7 @@ def process_metrics_table(
     version_keys: List[int],
 ) -> None:
     """
-    processs updates to metrics table
+    process updates to metrics table
 
     """
 
@@ -31,7 +31,7 @@ def process_metrics_table(
 
     # travel_times calculation:
     # limited to records where stop_timestamp > move_timestamp to avoid negative travel times
-    # limited to non NULL stop and move timestmaps to avoid NULL results
+    # limited to non NULL stop and move timestamps to avoid NULL results
     # negative travel times are error records, should flag???
     travel_times_cte = (
         sa.select(
@@ -53,10 +53,10 @@ def process_metrics_table(
 
     # dwell_times calculations are different for the first stop of a trip
     # the first stop of a trip includes the dwell time since the stop_timestamp of
-    # the end of the previous trip going in the opposite direcion at that station
+    # the end of the previous trip going in the opposite direction at that station
     #
-    # all remaining dwell_times calcuations are based on subtracting the a stop_timestamp
-    # of a vehcile from the next move_timestamp of a vehicle
+    # all remaining dwell_times calculations are based on subtracting the a stop_timestamp
+    # of a vehicle from the next move_timestamp of a vehicle
     #
     # the where statement of this CTE filters out any vehicle trips comprised of only 1 stop
     # on the assumption that those are not valid trips to include in the metrics calculations
@@ -109,7 +109,7 @@ def process_metrics_table(
         .cte(name="t_dwell_times")
     )
 
-    # limit dwell times caluclations to NON-NULL positivie integers
+    # limit dwell times calculations to NON-NULL positive integers
     # would be nice if this could be done in the first CTE, but I can't
     # get it to work with sqlalchemy
     dwell_times_cte = (
@@ -126,14 +126,11 @@ def process_metrics_table(
 
     # this headways CTE calculation is incomplete
     #
-    # trunk and branch headways are the same except for one is partiioned on
+    # trunk and branch headways are the same except for one is partitioned on
     # trunk_route_id and the later on branch_route_id.
     #
-    # first stop headways are calculated with move_timestamp to move_timestamp
-    # for the next station in a trip
-    #
-    # all other headways are calculated with stop_timstamp to stop_timestamp by
-    # subsequent vehicles on the same route/direction
+    # headways are calculated with stop_timestamp to stop_timestamp for the
+    # next station in a trip
     t_headways_branch_cte = (
         sa.select(
             trips_for_metrics.c.trip_stop_hash,

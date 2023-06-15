@@ -1,60 +1,17 @@
 # Ingestion
 
-Ingestion is an application to aggreagate GTFS-RT and GTFS data into parquet files for storage in AWS S3 buckets.
+Ingestion is an application to aggregate GTFS-RT and GTFS data into parquet files for storage in AWS S3 buckets. The ingestion occurs inside of an event loop that runs every five minutes.
 
-## GTFS to Parquet
-Raw Real Time GTFS files are collected in an incoming S3 bucket and are
-populated by [Delta](https://github.com/mbta/delt), a small service that logs
-http files to the bucket configurably. A python based lambda collects all of the
-files in the incoming bucket and organizes them into batches of similar types.
-These batches are then processed by a second python based lambda that adds all
-of the data in each real time gtfs file into a single parquet file. These
-parquet files are then uploaded to a separate S3 bucket, with all processed
-files moved to an archive.
+## Sorting Incoming Files 
+Raw Real Time GTFS files are collected in an incoming S3 bucket and are populated by [Delta](https://github.com/mbta/delt), a small service that logs http files to the bucket configurable. The ingestion pipeline collects the files that have been pushed to the incoming bucket and maps them to `Converter` instances based on their type, which is determined from filename conventions. 
 
-The python module used for batching and conversions is located in
-`/py_gtfs_rt_ingestion/`, along with its tests and the scripts that are
-triggered in each of the lambda functions. This modules, its dependencies, and
-the scripts are zipped up together before being deployed to the lambda
-functions.
+## Incoming Files to Parquet Files
+The incoming files are converted into more performant parquet files, stored in a Springboard S3 bucket. Information on the parquet table format for these file types can be found [here](parquet_schemas.md). Once the parquet file is written, its S3 filepath is added to the Metadata table in the Performance Manager database, where it will be picked up for further processing. After the conversion occurs, files that were processed without error are moved to an Archive S3 bucket, while files that produced errors are moved to an Error S3 bucket.
 
-### Types of GTFS Files
-* Real Time Alerts
-* Real Time Bus Trip Updates
-* Real Time Bus Vehicle Positions
-* Real Time Trip Updates
-* Real Time Vehicle Count
-* Real Time Vehicle Positions
-* Static Schedule Data
+The conversion algorithms are different between consumed realtime and static schedule GTFS files. Because of a potential race condition in the Performance Manager pipeline, the static schedule files are always consumed first. The realtime files are processed in parallel inside of a thread pool. Any incoming files that cannot be mapped to a `Converter` are moved into the Error S3 Bucket.  All incoming files that have been moved to either Error or Archive buckets are then joined into a list to ensure that they were correctly moved on S3.
 
-Information on the parquet table format for these file types can be found
-[here](parquet_schemas.md).
+### GTFS Static Schedule
+A static GTFS schedule is a zip file containing multiple relational csv file, essentially working as its own small database. We iterate through each file in the zipped schedule, and convert each csv into parquet to be saved. While doing the conversion, we add a "timestamp" column to each table that uses the "last_modified" key from S3 that will work as a key to join all of the tables together once they are consumed by another application. When writing to parquet files to the Springboard S3 bucket, they are partitioned on this timestamp key. This leaves us with a "filepaths" that can be programmatically inspected by swapping out a table type string.
 
-## Parquet to Relational Database
-Parquet files are analyzed by the Performance Manager application to compare
-static schedule data with the real time positioning of vehicles in the field.
-The application is run inside of python3.9 image described in a Dockerfile,
-executing code found in the performance_manager directory.
-
-## py_gtfs_rt_ingestion 
-Dependency management in this module is handled by [poetry](python-poetry.org),
-which is installed via asdf. It will create a virtual env with all of the
-projects dependencies in it with `poetry install`.
-
-There are two scripts at the top level of this directory used by the lambda
-functions and a third helper script.
-
-* `batch_files.py` - create batches of files to process out of an incoming bucket.
-  These batches can either be output as a list of lambda event dicts or the
-  ingestion lambda can be triggered directly.
-* `ingest.py` - create a parquet table out of the entries of a list of gtfs
-  files that are stored locally or on s3. s3 files are moved to an archive
-  bucket on successful conversion and an error bucket on failure. parquet tables
-  are saved to an outgoing bucket.
-* `dev_test_setup.py` - setup the s3 dev import, archive, error, and output
-  buckets to run end to end testing.
-
-
-
-
-
+### GTFS Realtime
+GTFS Realtime files are pushed to the incoming bucket very frequently. For some times nearly every second. The files themselves are json files with a header describing the timestamp they were recorded at and a body that is a list of dictionaries that describe vehicles as they exist, in near real time. The GTFS Realtime Converter will convert this list into a pyarrow table by flattening out each dictionary into a single row, mapping nested keys onto columns. The timestamp information from the header is also added to each record as "year", "month", "day", "hour", and "feed_timestamp" columns. Each file is processed in a thread pool and converted into a pyarrow table and feed timestamp pair. The results from the conversions are collected and mapped together by feed timestamp hour. As the files are processed (nearly) chronologically, we write a parquet table from one hour once we have sufficiently moved into the next hour. The tables are partitioned across the "year", "month", "day", and "hour" fields, which we expect to be useful for processing in other pipelines. We exit the conversion once we start processing files that represent realtime information from the current hour, as we want to process an entire hour all in one shot, rather than piecemeal each time the event loop is triggered.
