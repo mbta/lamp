@@ -1,32 +1,20 @@
 # Lightweight Application for Measuring Performance (LAMP)
-LAMP is a collection of applications used to measure performance of the MBTA transit system using historical data sets.
-
-## Architecture
-
- The actions are used for our continuous integration flows and updates to our Asana project. The Elixir API is planned to be an endpoint for other teams at CTD to programmatically access some of the data that comes out of our pipelines. The pipelines themselves are deployed onto AWS Elastic Container Services where they are run continuously.
-[Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to Miro Diagram
+LAMP is a collection of applications used to measure performance of the MBTA transit system.
 
 ## LAMP Applications:
 * [Ingestion (Parquet Archiver)](python_src/src/lamp_py/ingestion/README.md)
 * [Performance Manager (Rail Performance)](python_src/src/lamp_py/performance_manager/README.md)
 
+## Architecture
+
+LAMP application architecture is managed and described using `Terraform` in the [MBTA Devops](https://github.com/mbta/devops) github repository. 
+
+![Architecture Diagram](./architecture.jpg)
+
+[Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to Miro Diagram
+
+
 # Developer Usage
-
-## Repository Design 
-This repository manages all of our source code as well as tools for testing and deploying our applications. Local environmental variables are stored in [.env](.env), and loaded via `direnv` whenever a shell moves into this directory or any of its subdirectories. Any code executed in this directory will have those environmental variables set. Additionally, our docker compose is configured to consume the .env file, so all variables found there will also extend to containers running the application. Our source code for our data pipelines lives in the `python_src` directory. Source code for the elixir api server application is found in `api`.
-
-#### Python Data Pipeline Library (`/python_src`)
-Multiple applications are run using a shared python library. The library is structured in a standard source and tests directory structure and uses poetry to manage dependencies. Pipelines can be run via poetry with `poetry run <pipeline_name>` commands defined in the [project toml file](python_src/pyproject.toml). The source code is split into directories based on use. There are subdirectories for each pipeline (ingestion and performance manager) and subdirectories for tools shared between pipelines (aws interactions, postgres connections, postgres schema definitions). In the top of the directory we define our dependencies and tooling in the pyproject toml file. Poetry creates a poetry.lock file that stores dependency trees. We have an alembic.ini file that configures Alembic, our data migration tool. Lastly, there is a Dockerfile that describes how to build the container that can run our pipelines. 
-
-#### Docker and Docker Compose
-At the root of the directory we have a docker compose files that can be used to:
-* standup a local postgres server. `docker-compose up local_rds`
-    * this database can be reset with `docker rm -f -v local_rds`
-* startup the performance manager. `docker-compose up performance_manager`
-* startup the api server. `docker-compose up api_server`
-* seed the local rds with metadata `docker-compose run seed_metadata`
-
-NOTE: We don't provide ingestion here as it depends on aws s3 buckets and will actually move files around underneath running applications.
 
 ## Dependencies
 
@@ -44,17 +32,29 @@ asdf plugin-add elixir
 asdf install
 ```
 
-`docker` and  `docker-compose` can be used to run applications locally, and are required if you want to run the application against a local postgres database.
+`poetry` is used by LAMP python applications to manage dependencies. 
+
+`docker` and  `docker-compose` are required to run containerized versions of LAMP applications for local development.
 
 ## AWS Credentials
 
-LAMP applications require permissions to access AWS resources. 
+LAMP applications require permissions to access MBTA/CTD AWS resources. 
 
 To get started with AWS, install the [AWS Command Line Interface](https://aws.amazon.com/cli/). Then, follow the instructions for [configuring the AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to associate a local machine with an AWS account.  Finally, associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
 
+## Environmental Variables
+
+Project environmental variables are stored in [.env](.env) and managed for command line usage with `direnv`.
+
+Using `direnv`, whenever a shell moves into any project directory, the environmental variables defined in [.env](.env) are loaded automagically. 
+
+Additionally, [docker-compose.yml](docker-compose.yml) is configured to use [.env](.env), so that running containerized applications will load the same environmental variables.
+
 ## Continuous Integration
 
-We use a gitflow strategy for development that allows everyone to work in parallel with few merging conflict. A developer branches off of the `main` branch, completes their feature / chore / fix in their branch, and then merges it back into `main` after a rebase against main. To ensure code quality, we have linting, type checking, static analysis and testing scripts that are run on our python code that are run via github actions when pull requests are opened. They can be run locally in the `python_src/` directory with the following:
+To ensure code quality, linting, type checking, static analysis and unit tests are automatically run via github actions when pull requests are opened. 
+
+CI for LAMP python applications can be run locally, in the `python_src/` directory, with the following `poetry` commands:
 ```sh
 # black for Formatting
 poetry run black .
@@ -69,4 +69,29 @@ poetry run pylint src tests
 poetry run pytest
 ```
 
-When a pull request is merged, another github action will create the docker image for our python pipelines and push them to our Elastic Container Repo. It will also deploy this new container to our `dev` environment Elastic Container Service where it will pick up where the last version left off.
+## Continuous Deployment
+
+Images for LAMP applications are hosted by AWS on the Elastic Container Registry (ECR). Updates to application images are pushed to ECR via automated github actions. 
+
+LAMP applications are hosted by AWS and run on Elastic Container Service (ECS) instances. Deployment of LAMP applications, to ECS instances, occur via automated github actions.
+
+## Running Locally
+
+LAMP uses `docker` and `docker-compose` to run local instances of applications for development purposes. Please refer to the `README` page of invidiual applications for instructions. 
+
+
+## Repository Design 
+
+This repository contains all LAMP source code used to run, test and deploy LAMP applications.
+
+Source code for LAMP python applications can be found in the [python_src/](python_src/)  directory. 
+
+Source code for the elixir API application can be found in the [api/](api/) directory.
+
+### `python_src/` [Python Application Library]
+
+The [python_src/](python_src/) directory contains a shared python library used by all LAMP python applications.
+
+The shared library is structured in a standard source and tests directory structure.
+
+The root of the [python_src/](python_src/) directory contains files that define dependencies and tooling ([python_src/pyproject.toml](python_src/pyproject.toml)), database management configuration ([python_src/alembic.ini](python_src/alembic.ini)), and application containers ([python_src/Dockerfile](python_src/Dockerfile)).
