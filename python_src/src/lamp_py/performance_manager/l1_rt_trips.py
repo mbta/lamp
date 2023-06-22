@@ -35,6 +35,48 @@ def load_temp_for_hash_compare(
     )
 
 
+def update_prev_next_trip_stop(db_manager: DatabaseManager) -> None:
+    """
+    Update `previous_trip_stop_pk_id` and `next_trip_stop_pk_id` fields in `vehicle_events` table
+    """
+    prev_next_trip_stop_cte = (
+        sa.select(
+            VehicleEvents.pk_id,
+            sa.func.lead(VehicleEvents.pk_id)
+            .over(
+                partition_by=VehicleEvents.trip_hash,
+                order_by=VehicleEvents.stop_sequence,
+            )
+            .label("next_trip_stop_pk_id"),
+            sa.func.lag(VehicleEvents.pk_id)
+            .over(
+                partition_by=VehicleEvents.trip_hash,
+                order_by=VehicleEvents.stop_sequence,
+            )
+            .label("previous_trip_stop_pk_id"),
+        ).join(
+            TempHashCompare,
+            TempHashCompare.hash == VehicleEvents.trip_hash,
+        )
+    ).cte(name="prev_next_trip_stops")
+
+    update_query = (
+        sa.update(VehicleEvents.__table__)
+        .where(
+            VehicleEvents.pk_id == prev_next_trip_stop_cte.c.pk_id,
+        )
+        .values(
+            next_trip_stop_pk_id=prev_next_trip_stop_cte.c.next_trip_stop_pk_id,
+            previous_trip_stop_pk_id=prev_next_trip_stop_cte.c.previous_trip_stop_pk_id,
+        )
+    )
+
+    process_logger = ProcessLogger("l1_trips.update_prev_next_trip_stop")
+    process_logger.log_start()
+    db_manager.execute(update_query)
+    process_logger.log_complete()
+
+
 def load_new_trip_data(
     db_manager: DatabaseManager, events: pandas.DataFrame
 ) -> None:
@@ -238,6 +280,7 @@ def load_new_trips_records(
     Load data into "vehicle_trips" table for any new RT events
     """
     load_temp_for_hash_compare(db_manager, events)
+    update_prev_next_trip_stop(db_manager)
     load_new_trip_data(db_manager, events)
     update_trip_stop_counts(db_manager)
     update_static_trip_id_guess_exact(db_manager)
