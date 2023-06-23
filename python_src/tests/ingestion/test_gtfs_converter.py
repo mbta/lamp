@@ -1,6 +1,6 @@
 import os
 from multiprocessing import Queue
-from typing import Callable, Iterator, List, Dict
+from typing import Callable, Iterator, Optional, List, Dict
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -321,12 +321,15 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     * move s3 objects asserts that all moves are to archive and not error
     """
 
+    # keep track of what tables are written to check against after converting
+    tables_written: List[str] = []
+
     def mock_write_parquet_file(
         table: Table,
         config_type: str,
         s3_path: str,
         partition_cols: List[str],
-        visitor_func: Callable[..., None],
+        visitor_func: Optional[Callable[..., None]],
     ) -> None:
         """
         instead of writing the parquet file to s3, inspect the contents of the
@@ -334,8 +337,9 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         """
         # pull the name out of the s3 path and check that we are expecting this table
         table_name = config_type.lower()
-        table_attributes = all_table_attributes()[table_name]
+        tables_written.append(table_name)
 
+        table_attributes = all_table_attributes()[table_name]
         # check that this table has all of the field names we're expecting
         for field in table_attributes["column_names"]:
             assert field in table.column_names
@@ -347,7 +351,8 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         assert table_attributes["length"] == table.num_rows
 
         # call the visitor function, which should add the string to the queue to check later
-        visitor_func(os.path.join(s3_path, "written.parquet"))
+        if visitor_func is not None:
+            visitor_func(os.path.join(s3_path, "written.parquet"))
 
     monkeypatch.setattr(
         "lamp_py.ingestion.convert_gtfs.write_parquet_file",
@@ -364,7 +369,15 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         "lamp_py.ingestion.convert_gtfs.move_s3_objects", mock_move_s3_objects
     )
 
+    # everything before this yield is executed before running the test
     yield
+    # everything after this yield is executed after running the test
+
+    # check that we "wrote" all the tables we expected to write and that the
+    # feed info table was written last
+    tables_expected = set(all_table_attributes().keys())
+    assert tables_expected == set(tables_written)
+    assert tables_written[-1] == "feed_info"
 
 
 def test_schedule_conversion(
@@ -392,19 +405,9 @@ def test_schedule_conversion(
 
     # check through all of the paths that were "written" to s3 have the
     # appropriate format and that we "wrote" all of the tables.
-    tables_written: set[str] = set()
-    last_written = ""
     while not metadata_queue.empty():
         s3_path = metadata_queue.get(block=False)
 
         assert "springboard" in s3_path
+        assert "FEED_INFO" in s3_path
         assert "written.parquet" in s3_path
-
-        table_name = s3_path.split("/")[-2].lower()
-        tables_written.add(table_name)
-        last_written = table_name
-
-    tables_expected = set(all_table_attributes().keys())
-    assert tables_expected == tables_written
-
-    assert last_written == "feed_info"
