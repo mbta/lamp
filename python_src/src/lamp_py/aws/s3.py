@@ -24,7 +24,6 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 from pyarrow import Table, fs
 from pyarrow.util import guid
-
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -33,12 +32,11 @@ def get_s3_client() -> boto3.client:
     return boto3.client("s3")
 
 
-def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
+def get_zip_buffer(filename: str) -> IO[bytes]:
     """
     Get a buffer for a zip file from s3 so that it can be read by zipfile
     module. filename is assumed to be the full path to the zip file without the
-    s3:// prefix. Return it along with the last modified date for this s3
-    object.
+    s3:// prefix.
     """
     # inspired by
     # https://betterprogramming.pub/unzip-and-gzip-incoming-s3-files-with-aws-lambda-f7bccf0099c9
@@ -46,10 +44,7 @@ def get_zip_buffer(filename: str) -> Tuple[IO[bytes], int]:
     s3_resource = boto3.resource("s3")
     zipped_file = s3_resource.Object(bucket_name=bucket, key=file)
 
-    return (
-        BytesIO(zipped_file.get()["Body"].read()),
-        zipped_file.get()["LastModified"].timestamp(),
-    )
+    return BytesIO(zipped_file.get()["Body"].read())
 
 
 def file_list_from_s3(
@@ -242,7 +237,7 @@ def write_parquet_file(
     config_type: str,
     s3_path: str,
     partition_cols: List[str],
-    visitor_func: Callable[..., None],
+    visitor_func: Optional[Callable[..., None]],
 ) -> None:
     """
     Helper function to write out a parquet table to an s3 path, patitioning
