@@ -3,6 +3,7 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 from threading import current_thread
 from typing import (
     IO,
@@ -23,7 +24,6 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 from pyarrow import Table, fs
 from pyarrow.util import guid
-
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -44,7 +44,7 @@ def get_zip_buffer(filename: str) -> IO[bytes]:
     s3_resource = boto3.resource("s3")
     zipped_file = s3_resource.Object(bucket_name=bucket, key=file)
 
-    return zipped_file.get()["LastModified"].timestamp()
+    return BytesIO(zipped_file.get()["Body"].read())
 
 
 def file_list_from_s3(
