@@ -4,6 +4,16 @@ Revision ID: 37d97f420d54
 Revises: 171891fde1cf
 Create Date: 2023-06-22 13:23:24.497833
 
+Details:
+* upgrade -> adds `previous_trip_stop_pk_id` column and index to `vehicle_events` table
+* upgrade -> adds `next_trip_stop_pk_id` column and index to `vehicle_events` table
+* upgrade -> revises `opmi_all_rt_fields_joined` VIEW to use new trip_stop_pk_id columns
+* upgrade -> runs update command to populate `previous_trip_stop_pk_id` and `next_trip_stop_pk_id` in table with existing records
+
+* downgrade -> drops `previous_trip_stop_pk_id` column and index from `vehicle_events` table
+* downgrade -> drops `next_trip_stop_pk_id` column and index from `vehicle_events` table
+* downgrade -> rollback `opmi_all_rt_fields_joined` VIEW to use windows functions
+
 """
 from alembic import op
 import sqlalchemy as sa
