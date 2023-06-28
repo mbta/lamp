@@ -35,19 +35,6 @@ def upgrade() -> None:
         "vehicle_events",
         sa.Column("next_trip_stop_pk_id", sa.Integer(), nullable=True),
     )
-    op.create_index(
-        op.f("ix_vehicle_events_next_trip_stop_pk_id"),
-        "vehicle_events",
-        ["next_trip_stop_pk_id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_vehicle_events_previous_trip_stop_pk_id"),
-        "vehicle_events",
-        ["previous_trip_stop_pk_id"],
-        unique=False,
-    )
-
     update_columns = """
         WITH prev_next_trip_stops AS (
             SELECT 
@@ -69,6 +56,19 @@ def upgrade() -> None:
         ;
     """
     op.execute(update_columns)
+
+    op.create_index(
+        op.f("ix_vehicle_events_next_trip_stop_pk_id"),
+        "vehicle_events",
+        ["next_trip_stop_pk_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_vehicle_events_previous_trip_stop_pk_id"),
+        "vehicle_events",
+        ["previous_trip_stop_pk_id"],
+        unique=False,
+    )
 
     update_view = """
         CREATE OR REPLACE VIEW opmi_all_rt_fields_joined AS 
