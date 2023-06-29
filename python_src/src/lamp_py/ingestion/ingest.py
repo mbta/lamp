@@ -84,13 +84,25 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
 
     # The remaining converters can be run in parallel
     #
-    # the use of signal.signal, multiprocessing.Manager and multiprocessing.Pool.map, in combination,
-    # causes inadvertent SIGTERM signals to be sent by application and main event loop to be blocked
+    # Using signal.signal to detect ECS termination and multiprocessing.Manager
+    # to manage the metadata queue along with multiprocessing.Poo.map causes
+    # inadvertent SIGTERM signals to be sent and blocks the main event loop. To
+    # fix this, we use multiprocessing.Pool.map_async. However, in getting the
+    # results, we seemingly enter a race condition between with ending the pool
+    # and # results.get() closing the pool which also sometimes leads to
+    # inadvertent SIGTERM signals. We use pool.close and pool.join to prevent
+    # this.
     #
-    # launching converter processes with map_async avoids throwing of SIGTERM signals and blocking
+    # Also worth noting, this application is run on Ubuntu when run on ECS,
+    # whos default subprocess start method is "fork". On OSX, this default is
+    # "spawn" some of the behavior described above only occurs when using
+    # "fork". On OSX (and Windows?) to force this behavior, run
+    # multiprocessing.set_start_method("fork") when starting the script.
     processed_realtime_files: List[List[str]] = []
     with Pool(processes=len(converters)) as pool:
         result = pool.map_async(run_converter, converters.values())
+        pool.close()
+        pool.join()
         processed_realtime_files = result.get()
 
     # join all of the lists of processed files into a single list and return
