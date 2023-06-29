@@ -20,7 +20,7 @@ def get_static_trips_cte(
 
     a "set" of static trips will be returned for every "static_version_key" key value.
 
-    created fields to be returnted:
+    created fields to be returned:
         - static_trip_first_stop (bool indicating first stop of trip)
         - static_trip_last_stop (bool indicating last stop of trip)
         - static_stop_rank (rank field counting from 1 to N number of stops on trip)
@@ -117,7 +117,7 @@ def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
     """
     return CTE named "rt_trips_cte" representing all RT trips on a given service date
 
-    created fields to be returnted:
+    created fields to be returned:
         - rt_trip_first_stop_flag (bool indicating first stop of trip by trip_hash)
         - rt_trip_last_stop_flag (bool indicating last stop of trip by trip_hash)
         - static_stop_rank (rank field counting from 1 to N number of stops on trip by trip_hash)
@@ -192,7 +192,7 @@ def get_trips_for_metrics(
 
     then joins static_trips_cte on static_trip_id_guess, timestamp, parent_station and static_stop_rank,
 
-    the join with satic_stop_rank is required for routes that may visit the same
+    the join with static_stop_rank is required for routes that may visit the same
     parent station more than once on the same route, I think this only occurs on
     bus routes, so we may be able to drop this for performance_manager
     """

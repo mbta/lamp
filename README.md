@@ -1,130 +1,97 @@
-# LAMP
-Lightweight Application for Measuring Performance
+# Lightweight Application for Measuring Performance (LAMP)
+LAMP is a collection of applications used to measure performance of the MBTA transit system.
+
+## LAMP Applications:
+* [Ingestion (Parquet Archiver)](python_src/src/lamp_py/ingestion/README.md)
+* [Performance Manager (Rail Performance)](python_src/src/lamp_py/performance_manager/README.md)
 
 ## Architecture
-![LAMP Architecture Diagram](architecture.jpg)
-[Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to
-Miro Diagram
 
-### GTFS to Parquet
-Raw Real Time GTFS files are collected in an incoming S3 bucket and are
-populated by [Delta](https://github.com/mbta/delt), a small service that logs
-http files to the bucket configurably. A python based lambda collects all of the
-files in the incoming bucket and organizes them into batches of similar types.
-These batches are then processed by a second python based lambda that adds all
-of the data in each real time gtfs file into a single parquet file. These
-parquet files are then uploaded to a separate S3 bucket, with all processed
-files moved to an archive.
+LAMP application architecture is managed and described using `Terraform` in the [MBTA Devops](https://github.com/mbta/devops) github repository. 
 
-The python module used for batching and conversions is located in
-`/py_gtfs_rt_ingestion/`, along with its tests and the scripts that are
-triggered in each of the lambda functions. This modules, its dependencies, and
-the scripts are zipped up together before being deployed to the lambda
-functions.
+![Architecture Diagram](./architecture.jpg)
 
-#### Types of GTFS Files
-* Real Time Alerts
-* Real Time Bus Trip Updates
-* Real Time Bus Vehicle Positions
-* Real Time Trip Updates
-* Real Time Vehicle Count
-* Real Time Vehicle Positions
-* Schedule Data
+[Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to Miro Diagram
 
-Information on the parquet table format for these file types can be found
-[here](parquet_schemas.md).
 
-### Parquet to Relational Database
-Parquet files are analyzed by the Performance Manager application to compare
-static schedule data with the real time positioning of vehicles in the field.
-The application is run inside of python3.9 image described in a Dockerfile,
-executing code found in the performance_manager directory.
+# Developer Usage
 
-## Developer Usage
+## Dependencies
 
-### Setup
-This repo uses [asdf](https://asdf-vm.com/) to mange runtime versions using the
-command line. Once its installed, run the following:
+LAMP uses [asdf](https://asdf-vm.com/) to mange runtime versions using the command line. Once installed, run the following in the root project directory:
+
 ```sh
-# Add Plugins for Poetry and Python (needed by py_gtfs_rt_ingestion)
-asdf plugin-add poetry
+# add project plugins
 asdf plugin-add python
+asdf plugin-add direnv
+asdf plugin-add poetry
+asdf plugin-add erlang
+asdf plugin-add elixir
 
-# Install the correct versions of each plugin from .tool-versions
+# install versions of plugins specified in .tool-versions
 asdf install
 ```
 
-Many of the pieces of this repo will require you to have permissions to access
-our S3 Buckets and trigger our dev instance lambda functions. First, install the
-[AWS Command Line Interface](https://aws.amazon.com/cli/). Then, from your AWS
-account,
-[create an AWS key](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds)
-to associate with your machine and configure your machine using `aws
-configure`. Finally, make sure your AWS Account is associated with the [Lamp
-Team](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213)
-User Group inside of the MBTA devops terraform repository.
+`poetry` is used by LAMP python applications to manage dependencies. 
 
-### py_gtfs_rt_ingestion 
-Dependency management in this module is handled by [poetry](python-poetry.org),
-which is installed via asdf. It will create a virtual env with all of the
-projects dependencies in it with `poetry install`.
+`docker` and  `docker-compose` are required to run containerized versions of LAMP applications for local development.
 
-There are two scripts at the top level of this directory used by the lambda
-functions and a third helper script.
+## AWS Credentials
 
-* `batch_files.py` - create batches of files to process out of an incoming bucket.
-  These batches can either be output as a list of lambda event dicts or the
-  ingestion lambda can be triggered directly.
-* `ingest.py` - create a parquet table out of the entries of a list of gtfs
-  files that are stored locally or on s3. s3 files are moved to an archive
-  bucket on successful conversion and an error bucket on failure. parquet tables
-  are saved to an outgoing bucket.
-* `dev_test_setup.py` - setup the s3 dev import, archive, error, and output
-  buckets to run end to end testing.
+LAMP applications require permissions to access MBTA/CTD AWS resources. 
 
-To run these scripts, use `poetry shell` to spawn a shell within the virtual
-environment. They can then be run on the command line. See `--help` for more
-information.
+To get started with AWS, install the [AWS Command Line Interface](https://aws.amazon.com/cli/). Then, follow the instructions for [configuring the AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to associate a local machine with an AWS account.  Finally, associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
 
-Run linting, type checking, static analysis, and tests (which all run on pull
-request) with:
+## Environmental Variables
+
+Project environmental variables are stored in [.env](.env) and managed for command line usage with `direnv`.
+
+Using `direnv`, whenever a shell moves into any project directory, the environmental variables defined in [.env](.env) are loaded automagically. 
+
+Additionally, [docker-compose.yml](docker-compose.yml) is configured to use [.env](.env), so that running containerized applications will load the same environmental variables.
+
+## Continuous Integration
+
+To ensure code quality, linting, type checking, static analysis and unit tests are automatically run via github actions when pull requests are opened. 
+
+CI for LAMP python applications can be run locally, in the `python_src/` directory, with the following `poetry` commands:
 ```sh
-# Run black for Formatting
+# black for Formatting
 poetry run black .
 
-# Run mypy for Type Checking
+# mypy for Type Checking
 poetry run mypy .
 
-# Run pylint for Static Analysis
-poetry run pylint py_gtfs_ingestion tests *.py
+# pylint for Static Analysis
+poetry run pylint src tests
 
-# Ru pytest to run unit tests
+# pytest for Unit Tests
 poetry run pytest
 ```
 
-### performance manager
-The Dockerfile describing the PerformanceManager image and the
-docker-compose.yml file used for local testing are both found in the root
-directory. The docker compose will build a postgres db and a performance manager
-image. The configuration for the database is found in `.env` located in the root
-directory.
+## Continuous Deployment
 
-To build and images and stand up containers of each, from the root directory:
-```sh
-docker-compose up --build
-```
+Images for LAMP applications are hosted by AWS on the Elastic Container Registry (ECR). Updates to application images are pushed to ECR via automated github actions. 
 
-To login into database:
-```sh
-# assuming `docker-compose up`, open up the image in bash
-docker exec -it local_rds bash
+LAMP applications are hosted by AWS and run on Elastic Container Service (ECS) instances. Deployment of LAMP applications, to ECS instances, occur via automated github actions.
 
-# log into to the database named in `.env` using the username also in `.env`
-psql -U <db_user> -d <db_name>
-```
+## Running Locally
 
-To run a performance manager script:
-```sh
-# assuming `docker-compose up`
-docker-compose run --rm performance_manager python thing_to_run.py
-```
+LAMP uses `docker` and `docker-compose` to run local instances of applications for development purposes. Please refer to the `README` page of invidiual applications for instructions. 
+
+
+## Repository Design 
+
+This repository contains all LAMP source code used to run, test and deploy LAMP applications.
+
+Source code for LAMP python applications can be found in the [python_src/](python_src/)  directory. 
+
+Source code for the elixir API application can be found in the [api/](api/) directory.
+
+### `python_src/` [Python Application Library]
+
+The [python_src/](python_src/) directory contains a shared python library used by all LAMP python applications.
+
+The shared library is structured in a standard source and tests directory structure.
+
+The root of the [python_src/](python_src/) directory contains files that define dependencies and tooling ([python_src/pyproject.toml](python_src/pyproject.toml)), database management configuration ([python_src/alembic.ini](python_src/alembic.ini)), and application containers ([python_src/Dockerfile](python_src/Dockerfile)).
