@@ -25,8 +25,13 @@ down_revision = "171891fde1cf"
 branch_labels = None
 depends_on = None
 
+skip_revision = True
+
 
 def upgrade() -> None:
+    if skip_revision:
+        return
+
     op.add_column(
         "vehicle_events",
         sa.Column("previous_trip_stop_pk_id", sa.Integer(), nullable=True),
@@ -126,6 +131,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if skip_revision:
+        return
+
     update_view = """
         CREATE OR REPLACE VIEW opmi_all_rt_fields_joined AS 
         SELECT

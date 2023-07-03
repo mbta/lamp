@@ -280,7 +280,7 @@ def load_new_trips_records(
     Load data into "vehicle_trips" table for any new RT events
     """
     load_temp_for_hash_compare(db_manager, events)
-    update_prev_next_trip_stop(db_manager)
+    # update_prev_next_trip_stop(db_manager)
     load_new_trip_data(db_manager, events)
     update_trip_stop_counts(db_manager)
     update_static_trip_id_guess_exact(db_manager)
