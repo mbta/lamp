@@ -366,8 +366,6 @@ def test_gtfs_rt_processing(
             "pk_id",
             "updated_on",
             "trip_hash",
-            "previous_trip_stop_pk_id",
-            "next_trip_stop_pk_id",
         }
         expected_columns.add("trip_id")
         expected_columns.add("vehicle_label")

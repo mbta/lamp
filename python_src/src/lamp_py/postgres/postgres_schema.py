@@ -30,8 +30,8 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     parent_station = sa.Column(sa.String(60), nullable=False)
 
     # stop link fields
-    previous_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
-    next_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
+    # previous_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
+    # next_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
 
     # hash of trip and stop identifiers
     trip_stop_hash = sa.Column(
