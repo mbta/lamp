@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Dict, Tuple
 
 import numpy
 import pandas
@@ -7,11 +7,11 @@ from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import (
-    add_event_hash_column,
     start_time_to_seconds,
     add_static_version_key_column,
     add_parent_station_column,
     remove_bus_records,
+    get_unique_trip_stop_columns,
 )
 
 
@@ -118,7 +118,6 @@ def transform_vp_timestamps(
     convert raw vp data into a timestamped event data for each stop on a trip.
 
     this method will add
-    * "trip_stop_hash" - unique to vehicle/trip/stop
     * "vp_move_timestamp" - when the vehicle begins moving towards the hashed stop
     * "vp_stop_timestamp" - when the vehicle arrives at the hashed stop
 
@@ -129,61 +128,47 @@ def transform_vp_timestamps(
     )
     process_logger.log_start()
 
-    vehicle_positions = add_event_hash_column(
-        vehicle_positions,
-        hash_column_name="trip_stop_hash",
-        expected_hash_columns=[
-            "stop_sequence",
-            "parent_station",
-            "direction_id",
-            "route_id",
-            "service_date",
-            "start_time",
-            "vehicle_id",
-        ],
-    )
+    trip_stop_columns = get_unique_trip_stop_columns()
     # TODO: review trip_id processing # pylint: disable=fixme
     #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
 
-    # create a pivot table on the trip stop hash, finding the earliest time
+    # create a pivot table on unique trip-stop events, finding the earliest time
     # that each vehicle/stop pair is and is not moving. rename the vehicle
     # timestamps to vp_stop_timestamp and vp_move_timestamp, the names used
     # in the database
     vp_timestamps = pandas.pivot_table(
         vehicle_positions,
-        index="trip_stop_hash",
+        index=trip_stop_columns,
         columns="is_moving",
         aggfunc={"vehicle_timestamp": min},
     ).reset_index(drop=False)
 
+    rename_mapper: Dict[Tuple[str, Union[str, bool]], str] = {
+        (column, ""): column for column in trip_stop_columns
+    }
+    rename_mapper.update({("vehicle_timestamp", True): "vp_move_timestamp"})
+    rename_mapper.update({("vehicle_timestamp", False): "vp_stop_timestamp"})
+
     vp_timestamps.columns = vp_timestamps.columns.to_flat_index()
-    vp_timestamps = vp_timestamps.rename(
-        columns={
-            ("trip_stop_hash", ""): "trip_stop_hash",
-            ("vehicle_timestamp", False): "vp_stop_timestamp",
-            ("vehicle_timestamp", True): "vp_move_timestamp",
-        }
-    )
+    vp_timestamps = vp_timestamps.rename(columns=rename_mapper)
     # verify timestamp columns were created
     for column in ("vp_stop_timestamp", "vp_move_timestamp"):
         if column not in vp_timestamps.columns:
             vp_timestamps[column] = None
 
     # we no longer need is moving or vehicle timestamp as those are all
-    # stored in the vp_timestamps dataframe. drop duplicated trip stop hash
-    # rows. this df is now a hash map back to the vehicle and stop data.
+    # stored in the vp_timestamps dataframe. drop duplicated trip-stop events
     vehicle_positions = vehicle_positions.drop(
         columns=["is_moving", "vehicle_timestamp"]
-    ).drop_duplicates(subset="trip_stop_hash")
+    ).drop_duplicates(subset=trip_stop_columns)
 
-    # join the timestamps to the hash map, leaving us with vp move and
-    # stop times attached to trip stop hashes and the data the went into
-    # making them.
+    # join the timestamps to trip-stop details, leaving us with vp move and
+    # stop times
     vehicle_positions = pandas.merge(
         vp_timestamps,
         vehicle_positions,
         how="left",
-        on="trip_stop_hash",
+        on=trip_stop_columns,
         validate="one_to_one",
     )
 
@@ -219,13 +204,16 @@ def process_vp_files(
     process_logger.log_start()
 
     vehicle_positions = get_vp_dataframe(paths)
-    vehicle_positions = transform_vp_datatypes(vehicle_positions)
-    vehicle_positions = add_static_version_key_column(
-        vehicle_positions, db_manager
-    )
-    vehicle_positions = remove_bus_records(vehicle_positions, db_manager)
-    vehicle_positions = add_parent_station_column(vehicle_positions, db_manager)
-    vehicle_positions = transform_vp_timestamps(vehicle_positions)
+    if vehicle_positions.shape[0] > 0:
+        vehicle_positions = transform_vp_datatypes(vehicle_positions)
+        vehicle_positions = add_static_version_key_column(
+            vehicle_positions, db_manager
+        )
+        vehicle_positions = remove_bus_records(vehicle_positions, db_manager)
+        vehicle_positions = add_parent_station_column(
+            vehicle_positions, db_manager
+        )
+        vehicle_positions = transform_vp_timestamps(vehicle_positions)
 
     process_logger.add_metadata(vehicle_events_count=vehicle_positions.shape[0])
     process_logger.log_complete()

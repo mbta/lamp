@@ -331,26 +331,26 @@ def test_gtfs_rt_processing(
         assert position_size > positions.shape[0]
 
         positions = transform_vp_timestamps(positions)
-        assert positions.shape[1] == 15
+        assert positions.shape[1] == 14
         assert position_size > positions.shape[0]
 
         trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"])
         trip_update_size = trip_updates.shape[0]
-        assert trip_updates.shape[1] == 10
+        assert trip_updates.shape[1] == 8
 
         # check that it can be combined with the static schedule
         trip_updates = add_static_version_key_column(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 11
+        assert trip_updates.shape[1] == 9
         assert trip_update_size == trip_updates.shape[0]
 
         # remove bus records from dataframe
         trip_updates = remove_bus_records(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 11
+        assert trip_updates.shape[1] == 9
         assert trip_update_size > trip_updates.shape[0]
 
         # remove bus records from dataframe
         trip_updates = add_parent_station_column(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 12
+        assert trip_updates.shape[1] == 10
         assert trip_update_size > trip_updates.shape[0]
 
         trip_updates = reduce_trip_updates(trip_updates)
@@ -359,20 +359,21 @@ def test_gtfs_rt_processing(
         events = combine_events(positions, trip_updates)
 
         ve_columns = [c.key for c in VehicleEvents.__table__.columns]
-        # pk id and updated on are handled by postgres. trip hash is added just
-        # before inserting new rows to the db.
+        # pm_trip_id and updated_on are handled by postgres
         # trip_id is pulled from parquet but not inserted into vehicle_events table
         expected_columns = set(ve_columns) - {
-            "pk_id",
             "updated_on",
-            "trip_hash",
+            "pm_trip_id",
+            "travel_time_seconds",
+            "dwell_time_seconds",
+            "headway_trunk_seconds",
+            "headway_branch_seconds",
         }
         expected_columns.add("trip_id")
         expected_columns.add("vehicle_label")
         expected_columns.add("vehicle_consist")
         expected_columns.add("direction_id")
         expected_columns.add("route_id")
-        expected_columns.add("service_date")
         expected_columns.add("start_time")
         expected_columns.add("vehicle_id")
         expected_columns.add("static_version_key")

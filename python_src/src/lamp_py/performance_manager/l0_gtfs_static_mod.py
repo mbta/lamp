@@ -118,7 +118,7 @@ def generate_scheduled_trunk_headways(db_manager: DatabaseManager) -> None:
         .where(
             TempStaticHeadwaysGen.trunk_route_id.is_not(None),
         )
-        .cte("scheduled_trunk_headways")
+        .subquery("scheduled_trunk_headways")
     )
 
     update_q = (
@@ -174,7 +174,11 @@ def load_temp_table_headway_gen(
                 == StaticStopTimes.static_version_key,
             ),
         )
-        .where(StaticStopTimes.static_version_key == static_version_key)
+        .where(
+            StaticStopTimes.static_version_key == static_version_key,
+            StaticStops.static_version_key == static_version_key,
+            StaticTrips.static_version_key == static_version_key,
+        )
     )
     columns_to_insert = [
         "pk_id",

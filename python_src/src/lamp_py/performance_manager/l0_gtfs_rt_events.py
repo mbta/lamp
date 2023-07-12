@@ -1,16 +1,17 @@
-import binascii
 from typing import Dict, List
 
 import numpy
 import pandas
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import get_utc_from_partition_path
 from lamp_py.postgres.postgres_schema import (
     MetadataLog,
-    TempHashCompare,
+    TempEventCompare,
     VehicleEvents,
+    VehicleTrips,
 )
 from lamp_py.postgres.postgres_utils import (
     DatabaseManager,
@@ -18,10 +19,10 @@ from lamp_py.postgres.postgres_utils import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .gtfs_utils import add_event_hash_column
+from .gtfs_utils import get_unique_trip_stop_columns
 from .l0_rt_trip_updates import process_tu_files
 from .l0_rt_vehicle_positions import process_vp_files
-from .l1_rt_trips import process_trips
+from .l1_rt_trips import process_trips, load_new_trip_data
 from .l1_rt_metrics import process_metrics
 
 
@@ -72,8 +73,7 @@ def combine_events(
 
     the vehicle events will have one or both of vp_move_time and
     vp_stop_time entries. the trip updates events will have a
-    tu_stop_time entry. many of these events should have overlap in their
-    trip_stop_hash entries, implying they should be associated together.
+    tu_stop_time entry.
 
     join the dataframes and collapse rows representing the same trip and
     stop pairs.
@@ -85,64 +85,189 @@ def combine_events(
     )
     process_logger.log_start()
 
+    trip_stop_columns = get_unique_trip_stop_columns()
+
     # merge together the trip stop hashes and the timestamps
     events = pandas.merge(
-        vp_events[["trip_stop_hash", "vp_stop_timestamp", "vp_move_timestamp"]],
-        tu_events[["trip_stop_hash", "tu_stop_timestamp"]],
+        vp_events[
+            trip_stop_columns + ["vp_stop_timestamp", "vp_move_timestamp"]
+        ],
+        tu_events[
+            trip_stop_columns
+            + [
+                "tu_stop_timestamp",
+            ]
+        ],
         how="outer",
-        on="trip_stop_hash",
+        on=trip_stop_columns,
         validate="one_to_one",
     )
 
-    # concat all of the details that went into each trip stop hash, dropping
+    # concat all of the details that went into each trip event, dropping
     # duplicates. this is now a dataframe mapping hashes back to the things
     # that went into them.
     # TODO: review trip_id processing # pylint: disable=fixme
     #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
     details_columns = [
-        "direction_id",
-        "static_version_key",
-        "parent_station",
-        "route_id",
         "service_date",
         "start_time",
+        "route_id",
+        "direction_id",
+        "parent_station",
+        "vehicle_id",
         "stop_id",
         "stop_sequence",
-        "trip_stop_hash",
-        "vehicle_id",
         "trip_id",
         "vehicle_label",
         "vehicle_consist",
+        "static_version_key",
     ]
 
     event_details = pandas.concat(
         [vp_events[details_columns], tu_events[details_columns]]
     )
 
-    # create sort columns to indicate which records have null values for vehicle_label or vehicle_consist
-    # we want to drop these null value records whenever possible
+    # create sort column to indicate which records have null values for select columns
+    # we want to drop these null value records whenever possible to prioritize details from vehicle_positions
     event_details["na_sort"] = (
-        event_details[["vehicle_label", "vehicle_consist"]].isna().sum(axis=1)
+        event_details[
+            ["trip_id", "stop_sequence", "vehicle_label", "vehicle_consist"]
+        ]
+        .isna()
+        .sum(axis=1)
     )
 
     event_details = (
         event_details.sort_values(
-            by=["trip_stop_hash", "na_sort"],
+            by=trip_stop_columns
+            + [
+                "na_sort",
+            ],
             ascending=True,
         )
-        .drop_duplicates(subset="trip_stop_hash", keep="first")
+        .drop_duplicates(subset=trip_stop_columns, keep="first")
         .drop(columns="na_sort")
     )
 
     # pull the details and add them to the events table
     events = events.merge(
-        event_details, how="left", on="trip_stop_hash", validate="one_to_one"
+        event_details, how="left", on=trip_stop_columns, validate="one_to_one"
     )
 
     process_logger.add_metadata(total_event_count=events.shape[0])
     process_logger.log_complete()
 
     return events
+
+
+def do_trips_insert_update(db_manager: DatabaseManager) -> None:
+    """
+    perform INSERT/UPDATE operations related to event trips
+    """
+    # INSERT/UPDATE vehicle_trips table from temp_event_compare
+    # makes sure that every event has a pm_trip_id for insertion into vehicle_events table
+    load_new_trip_data(db_manager=db_manager)
+
+    # load pm_trip_id values into temp_event_compare
+    update_temp_trip_id = (
+        sa.update(TempEventCompare.__table__)
+        .values(pm_trip_id=VehicleTrips.pm_trip_id)
+        .where(
+            TempEventCompare.service_date == VehicleTrips.service_date,
+            TempEventCompare.route_id == VehicleTrips.route_id,
+            TempEventCompare.direction_id == VehicleTrips.direction_id,
+            TempEventCompare.start_time == VehicleTrips.start_time,
+            TempEventCompare.vehicle_id == VehicleTrips.vehicle_id,
+        )
+    )
+    db_manager.execute(update_temp_trip_id)
+
+
+def flag_insert_update_events(db_manager: DatabaseManager) -> List[int]:
+    """
+    update do_update and do_insert flag columns in temp_event_compare table
+
+    delete records in temp_event_compare not related to update/insert operations
+
+    get records counts for each flag an return
+
+    @db_manager DatabaseManager object for database interaction
+
+    @return List[int, int] - do_update count, do_insert count
+    """
+
+    # populate do_update column of temp_event_compare
+    update_do_update = (
+        sa.update(TempEventCompare.__table__)
+        .values(
+            do_update=True,
+        )
+        .where(
+            VehicleEvents.service_date == TempEventCompare.service_date,
+            VehicleEvents.pm_trip_id == TempEventCompare.pm_trip_id,
+            VehicleEvents.parent_station == TempEventCompare.parent_station,
+            sa.or_(
+                sa.and_(
+                    TempEventCompare.vp_move_timestamp.is_not(None),
+                    sa.or_(
+                        VehicleEvents.vp_move_timestamp.is_(None),
+                        VehicleEvents.vp_move_timestamp
+                        > TempEventCompare.vp_move_timestamp,
+                    ),
+                ),
+                sa.and_(
+                    TempEventCompare.vp_stop_timestamp.is_not(None),
+                    sa.or_(
+                        VehicleEvents.vp_stop_timestamp.is_(None),
+                        VehicleEvents.vp_stop_timestamp
+                        > TempEventCompare.vp_move_timestamp,
+                    ),
+                ),
+                TempEventCompare.tu_stop_timestamp.is_not(None),
+            ),
+        )
+    )
+    db_manager.execute(update_do_update)
+
+    # get count of do_update records
+    update_count_query = sa.select(
+        sa.func.count(TempEventCompare.do_update)
+    ).where(TempEventCompare.do_update == sa.true())
+    update_count = db_manager.select_as_list(update_count_query)[0]["count"]
+
+    # populate do_insert column of temp_event_compare
+    do_insert_pre_select = (
+        sa.select(None)
+        .where(
+            VehicleEvents.service_date == TempEventCompare.service_date,
+            VehicleEvents.pm_trip_id == TempEventCompare.pm_trip_id,
+            VehicleEvents.parent_station == TempEventCompare.parent_station,
+        )
+        .exists()
+    )
+    update_do_insert = (
+        sa.update(TempEventCompare.__table__)
+        .values(
+            do_insert=True,
+        )
+        .where(~do_insert_pre_select)
+    )
+    db_manager.execute(update_do_insert)
+
+    # get count of do_insert records
+    insert_count_query = sa.select(
+        sa.func.count(TempEventCompare.do_insert)
+    ).where(TempEventCompare.do_insert == sa.true())
+    insert_count = db_manager.select_as_list(insert_count_query)[0]["count"]
+
+    # remove records from temp_event_compare that are not related to updates or inserts
+    delete_temp = sa.delete(TempEventCompare.__table__).where(
+        TempEventCompare.do_update == sa.false(),
+        TempEventCompare.do_insert == sa.false(),
+    )
+    db_manager.execute(delete_temp)
+
+    return [update_count, insert_count]
 
 
 def upload_to_database(
@@ -156,178 +281,119 @@ def upload_to_database(
     already in the database and those that are brand new. update preexisting
     events where appropriate and insert the new ones.
     """
-    # add in column for trip hash that will be unique to the trip. this will
-    # be useful for metrics and querries users want to run.
-    events = add_event_hash_column(
-        events,
-        hash_column_name="trip_hash",
-        expected_hash_columns=[
-            "direction_id",
-            "route_id",
-            "service_date",
-            "start_time",
-            "vehicle_id",
-        ],
-    )
-    events["trip_hash"] = events["trip_hash"].str.decode("hex")
-
     process_logger = ProcessLogger(
-        "gtfs_rt.pull_overlapping_events",
+        "gtfs_rt.insert_update_events",
         event_count=events.shape[0],
     )
     process_logger.log_start()
 
-    # remove everything from the temp hash table and insert the trip stop hashs
-    # from the new events. then pull events from the VehicleEvents table by
-    # matching those hashes, which will be the events that will potentially be
-    # updated. re-label vp timestamp columns to compare them after a left merge.
-    hash_bytes = events["trip_stop_hash"].str.decode("hex")
-    db_manager.truncate_table(TempHashCompare)
-    db_manager.execute_with_data(
-        sa.insert(TempHashCompare.__table__),
-        hash_bytes.to_frame("hash"),
-    )
-
-    database_events = db_manager.select_as_dataframe(
-        sa.select(
-            VehicleEvents.pk_id,
-            VehicleEvents.trip_stop_hash,
-            VehicleEvents.vp_move_timestamp.label("vp_move_db"),
-            VehicleEvents.vp_stop_timestamp.label("vp_stop_db"),
-        ).join(
-            TempHashCompare,
-            TempHashCompare.hash == VehicleEvents.trip_stop_hash,
-        )
-    )
-
-    if database_events.shape[0] == 0:
-        database_events = pandas.DataFrame(
-            columns=["pk_id", "trip_stop_hash", "vp_move_db", "vp_stop_db"]
-        )
-    else:
-        # convert the trip stop hash bytes to hex
-        database_events["trip_stop_hash"] = (
-            database_events["trip_stop_hash"]
-            .apply(binascii.hexlify)
-            .str.decode("utf-8")
-        )
-
-    process_logger.add_metadata(db_event_count=database_events.shape[0])
-    process_logger.log_complete()
-
-    # merge all of the database data into the events we already have based on
-    # trip stop hash. events that potentially need updated will have a pk_id
-    # and potentially a vp_move_db or vp_stop_db element
-    events = pandas.merge(
-        events,
-        database_events,
-        how="left",
-        on="trip_stop_hash",
-    )
-
-    # to update the vp move timestamp in the case where the db event had one
-    # and the processed event did not. then update again in the case where the
-    # processed timestamp is later than the db timestamp.
-    events["vp_move_timestamp"] = numpy.where(
-        ((events["vp_move_db"].notna()) & (events["vp_move_timestamp"].isna())),
-        events["vp_move_db"],
-        events["vp_move_timestamp"],
-    )
-    events["vp_move_timestamp"] = numpy.where(
-        (
-            (events["vp_move_db"].notna())
-            & (events["vp_move_timestamp"].notna())
-            & (events["vp_move_timestamp"] > events["vp_move_db"])
-        ),
-        events["vp_move_db"],
-        events["vp_move_timestamp"],
-    )
-
-    # same for vp_stop_timestamp
-    events["vp_stop_timestamp"] = numpy.where(
-        ((events["vp_stop_db"].notna()) & (events["vp_stop_timestamp"].isna())),
-        events["vp_stop_db"],
-        events["vp_stop_timestamp"],
-    )
-    events["vp_stop_timestamp"] = numpy.where(
-        (
-            (events["vp_stop_db"].notna())
-            & (events["vp_stop_timestamp"].notna())
-            & (events["vp_stop_timestamp"] > events["vp_stop_db"])
-        ),
-        events["vp_stop_db"],
-        events["vp_stop_timestamp"],
-    )
-
-    # convert the hex hashes to bytes, convert timestamps and pk ids to ints
-    events["trip_stop_hash"] = events["trip_stop_hash"].str.decode("hex")
     events["vp_move_timestamp"] = events["vp_move_timestamp"].astype("Int64")
     events["vp_stop_timestamp"] = events["vp_stop_timestamp"].astype("Int64")
     events["tu_stop_timestamp"] = events["tu_stop_timestamp"].astype("Int64")
-    events["vp_stop_db"] = events["vp_stop_db"].astype("Int64")
-    events["vp_move_db"] = events["vp_move_db"].astype("Int64")
-    events["pk_id"] = events["pk_id"].astype("Int64")
     events = events.fillna(numpy.nan).replace([numpy.nan], [None])
 
-    process_logger = ProcessLogger("gtfs_rt.update_events")
-    process_logger.log_start()
-
-    # update all of the events that have pk_ids and new timestamps.
-    events["do_update"] = (events["pk_id"].notna()) & (
-        (events["tu_stop_timestamp"].notna())
-        | (events["vp_move_timestamp"] != events["vp_move_db"])
-        | (events["vp_stop_timestamp"] != events["vp_stop_db"])
+    # truncate temp_event_compare table and insert all event records
+    db_manager.truncate_table(TempEventCompare)
+    db_manager.execute_with_data(
+        sa.insert(TempEventCompare.__table__),
+        events,
     )
 
-    # drop the db timestamps that have now been moved to the event timestamps
-    # where appropriate and fill all nan's with nones for db insertion
-    events = events.drop(columns=["vp_move_db", "vp_stop_db"])
+    # perform RDS INSERT/UPDATE related to trips records
+    do_trips_insert_update(db_manager)
 
-    if events["do_update"].sum() > 0:
-        update_cols = [
-            "pk_id",
-            "vp_move_timestamp",
-            "vp_stop_timestamp",
-            "tu_stop_timestamp",
-        ]
-        result = db_manager.execute_with_data(
-            sa.update(VehicleEvents.__table__).where(
-                VehicleEvents.pk_id == sa.bindparam("b_pk_id")
-            ),
-            events.loc[events["do_update"], update_cols].rename(
-                columns={"pk_id": "b_pk_id"}
+    # populate do_insert and do_update columns of temp_event_compare
+    # get counts of records belonging to each flag
+    update_count, insert_count = flag_insert_update_events(db_manager)
+
+    # INSERT/UPDATE vehicle_events records with vp_move_timestamp
+    # this will insert new event records into vehicle_events if they DO NOT exist
+    # if they DO exist columns will be updated if necessary
+    select_vp_move = sa.select(
+        TempEventCompare.service_date,
+        TempEventCompare.pm_trip_id,
+        TempEventCompare.stop_sequence,
+        TempEventCompare.stop_id,
+        TempEventCompare.parent_station,
+        TempEventCompare.vp_move_timestamp,
+    )
+    insert_columns = [
+        "service_date",
+        "pm_trip_id",
+        "stop_sequence",
+        "stop_id",
+        "parent_station",
+        "vp_move_timestamp",
+    ]
+    insert_update_vp_move_events = (
+        postgresql.insert(VehicleEvents.__table__)
+        .from_select(
+            insert_columns,
+            select_vp_move,
+        )
+        .on_conflict_do_update(
+            index_elements=[
+                VehicleEvents.service_date,
+                VehicleEvents.pm_trip_id,
+                VehicleEvents.parent_station,
+            ],
+            set_={
+                "vp_move_timestamp": sa.text("excluded.vp_move_timestamp"),
+                "stop_sequence": sa.text("excluded.stop_sequence"),
+                "stop_id": sa.text("excluded.stop_id"),
+            },
+            where=sa.and_(
+                sa.text("excluded.vp_move_timestamp IS NOT NULL"),
+                sa.or_(
+                    VehicleEvents.vp_move_timestamp.is_(None),
+                    VehicleEvents.vp_move_timestamp
+                    > sa.text("excluded.vp_move_timestamp"),
+                ),
             ),
         )
-        process_logger.add_metadata(db_update_rowcount=result.rowcount)
+    )
+    db_manager.execute(insert_update_vp_move_events)
 
-    process_logger.log_complete()
-    process_logger = ProcessLogger("gtfs_rt.insert_events")
-    process_logger.log_start()
-
-    # any event that doesn't have a pk_id need to be inserted
-    events["do_insert"] = events["pk_id"].isna()
-
-    process_logger.add_metadata(insert_event_count=events["do_insert"].sum())
-    if events["do_insert"].sum() > 0:
-        insert_cols = [
-            "trip_hash",
-            "stop_sequence",
-            "stop_id",
-            "parent_station",
-            "trip_stop_hash",
-            "vp_move_timestamp",
-            "vp_stop_timestamp",
-            "tu_stop_timestamp",
-        ]
-
-        result = db_manager.execute_with_data(
-            sa.insert(VehicleEvents.__table__),
-            events.loc[events["do_insert"], insert_cols],
+    # update vehicle_events records with vp_stop_timestamp, if required
+    update_vp_stop_events = (
+        sa.update(VehicleEvents.__table__)
+        .values(
+            vp_stop_timestamp=TempEventCompare.vp_stop_timestamp,
+            stop_sequence=TempEventCompare.stop_sequence,
+            stop_id=TempEventCompare.stop_id,
         )
+        .where(
+            VehicleEvents.service_date == TempEventCompare.service_date,
+            VehicleEvents.pm_trip_id == TempEventCompare.pm_trip_id,
+            VehicleEvents.parent_station == TempEventCompare.parent_station,
+            TempEventCompare.vp_stop_timestamp.is_not(None),
+            sa.or_(
+                VehicleEvents.vp_stop_timestamp.is_(None),
+                VehicleEvents.vp_stop_timestamp
+                > TempEventCompare.vp_stop_timestamp,
+            ),
+        )
+    )
+    db_manager.execute(update_vp_stop_events)
+
+    # update vehicle_events records with tu_stop_timestamp
+    update_tu_stop_events = (
+        sa.update(VehicleEvents.__table__)
+        .values(
+            tu_stop_timestamp=TempEventCompare.tu_stop_timestamp,
+        )
+        .where(
+            VehicleEvents.service_date == TempEventCompare.service_date,
+            VehicleEvents.pm_trip_id == TempEventCompare.pm_trip_id,
+            VehicleEvents.parent_station == TempEventCompare.parent_station,
+            TempEventCompare.tu_stop_timestamp.is_not(None),
+        )
+    )
+    db_manager.execute(update_tu_stop_events)
 
     process_logger.log_complete()
 
-    return events
+    return update_count + insert_count
 
 
 def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
@@ -388,15 +454,13 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
 
             # continue events processing if records exist
             if events.shape[0] > 0:
-                events = upload_to_database(events, db_manager)
-                # drop all records that do not require update or insert
-                events = events[(events["do_update"]) | (events["do_insert"])]
+                change_count = upload_to_database(events, db_manager)
                 # add new trips to VehicleTrips table
-                if events["do_insert"].sum() > 0:
-                    process_trips(db_manager, events)
+                if change_count > 0:
+                    process_trips(db_manager)
                 # add new metrics to VehicleMetrics table
-                if events.shape[0] > 0:
-                    process_metrics(db_manager, events)
+                if change_count > 0:
+                    process_metrics(db_manager)
 
             db_manager.execute(
                 sa.update(MetadataLog.__table__)

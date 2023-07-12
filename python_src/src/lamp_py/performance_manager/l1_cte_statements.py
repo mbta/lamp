@@ -1,5 +1,3 @@
-from typing import List
-
 import sqlalchemy as sa
 from lamp_py.postgres.postgres_schema import (
     ServiceIdDates,
@@ -13,8 +11,8 @@ from lamp_py.postgres.postgres_schema import (
 
 
 def get_static_trips_cte(
-    version_keys: List[int], service_date: int
-) -> sa.sql.selectable.CTE:
+    static_version_key: int, service_date: int
+) -> sa.sql.selectable.Subquery:
     """
     return CTE named "static_trip_cte" representing all static trips on given service date
 
@@ -105,15 +103,19 @@ def get_static_trips_cte(
             ),
         )
         .where(
-            StaticStopTimes.static_version_key.in_(version_keys),
+            StaticStopTimes.static_version_key == int(static_version_key),
+            StaticTrips.static_version_key == int(static_version_key),
+            StaticStops.static_version_key == int(static_version_key),
+            ServiceIdDates.static_version_key == int(static_version_key),
+            StaticRoutes.static_version_key == int(static_version_key),
             StaticRoutes.route_type != 3,
             ServiceIdDates.service_date == int(service_date),
         )
-        .cte(name="static_trips_cte")
+        .subquery(name="static_trips_cte")
     )
 
 
-def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
+def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.Subquery:
     """
     return CTE named "rt_trips_cte" representing all RT trips on a given service date
 
@@ -135,32 +137,31 @@ def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
             VehicleTrips.vehicle_id,
             VehicleTrips.stop_count,
             VehicleTrips.static_trip_id_guess,
-            VehicleEvents.trip_hash,
+            VehicleEvents.pm_trip_id,
             VehicleEvents.stop_sequence,
             VehicleEvents.parent_station,
-            VehicleEvents.trip_stop_hash,
             VehicleEvents.vp_move_timestamp,
             VehicleEvents.vp_stop_timestamp,
             VehicleEvents.tu_stop_timestamp,
             (
-                sa.func.lag(VehicleEvents.trip_hash)
+                sa.func.lag(VehicleEvents.pm_trip_id)
                 .over(
-                    partition_by=(VehicleEvents.trip_hash),
+                    partition_by=(VehicleEvents.pm_trip_id),
                     order_by=VehicleEvents.stop_sequence,
                 )
                 .is_(None)
             ).label("rt_trip_first_stop_flag"),
             (
-                sa.func.lead(VehicleEvents.trip_hash)
+                sa.func.lead(VehicleEvents.pm_trip_id)
                 .over(
-                    partition_by=(VehicleEvents.trip_hash),
+                    partition_by=(VehicleEvents.pm_trip_id),
                     order_by=VehicleEvents.stop_sequence,
                 )
                 .is_(None)
             ).label("rt_trip_last_stop_flag"),
             sa.func.rank()
             .over(
-                partition_by=(VehicleEvents.trip_hash),
+                partition_by=(VehicleEvents.pm_trip_id),
                 order_by=VehicleEvents.stop_sequence,
             )
             .label("rt_trip_stop_rank"),
@@ -168,21 +169,22 @@ def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.CTE:
         .select_from(VehicleEvents)
         .join(
             VehicleTrips,
-            VehicleTrips.trip_hash == VehicleEvents.trip_hash,
+            VehicleTrips.pm_trip_id == VehicleEvents.pm_trip_id,
         )
         .where(
             VehicleTrips.service_date == service_date,
+            VehicleEvents.service_date == service_date,
             sa.or_(
                 VehicleEvents.vp_move_timestamp.is_not(None),
                 VehicleEvents.vp_stop_timestamp.is_not(None),
             ),
         )
-    ).cte(name="rt_trips_cte")
+    ).subquery(name="rt_trips_cte")
 
 
 def get_trips_for_metrics(
-    version_keys: List[int], service_date: int
-) -> sa.sql.selectable.CTE:
+    static_version_key: int, service_date: int
+) -> sa.sql.selectable.Subquery:
     """
     return CTE named "trips_for_metrics" with fields needed to develop metrics tables
 
@@ -197,14 +199,14 @@ def get_trips_for_metrics(
     bus routes, so we may be able to drop this for performance_manager
     """
 
-    static_trips_cte = get_static_trips_cte(version_keys, service_date)
+    static_trips_cte = get_static_trips_cte(static_version_key, service_date)
     rt_trips_cte = get_rt_trips_cte(service_date)
 
     return (
         sa.select(
-            rt_trips_cte.c.trip_stop_hash,
             rt_trips_cte.c.static_version_key,
-            rt_trips_cte.c.trip_hash,
+            rt_trips_cte.c.pm_trip_id,
+            rt_trips_cte.c.service_date,
             rt_trips_cte.c.direction_id,
             rt_trips_cte.c.route_id,
             rt_trips_cte.c.branch_route_id,
@@ -247,7 +249,9 @@ def get_trips_for_metrics(
             .label("next_station_move"),
         )
         .distinct(
-            rt_trips_cte.c.trip_stop_hash,
+            rt_trips_cte.c.service_date,
+            rt_trips_cte.c.pm_trip_id,
+            rt_trips_cte.c.parent_station,
         )
         .select_from(rt_trips_cte)
         .join(
@@ -265,7 +269,9 @@ def get_trips_for_metrics(
             isouter=True,
         )
         .order_by(
-            rt_trips_cte.c.trip_stop_hash,
+            rt_trips_cte.c.service_date,
+            rt_trips_cte.c.pm_trip_id,
+            rt_trips_cte.c.parent_station,
             static_trips_cte.c.static_trip_stop_rank,
         )
-    ).cte(name="trip_for_metrics")
+    ).subquery(name="trip_for_metrics")
