@@ -10,13 +10,12 @@ from .gtfs_utils import (
     start_time_to_seconds,
     add_static_version_key_column,
     add_parent_station_column,
-    remove_bus_records,
     unique_trip_stop_columns,
 )
 
 
 def get_tu_dataframe_chunks(
-    to_load: Union[str, List[str]]
+    to_load: Union[str, List[str]], route_ids: List[str]
 ) -> Iterator[pandas.DataFrame]:
     """
     return interator of dataframe chunks from a trip updates parquet file
@@ -38,6 +37,7 @@ def get_tu_dataframe_chunks(
         ("start_date", "!=", "None"),
         ("start_time", "!=", "None"),
         ("vehicle_id", "!=", "None"),
+        ("route_id", "in", route_ids),
     ]
     # 100_000 batch size should result in ~5-6 GB of memory use per batch
     # of trip update records
@@ -108,7 +108,7 @@ def explode_stop_time_update(
 
 
 def get_and_unwrap_tu_dataframe(
-    paths: Union[str, List[str]]
+    paths: Union[str, List[str]], route_ids: List[str]
 ) -> pandas.DataFrame:
     """
     unwrap and explode trip updates records from parquet files
@@ -124,7 +124,7 @@ def get_and_unwrap_tu_dataframe(
     # per batch, this should result in ~5-6 GB of memory use per batch
     # after batch goes through explod_stop_time_update vectorize operation,
     # resulting Series has negligible memory use
-    for batch_events in get_tu_dataframe_chunks(paths):
+    for batch_events in get_tu_dataframe_chunks(paths, route_ids):
         # store start_date as int64 and rename to service_date
         batch_events.rename(
             columns={"start_date": "service_date"}, inplace=True
@@ -212,7 +212,9 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
 
 
 def process_tu_files(
-    paths: Union[str, List[str]], db_manager: DatabaseManager
+    paths: Union[str, List[str]],
+    route_ids: List[str],
+    db_manager: DatabaseManager,
 ) -> pandas.DataFrame:
     """
     Generate a dataframe of Vehicle Events from gtfs_rt trip updates parquet files.
@@ -222,10 +224,9 @@ def process_tu_files(
     )
     process_logger.log_start()
 
-    trip_updates = get_and_unwrap_tu_dataframe(paths)
+    trip_updates = get_and_unwrap_tu_dataframe(paths, route_ids)
     if trip_updates.shape[0] > 0:
         trip_updates = add_static_version_key_column(trip_updates, db_manager)
-        trip_updates = remove_bus_records(trip_updates, db_manager)
         trip_updates = add_parent_station_column(trip_updates, db_manager)
         trip_updates = reduce_trip_updates(trip_updates)
 

@@ -10,12 +10,13 @@ from .gtfs_utils import (
     start_time_to_seconds,
     add_static_version_key_column,
     add_parent_station_column,
-    remove_bus_records,
     unique_trip_stop_columns,
 )
 
 
-def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
+def get_vp_dataframe(
+    to_load: Union[str, List[str]], route_ids: List[str]
+) -> pandas.DataFrame:
     """
     return a dataframe from a vehicle position parquet file (or list of files)
     with expected columns without null data.
@@ -48,6 +49,7 @@ def get_vp_dataframe(to_load: Union[str, List[str]]) -> pandas.DataFrame:
         ("start_date", "!=", "None"),
         ("start_time", "!=", "None"),
         ("vehicle_id", "!=", "None"),
+        ("route_id", "in", route_ids),
     ]
 
     result = read_parquet(
@@ -193,7 +195,9 @@ def transform_vp_timestamps(
 
 
 def process_vp_files(
-    paths: Union[str, List[str]], db_manager: DatabaseManager
+    paths: Union[str, List[str]],
+    route_ids: List[str],
+    db_manager: DatabaseManager,
 ) -> pandas.DataFrame:
     """
     Generate a dataframe of Vehicle Events froom gtfs_rt vehicle position parquet files.
@@ -203,13 +207,12 @@ def process_vp_files(
     )
     process_logger.log_start()
 
-    vehicle_positions = get_vp_dataframe(paths)
+    vehicle_positions = get_vp_dataframe(paths, route_ids)
     if vehicle_positions.shape[0] > 0:
         vehicle_positions = transform_vp_datatypes(vehicle_positions)
         vehicle_positions = add_static_version_key_column(
             vehicle_positions, db_manager
         )
-        vehicle_positions = remove_bus_records(vehicle_positions, db_manager)
         vehicle_positions = add_parent_station_column(
             vehicle_positions, db_manager
         )

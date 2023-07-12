@@ -1,4 +1,5 @@
 from typing import Optional, List
+import datetime
 
 import numpy
 import pandas
@@ -6,9 +7,10 @@ import sqlalchemy as sa
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.postgres.postgres_schema import (
+    ServiceIdDates,
     StaticFeedInfo,
-    StaticStops,
     StaticRoutes,
+    StaticStops,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -183,46 +185,30 @@ def add_parent_station_column(
     return events_dataframe
 
 
-def remove_bus_records(
-    events_dataframe: pandas.DataFrame,
-    db_manager: DatabaseManager,
-) -> pandas.DataFrame:
+def rail_routes_from_timestamp(
+    timestamp: float, db_manager: DatabaseManager
+) -> List[str]:
     """
-    remove all records from dataframe associated with bus trips
+    get a list of rail route_ids that were in effect on a given service date
+    described by a timestamp.
 
-    events_dataframe must have "static_version_key" and "route_id" columns
-
-    route_type == 3 from the routes table indicates bus service, drop all records
-    assocated with route_type == 3
+    the service_id_dates table is used to figure out the correct static version
+    key for a given service date, using the key with the max value (the keys
+    are also timestamps). then pull all the static routes with type
     """
-    process_logger = ProcessLogger(
-        "gtfs_rt.remove_bus_records",
-        start_row_count=events_dataframe.shape[0],
+    date = datetime.datetime.utcfromtimestamp(timestamp)
+    service_date = f"{date.year:04}{date.month:02}{date.day:02}"
+
+    svk_subquery = (
+        sa.select(sa.func.max(ServiceIdDates.static_version_key))
+        .where(ServiceIdDates.service_date == service_date)
+        .scalar_subquery()
     )
-    process_logger.log_start()
-
-    # unique list of "static_version_key" values for pulling route info
-    lookup_v_keys = [
-        int(s_v_key)
-        for s_v_key in events_dataframe["static_version_key"].unique()
-    ]
-
-    # pull non-bus route_id's from RDS
-    non_bus_id_query = sa.select(
-        StaticRoutes.static_version_key,
-        StaticRoutes.route_id,
-    ).where(
-        StaticRoutes.static_version_key.in_(lookup_v_keys),
-        StaticRoutes.route_type != 3,
-    )
-    non_bus_ids = db_manager.select_as_dataframe(non_bus_id_query)
-
-    # join events on non-bus "route_id"s and "static_version_key" foreign key
-    events_dataframe = events_dataframe.merge(
-        non_bus_ids, how="inner", on=["static_version_key", "route_id"]
+    result = db_manager.execute(
+        sa.select(StaticRoutes.route_id).where(
+            StaticRoutes.route_type.in_([0, 1, 2]),
+            StaticRoutes.static_version_key == svk_subquery,
+        )
     )
 
-    process_logger.add_metadata(after_row_count=events_dataframe.shape[0])
-    process_logger.log_complete()
-
-    return events_dataframe
+    return [row[0] for row in result]
