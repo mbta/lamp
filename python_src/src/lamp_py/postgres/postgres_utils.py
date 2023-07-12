@@ -10,7 +10,7 @@ import pandas
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
-from lamp_py.aws.s3 import get_utc_from_partition_path
+from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .postgres_schema import MetadataLog
@@ -332,7 +332,7 @@ def get_unprocessed_files(
         for path_record in db_manager.select_as_list(read_md_log):
             path_id = path_record.get("pk_id")
             path = str(path_record.get("path"))
-            path_timestamp = get_utc_from_partition_path(path)
+            path_timestamp = get_datetime_from_partition_path(path).timestamp()
 
             if path_timestamp not in paths_to_load:
                 paths_to_load[path_timestamp] = {"ids": [], "paths": []}

@@ -306,7 +306,7 @@ def test_gtfs_rt_processing(
             assert "RT_VEHICLE_POSITIONS" in path
 
         # check that we can load the parquet file into a dataframe correctly
-        positions = get_vp_dataframe(files["vp_paths"], files["route_ids"])
+        positions = get_vp_dataframe(files["vp_paths"], db_manager)
         position_size = positions.shape[0]
         assert positions.shape[1] == 12
 
@@ -329,7 +329,7 @@ def test_gtfs_rt_processing(
         assert position_size > positions.shape[0]
 
         trip_updates = get_and_unwrap_tu_dataframe(
-            files["tu_paths"], files["route_ids"]
+            files["tu_paths"], db_manager
         )
         trip_update_size = trip_updates.shape[0]
         assert trip_updates.shape[1] == 8

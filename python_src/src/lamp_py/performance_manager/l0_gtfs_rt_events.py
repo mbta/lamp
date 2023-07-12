@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from lamp_py.aws.ecs import check_for_sigterm
-from lamp_py.aws.s3 import get_utc_from_partition_path
+from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.postgres.postgres_schema import (
     MetadataLog,
     TempEventCompare,
@@ -19,7 +19,7 @@ from lamp_py.postgres.postgres_utils import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .gtfs_utils import unique_trip_stop_columns, rail_routes_from_timestamp
+from .gtfs_utils import unique_trip_stop_columns
 from .l0_rt_trip_updates import process_tu_files
 from .l0_rt_vehicle_positions import process_vp_files
 from .l1_rt_trips import process_trips, load_new_trip_data
@@ -38,18 +38,21 @@ def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
 
     vp_files = get_unprocessed_files("RT_VEHICLE_POSITIONS", db_manager)
     for record in vp_files:
-        timestamp = get_utc_from_partition_path(record["paths"][0])
+        timestamp = get_datetime_from_partition_path(
+            record["paths"][0]
+        ).timestamp()
 
         grouped_files[timestamp] = {
             "ids": record["ids"],
             "vp_paths": record["paths"],
             "tu_paths": [],
-            "route_ids": rail_routes_from_timestamp(timestamp, db_manager),
         }
 
     tu_files = get_unprocessed_files("RT_TRIP_UPDATES", db_manager)
     for record in tu_files:
-        timestamp = get_utc_from_partition_path(record["paths"][0])
+        timestamp = get_datetime_from_partition_path(
+            record["paths"][0]
+        ).timestamp()
         if timestamp in grouped_files:
             grouped_files[timestamp]["ids"] += record["ids"]
             grouped_files[timestamp]["tu_paths"] += record["paths"]
@@ -58,7 +61,6 @@ def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
                 "ids": record["ids"],
                 "tu_paths": record["paths"],
                 "vp_paths": [],
-                "route_ids": rail_routes_from_timestamp(timestamp, db_manager),
             }
 
     process_logger.add_metadata(hours_found=len(grouped_files))
@@ -472,7 +474,6 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
                 # all events come from vp files. add tu key afterwards.
                 events = process_vp_files(
                     paths=files["vp_paths"],
-                    route_ids=files["route_ids"],
                     db_manager=db_manager,
                 )
                 events["tu_stop_timestamp"] = None
@@ -480,7 +481,6 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
                 # all events come from tu files. add vp keys afterwards.
                 events = process_tu_files(
                     paths=files["tu_paths"],
-                    route_ids=files["route_ids"],
                     db_manager=db_manager,
                 )
                 events["vp_move_timestamp"] = None
@@ -489,12 +489,10 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
                 # events come from tu and vp files. join them together.
                 vp_events = process_vp_files(
                     paths=files["vp_paths"],
-                    route_ids=files["route_ids"],
                     db_manager=db_manager,
                 )
                 tu_events = process_tu_files(
                     paths=files["tu_paths"],
-                    route_ids=files["route_ids"],
                     db_manager=db_manager,
                 )
                 events = combine_events(vp_events, tu_events)

@@ -11,16 +11,19 @@ from .gtfs_utils import (
     add_static_version_key_column,
     add_parent_station_column,
     unique_trip_stop_columns,
+    rail_routes_from_filepath,
 )
 
 
 def get_tu_dataframe_chunks(
-    to_load: Union[str, List[str]], route_ids: List[str]
+    to_load: Union[str, List[str]], db_manager: DatabaseManager
 ) -> Iterator[pandas.DataFrame]:
     """
     return interator of dataframe chunks from a trip updates parquet file
     (or list of files)
     """
+    route_ids = rail_routes_from_filepath(to_load, db_manager)
+
     trip_update_columns = [
         "timestamp",
         "stop_time_update",
@@ -108,7 +111,7 @@ def explode_stop_time_update(
 
 
 def get_and_unwrap_tu_dataframe(
-    paths: Union[str, List[str]], route_ids: List[str]
+    paths: Union[str, List[str]], db_manager: DatabaseManager
 ) -> pandas.DataFrame:
     """
     unwrap and explode trip updates records from parquet files
@@ -124,7 +127,7 @@ def get_and_unwrap_tu_dataframe(
     # per batch, this should result in ~5-6 GB of memory use per batch
     # after batch goes through explod_stop_time_update vectorize operation,
     # resulting Series has negligible memory use
-    for batch_events in get_tu_dataframe_chunks(paths, route_ids):
+    for batch_events in get_tu_dataframe_chunks(paths, db_manager):
         # store start_date as int64 and rename to service_date
         batch_events.rename(
             columns={"start_date": "service_date"}, inplace=True
@@ -213,7 +216,6 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
 
 def process_tu_files(
     paths: Union[str, List[str]],
-    route_ids: List[str],
     db_manager: DatabaseManager,
 ) -> pandas.DataFrame:
     """
@@ -224,7 +226,7 @@ def process_tu_files(
     )
     process_logger.log_start()
 
-    trip_updates = get_and_unwrap_tu_dataframe(paths, route_ids)
+    trip_updates = get_and_unwrap_tu_dataframe(paths, db_manager)
     if trip_updates.shape[0] > 0:
         trip_updates = add_static_version_key_column(trip_updates, db_manager)
         trip_updates = add_parent_station_column(trip_updates, db_manager)

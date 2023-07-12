@@ -11,11 +11,12 @@ from .gtfs_utils import (
     add_static_version_key_column,
     add_parent_station_column,
     unique_trip_stop_columns,
+    rail_routes_from_filepath,
 )
 
 
 def get_vp_dataframe(
-    to_load: Union[str, List[str]], route_ids: List[str]
+    to_load: Union[str, List[str]], db_manager: DatabaseManager
 ) -> pandas.DataFrame:
     """
     return a dataframe from a vehicle position parquet file (or list of files)
@@ -23,6 +24,8 @@ def get_vp_dataframe(
     """
     process_logger = ProcessLogger("vp.get_dataframe")
     process_logger.log_start()
+
+    route_ids = rail_routes_from_filepath(to_load, db_manager)
 
     vehicle_position_cols = [
         "current_status",
@@ -74,7 +77,7 @@ def transform_vp_datatypes(
     )
     process_logger.log_start()
 
-    # current_staus: 1 = MOVING, 0 = STOPPED_AT
+    # current_status: 1 = MOVING, 0 = STOPPED_AT
     vehicle_positions["is_moving"] = numpy.where(
         vehicle_positions["current_status"] != "STOPPED_AT", True, False
     ).astype(numpy.bool_)
@@ -196,18 +199,17 @@ def transform_vp_timestamps(
 
 def process_vp_files(
     paths: Union[str, List[str]],
-    route_ids: List[str],
     db_manager: DatabaseManager,
 ) -> pandas.DataFrame:
     """
-    Generate a dataframe of Vehicle Events froom gtfs_rt vehicle position parquet files.
+    Generate a dataframe of Vehicle Events from gtfs_rt vehicle position parquet files.
     """
     process_logger = ProcessLogger(
         "process_vehicle_positions", file_count=len(paths)
     )
     process_logger.log_start()
 
-    vehicle_positions = get_vp_dataframe(paths, route_ids)
+    vehicle_positions = get_vp_dataframe(paths, db_manager)
     if vehicle_positions.shape[0] > 0:
         vehicle_positions = transform_vp_datatypes(vehicle_positions)
         vehicle_positions = add_static_version_key_column(

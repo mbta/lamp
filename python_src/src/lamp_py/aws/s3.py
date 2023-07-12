@@ -279,7 +279,7 @@ def write_parquet_file(
     process_logger.log_complete()
 
 
-def get_utc_from_partition_path(path: str) -> float:
+def get_datetime_from_partition_path(path: str) -> datetime.datetime:
     """
     process datetime from partitioned s3 path return UTC timestamp
     """
@@ -289,17 +289,17 @@ def get_utc_from_partition_path(path: str) -> float:
         month = int(re.findall(r"month=(\d{1,2})", path)[0])
         day = int(re.findall(r"day=(\d{1,2})", path)[0])
         hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
-        date = datetime.datetime(
+        return_date = datetime.datetime(
             year=year,
             month=month,
             day=day,
             hour=hour,
             tzinfo=datetime.timezone.utc,
         )
-        return_date = datetime.datetime.timestamp(date)
     except IndexError as _:
         # handle gtfs static paths
-        return_date = float(re.findall(r"timestamp=(\d{10})", path)[0])
+        timestamp = float(re.findall(r"timestamp=(\d{10})", path)[0])
+        return_date = datetime.datetime.fromtimestamp(timestamp)
     return return_date
 
 
