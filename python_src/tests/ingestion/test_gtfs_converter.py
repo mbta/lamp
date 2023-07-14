@@ -398,10 +398,7 @@ def test_schedule_conversion(
     # processed correctly.
     gtfs_schedule_file_list = [os.path.join(incoming_dir, "MBTA_GTFS.zip")]
     converter.add_files(gtfs_schedule_file_list)
-    processed_files = converter.convert()
-
-    # check that the ingested file was returned back properly
-    assert processed_files == gtfs_schedule_file_list
+    converter.convert()
 
     # check through all of the paths that were "written" to s3 have the
     # appropriate format and that we "wrote" all of the tables.

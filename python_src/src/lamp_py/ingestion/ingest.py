@@ -18,12 +18,11 @@ class NoImplConverter(Converter):
     files.
     """
 
-    def convert(self) -> List[str]:
+    def convert(self) -> None:
         move_s3_objects(
             self.files,
             os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
         )
-        return self.files
 
 
 def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
@@ -36,14 +35,14 @@ def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
     return GtfsRtConverter(config_type, metadata_queue)
 
 
-def run_converter(converter: Converter) -> List[str]:
+def run_converter(converter: Converter) -> None:
     """
     Run converters in subprocess
     """
-    return converter.convert()
+    converter.convert()
 
 
-def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
+def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     """
     sort the incoming file list by type and create a converter for each type.
     each converter will ingest and convert its files in its own thread.
@@ -72,9 +71,8 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
 
     # GTFS Static Schedule must be processed first for performance manager to
     # work as expected
-    processed_static_files: List[str] = []
     if ConfigType.SCHEDULE in converters:
-        processed_static_files = converters[ConfigType.SCHEDULE].convert()
+        converters[ConfigType.SCHEDULE].convert()
         del converters[ConfigType.SCHEDULE]
 
     converters[ConfigType.ERROR] = NoImplConverter(
@@ -85,25 +83,17 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> List[str]:
     # The remaining converters can be run in parallel
     #
     # Using signal.signal to detect ECS termination and multiprocessing.Manager
-    # to manage the metadata queue along with multiprocessing.Poo.map causes
+    # to manage the metadata queue along with multiprocessing.Pool.map causes
     # inadvertent SIGTERM signals to be sent and blocks the main event loop. To
-    # fix this, we use multiprocessing.Pool.map_async. However, in getting the
-    # results, we seemingly enter a race condition between with ending the pool
-    # and # results.get() closing the pool which also sometimes leads to
-    # inadvertent SIGTERM signals. We use pool.close and pool.join to prevent
-    # this.
+    # fix this, we use multiprocessing.Pool.map_async. We use pool.close()
+    # and pool.join() to ensure all work has completed in pools.
     #
     # Also worth noting, this application is run on Ubuntu when run on ECS,
     # who's default subprocess start method is "fork". On OSX, this default is
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
-    processed_realtime_files: List[List[str]] = []
     with Pool(processes=len(converters)) as pool:
-        result = pool.map_async(run_converter, converters.values())
+        pool.map_async(run_converter, converters.values())
         pool.close()
         pool.join()
-        processed_realtime_files = result.get()
-
-    # join all of the lists of processed files into a single list and return
-    return sum(processed_realtime_files, processed_static_files)

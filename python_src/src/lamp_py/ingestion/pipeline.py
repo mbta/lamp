@@ -4,7 +4,6 @@ import logging
 import os
 import signal
 from multiprocessing import Queue
-from typing import List
 
 import time
 
@@ -67,7 +66,7 @@ def validate_environment() -> None:
     process_logger.log_complete()
 
 
-def ingest(metadata_queue: Queue) -> List[str]:
+def ingest(metadata_queue: Queue) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs files, convert each batch into tables, write the
@@ -83,44 +82,8 @@ def ingest(metadata_queue: Queue) -> List[str]:
         file_prefix=DEFAULT_S3_PREFIX,
     )
 
-    processed_files = ingest_files(files, metadata_queue)
+    ingest_files(files, metadata_queue)
 
-    process_logger.log_complete()
-
-    return processed_files
-
-
-def wait_for_deletion(filenames: List[str]) -> None:
-    """
-    wait for all of the files in the filenames list to be removed from the
-    incoming bucket. log how many files are still
-    """
-    process_logger = ProcessLogger(
-        "wait_for_deletion", file_count=len(filenames)
-    )
-    process_logger.log_start()
-
-    files_to_delete = set(filenames)
-    attempts = 0
-    while len(files_to_delete) > 0 and attempts < 5:
-        existing_files = set(
-            file_list_from_s3(
-                bucket_name=os.environ["INCOMING_BUCKET"],
-                file_prefix=DEFAULT_S3_PREFIX,
-            )
-        )
-
-        files_to_delete &= existing_files
-        if len(files_to_delete) == 0:
-            break
-
-        # increment attempts and wait 30 seconds to check again
-        attempts += 1
-        time.sleep(30)
-
-    process_logger.add_metadata(
-        attempts=attempts, files_not_deleted=list(files_to_delete)
-    )
     process_logger.log_complete()
 
 
@@ -132,7 +95,6 @@ def main() -> None:
     * on a loop
         * check to see if the pipeline should be terminated
         * ingest files from incoming s3 bucket
-        * ensure processed files have been moved
     """
     # start rds writer process
     # this will create only one rds engine while app is running
@@ -141,9 +103,8 @@ def main() -> None:
     # run the event loop every five minutes
     while True:
         check_for_sigterm(metadata_queue, rds_process)
-        processed_files = ingest(metadata_queue=metadata_queue)
+        ingest(metadata_queue=metadata_queue)
         check_for_sigterm(metadata_queue, rds_process)
-        wait_for_deletion(processed_files)
         time.sleep(60 * 5)
 
 
