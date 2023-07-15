@@ -83,9 +83,8 @@ class GtfsRtConverter(Converter):
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
-        self.moved_files: List[str] = []
 
-    def convert(self) -> List[str]:
+    def convert(self) -> None:
         max_tables_to_convert = 12
         process_logger = ProcessLogger(
             "parquet_table_creator",
@@ -115,8 +114,6 @@ class GtfsRtConverter(Converter):
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
-        finally:
-            return self.moved_files
 
     def thread_init(self) -> None:
         """
@@ -367,14 +364,12 @@ class GtfsRtConverter(Converter):
         move archive and error files to their respective s3 buckets.
         """
         if len(self.error_files) > 0:
-            self.moved_files += self.error_files
             self.error_files = move_s3_objects(
                 self.error_files,
                 os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
             )
 
         if len(self.archive_files) > 0:
-            self.moved_files += self.archive_files
             self.archive_files = move_s3_objects(
                 self.archive_files,
                 os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
