@@ -25,7 +25,7 @@ def start_time_to_seconds(
     return int(hour) * 3600 + int(minute) * 60 + int(second)
 
 
-def get_unique_trip_stop_columns() -> List[str]:
+def unique_trip_stop_columns() -> List[str]:
     """
     columns used to determine if a event is a unique trip stop
     """

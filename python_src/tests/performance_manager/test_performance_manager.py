@@ -16,7 +16,8 @@ from lamp_py.performance_manager.l0_gtfs_rt_events import (
     combine_events,
     get_gtfs_rt_paths,
     process_gtfs_rt_files,
-    upload_to_database,
+    build_temp_events,
+    update_events_from_temp,
 )
 from lamp_py.performance_manager.l0_rt_trip_updates import (
     get_and_unwrap_tu_dataframe,
@@ -382,7 +383,8 @@ def test_gtfs_rt_processing(
         missing_columns = set(events.columns) - expected_columns
         assert len(missing_columns) == 0
 
-        upload_to_database(events, db_manager)
+        build_temp_events(events, db_manager)
+        update_events_from_temp(db_manager)
 
     check_logs(caplog)
 

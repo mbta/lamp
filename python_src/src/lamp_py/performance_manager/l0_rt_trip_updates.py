@@ -11,7 +11,7 @@ from .gtfs_utils import (
     add_static_version_key_column,
     add_parent_station_column,
     remove_bus_records,
-    get_unique_trip_stop_columns,
+    unique_trip_stop_columns,
 )
 
 
@@ -180,7 +180,7 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
     )
     process_logger.log_start()
 
-    trip_stop_columns = get_unique_trip_stop_columns()
+    trip_stop_columns = unique_trip_stop_columns()
 
     # sort all trip updates by reverse timestamp, then drop all of the updates
     # for the same trip and same station but the first one. the first update will

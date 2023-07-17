@@ -11,7 +11,7 @@ from .gtfs_utils import (
     add_static_version_key_column,
     add_parent_station_column,
     remove_bus_records,
-    get_unique_trip_stop_columns,
+    unique_trip_stop_columns,
 )
 
 
@@ -118,8 +118,8 @@ def transform_vp_timestamps(
     convert raw vp data into a timestamped event data for each stop on a trip.
 
     this method will add
-    * "vp_move_timestamp" - when the vehicle begins moving towards the hashed stop
-    * "vp_stop_timestamp" - when the vehicle arrives at the hashed stop
+    * "vp_move_timestamp" - when the vehicle begins moving towards the event parent_staion
+    * "vp_stop_timestamp" - when the vehicle arrives at the event parent_station
 
     this method will remove "is_moving" and "vehicle_timestamp"
     """
@@ -128,7 +128,7 @@ def transform_vp_timestamps(
     )
     process_logger.log_start()
 
-    trip_stop_columns = get_unique_trip_stop_columns()
+    trip_stop_columns = unique_trip_stop_columns()
     # TODO: review trip_id processing # pylint: disable=fixme
     #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
 

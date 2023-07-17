@@ -6,25 +6,25 @@ from lamp_py.postgres.postgres_schema import (
     TempEventCompare,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from .l1_cte_statements import get_trips_for_metrics
+from .l1_cte_statements import trips_for_metrics_subquery
 
 
 # pylint: disable=R0914
 # pylint too many local variables (more than 15)
-def process_metrics_table(
+def update_metrics_columns(
     db_manager: DatabaseManager,
     seed_service_date: int,
     static_version_key: int,
 ) -> None:
     """
-    process updates to metrics table
+    update metrics columns in vehicle_events table for seed_service_date, static_version_key combination
 
     """
 
     process_logger = ProcessLogger("l1_rt_metrics_table_loader")
     process_logger.log_start()
 
-    trips_for_metrics = get_trips_for_metrics(
+    trips_for_metrics = trips_for_metrics_subquery(
         static_version_key, seed_service_date
     )
 
@@ -239,9 +239,10 @@ def process_metrics_table(
 # pylint: enable=R0914
 
 
-def process_metrics(db_manager: DatabaseManager) -> None:
+def update_metrics_from_temp_events(db_manager: DatabaseManager) -> None:
     """
-    insert and update metrics table
+    update daily metrics values for service_date, static_version_key combos in
+    temp_event_compare table
     """
     service_date_query = sa.select(
         TempEventCompare.service_date,
@@ -251,7 +252,7 @@ def process_metrics(db_manager: DatabaseManager) -> None:
     for result in db_manager.select_as_list(service_date_query):
         service_date = int(result["service_date"])
         static_version_key = int(result["static_version_key"])
-        process_metrics_table(
+        update_metrics_columns(
             db_manager=db_manager,
             seed_service_date=service_date,
             static_version_key=static_version_key,

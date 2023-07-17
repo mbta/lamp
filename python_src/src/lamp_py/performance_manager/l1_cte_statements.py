@@ -10,13 +10,12 @@ from lamp_py.postgres.postgres_schema import (
 )
 
 
-def get_static_trips_cte(
+def static_trips_subquery(
     static_version_key: int, service_date: int
 ) -> sa.sql.selectable.Subquery:
     """
-    return CTE named "static_trip_cte" representing all static trips on given service date
-
-    a "set" of static trips will be returned for every "static_version_key" key value.
+    return Selectable representing all static trips on
+    given service_date and static_version_key value combo
 
     created fields to be returned:
         - static_trip_first_stop (bool indicating first stop of trip)
@@ -111,13 +110,13 @@ def get_static_trips_cte(
             StaticRoutes.route_type != 3,
             ServiceIdDates.service_date == int(service_date),
         )
-        .subquery(name="static_trips_cte")
+        .subquery(name="static_trips_sub")
     )
 
 
-def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.Subquery:
+def rt_trips_subquery(service_date: int) -> sa.sql.selectable.Subquery:
     """
-    return CTE named "rt_trips_cte" representing all RT trips on a given service date
+    return Selectable representing all RT trips on a given service date
 
     created fields to be returned:
         - rt_trip_first_stop_flag (bool indicating first stop of trip by trip_hash)
@@ -179,99 +178,97 @@ def get_rt_trips_cte(service_date: int) -> sa.sql.selectable.Subquery:
                 VehicleEvents.vp_stop_timestamp.is_not(None),
             ),
         )
-    ).subquery(name="rt_trips_cte")
+    ).subquery(name="rt_trips_sub")
 
 
-def get_trips_for_metrics(
+def trips_for_metrics_subquery(
     static_version_key: int, service_date: int
 ) -> sa.sql.selectable.Subquery:
     """
-    return CTE named "trips_for_metrics" with fields needed to develop metrics tables
+    return Selectable named "trips_for_metrics" with fields needed to develop metrics tables
 
-    will return one record for every trip_stop_hash on 'service_date'
+    will return one record for every unique trip-stop on 'service_date'
 
-    joins rt_trips_cte to VehicleTrips on trip_hash field
-
-    then joins static_trips_cte on static_trip_id_guess, timestamp, parent_station and static_stop_rank,
+    joins rt_trips_sub to static_trips_sub on static_trip_id_guess, static_version_key, parent_station and static_stop_rank,
 
     the join with static_stop_rank is required for routes that may visit the same
     parent station more than once on the same route, I think this only occurs on
     bus routes, so we may be able to drop this for performance_manager
     """
 
-    static_trips_cte = get_static_trips_cte(static_version_key, service_date)
-    rt_trips_cte = get_rt_trips_cte(service_date)
+    static_trips_sub = static_trips_subquery(static_version_key, service_date)
+    rt_trips_sub = rt_trips_subquery(service_date)
 
     return (
         sa.select(
-            rt_trips_cte.c.static_version_key,
-            rt_trips_cte.c.pm_trip_id,
-            rt_trips_cte.c.service_date,
-            rt_trips_cte.c.direction_id,
-            rt_trips_cte.c.route_id,
-            rt_trips_cte.c.branch_route_id,
-            rt_trips_cte.c.trunk_route_id,
-            rt_trips_cte.c.stop_count,
-            rt_trips_cte.c.start_time,
-            rt_trips_cte.c.vehicle_id,
-            rt_trips_cte.c.parent_station,
-            rt_trips_cte.c.vp_move_timestamp.label("move_timestamp"),
+            rt_trips_sub.c.static_version_key,
+            rt_trips_sub.c.pm_trip_id,
+            rt_trips_sub.c.service_date,
+            rt_trips_sub.c.direction_id,
+            rt_trips_sub.c.route_id,
+            rt_trips_sub.c.branch_route_id,
+            rt_trips_sub.c.trunk_route_id,
+            rt_trips_sub.c.stop_count,
+            rt_trips_sub.c.start_time,
+            rt_trips_sub.c.vehicle_id,
+            rt_trips_sub.c.parent_station,
+            rt_trips_sub.c.vp_move_timestamp.label("move_timestamp"),
             sa.func.coalesce(
-                rt_trips_cte.c.vp_stop_timestamp,
-                rt_trips_cte.c.tu_stop_timestamp,
+                rt_trips_sub.c.vp_stop_timestamp,
+                rt_trips_sub.c.tu_stop_timestamp,
             ).label("stop_timestamp"),
             sa.func.coalesce(
-                rt_trips_cte.c.vp_move_timestamp,
-                rt_trips_cte.c.vp_stop_timestamp,
-                rt_trips_cte.c.tu_stop_timestamp,
+                rt_trips_sub.c.vp_move_timestamp,
+                rt_trips_sub.c.vp_stop_timestamp,
+                rt_trips_sub.c.tu_stop_timestamp,
             ).label("sort_timestamp"),
             sa.func.coalesce(
-                static_trips_cte.c.static_trip_first_stop,
-                rt_trips_cte.c.rt_trip_first_stop_flag,
+                static_trips_sub.c.static_trip_first_stop,
+                rt_trips_sub.c.rt_trip_first_stop_flag,
             ).label("first_stop_flag"),
             sa.func.coalesce(
-                static_trips_cte.c.static_trip_last_stop,
-                rt_trips_cte.c.rt_trip_last_stop_flag,
+                static_trips_sub.c.static_trip_last_stop,
+                rt_trips_sub.c.rt_trip_last_stop_flag,
             ).label("last_stop_flag"),
             sa.func.coalesce(
-                static_trips_cte.c.static_trip_stop_rank,
-                rt_trips_cte.c.rt_trip_stop_rank,
+                static_trips_sub.c.static_trip_stop_rank,
+                rt_trips_sub.c.rt_trip_stop_rank,
             ).label("stop_rank"),
-            sa.func.lead(rt_trips_cte.c.vp_move_timestamp)
+            sa.func.lead(rt_trips_sub.c.vp_move_timestamp)
             .over(
-                partition_by=rt_trips_cte.c.vehicle_id,
+                partition_by=rt_trips_sub.c.vehicle_id,
                 order_by=sa.func.coalesce(
-                    rt_trips_cte.c.vp_move_timestamp,
-                    rt_trips_cte.c.vp_stop_timestamp,
-                    rt_trips_cte.c.tu_stop_timestamp,
+                    rt_trips_sub.c.vp_move_timestamp,
+                    rt_trips_sub.c.vp_stop_timestamp,
+                    rt_trips_sub.c.tu_stop_timestamp,
                 ),
             )
             .label("next_station_move"),
         )
         .distinct(
-            rt_trips_cte.c.service_date,
-            rt_trips_cte.c.pm_trip_id,
-            rt_trips_cte.c.parent_station,
+            rt_trips_sub.c.service_date,
+            rt_trips_sub.c.pm_trip_id,
+            rt_trips_sub.c.parent_station,
         )
-        .select_from(rt_trips_cte)
+        .select_from(rt_trips_sub)
         .join(
-            static_trips_cte,
+            static_trips_sub,
             sa.and_(
-                rt_trips_cte.c.static_trip_id_guess
-                == static_trips_cte.c.static_trip_id,
-                rt_trips_cte.c.static_version_key
-                == static_trips_cte.c.static_version_key,
-                rt_trips_cte.c.parent_station
-                == static_trips_cte.c.parent_station,
-                rt_trips_cte.c.rt_trip_stop_rank
-                >= static_trips_cte.c.static_trip_stop_rank,
+                rt_trips_sub.c.static_trip_id_guess
+                == static_trips_sub.c.static_trip_id,
+                rt_trips_sub.c.static_version_key
+                == static_trips_sub.c.static_version_key,
+                rt_trips_sub.c.parent_station
+                == static_trips_sub.c.parent_station,
+                rt_trips_sub.c.rt_trip_stop_rank
+                >= static_trips_sub.c.static_trip_stop_rank,
             ),
             isouter=True,
         )
         .order_by(
-            rt_trips_cte.c.service_date,
-            rt_trips_cte.c.pm_trip_id,
-            rt_trips_cte.c.parent_station,
-            static_trips_cte.c.static_trip_stop_rank,
+            rt_trips_sub.c.service_date,
+            rt_trips_sub.c.pm_trip_id,
+            rt_trips_sub.c.parent_station,
+            static_trips_sub.c.static_trip_stop_rank,
         )
     ).subquery(name="trip_for_metrics")

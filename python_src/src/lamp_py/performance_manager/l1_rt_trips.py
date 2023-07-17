@@ -11,7 +11,7 @@ from lamp_py.postgres.postgres_schema import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .l1_cte_statements import (
-    get_static_trips_cte,
+    static_trips_subquery,
 )
 
 
@@ -365,7 +365,7 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_sub = get_static_trips_cte(
+    static_trips_sub = static_trips_subquery(
         static_version_key, seed_service_date
     )
 

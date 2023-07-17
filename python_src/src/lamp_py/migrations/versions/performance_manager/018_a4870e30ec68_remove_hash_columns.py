@@ -177,8 +177,7 @@ def upgrade() -> None:
         CREATE OR REPLACE VIEW opmi_all_rt_fields_joined AS 
         SELECT
             vt.service_date
-            , ve.pm_trip_id as trip_hash
-            , NULL as trip_stop_hash
+            , ve.pm_trip_id
             , ve.stop_sequence
             , ve.stop_id
             , LAG (ve.stop_id, 1) OVER (PARTITION BY ve.pm_trip_id ORDER BY COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp, ve.vp_move_timestamp)) as previous_stop_id
