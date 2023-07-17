@@ -15,7 +15,6 @@ from lamp_py.runtime_utils.alembic_migration import (
 
 from .postgres_schema import (
     MetadataLog,
-    VehicleEventMetrics,
     VehicleEvents,
     VehicleTrips,
 )
@@ -90,7 +89,6 @@ def run() -> None:
         alembic_upgrade_to_head("performance_manager")
     elif parsed_args.clear_rt:
         db_manager.truncate_table(VehicleTrips)
-        db_manager.truncate_table(VehicleEventMetrics)
         db_manager.truncate_table(VehicleEvents, restart_identity=True)
 
         db_manager.execute(

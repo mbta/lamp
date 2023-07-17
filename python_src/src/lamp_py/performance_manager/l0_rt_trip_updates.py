@@ -7,11 +7,11 @@ from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import (
-    add_event_hash_column,
     start_time_to_seconds,
     add_static_version_key_column,
     add_parent_station_column,
     remove_bus_records,
+    unique_trip_stop_columns,
 )
 
 
@@ -30,7 +30,6 @@ def get_tu_dataframe_chunks(
         "start_date",
         "start_time",
         "vehicle_id",
-        "trip_id",
     ]
     trip_update_filters = [
         ("direction_id", "in", (0, 1)),
@@ -59,7 +58,6 @@ def explode_stop_time_update(
     service_date: int,
     start_time: int,
     vehicle_id: Any,
-    trip_id: Any,
 ) -> Optional[List[dict]]:
     """
     explode nested list of dicts in stop_time_update column
@@ -73,7 +71,6 @@ def explode_stop_time_update(
         "service_date": service_date,
         "start_time": start_time,
         "vehicle_id": vehicle_id,
-        "trip_id": trip_id,
     }
     return_list: List[Dict[str, Any]] = []
 
@@ -96,7 +93,6 @@ def explode_stop_time_update(
         append_dict.update(
             {
                 "stop_id": record.get("stop_id"),
-                "stop_sequence": record.get("stop_sequence"),
                 "tu_stop_timestamp": arrival_time,
             }
         )
@@ -162,7 +158,6 @@ def get_and_unwrap_tu_dataframe(
                 batch_events.service_date,
                 batch_events.start_time,
                 batch_events.vehicle_id,
-                batch_events.trip_id,
             )
         ).dropna()
         events = pandas.concat([events, batch_events])
@@ -178,47 +173,35 @@ def get_and_unwrap_tu_dataframe(
 
 def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
     """
-    add in the "trip_stop_hash" into trip updates and reduce the data frame to
-    a single record per trip / stop.
+    reduce the data frame to a single record per trip / stop.
     """
     process_logger = ProcessLogger(
         "tu.reduce", start_row_count=trip_updates.shape[0]
     )
     process_logger.log_start()
 
-    # add trip_stop_hash column that is unique to a trip and station
-    trip_updates = add_event_hash_column(
-        trip_updates,
-        hash_column_name="trip_stop_hash",
-        expected_hash_columns=[
-            "stop_sequence",
-            "parent_station",
-            "direction_id",
-            "route_id",
-            "service_date",
-            "start_time",
-            "vehicle_id",
-        ],
-    )
+    trip_stop_columns = unique_trip_stop_columns()
 
     # sort all trip updates by reverse timestamp, then drop all of the updates
     # for the same trip and same station but the first one. the first update will
     # be the most recent arrival time prediction
     trip_updates = trip_updates.sort_values(by=["timestamp"], ascending=False)
     trip_updates = trip_updates.drop_duplicates(
-        subset=["trip_stop_hash"], keep="first"
+        subset=trip_stop_columns, keep="first"
     )
 
-    # after hash and sort, "timestamp" longer needed
+    # after group and sort, "timestamp" longer needed
     trip_updates = trip_updates.drop(columns=["timestamp"])
 
     trip_updates["tu_stop_timestamp"] = trip_updates[
         "tu_stop_timestamp"
     ].astype("Int64")
 
-    # add vehicle_lable and vehicle_consist columns
+    # add selected columns
     # trip_updates and vehicle_positions dataframes must all have the same columns
     # available to be correctly joined in combine_events function of l0_gtfs_rt_events.py
+    trip_updates["trip_id"] = None
+    trip_updates["stop_sequence"] = None
     trip_updates["vehicle_label"] = None
     trip_updates["vehicle_consist"] = None
 
@@ -240,10 +223,11 @@ def process_tu_files(
     process_logger.log_start()
 
     trip_updates = get_and_unwrap_tu_dataframe(paths)
-    trip_updates = add_static_version_key_column(trip_updates, db_manager)
-    trip_updates = remove_bus_records(trip_updates, db_manager)
-    trip_updates = add_parent_station_column(trip_updates, db_manager)
-    trip_updates = reduce_trip_updates(trip_updates)
+    if trip_updates.shape[0] > 0:
+        trip_updates = add_static_version_key_column(trip_updates, db_manager)
+        trip_updates = remove_bus_records(trip_updates, db_manager)
+        trip_updates = add_parent_station_column(trip_updates, db_manager)
+        trip_updates = reduce_trip_updates(trip_updates)
 
     process_logger.add_metadata(vehicle_events_count=trip_updates.shape[0])
     process_logger.log_complete()

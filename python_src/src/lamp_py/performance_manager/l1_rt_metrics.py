@@ -1,55 +1,56 @@
-from typing import List
-
-import numpy
-import pandas
 import sqlalchemy as sa
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.postgres.postgres_schema import (
-    VehicleEventMetrics,
+    VehicleEvents,
+    TempEventCompare,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from .l1_cte_statements import get_trips_for_metrics
+from .l1_cte_statements import trips_for_metrics_subquery
 
 
 # pylint: disable=R0914
 # pylint too many local variables (more than 15)
-def process_metrics_table(
+def update_metrics_columns(
     db_manager: DatabaseManager,
     seed_service_date: int,
-    version_keys: List[int],
+    static_version_key: int,
 ) -> None:
     """
-    process updates to metrics table
+    update metrics columns in vehicle_events table for seed_service_date, static_version_key combination
 
     """
 
     process_logger = ProcessLogger("l1_rt_metrics_table_loader")
     process_logger.log_start()
 
-    trips_for_metrics = get_trips_for_metrics(version_keys, seed_service_date)
+    trips_for_metrics = trips_for_metrics_subquery(
+        static_version_key, seed_service_date
+    )
 
     # travel_times calculation:
     # limited to records where stop_timestamp > move_timestamp to avoid negative travel times
     # limited to non NULL stop and move timestamps to avoid NULL results
     # negative travel times are error records, should flag???
-    travel_times_cte = (
-        sa.select(
-            trips_for_metrics.c.trip_stop_hash,
-            (
-                trips_for_metrics.c.stop_timestamp
-                - trips_for_metrics.c.move_timestamp
-            ).label("travel_time_seconds"),
+    update_travel_times = (
+        sa.update(VehicleEvents.__table__)
+        .values(
+            travel_time_seconds=trips_for_metrics.c.stop_timestamp
+            - trips_for_metrics.c.move_timestamp
         )
         .where(
+            VehicleEvents.pm_trip_id == trips_for_metrics.c.pm_trip_id,
+            VehicleEvents.service_date == trips_for_metrics.c.service_date,
+            VehicleEvents.parent_station == trips_for_metrics.c.parent_station,
             trips_for_metrics.c.first_stop_flag == sa.false(),
             trips_for_metrics.c.stop_timestamp.is_not(None),
             trips_for_metrics.c.move_timestamp.is_not(None),
             trips_for_metrics.c.stop_timestamp
             > trips_for_metrics.c.move_timestamp,
         )
-        .cte(name="travel_times")
     )
+
+    db_manager.execute(update_travel_times)
 
     # dwell_times calculations are different for the first stop of a trip
     # the first stop of a trip includes the dwell time since the stop_timestamp of
@@ -58,14 +59,16 @@ def process_metrics_table(
     # all remaining dwell_times calculations are based on subtracting the a stop_timestamp
     # of a vehicle from the next move_timestamp of a vehicle
     #
-    # the where statement of this CTE filters out any vehicle trips comprised of only 1 stop
+    # the where statement of this query filters out any vehicle trips comprised of only 1 stop
     # on the assumption that those are not valid trips to include in the metrics calculations
     #
     # for consecutive trips that do not have same vehicle ID the first_stop headway
     # logic could have issues
-    t_dwell_times_cte = (
+    t_dwell_times_sub = (
         sa.select(
-            trips_for_metrics.c.trip_stop_hash,
+            trips_for_metrics.c.pm_trip_id,
+            trips_for_metrics.c.service_date,
+            trips_for_metrics.c.parent_station,
             sa.case(
                 [
                     (
@@ -106,34 +109,39 @@ def process_metrics_table(
                 trips_for_metrics.c.first_stop_flag == sa.false(),
             ),
         )
-        .cte(name="t_dwell_times")
+        .subquery(name="t_dwell_times")
     )
 
     # limit dwell times calculations to NON-NULL positive integers
-    # would be nice if this could be done in the first CTE, but I can't
+    # would be nice if this could be done in the first query, but I can't
     # get it to work with sqlalchemy
-    dwell_times_cte = (
-        sa.select(
-            t_dwell_times_cte.c.trip_stop_hash,
-            t_dwell_times_cte.c.dwell_time_seconds,
+    update_dwell_times = (
+        sa.update(VehicleEvents.__table__)
+        .values(
+            dwell_time_seconds=t_dwell_times_sub.c.dwell_time_seconds,
         )
         .where(
-            t_dwell_times_cte.c.dwell_time_seconds.is_not(None),
-            t_dwell_times_cte.c.dwell_time_seconds > 0,
+            VehicleEvents.pm_trip_id == t_dwell_times_sub.c.pm_trip_id,
+            VehicleEvents.service_date == t_dwell_times_sub.c.service_date,
+            VehicleEvents.parent_station == t_dwell_times_sub.c.parent_station,
+            t_dwell_times_sub.c.dwell_time_seconds.is_not(None),
+            t_dwell_times_sub.c.dwell_time_seconds > 0,
         )
-        .cte(name="dwell_times")
     )
+    db_manager.execute(update_dwell_times)
 
-    # this headways CTE calculation is incomplete
+    # this headways calculation is incomplete
     #
     # trunk and branch headways are the same except for one is partitioned on
     # trunk_route_id and the later on branch_route_id.
     #
     # headways are calculated with stop_timestamp to stop_timestamp for the
     # next station in a trip
-    t_headways_branch_cte = (
+    t_headways_branch_sub = (
         sa.select(
-            trips_for_metrics.c.trip_stop_hash,
+            trips_for_metrics.c.pm_trip_id,
+            trips_for_metrics.c.service_date,
+            trips_for_metrics.c.parent_station,
             (
                 trips_for_metrics.c.next_station_move
                 - sa.func.lag(
@@ -155,27 +163,33 @@ def process_metrics_table(
             ),
             trips_for_metrics.c.branch_route_id.is_not(None),
         )
-        .cte(name="t_headways_branch")
+        .subquery(name="t_headways_branch")
     )
 
     # limit headways branch calculations to NON-NULL positive integers
-    # would be nice if this could be done in the first CTE, but I can't
+    # would be nice if this could be done in the first query, but I can't
     # get it to work with sqlalchemy
-    headways_branch_cte = (
-        sa.select(
-            t_headways_branch_cte.c.trip_stop_hash,
-            t_headways_branch_cte.c.headway_branch_seconds,
+    update_branch_headways = (
+        sa.update(VehicleEvents.__table__)
+        .values(
+            headway_branch_seconds=t_headways_branch_sub.c.headway_branch_seconds
         )
         .where(
-            t_headways_branch_cte.c.headway_branch_seconds.is_not(None),
-            t_headways_branch_cte.c.headway_branch_seconds > 0,
+            VehicleEvents.pm_trip_id == t_headways_branch_sub.c.pm_trip_id,
+            VehicleEvents.service_date == t_headways_branch_sub.c.service_date,
+            VehicleEvents.parent_station
+            == t_headways_branch_sub.c.parent_station,
+            t_headways_branch_sub.c.headway_branch_seconds.is_not(None),
+            t_headways_branch_sub.c.headway_branch_seconds > 0,
         )
-        .cte(name="headways_branch")
     )
+    db_manager.execute(update_branch_headways)
 
-    t_headways_trunk_cte = (
+    t_headways_trunk_sub = (
         sa.select(
-            trips_for_metrics.c.trip_stop_hash,
+            trips_for_metrics.c.pm_trip_id,
+            trips_for_metrics.c.service_date,
+            trips_for_metrics.c.parent_station,
             (
                 trips_for_metrics.c.next_station_move
                 - sa.func.lag(
@@ -197,172 +211,27 @@ def process_metrics_table(
             ),
             trips_for_metrics.c.trunk_route_id.is_not(None),
         )
-        .cte(name="t_headways_trunk")
+        .subquery(name="t_headways_trunk")
     )
 
     # limit headways trunk calculations to NON-NULL positive integers
     # would be nice if this could be done in the first CTE, but I can't
     # get it to work with sqlalchemy
-    headways_trunk_cte = (
-        sa.select(
-            t_headways_trunk_cte.c.trip_stop_hash,
-            t_headways_trunk_cte.c.headway_trunk_seconds,
+    update_trunk_headways = (
+        sa.update(VehicleEvents.__table__)
+        .values(
+            headway_trunk_seconds=t_headways_trunk_sub.c.headway_trunk_seconds
         )
         .where(
-            t_headways_trunk_cte.c.headway_trunk_seconds.is_not(None),
-            t_headways_trunk_cte.c.headway_trunk_seconds > 0,
-        )
-        .cte(name="headways_trunk")
-    )
-
-    # all_new_metrics combines travel_times, dwell_times and headways into one result set
-    # previous CTE's ensure that individual input tables will not have null or negative values
-    # would be nice to be able to use USING instead of COALESCE function for combining multiple
-    # tables with same key, but I can't locate support in sqlalchemy
-    all_new_metrics = (
-        sa.select(
-            sa.func.coalesce(
-                travel_times_cte.c.trip_stop_hash,
-                dwell_times_cte.c.trip_stop_hash,
-                headways_branch_cte.c.trip_stop_hash,
-                headways_trunk_cte.c.trip_stop_hash,
-            ).label("trip_stop_hash"),
-            travel_times_cte.c.travel_time_seconds,
-            dwell_times_cte.c.dwell_time_seconds,
-            headways_branch_cte.c.headway_branch_seconds,
-            headways_trunk_cte.c.headway_trunk_seconds,
-        )
-        .select_from(
-            travel_times_cte,
-        )
-        .join(
-            dwell_times_cte,
-            travel_times_cte.c.trip_stop_hash
-            == dwell_times_cte.c.trip_stop_hash,
-            full=True,
-        )
-        .join(
-            headways_branch_cte,
-            sa.func.coalesce(
-                travel_times_cte.c.trip_stop_hash,
-                dwell_times_cte.c.trip_stop_hash,
-            )
-            == headways_branch_cte.c.trip_stop_hash,
-            full=True,
-        )
-        .join(
-            headways_trunk_cte,
-            sa.func.coalesce(
-                travel_times_cte.c.trip_stop_hash,
-                dwell_times_cte.c.trip_stop_hash,
-                headways_branch_cte.c.trip_stop_hash,
-            )
-            == headways_trunk_cte.c.trip_stop_hash,
-            full=True,
-        )
-    ).cte(name="all_new_metrics")
-
-    # update / insert logic matches what is done for the trips table
-    # all_new_metrics are matched to existing RDS records by trip_stop_hash
-    # and flagged for update, if needed
-    update_insert_query = (
-        sa.select(
-            all_new_metrics.c.trip_stop_hash,
-            VehicleEventMetrics.trip_stop_hash.label("existing_trip_stop_hash"),
-            all_new_metrics.c.travel_time_seconds,
-            all_new_metrics.c.dwell_time_seconds,
-            all_new_metrics.c.headway_branch_seconds,
-            all_new_metrics.c.headway_trunk_seconds,
-            sa.case(
-                [
-                    (
-                        sa.or_(
-                            all_new_metrics.c.travel_time_seconds
-                            != VehicleEventMetrics.travel_time_seconds,
-                            all_new_metrics.c.dwell_time_seconds
-                            != VehicleEventMetrics.dwell_time_seconds,
-                            all_new_metrics.c.headway_branch_seconds
-                            != VehicleEventMetrics.headway_branch_seconds,
-                            all_new_metrics.c.headway_trunk_seconds
-                            != VehicleEventMetrics.headway_trunk_seconds,
-                        ),
-                        sa.literal(True),
-                    )
-                ],
-                else_=sa.literal(False),
-            ).label("to_update"),
-        )
-        .select_from(all_new_metrics)
-        .join(
-            VehicleEventMetrics,
-            all_new_metrics.c.trip_stop_hash
-            == VehicleEventMetrics.trip_stop_hash,
-            isouter=True,
+            VehicleEvents.pm_trip_id == t_headways_trunk_sub.c.pm_trip_id,
+            VehicleEvents.service_date == t_headways_trunk_sub.c.service_date,
+            VehicleEvents.parent_station
+            == t_headways_trunk_sub.c.parent_station,
+            t_headways_trunk_sub.c.headway_trunk_seconds.is_not(None),
+            t_headways_trunk_sub.c.headway_trunk_seconds > 0,
         )
     )
-
-    # this logic is again very similar to trips dataframe insert/update operation
-    # some possibility of removing duplicate code and having common insert/update
-    # function
-    update_insert_metrics = db_manager.select_as_dataframe(update_insert_query)
-
-    if update_insert_metrics.shape[0] == 0:
-        process_logger.add_metadata(
-            metric_insert_count=0,
-            metric_update_count=0,
-        )
-        process_logger.log_complete()
-        return
-
-    update_insert_metrics["travel_time_seconds"] = update_insert_metrics[
-        "travel_time_seconds"
-    ].astype("Int64")
-    update_insert_metrics["dwell_time_seconds"] = update_insert_metrics[
-        "dwell_time_seconds"
-    ].astype("Int64")
-    update_insert_metrics["headway_branch_seconds"] = update_insert_metrics[
-        "headway_branch_seconds"
-    ].astype("Int64")
-    update_insert_metrics["headway_trunk_seconds"] = update_insert_metrics[
-        "headway_trunk_seconds"
-    ].astype("Int64")
-    update_insert_metrics = update_insert_metrics.fillna(numpy.nan).replace(
-        [numpy.nan], [None]
-    )
-
-    update_mask = (
-        update_insert_metrics["existing_trip_stop_hash"].notna()
-    ) & numpy.equal(update_insert_metrics["to_update"], True)
-    insert_mask = update_insert_metrics["existing_trip_stop_hash"].isna()
-
-    process_logger.add_metadata(
-        metric_insert_count=insert_mask.sum(),
-        metric_update_count=update_mask.sum(),
-    )
-
-    db_columns = [
-        "trip_stop_hash",
-        "travel_time_seconds",
-        "dwell_time_seconds",
-        "headway_branch_seconds",
-        "headway_trunk_seconds",
-    ]
-    if update_mask.sum() > 0:
-        db_manager.execute_with_data(
-            sa.update(VehicleEventMetrics.__table__).where(
-                VehicleEventMetrics.trip_stop_hash
-                == sa.bindparam("b_trip_stop_hash"),
-            ),
-            update_insert_metrics.loc[update_mask, db_columns].rename(
-                columns={"trip_stop_hash": "b_trip_stop_hash"}
-            ),
-        )
-
-    if insert_mask.sum() > 0:
-        db_manager.execute_with_data(
-            sa.insert(VehicleEventMetrics.__table__),
-            update_insert_metrics.loc[insert_mask, db_columns],
-        )
+    db_manager.execute(update_trunk_headways)
 
     process_logger.log_complete()
 
@@ -370,22 +239,21 @@ def process_metrics_table(
 # pylint: enable=R0914
 
 
-def process_metrics(
-    db_manager: DatabaseManager, events: pandas.DataFrame
-) -> None:
+def update_metrics_from_temp_events(db_manager: DatabaseManager) -> None:
     """
-    insert and update metrics table
+    update daily metrics values for service_date, static_version_key combos in
+    temp_event_compare table
     """
-    for service_date in events["service_date"].unique():
-        version_keys = [
-            int(s_d)
-            for s_d in events.loc[
-                events["service_date"] == service_date, "static_version_key"
-            ].unique()
-        ]
+    service_date_query = sa.select(
+        TempEventCompare.service_date,
+        TempEventCompare.static_version_key,
+    ).distinct()
 
-        process_metrics_table(
-            db_manager,
-            seed_service_date=int(service_date),
-            version_keys=version_keys,
+    for result in db_manager.select_as_list(service_date_query):
+        service_date = int(result["service_date"])
+        static_version_key = int(result["static_version_key"])
+        update_metrics_columns(
+            db_manager=db_manager,
+            seed_service_date=service_date,
+            static_version_key=static_version_key,
         )

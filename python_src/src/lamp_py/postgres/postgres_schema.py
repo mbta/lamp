@@ -17,15 +17,12 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "vehicle_events"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True)
-
-    # hash of trip identifiers
-    trip_hash = sa.Column(
-        sa.LargeBinary(16), nullable=False, index=True, unique=False
-    )
+    # trip identifiers
+    service_date = sa.Column(sa.Integer, nullable=False)
+    pm_trip_id = sa.Column(sa.Integer, nullable=False)
 
     # stop identifiers
-    stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
+    stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=False)
     parent_station = sa.Column(sa.String(60), nullable=False)
 
@@ -33,17 +30,35 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     # previous_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
     # next_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
 
-    # hash of trip and stop identifiers
-    trip_stop_hash = sa.Column(
-        sa.LargeBinary(16), nullable=False, index=True, unique=True
-    )
-
     # event timestamps used for metrics
     vp_move_timestamp = sa.Column(sa.Integer, nullable=True)
     vp_stop_timestamp = sa.Column(sa.Integer, nullable=True)
     tu_stop_timestamp = sa.Column(sa.Integer, nullable=True)
 
+    # event metrics values
+    travel_time_seconds = sa.Column(sa.Integer, nullable=True)
+    dwell_time_seconds = sa.Column(sa.Integer, nullable=True)
+    headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
+    headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
+
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+
+    __mapper_args__ = {
+        "primary_key": [
+            service_date,
+            pm_trip_id,
+            parent_station,
+        ]
+    }
+
+
+sa.Index(
+    "ix_vehicle_events_composite_1",
+    VehicleEvents.service_date,
+    VehicleEvents.pm_trip_id,
+    VehicleEvents.parent_station,
+    unique=True,
+)
 
 
 class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
@@ -53,18 +68,25 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "vehicle_trips"
 
-    trip_hash = sa.Column(sa.LargeBinary(16), nullable=False, primary_key=True)
+    pm_trip_id = sa.Column(
+        sa.Integer,
+        nullable=False,
+        server_default=sa.Identity(
+            always=True, start=1, increment=1, cycle=False
+        ),
+    )
 
     # trip identifiers
-    direction_id = sa.Column(sa.Boolean, nullable=False)
-    route_id = sa.Column(sa.String(60), nullable=False)
-    branch_route_id = sa.Column(sa.String(60), nullable=True)
-    trunk_route_id = sa.Column(sa.String(60), nullable=True)
     service_date = sa.Column(sa.Integer, nullable=False)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    direction_id = sa.Column(sa.Boolean, nullable=False)
     start_time = sa.Column(sa.Integer, nullable=False)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
-    stop_count = sa.Column(sa.SmallInteger, nullable=True)
 
+    # additional trip information
+    branch_route_id = sa.Column(sa.String(60), nullable=True)
+    trunk_route_id = sa.Column(sa.String(60), nullable=True)
+    stop_count = sa.Column(sa.SmallInteger, nullable=True)
     trip_id = sa.Column(sa.String(128), nullable=True)
     vehicle_label = sa.Column(sa.String(128), nullable=True)
     vehicle_consist = sa.Column(sa.String(), nullable=True)
@@ -88,32 +110,72 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
 
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
+    __mapper_args__ = {
+        "primary_key": [
+            service_date,
+            pm_trip_id,
+        ]
+    }
 
-class VehicleEventMetrics(SqlBase):  # pylint: disable=too-few-public-methods
-    """
-    Tables that holds pre-computed metrics for GTFS-RT Events
-    """
-
-    __tablename__ = "vehicle_event_metrics"
-
-    trip_stop_hash = sa.Column(
-        sa.LargeBinary(16), nullable=False, primary_key=True
+    __table_args__ = (
+        sa.UniqueConstraint(
+            service_date,
+            route_id,
+            direction_id,
+            start_time,
+            vehicle_id,
+            name="vehicle_trips_unique_trip",
+        ),
     )
 
-    travel_time_seconds = sa.Column(sa.Integer, nullable=True)
-    dwell_time_seconds = sa.Column(sa.Integer, nullable=True)
-    headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
-    headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
 
-    updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
+sa.Index(
+    "ix_vehicle_trips_composite_1",
+    VehicleTrips.route_id,
+    VehicleTrips.direction_id,
+    VehicleTrips.vehicle_id,
+)
 
 
-class TempHashCompare(SqlBase):  # pylint: disable=too-few-public-methods
+class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
     """Hold temporary hash values for comparison to Vehicle Events table"""
 
-    __tablename__ = "temp_hash_compare"
+    __tablename__ = "temp_event_compare"
 
-    hash = sa.Column(sa.LargeBinary(16), primary_key=True, nullable=False)
+    do_update = sa.Column(sa.Boolean, default=False)
+    do_insert = sa.Column(sa.Boolean, default=False)
+
+    pk_id = sa.Column(sa.Integer, primary_key=True)
+    new_trip = sa.Column(sa.Boolean, default=False)
+    pm_trip_id = sa.Column(sa.Integer, nullable=True)
+
+    # trip identifiers
+    service_date = sa.Column(sa.Integer, nullable=False)
+    direction_id = sa.Column(sa.Boolean, nullable=False)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    start_time = sa.Column(sa.Integer, nullable=False)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
+
+    # stop identifiers
+    stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
+    stop_id = sa.Column(sa.String(60), nullable=False)
+    parent_station = sa.Column(sa.String(60), nullable=False)
+
+    # event timestamps used for metrics
+    vp_move_timestamp = sa.Column(sa.Integer, nullable=True)
+    vp_stop_timestamp = sa.Column(sa.Integer, nullable=True)
+    tu_stop_timestamp = sa.Column(sa.Integer, nullable=True)
+
+    # extra trip information
+    trip_id = sa.Column(sa.String(128), nullable=True)
+    vehicle_label = sa.Column(sa.String(128), nullable=True)
+    vehicle_consist = sa.Column(sa.String(), nullable=True)
+
+    # forign key to static schedule expected values
+    static_version_key = sa.Column(
+        sa.Integer,
+        nullable=False,
+    )
 
 
 class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
@@ -155,11 +217,19 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
     route_id = sa.Column(sa.String(60), nullable=False)
     branch_route_id = sa.Column(sa.String(60), nullable=True)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
-    service_id = sa.Column(sa.String(60), nullable=False, index=True)
-    trip_id = sa.Column(sa.String(128), nullable=False, index=True)
+    service_id = sa.Column(sa.String(60), nullable=False)
+    trip_id = sa.Column(sa.String(128), nullable=False)
     direction_id = sa.Column(sa.Boolean, index=True)
     block_id = sa.Column(sa.String(128), nullable=True)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_trips_composite_1",
+    StaticTrips.static_version_key,
+    StaticTrips.trip_id,
+    StaticTrips.service_id,
+)
 
 
 class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
@@ -186,13 +256,20 @@ class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_stops"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    stop_id = sa.Column(sa.String(128), nullable=False, index=True)
+    stop_id = sa.Column(sa.String(128), nullable=False)
     stop_name = sa.Column(sa.String(128), nullable=False)
     stop_desc = sa.Column(sa.String(256), nullable=True)
     platform_code = sa.Column(sa.String(10), nullable=True)
     platform_name = sa.Column(sa.String(60), nullable=True)
     parent_station = sa.Column(sa.String(30), nullable=True)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_stops_composite_1",
+    StaticStops.static_version_key,
+    StaticStops.stop_id,
+)
 
 
 class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
@@ -201,15 +278,24 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_stop_times"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    trip_id = sa.Column(sa.String(128), nullable=False, index=True)
+    trip_id = sa.Column(sa.String(128), nullable=False)
     arrival_time = sa.Column(sa.Integer, nullable=False)
     departure_time = sa.Column(sa.Integer, nullable=False)
     schedule_travel_time_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
-    stop_id = sa.Column(sa.String(30), nullable=False, index=True)
+    stop_id = sa.Column(sa.String(30), nullable=False)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_stop_times_composite_1",
+    StaticStopTimes.static_version_key,
+    StaticStopTimes.trip_id,
+    StaticStopTimes.stop_id,
+    StaticStopTimes.stop_sequence,
+)
 
 
 class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
