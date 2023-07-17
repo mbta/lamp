@@ -7,23 +7,26 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 ### `vehicle_events`
 | column name | data type | nullable | description |
 | ----------- | --------- | -------- | ----------- |
-| pk_id | integer | false | auto incremented primary key for events |
-| trip_hash | 16 bit binary | false | binary key used to join event record to trip data in [vehicle_trips](#vehicle_trips) table |
-| trip_stop_hash | 16 bit binary | false | binary key used to join trip-stop records during event processing |
+| service_date | integer | false | |
+| pm_trip_id | integer | false | integer key used to join event record to trip data in [vehicle_trips](#vehicle_trips) table
 | stop_id | string | false | |
 | stop_sequence| small integer | false | |
 | parent_station | string | false | |
-| previous_trip_stop_pk_id | integer | true | pk_id of previous stop of trip_hash grouping |
-| next_trip_stop_pk_id | integer | true| pk_id of next stop of trip_hash grouping |
+| previous_trip_stop_pk_id | integer | true | pk_id of previous stop of pm_trip_id grouping |
+| next_trip_stop_pk_id | integer | true| pk_id of next stop of pm_trip_id grouping |
 | vp_move_timestamp | integer | true | earliest moving-status timestamp found from GTFS-RT Vehicle Position events |
 | vp_stop_timestamp | integer | true | earliest stopped-status timestamp found from GTFS-RT Vehicle Position events |
 | tu_stop_timestamp | integer | true | earliest timestamp found from GTFS-RT Trip Update events|
+| travel_time_seconds | integer | true | seconds of time the vehicle spends traveling to station  |
+| dwell_time_seconds | integer | true | seconds of time that vehicle spends waiting at station|
+| headway_trunk_seconds | integer | true | departure to departure,  `parent_station` wait time for vehicles traveling on `trunk_route_id` |
+| headway_branch_seconds | integer | true | departure to departure,  `parent_station` wait time for vehicles traveling on `branch_route_id` |
 | updated_on | timestamp | false | timestamp field that is auto updated on any record change |
 
 ### `vehicle_trips`
 | column name | data type | nullable | description |
 | ----------- | --------- | -------- | ----------- |
-| trip_hash | 16 bit binary | false | binary key used to join trip record to record in [vehicle_events](#vehicle_events) table |
+| pm_trip_id | integer | false | auto increment key used to join trips to records in [vehicle_events](#vehicle_events) table |
 | direction_id| boolean | false | |
 | route_id | string | false | |
 | branch_route_id | string | true | |
@@ -42,16 +45,6 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | static_stop_count | small integer | true | expected stop count from `static_trip_id_guess` trip |
 | first_last_station_match | boolean | false | true if `static_trip_id_guess` is exact match to `trip_id` |
 | static_version_key | integer | false | GTFS static schedule version key for trip |
-| updated_on | timestamp | false | timestamp field that is auto updated on any record change |
-
-### `vehicle_event_metrics`
-| column name | data type | nullable | description |
-| ----------- | --------- | -------- | ----------- |
-| trip_stop_hash | 16 bit binary | false | binary key used to join metrics records to events in [vehicle_events](#vehicle_events) table |
-| travel_time_seconds | integer | true | seconds of time the vehicle spends traveling to station  |
-| dwell_time_seconds | integer | true | seconds of time that vehicle spends waiting at station|
-| headway_trunk_seconds | integer | true | departure to departure,  `parent_station` wait time for vehicles traveling on `trunk_route_id` |
-| headway_branch_seconds | integer | true | departure to departure,  `parent_station` wait time for vehicles traveling on `branch_route_id` |
 | updated_on | timestamp | false | timestamp field that is auto updated on any record change |
 
 ### `metadata_log`
@@ -201,8 +194,7 @@ The GTFS-RT partitioned parquet files have a large amount of redundant timestamp
 
 Performance Manager compresses GTFS-RT Vehicle Positions event records to store in the [vehicle_events](#vehicle_events) database table. 
 
-Initially, Vehicle Positions events are grouped by a `trip_stop_hash`, which is a generated md5 hash of the following event columns:
-* stop_sequence
+Initially, Vehicle Positions events are grouped by unique trip-stop columns:
 * parent_station
 * direction_id
 * route_id
@@ -210,11 +202,11 @@ Initially, Vehicle Positions events are grouped by a `trip_stop_hash`, which is 
 * start_time
 * vehicle_id
 
-For each `trip_stop_hash`, the earliest `vehicle_timestamp` for a `current_status` indicating the vehicle is stopped is saved as the `vp_stop_timestamp` in the [vehicle_events](#vehicle_events) table. The earliest `vehicle_timestamp` for a `current_status` indicating the vehicle is moving is saved as the `vp_move_timestamp`.
+For each trip_stop event, the earliest `vehicle_timestamp` for a `current_status` indicating the vehicle is stopped is saved as the `vp_stop_timestamp` in the [vehicle_events](#vehicle_events) table. The earliest `vehicle_timestamp` for a `current_status` indicating the vehicle is moving is saved as the `vp_move_timestamp`.
 
-This process is repeated for Trip Updates event records. Trip Updates can only record stopped status timestamps, so the earliest `arrival-timestamp` for each `trip_stop_hash` is saved as the `tu_stop_timestamp` in the [vehicle_events](#vehicle_events) table. 
+This process is repeated for Trip Updates event records. Trip Updates can only record stopped status timestamps, so the earliest `arrival-timestamp` for each trip-stop event is saved as the `tu_stop_timestamp` in the [vehicle_events](#vehicle_events) table. 
 
-For calculations/metrics that require a vehicle stop timestamp, Performance Manager defaults to using the `vp_stop_timestamp` value generated from the Vehicle Positions GTFS-RT feed. If a `vp_stop_timestamp` is not available for a `trip_stop_hash` record, then the `tu_stop_timestamp` value is used.
+For calculations/metrics that require a vehicle stop timestamp, Performance Manager defaults to using the `vp_stop_timestamp` value generated from the Vehicle Positions GTFS-RT feed. If a `vp_stop_timestamp` is not available for a trip-stop record, then the `tu_stop_timestamp` value is used.
 
 ## Metrics Business Logic
 
