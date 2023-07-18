@@ -204,11 +204,9 @@ def rail_routes_from_filepath(
 ) -> List[str]:
     """
     get a list of rail route_ids that were in effect on a given service date
-    described by a timestamp.
-
-    the service_id_dates table is used to figure out the correct static version
-    key for a given service date, using the key with the max value (the keys
-    are also timestamps). then pull all the static routes with type
+    described by a timestamp. the schedule version is derived from the service
+    date. poll that version of the schedule for all route ids whos route type
+    is not 3 (a bus route).
     """
     if isinstance(filepath, list):
         filepath = filepath[0]

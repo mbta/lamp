@@ -281,7 +281,7 @@ def write_parquet_file(
 
 def get_datetime_from_partition_path(path: str) -> datetime.datetime:
     """
-    process datetime from partitioned s3 path return UTC timestamp
+    process and return datetime from partitioned s3 path
     """
     try:
         # handle gtfs-rt paths
