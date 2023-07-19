@@ -47,7 +47,6 @@ from lamp_py.runtime_utils.alembic_migration import (
 
 from lamp_py.performance_manager.gtfs_utils import (
     add_static_version_key_column,
-    remove_bus_records,
     add_parent_station_column,
 )
 
@@ -307,7 +306,7 @@ def test_gtfs_rt_processing(
             assert "RT_VEHICLE_POSITIONS" in path
 
         # check that we can load the parquet file into a dataframe correctly
-        positions = get_vp_dataframe(files["vp_paths"])
+        positions = get_vp_dataframe(files["vp_paths"], db_manager)
         position_size = positions.shape[0]
         assert positions.shape[1] == 12
 
@@ -321,21 +320,17 @@ def test_gtfs_rt_processing(
         assert positions.shape[1] == 13
         assert position_size == positions.shape[0]
 
-        # remove bus records from dataframe
-        positions = remove_bus_records(positions, db_manager)
-        assert positions.shape[1] == 13
-        assert position_size > positions.shape[0]
-
-        # remove bus records from dataframe
         positions = add_parent_station_column(positions, db_manager)
         assert positions.shape[1] == 14
-        assert position_size > positions.shape[0]
+        assert position_size == positions.shape[0]
 
         positions = transform_vp_timestamps(positions)
         assert positions.shape[1] == 14
         assert position_size > positions.shape[0]
 
-        trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"])
+        trip_updates = get_and_unwrap_tu_dataframe(
+            files["tu_paths"], db_manager
+        )
         trip_update_size = trip_updates.shape[0]
         assert trip_updates.shape[1] == 8
 
@@ -344,15 +339,9 @@ def test_gtfs_rt_processing(
         assert trip_updates.shape[1] == 9
         assert trip_update_size == trip_updates.shape[0]
 
-        # remove bus records from dataframe
-        trip_updates = remove_bus_records(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 9
-        assert trip_update_size > trip_updates.shape[0]
-
-        # remove bus records from dataframe
         trip_updates = add_parent_station_column(trip_updates, db_manager)
         assert trip_updates.shape[1] == 10
-        assert trip_update_size > trip_updates.shape[0]
+        assert trip_update_size == trip_updates.shape[0]
 
         trip_updates = reduce_trip_updates(trip_updates)
         assert trip_update_size > trip_updates.shape[0]

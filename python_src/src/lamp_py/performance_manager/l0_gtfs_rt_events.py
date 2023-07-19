@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from lamp_py.aws.ecs import check_for_sigterm
-from lamp_py.aws.s3 import get_utc_from_partition_path
+from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.postgres.postgres_schema import (
     MetadataLog,
     TempEventCompare,
@@ -28,7 +28,8 @@ from .l1_rt_metrics import update_metrics_from_temp_events
 
 def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
     """
-    get all of the gtfs_rt files and group them by the hour they are from
+    get all of the gtfs_rt files and group them by the hour they are from.
+    within a group, include the non bus route ids for the timestamp
     """
     process_logger = ProcessLogger("gtfs_rt.get_files")
     process_logger.log_start()
@@ -37,7 +38,10 @@ def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
 
     vp_files = get_unprocessed_files("RT_VEHICLE_POSITIONS", db_manager)
     for record in vp_files:
-        timestamp = get_utc_from_partition_path(record["paths"][0])
+        timestamp = get_datetime_from_partition_path(
+            record["paths"][0]
+        ).timestamp()
+
         grouped_files[timestamp] = {
             "ids": record["ids"],
             "vp_paths": record["paths"],
@@ -46,7 +50,9 @@ def get_gtfs_rt_paths(db_manager: DatabaseManager) -> List[Dict[str, List]]:
 
     tu_files = get_unprocessed_files("RT_TRIP_UPDATES", db_manager)
     for record in tu_files:
-        timestamp = get_utc_from_partition_path(record["paths"][0])
+        timestamp = get_datetime_from_partition_path(
+            record["paths"][0]
+        ).timestamp()
         if timestamp in grouped_files:
             grouped_files[timestamp]["ids"] += record["ids"]
             grouped_files[timestamp]["tu_paths"] += record["paths"]
@@ -466,17 +472,29 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
         try:
             if len(files["tu_paths"]) == 0:
                 # all events come from vp files. add tu key afterwards.
-                events = process_vp_files(files["vp_paths"], db_manager)
+                events = process_vp_files(
+                    paths=files["vp_paths"],
+                    db_manager=db_manager,
+                )
                 events["tu_stop_timestamp"] = None
             elif len(files["vp_paths"]) == 0:
                 # all events come from tu files. add vp keys afterwards.
-                events = process_tu_files(files["tu_paths"], db_manager)
+                events = process_tu_files(
+                    paths=files["tu_paths"],
+                    db_manager=db_manager,
+                )
                 events["vp_move_timestamp"] = None
                 events["vp_stop_timestamp"] = None
             else:
                 # events come from tu and vp files. join them together.
-                vp_events = process_vp_files(files["vp_paths"], db_manager)
-                tu_events = process_tu_files(files["tu_paths"], db_manager)
+                vp_events = process_vp_files(
+                    paths=files["vp_paths"],
+                    db_manager=db_manager,
+                )
+                tu_events = process_tu_files(
+                    paths=files["tu_paths"],
+                    db_manager=db_manager,
+                )
                 events = combine_events(vp_events, tu_events)
 
             # continue events processing if records exist

@@ -180,7 +180,7 @@ The LAMP [Ingestion](../ingestion/README.md) application aggregates gzipped GTFS
 
 The Performance Manager application reads the GTFS-RT partitioned parquet files for the Vehicle Positions and Trip Updates feeds and passes them through an aggregation and manipulation pipeline before inserting them into the [vehicle_events](#vehicle_events), [vehicle_trips](#vehicle_trips), and [vehicle_event_metrics](#vehicle_event_metrics) table schemas described above.
 
-As part of the data pipeline, GTFS-RT records related to BUS data are removed to reduce database table sizes and processing time.
+When reading the GTFS-RT parquet files, records related to BUS data are removed to reduce database table sizes and processing time.
 
 ### Matching to GTFS Static Schedules
 
