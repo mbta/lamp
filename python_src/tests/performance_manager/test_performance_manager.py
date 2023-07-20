@@ -1,5 +1,6 @@
 import logging
 import os
+import pathlib
 from functools import lru_cache
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -474,7 +475,9 @@ def test_vp_and_tu(
 
 
 def test_whole_table(
-    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+    db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: pathlib.Path,
 ) -> None:
     """
     check whole flat file
@@ -490,11 +493,12 @@ def test_whole_table(
     )
 
     csv_file = os.path.join(test_files_dir, "vehicle_positions_flat_input.csv")
-    parquet_folder = "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
-    parquet_file = os.path.join(
-        springboard_dir, parquet_folder, "flat_file.parquet"
-    )
-    os.makedirs(os.path.join(springboard_dir, parquet_folder), exist_ok=True)
+
+    vp_folder = "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
+    parquet_folder = tmp_path.joinpath(vp_folder)
+    parquet_folder.mkdir(parents=True)
+
+    parquet_file = parquet_folder.joinpath("flat_file.parquet")
 
     options = csv.ConvertOptions(
         column_types={
@@ -513,13 +517,11 @@ def test_whole_table(
     parquet.write_table(table, parquet_file)
     db_manager.add_metadata_paths(
         [
-            parquet_file,
+            str(parquet_file),
         ]
     )
 
     process_gtfs_rt_files(db_manager)
-
-    os.remove(parquet_file)
 
     result_select = (
         sa.select(
@@ -586,7 +588,6 @@ def test_whole_table(
     )
 
     compare_result = db_result_df.compare(csv_result_df, align_axis=1)
-    print(compare_result, flush=True)
-    assert compare_result.shape[0] == 0
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
     check_logs(caplog)
