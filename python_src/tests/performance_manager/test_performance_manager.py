@@ -1,13 +1,15 @@
 import logging
 import os
+import pathlib
 from functools import lru_cache
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
-import pyarrow
+import pandas
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
-from pyarrow import fs, parquet
+import pyarrow
+from pyarrow import fs, parquet, csv
 
 from lamp_py.performance_manager.l0_gtfs_static_load import (
     process_static_tables,
@@ -37,6 +39,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticTrips,
     StaticCalendarDates,
     VehicleEvents,
+    VehicleTrips,
     StaticDirections,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
@@ -50,7 +53,7 @@ from lamp_py.performance_manager.gtfs_utils import (
     add_parent_station_column,
 )
 
-from ..test_resources import springboard_dir
+from ..test_resources import springboard_dir, test_files_dir
 
 
 @lru_cache
@@ -75,7 +78,7 @@ def set_env_vars() -> None:
     boostrap .env file for local testing
     """
     if int(os.environ.get("BOOTSTRAPPED", 0)) == 1:
-        logging.warning("allready bootstrapped")
+        logging.warning("already bootstrapped")
     else:
         env_file = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".env"
@@ -227,6 +230,14 @@ def test_static_tables(
     """
     caplog.set_level(logging.INFO)
 
+    db_manager.truncate_table(StaticTrips, restart_identity=True)
+    db_manager.truncate_table(StaticRoutes, restart_identity=True)
+    db_manager.truncate_table(StaticStops, restart_identity=True)
+    db_manager.truncate_table(StaticStopTimes, restart_identity=True)
+    db_manager.truncate_table(StaticCalendar, restart_identity=True)
+    db_manager.truncate_table(StaticCalendarDates, restart_identity=True)
+    db_manager.truncate_table(StaticDirections, restart_identity=True)
+
     paths = [file for file in test_files() if "FEED_INFO" in file]
     db_manager.add_metadata_paths(paths)
 
@@ -245,13 +256,13 @@ def test_static_tables(
     # processing the static tables our db tables should have these many record
     # counts.
     row_counts = {
-        StaticTrips: 9731,
+        StaticTrips: 11709,
         StaticRoutes: 24,
-        StaticStops: 9706,
-        StaticStopTimes: 160977,
-        StaticCalendar: 76,
-        StaticCalendarDates: 70,
-        StaticDirections: 408,
+        StaticStops: 9743,
+        StaticStopTimes: 186618,
+        StaticCalendar: 102,
+        StaticCalendarDates: 85,
+        StaticDirections: 378,
     }
 
     with db_manager.session.begin() as session:
@@ -284,6 +295,7 @@ def test_gtfs_rt_processing(
     """
     caplog.set_level(logging.INFO)
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    db_manager.truncate_table(VehicleTrips, restart_identity=True)
 
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
@@ -295,7 +307,7 @@ def test_gtfs_rt_processing(
         file
         for file in test_files()
         if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file)
-        and ("hour=10" in file or "hour=11" in file)
+        and ("hour=12" in file or "hour=13" in file)
     ]
     db_manager.add_metadata_paths(paths)
 
@@ -390,6 +402,7 @@ def test_vp_only(
     caplog.set_level(logging.INFO)
 
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
             ~MetadataLog.path.contains("FEED_INFO")
@@ -399,7 +412,7 @@ def test_vp_only(
     paths = [
         p
         for p in test_files()
-        if "RT_VEHICLE_POSITIONS" in p and ("hourt=10" in p or "hour=11" in p)
+        if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)
     ]
     db_manager.add_metadata_paths(paths)
 
@@ -417,6 +430,7 @@ def test_tu_only(
     caplog.set_level(logging.INFO)
 
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
             ~MetadataLog.path.contains("FEED_INFO")
@@ -426,7 +440,7 @@ def test_tu_only(
     paths = [
         p
         for p in test_files()
-        if "RT_TRIP_UPDATES" in p and ("hourt=10" in p or "hour=11" in p)
+        if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)
     ]
 
     db_manager.add_metadata_paths(paths)
@@ -445,15 +459,135 @@ def test_vp_and_tu(
     caplog.set_level(logging.INFO)
 
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
         sa.delete(MetadataLog.__table__).where(
             ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
-    paths = [p for p in test_files() if "hourt=10" in p or "hour=11" in p]
+    paths = [p for p in test_files() if "hourt=12" in p or "hour=13" in p]
     db_manager.add_metadata_paths(paths)
 
     process_gtfs_rt_files(db_manager)
+
+    check_logs(caplog)
+
+
+def test_whole_table(
+    db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: pathlib.Path,
+) -> None:
+    """
+    check whole flat file
+    """
+    caplog.set_level(logging.INFO)
+
+    db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
+        )
+    )
+
+    csv_file = os.path.join(test_files_dir, "vehicle_positions_flat_input.csv")
+
+    vp_folder = "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
+    parquet_folder = tmp_path.joinpath(vp_folder)
+    parquet_folder.mkdir(parents=True)
+
+    parquet_file = parquet_folder.joinpath("flat_file.parquet")
+
+    options = csv.ConvertOptions(
+        column_types={
+            "current_status": pyarrow.string(),
+            "current_stop_sequence": pyarrow.int64(),
+            "stop_id": pyarrow.string(),
+            "vehicle_timestamp": pyarrow.int64(),
+            "direction_id": pyarrow.int64(),
+            "route_id": pyarrow.string(),
+            "start_date": pyarrow.string(),
+            "start_time": pyarrow.string(),
+            "vehicle_id": pyarrow.string(),
+        }
+    )
+    table = csv.read_csv(csv_file, convert_options=options)
+    parquet.write_table(table, parquet_file)
+    db_manager.add_metadata_paths(
+        [
+            str(parquet_file),
+        ]
+    )
+
+    process_gtfs_rt_files(db_manager)
+
+    result_select = (
+        sa.select(
+            VehicleEvents.stop_sequence,
+            VehicleEvents.stop_id,
+            VehicleEvents.parent_station,
+            VehicleEvents.vp_move_timestamp,
+            VehicleEvents.vp_stop_timestamp,
+            VehicleTrips.direction_id,
+            VehicleTrips.direction,
+            VehicleTrips.direction_destination,
+            VehicleTrips.route_id,
+            VehicleTrips.branch_route_id,
+            VehicleTrips.trunk_route_id,
+            VehicleTrips.service_date,
+            VehicleTrips.start_time,
+            VehicleTrips.vehicle_id,
+            VehicleTrips.stop_count,
+            VehicleTrips.trip_id,
+            VehicleTrips.vehicle_label,
+            VehicleTrips.static_trip_id_guess,
+            VehicleEvents.dwell_time_seconds,
+            VehicleEvents.travel_time_seconds,
+            VehicleEvents.headway_branch_seconds,
+            VehicleEvents.headway_trunk_seconds,
+        )
+        .select_from(VehicleEvents)
+        .join(
+            VehicleTrips,
+            VehicleTrips.pm_trip_id == VehicleEvents.pm_trip_id,
+            isouter=True,
+        )
+    )
+    result_dtypes = {
+        "vp_move_timestamp": "Int64",
+        "vp_stop_timestamp": "Int64",
+        "dwell_time_seconds": "Int64",
+        "travel_time_seconds": "Int64",
+        "headway_branch_seconds": "Int64",
+        "headway_trunk_seconds": "Int64",
+        "static_trip_id_guess": "Int64",
+    }
+    sort_by = [
+        "route_id",
+        "direction_id",
+        "stop_sequence",
+        "stop_id",
+        "service_date",
+        "start_time",
+    ]
+    db_result_df = db_manager.select_as_dataframe(result_select)
+    db_result_df = db_result_df.astype(dtype=result_dtypes).sort_values(
+        by=sort_by,
+        ignore_index=True,
+    )
+
+    csv_result_df = pandas.read_csv(
+        os.path.join(test_files_dir, "pipeline_flat_out.csv"),
+        dtype=result_dtypes,
+    )
+    csv_result_df = csv_result_df.sort_values(
+        by=sort_by,
+        ignore_index=True,
+    )
+
+    compare_result = db_result_df.compare(csv_result_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
     check_logs(caplog)
