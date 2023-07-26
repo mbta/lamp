@@ -91,6 +91,11 @@ def combine_events(
     )
     process_logger.log_start()
 
+    if vp_events.shape[0] == 0 and tu_events.shape[0] == 0:
+        process_logger.add_metadata(total_event_count=0)
+        process_logger.log_complete()
+        return pandas.DataFrame()
+
     trip_stop_columns = unique_trip_stop_columns()
 
     # merge together the trip_stop_columns and the timestamps

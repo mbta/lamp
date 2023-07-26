@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import argparse
 import json
 import logging
@@ -84,11 +85,13 @@ def run() -> None:
 
     db_manager = DatabaseManager(parsed_args.verbose)
 
+    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
+
     if parsed_args.clear_static:
-        alembic_downgrade_to_base("performance_manager")
-        alembic_upgrade_to_head("performance_manager")
+        alembic_downgrade_to_base(db_name)
+        alembic_upgrade_to_head(db_name)
     elif parsed_args.clear_rt:
-        db_manager.truncate_table(VehicleTrips)
+        db_manager.truncate_table(VehicleTrips, restart_identity=True)
         db_manager.truncate_table(VehicleEvents, restart_identity=True)
 
         db_manager.execute(

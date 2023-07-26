@@ -7,13 +7,14 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 ### `vehicle_events`
 | column name | data type | nullable | description |
 | ----------- | --------- | -------- | ----------- |
+| pm_event_id | integer | false | auto increment primary key |
 | service_date | integer | false | |
 | pm_trip_id | integer | false | integer key used to join event record to trip data in [vehicle_trips](#vehicle_trips) table
 | stop_id | string | false | |
 | stop_sequence| small integer | false | |
 | parent_station | string | false | |
-| previous_trip_stop_pk_id | integer | true | pk_id of previous stop of pm_trip_id grouping |
-| next_trip_stop_pk_id | integer | true| pk_id of next stop of pm_trip_id grouping |
+| previous_trip_stop_pm_event_id | integer | true | pm_event_id of previous stop of pm_trip_id grouping |
+| next_trip_stop_pm_event_id | integer | true| pm_event_id of next stop of pm_trip_id grouping |
 | vp_move_timestamp | integer | true | earliest moving-status timestamp found from GTFS-RT Vehicle Position events |
 | vp_stop_timestamp | integer | true | earliest stopped-status timestamp found from GTFS-RT Vehicle Position events |
 | tu_stop_timestamp | integer | true | earliest timestamp found from GTFS-RT Trip Update events|

@@ -18,9 +18,12 @@ def get_alembic_config(db_name: str) -> Config:
         "getting alembic config for %s from %s", db_name, alembic_cfg_file
     )
 
-    if db_name == "performance_manager":
-        pass
-    else:
+    db_names = (
+        "performance_manager",
+        "performance_manager_prod",
+    )
+
+    if db_name not in db_names:
         raise NotImplementedError(f"Migration for {db_name} not implemented.")
 
     return Config(alembic_cfg_file, ini_section=db_name)
