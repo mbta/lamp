@@ -11,6 +11,7 @@ from _pytest.monkeypatch import MonkeyPatch
 import pyarrow
 from pyarrow import fs, parquet, csv
 
+from lamp_py.performance_manager.flat_file import generate_daily_table
 from lamp_py.performance_manager.l0_gtfs_static_load import (
     process_static_tables,
 )
@@ -165,6 +166,58 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         "lamp_py.aws.s3._get_pyarrow_table", mock__get_pyarrow_table
     )
     yield
+
+
+def flat_table_check(db_manager: DatabaseManager, service_date: int) -> None:
+    """checks to run on a flat table to ensure it has what would be expected"""
+    flat_table = generate_daily_table(db_manager, service_date)
+
+    # check that the shape is good
+    rows, columns = flat_table.shape
+    assert columns == 30
+
+    expected_row_count = db_manager.select_as_list(
+        sa.select(sa.func.count()).where(
+            sa.and_(
+                VehicleEvents.service_date == service_date,
+                sa.or_(
+                    VehicleEvents.vp_move_timestamp.is_not(None),
+                    VehicleEvents.vp_stop_timestamp.is_not(None),
+                ),
+            )
+        )
+    )[0]["count_1"]
+    assert rows == expected_row_count
+
+    # check that partitioned columns behave appropriately
+    assert "year" in flat_table.column_names
+    assert len(flat_table["year"].unique()) == 1
+
+    assert "month" in flat_table.column_names
+    assert len(flat_table["month"].unique()) == 1
+
+    assert "day" in flat_table.column_names
+    assert len(flat_table["day"].unique()) == 1
+
+    # check that these keys have values throughout the file
+    must_have_keys = [
+        "stop_id",
+        "parent_station",
+        "route_id",
+        "direction_id",
+        "start_time",
+        "vehicle_id",
+        "trip_id",
+        "vehicle_label",
+        "year",
+        "month",
+        "day",
+    ]
+
+    for key in must_have_keys:
+        assert True not in flat_table[key].is_null(
+            nan_is_null=True
+        ), f"{key} has null values"
 
 
 def check_logs(caplog: pytest.LogCaptureFixture) -> None:
@@ -394,6 +447,8 @@ def test_gtfs_rt_processing(
 
         build_temp_events(events, db_manager)
         update_events_from_temp(db_manager)
+
+    flat_table_check(db_manager=db_manager, service_date=20230508)
 
     check_logs(caplog)
 
