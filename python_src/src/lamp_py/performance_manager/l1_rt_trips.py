@@ -273,25 +273,22 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
     """
     rt_static_match_sub = (
         sa.select(
-            VehicleTrips.pm_trip_id,
-            VehicleTrips.trip_id,
+            TempEventCompare.pm_trip_id,
+            TempEventCompare.trip_id,
             sa.true().label("first_last_station_match"),
             # TODO: add stop_count from static pre-processing when available # pylint: disable=fixme
             # TODO: add start_time from sattic pre-processing when available # pylint: disable=fixme
         )
-        .select_from(VehicleTrips)
-        .join(
-            TempEventCompare,
-            TempEventCompare.pm_trip_id == VehicleTrips.pm_trip_id,
-        )
+        .select_from(TempEventCompare)
+        .distinct()
         .join(
             StaticTrips,
             sa.and_(
                 StaticTrips.static_version_key
-                == VehicleTrips.static_version_key,
-                StaticTrips.trip_id == VehicleTrips.trip_id,
-                StaticTrips.direction_id == VehicleTrips.direction_id,
-                StaticTrips.route_id == VehicleTrips.route_id,
+                == TempEventCompare.static_version_key,
+                StaticTrips.trip_id == TempEventCompare.trip_id,
+                StaticTrips.direction_id == TempEventCompare.direction_id,
+                StaticTrips.route_id == TempEventCompare.route_id,
             ),
         )
         .subquery("exact_trip_id_matches")
@@ -323,6 +320,9 @@ def update_directions(db_manager: DatabaseManager) -> None:
     temp_trips = (
         sa.select(
             TempEventCompare.pm_trip_id,
+            TempEventCompare.direction_id,
+            TempEventCompare.route_id,
+            TempEventCompare.static_version_key,
         )
         .distinct()
         .subquery()
@@ -330,22 +330,18 @@ def update_directions(db_manager: DatabaseManager) -> None:
 
     directions_sub = (
         sa.select(
-            VehicleTrips.pm_trip_id,
+            temp_trips.c.pm_trip_id,
             StaticDirections.direction,
             StaticDirections.direction_destination,
         )
-        .select_from(VehicleTrips)
-        .join(
-            temp_trips,
-            temp_trips.c.pm_trip_id == VehicleTrips.pm_trip_id,
-        )
+        .select_from(temp_trips)
         .join(
             StaticDirections,
             sa.and_(
-                VehicleTrips.static_version_key
+                temp_trips.c.static_version_key
                 == StaticDirections.static_version_key,
-                VehicleTrips.direction_id == StaticDirections.direction_id,
-                VehicleTrips.route_id == StaticDirections.route_id,
+                temp_trips.c.direction_id == StaticDirections.direction_id,
+                temp_trips.c.route_id == StaticDirections.route_id,
             ),
         )
         .subquery("update_directions")
