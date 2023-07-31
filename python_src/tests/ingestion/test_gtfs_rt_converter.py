@@ -22,8 +22,6 @@ def test_bad_conversion_local() -> None:
     )
     converter.add_files(["badfile"])
 
-    print("YOLO")
-
     # process the bad file and get the table out
     for _ in converter.process_files():
         assert False, "Generated Table for s3 badfile"
@@ -155,6 +153,20 @@ def test_vehicle_positions_file_conversion() -> None:
             assert upper == str(np_df[col].max())
         if lower != "nan":
             assert lower == str(np_df[col].min())
+
+    # check that we are able to handle older vp files from 16 sept 2019 - 4 march 2020
+    old_gtfs_rt_file = os.path.join(
+        incoming_dir,
+        "2019-12-12T00_00_10_https___mbta_gtfs_s3_dev.s3.amazonaws.com_concentrate_VehiclePositions_enhanced.json",
+    )
+    timestamp, filename, table = converter.gz_to_pyarrow(old_gtfs_rt_file)
+
+    assert timestamp.month == 12
+    assert timestamp.year == 2019
+    assert timestamp.day == 12
+
+    assert table.shape[0] > 0
+    assert table.shape[1] > 0
 
 
 def test_rt_alert_file_conversion() -> None:
@@ -299,6 +311,19 @@ def test_rt_trip_file_conversion() -> None:
             assert upper == str(np_df[col].max())
         if lower != "nan":
             assert lower == str(np_df[col].min())
+
+    # check that we are able to handle older vp files from 16 sept 2019 - 4 march 2020
+    old_gtfs_rt_file = os.path.join(
+        incoming_dir,
+        "2019-12-12T00_00_57_https___mbta_gtfs_s3_dev.s3.amazonaws.com_concentrate_TripUpdates_enhanced.json",
+    )
+    timestamp, filename, table = converter.gz_to_pyarrow(old_gtfs_rt_file)
+    assert timestamp.month == 12
+    assert timestamp.year == 2019
+    assert timestamp.day == 12
+
+    assert table.shape[0] > 0
+    assert table.shape[1] > 0
 
 
 def test_bus_vehicle_positions_file_conversion() -> None:
