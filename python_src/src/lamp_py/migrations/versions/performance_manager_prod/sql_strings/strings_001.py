@@ -1,5 +1,4 @@
-def func_insert_feed_info() -> str:
-    return """
+func_insert_feed_info = """
         CREATE OR REPLACE FUNCTION insert_feed_info() RETURNS TRIGGER AS $$ 
         BEGIN 
             IF NEW.feed_version ~ '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}' THEN
@@ -13,16 +12,13 @@ def func_insert_feed_info() -> str:
     """
 
 
-def ashmond_stop_ids() -> str:
-    return "('70087', '70088', '70089', '70090', '70091', '70092', '70093', '70094', '70085', '70086')"
+ashmond_stop_ids = "('70087', '70088', '70089', '70090', '70091', '70092', '70093', '70094', '70085', '70086')"
 
 
-def braintree_stop_ids() -> str:
-    return "('70097', '70098', '70099', '70100', '70101', '70102', '70103', '70104', '70105', '70095', '70096')"
+braintree_stop_ids = "('70097', '70098', '70099', '70100', '70101', '70102', '70103', '70104', '70105', '70095', '70096')"
 
 
-def func_red_is_ashmont_branch() -> str:
-    return f"""
+func_red_is_ashmont_branch = f"""
         CREATE OR REPLACE FUNCTION red_is_ashmont_branch(p_trip_id varchar, p_fk_ts int) RETURNS boolean AS $$ 
         DECLARE
             is_ashmont boolean;
@@ -36,7 +32,7 @@ def func_red_is_ashmont_branch() -> str:
             WHERE 
                 sst.trip_id = p_trip_id
                 AND sst.static_version_key = p_fk_ts
-                AND sst.stop_id IN {ashmond_stop_ids()}
+                AND sst.stop_id IN {ashmond_stop_ids}
             LIMIT 1
             ;
 
@@ -50,8 +46,7 @@ def func_red_is_ashmont_branch() -> str:
     """
 
 
-def func_red_is_braintree_branch() -> str:
-    return f"""
+func_red_is_braintree_branch = f"""
         CREATE OR REPLACE FUNCTION red_is_braintree_branch(p_trip_id varchar, p_fk_ts int) RETURNS boolean AS $$ 
         DECLARE	
             is_braintree boolean;
@@ -65,7 +60,7 @@ def func_red_is_braintree_branch() -> str:
             WHERE 
                 sst.trip_id = p_trip_id
                 AND sst.static_version_key = p_fk_ts
-                AND sst.stop_id IN {braintree_stop_ids()}
+                AND sst.stop_id IN {braintree_stop_ids}
             LIMIT 1
             ;
 
@@ -79,8 +74,7 @@ def func_red_is_braintree_branch() -> str:
     """
 
 
-def func_static_trips_branch_trunk() -> str:
-    return """
+func_static_trips_branch_trunk = """
         CREATE OR REPLACE FUNCTION insert_static_trips_branch_trunk() RETURNS TRIGGER AS $$ 
         BEGIN 
             IF NEW.route_id ~ 'Green-' THEN
@@ -104,9 +98,7 @@ def func_static_trips_branch_trunk() -> str:
         $$ LANGUAGE plpgsql;
     """
 
-
-def func_rt_red_is_braintree_branch() -> str:
-    return f"""
+func_rt_red_is_braintree_branch = f"""
         CREATE OR REPLACE FUNCTION rt_red_is_braintree_branch(p_trip_id int) RETURNS boolean AS $$ 
         DECLARE
             found_check bool;
@@ -119,7 +111,7 @@ def func_rt_red_is_braintree_branch() -> str:
                 vehicle_events ve
             WHERE 
                 ve.pm_trip_id = p_trip_id
-                AND ve.stop_id IN {braintree_stop_ids()}
+                AND ve.stop_id IN {braintree_stop_ids}
             LIMIT 1
             ;
             IF FOUND THEN
@@ -132,8 +124,7 @@ def func_rt_red_is_braintree_branch() -> str:
     """
 
 
-def func_rt_red_is_ashmont_branch() -> str:
-    return f"""
+func_rt_red_is_ashmont_branch = f"""
         CREATE OR REPLACE FUNCTION rt_red_is_ashmont_branch(p_trip_id int) RETURNS boolean AS $$ 
         DECLARE
             found_check bool;
@@ -146,7 +137,7 @@ def func_rt_red_is_ashmont_branch() -> str:
                 vehicle_events ve
             WHERE 
                 ve.pm_trip_id = p_trip_id
-                AND ve.stop_id IN {ashmond_stop_ids()}
+                AND ve.stop_id IN {ashmond_stop_ids}
             LIMIT 1
             ;
             IF FOUND THEN
@@ -159,8 +150,7 @@ def func_rt_red_is_ashmont_branch() -> str:
     """
 
 
-def func_rt_trips_branch_trunk() -> str:
-    return """
+func_rt_trips_branch_trunk = """
         CREATE OR REPLACE FUNCTION update_rt_branch_trunk_id() RETURNS TRIGGER AS $$ 
         BEGIN 
             IF NEW.route_id ~ 'Green-' THEN
@@ -185,8 +175,7 @@ def func_rt_trips_branch_trunk() -> str:
     """
 
 
-def view_service_id_by_date_and_route() -> str:
-    return """
+view_service_id_by_date_and_route = """
         CREATE OR REPLACE VIEW service_id_by_date_and_route AS 
         SELECT static_trips.route_id,
             all_service_ids.service_id,
@@ -277,8 +266,7 @@ def view_service_id_by_date_and_route() -> str:
     """
 
 
-def view_static_service_id_lookup() -> str:
-    return """
+view_static_service_id_lookup = """
         CREATE OR REPLACE VIEW static_service_id_lookup AS 
         WITH mod_feed_dates AS (
             SELECT 
@@ -391,8 +379,7 @@ def view_static_service_id_lookup() -> str:
     """
 
 
-def view_opmi_all_rt_fields_joined() -> str:
-    return """
+view_opmi_all_rt_fields_joined = """
         CREATE OR REPLACE VIEW opmi_all_rt_fields_joined AS 
         SELECT
             vt.service_date
