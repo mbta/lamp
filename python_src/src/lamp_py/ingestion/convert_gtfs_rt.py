@@ -297,8 +297,19 @@ class GtfsRtConverter(Converter):
             file_system = current_thread().__dict__["file_system"]
             filename = filename.replace("s3://", "")
 
-            with file_system.open_input_stream(filename) as file:
-                json_data = json.load(file)
+            # some of our older files are named incorrectly, with a simple
+            # .json suffix rather than a .json.gz suffix. in those cases, the
+            # s3 open_input_stream is unable to deduce the correct compression
+            # algo and fails with a UnicodeDecodeError. catch this failure and
+            # retry using a gzip compression algo. (EAFP Style)
+            try:
+                with file_system.open_input_stream(filename) as file:
+                    json_data = json.load(file)
+            except UnicodeDecodeError as _:
+                with file_system.open_input_stream(
+                    filename, compression="gzip"
+                ) as file:
+                    json_data = json.load(file)
 
             # Create empty 'table' as dict of lists for export schema
             table = self.detail.empty_table()
