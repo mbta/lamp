@@ -388,8 +388,7 @@ def upgrade() -> None:
         )
         op.execute(create_trigger)
 
-    create_feed_info_insert_function = func_insert_feed_info
-    op.execute(create_feed_info_insert_function)
+    op.execute(func_insert_feed_info)
 
     create_insert_into_feed_info_trigger = """
         CREATE TRIGGER insert_into_feed_info BEFORE INSERT ON static_feed_info 
@@ -397,14 +396,11 @@ def upgrade() -> None:
     """
     op.execute(create_insert_into_feed_info_trigger)
 
-    create_red_is_ashmont_branch_func = func_red_is_ashmont_branch
-    op.execute(create_red_is_ashmont_branch_func)
+    op.execute(func_red_is_ashmont_branch)
 
-    create_red_is_braintree_branch_func = func_red_is_braintree_branch
-    op.execute(create_red_is_braintree_branch_func)
+    op.execute(func_red_is_braintree_branch)
 
-    create_insert_static_trips_branch_trunk = func_static_trips_branch_trunk
-    op.execute(create_insert_static_trips_branch_trunk)
+    op.execute(func_static_trips_branch_trunk)
 
     create_static_trips_create_branch_trunk = """
         CREATE TRIGGER static_trips_create_branch_trunk BEFORE INSERT ON static_trips 
@@ -412,14 +408,11 @@ def upgrade() -> None:
     """
     op.execute(create_static_trips_create_branch_trunk)
 
-    create_rt_braintree_function = func_rt_red_is_braintree_branch
-    op.execute(create_rt_braintree_function)
+    op.execute(func_rt_red_is_braintree_branch)
 
-    create_rt_ashmont_function = func_rt_red_is_ashmont_branch
-    op.execute(create_rt_ashmont_function)
+    op.execute(func_rt_red_is_ashmont_branch)
 
-    create_get_rt_branch_trunk_id = func_rt_trips_branch_trunk
-    op.execute(create_get_rt_branch_trunk_id)
+    op.execute(func_rt_trips_branch_trunk)
 
     create_trigger = """
         CREATE TRIGGER rt_trips_update_branch_trunk BEFORE UPDATE ON vehicle_trips 
@@ -427,14 +420,11 @@ def upgrade() -> None:
     """
     op.execute(create_trigger)
 
-    create_service_id_by_date_and_route = view_service_id_by_date_and_route
-    op.execute(create_service_id_by_date_and_route)
+    op.execute(view_service_id_by_date_and_route)
 
-    create_static_service_id_lookup = view_static_service_id_lookup
-    op.execute(create_static_service_id_lookup)
+    op.execute(view_static_service_id_lookup)
 
-    create_opmi_view = view_opmi_all_rt_fields_joined
-    op.execute(create_opmi_view)
+    op.execute(view_opmi_all_rt_fields_joined)
 
 
 def downgrade() -> None:
