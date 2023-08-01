@@ -15,46 +15,54 @@ from .l1_cte_statements import (
 )
 
 
-# def update_prev_next_trip_stop(db_manager: DatabaseManager) -> None:
-#     """
-#     Update `previous_trip_stop_pk_id` and `next_trip_stop_pk_id` fields in `vehicle_events` table
-#     """
-#     prev_next_trip_stop_cte = (
-#         sa.select(
-#             VehicleEvents.pk_id,
-#             sa.func.lead(VehicleEvents.pk_id)
-#             .over(
-#                 partition_by=VehicleEvents.trip_hash,
-#                 order_by=VehicleEvents.stop_sequence,
-#             )
-#             .label("next_trip_stop_pk_id"),
-#             sa.func.lag(VehicleEvents.pk_id)
-#             .over(
-#                 partition_by=VehicleEvents.trip_hash,
-#                 order_by=VehicleEvents.stop_sequence,
-#             )
-#             .label("previous_trip_stop_pk_id"),
-#         ).join(
-#             TempHashCompare,
-#             TempHashCompare.hash == VehicleEvents.trip_hash,
-#         )
-#     ).cte(name="prev_next_trip_stops")
+def update_prev_next_trip_stop(db_manager: DatabaseManager) -> None:
+    """
+    Update `previous_trip_stop_pk_id` and `next_trip_stop_pk_id` fields in `vehicle_events` table
+    """
+    temp_trips = (
+        sa.select(
+            TempEventCompare.pm_trip_id,
+        )
+        .distinct()
+        .subquery()
+    )
 
-#     update_query = (
-#         sa.update(VehicleEvents.__table__)
-#         .where(
-#             VehicleEvents.pk_id == prev_next_trip_stop_cte.c.pk_id,
-#         )
-#         .values(
-#             next_trip_stop_pk_id=prev_next_trip_stop_cte.c.next_trip_stop_pk_id,
-#             previous_trip_stop_pk_id=prev_next_trip_stop_cte.c.previous_trip_stop_pk_id,
-#         )
-#     )
+    prev_next_trip_stop_sub = (
+        sa.select(
+            VehicleEvents.pm_event_id,
+            sa.func.lead(VehicleEvents.pm_event_id)
+            .over(
+                partition_by=VehicleEvents.pm_trip_id,
+                order_by=VehicleEvents.stop_sequence,
+            )
+            .label("next_trip_stop_pk_id"),
+            sa.func.lag(VehicleEvents.pm_event_id)
+            .over(
+                partition_by=VehicleEvents.pm_trip_id,
+                order_by=VehicleEvents.stop_sequence,
+            )
+            .label("previous_trip_stop_pk_id"),
+        ).join(
+            temp_trips,
+            temp_trips.c.pm_trip_id == VehicleEvents.pm_trip_id,
+        )
+    ).subquery(name="prev_next_trip_stops")
 
-#     process_logger = ProcessLogger("l1_trips.update_prev_next_trip_stop")
-#     process_logger.log_start()
-#     db_manager.execute(update_query)
-#     process_logger.log_complete()
+    update_query = (
+        sa.update(VehicleEvents.__table__)
+        .where(
+            VehicleEvents.pm_event_id == prev_next_trip_stop_sub.c.pm_event_id,
+        )
+        .values(
+            next_trip_stop_pm_event_id=prev_next_trip_stop_sub.c.next_trip_stop_pk_id,
+            previous_trip_stop_pm_event_id=prev_next_trip_stop_sub.c.previous_trip_stop_pk_id,
+        )
+    )
+
+    process_logger = ProcessLogger("l1_trips.update_prev_next_trip_stop")
+    process_logger.log_start()
+    db_manager.execute(update_query)
+    process_logger.log_complete()
 
 
 def load_new_trip_data(db_manager: DatabaseManager) -> None:
@@ -265,25 +273,22 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
     """
     rt_static_match_sub = (
         sa.select(
-            VehicleTrips.pm_trip_id,
-            VehicleTrips.trip_id,
+            TempEventCompare.pm_trip_id,
+            TempEventCompare.trip_id,
             sa.true().label("first_last_station_match"),
             # TODO: add stop_count from static pre-processing when available # pylint: disable=fixme
             # TODO: add start_time from sattic pre-processing when available # pylint: disable=fixme
         )
-        .select_from(VehicleTrips)
-        .join(
-            TempEventCompare,
-            TempEventCompare.pm_trip_id == VehicleTrips.pm_trip_id,
-        )
+        .select_from(TempEventCompare)
+        .distinct()
         .join(
             StaticTrips,
             sa.and_(
                 StaticTrips.static_version_key
-                == VehicleTrips.static_version_key,
-                StaticTrips.trip_id == VehicleTrips.trip_id,
-                StaticTrips.direction_id == VehicleTrips.direction_id,
-                StaticTrips.route_id == VehicleTrips.route_id,
+                == TempEventCompare.static_version_key,
+                StaticTrips.trip_id == TempEventCompare.trip_id,
+                StaticTrips.direction_id == TempEventCompare.direction_id,
+                StaticTrips.route_id == TempEventCompare.route_id,
             ),
         )
         .subquery("exact_trip_id_matches")
@@ -312,24 +317,31 @@ def update_directions(db_manager: DatabaseManager) -> None:
     """
     Update direction and direction_destination from static tables
     """
+    temp_trips = (
+        sa.select(
+            TempEventCompare.pm_trip_id,
+            TempEventCompare.direction_id,
+            TempEventCompare.route_id,
+            TempEventCompare.static_version_key,
+        )
+        .distinct()
+        .subquery()
+    )
+
     directions_sub = (
         sa.select(
-            VehicleTrips.pm_trip_id,
+            temp_trips.c.pm_trip_id,
             StaticDirections.direction,
             StaticDirections.direction_destination,
         )
-        .select_from(VehicleTrips)
-        .join(
-            TempEventCompare,
-            TempEventCompare.pm_trip_id == VehicleTrips.pm_trip_id,
-        )
+        .select_from(temp_trips)
         .join(
             StaticDirections,
             sa.and_(
-                VehicleTrips.static_version_key
+                temp_trips.c.static_version_key
                 == StaticDirections.static_version_key,
-                VehicleTrips.direction_id == StaticDirections.direction_id,
-                VehicleTrips.route_id == StaticDirections.route_id,
+                temp_trips.c.direction_id == StaticDirections.direction_id,
+                temp_trips.c.route_id == StaticDirections.route_id,
             ),
         )
         .subquery("update_directions")
@@ -373,7 +385,6 @@ def backup_rt_static_trip_match(
     # static trip are needed.
     first_stop_static_sub = (
         sa.select(
-            static_trips_sub.c.static_version_key,
             static_trips_sub.c.static_trip_id,
             static_trips_sub.c.static_stop_timestamp.label("static_start_time"),
         )
@@ -385,7 +396,6 @@ def backup_rt_static_trip_match(
     # join first_stop_static_sub with last stop records to create trip summary records
     static_trips_summary_sub = (
         sa.select(
-            static_trips_sub.c.static_version_key,
             static_trips_sub.c.static_trip_id,
             sa.func.coalesce(
                 static_trips_sub.c.branch_route_id,
@@ -398,18 +408,22 @@ def backup_rt_static_trip_match(
         .select_from(static_trips_sub)
         .join(
             first_stop_static_sub,
-            sa.and_(
-                static_trips_sub.c.static_version_key
-                == first_stop_static_sub.c.static_version_key,
-                static_trips_sub.c.static_trip_id
-                == first_stop_static_sub.c.static_trip_id,
-            ),
+            static_trips_sub.c.static_trip_id
+            == first_stop_static_sub.c.static_trip_id,
         )
         .where(static_trips_sub.c.static_trip_last_stop == sa.true())
         .subquery(name="static_trips_summary_sub")
     )
 
     # pull RT trips records that are candidates for backup matching to static trips
+    temp_trips = (
+        sa.select(
+            TempEventCompare.pm_trip_id,
+        )
+        .distinct()
+        .subquery()
+    )
+
     rt_trips_summary_sub = (
         sa.select(
             VehicleTrips.pm_trip_id,
@@ -418,17 +432,16 @@ def backup_rt_static_trip_match(
                 VehicleTrips.branch_route_id, VehicleTrips.trunk_route_id
             ).label("route_id"),
             VehicleTrips.start_time,
-            VehicleTrips.static_version_key,
         )
         .select_from(VehicleTrips)
         .join(
-            TempEventCompare,
-            TempEventCompare.pm_trip_id == VehicleTrips.pm_trip_id,
+            temp_trips,
+            temp_trips.c.pm_trip_id == VehicleTrips.pm_trip_id,
         )
         .where(
-            VehicleTrips.first_last_station_match == sa.false(),
             VehicleTrips.service_date == int(seed_service_date),
             VehicleTrips.static_version_key == int(static_version_key),
+            VehicleTrips.first_last_station_match == sa.false(),
         )
         .subquery("rt_trips_for_backup_match")
     )
@@ -450,8 +463,6 @@ def backup_rt_static_trip_match(
         .join(
             static_trips_summary_sub,
             sa.and_(
-                rt_trips_summary_sub.c.static_version_key
-                == static_trips_summary_sub.c.static_version_key,
                 rt_trips_summary_sub.c.direction_id
                 == static_trips_summary_sub.c.direction_id,
                 rt_trips_summary_sub.c.route_id
@@ -513,9 +524,9 @@ def process_trips(db_manager: DatabaseManager) -> None:
     update vehicle_trips table based on new events in temp_event_compare
 
     """
-    # update_prev_next_trip_stop(db_manager)
     update_static_version_key(db_manager)
     update_trip_stop_counts(db_manager)
+    update_prev_next_trip_stop(db_manager)
     update_static_trip_id_guess_exact(db_manager)
     update_directions(db_manager)
     update_backup_static_trip_id(db_manager)

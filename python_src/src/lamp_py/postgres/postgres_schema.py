@@ -17,6 +17,8 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "vehicle_events"
 
+    pm_event_id = sa.Column(sa.Integer, primary_key=True)
+
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
     pm_trip_id = sa.Column(sa.Integer, nullable=False)
@@ -27,8 +29,8 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     parent_station = sa.Column(sa.String(60), nullable=False)
 
     # stop link fields
-    # previous_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
-    # next_trip_stop_pk_id = sa.Column(sa.Integer, nullable=True, index=True)
+    previous_trip_stop_pm_event_id = sa.Column(sa.Integer, nullable=True)
+    next_trip_stop_pm_event_id = sa.Column(sa.Integer, nullable=True)
 
     # event timestamps used for metrics
     vp_move_timestamp = sa.Column(sa.Integer, nullable=True)
@@ -43,14 +45,6 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
 
-    __mapper_args__ = {
-        "primary_key": [
-            service_date,
-            pm_trip_id,
-            parent_station,
-        ]
-    }
-
 
 sa.Index(
     "ix_vehicle_events_composite_1",
@@ -58,6 +52,24 @@ sa.Index(
     VehicleEvents.pm_trip_id,
     VehicleEvents.parent_station,
     unique=True,
+)
+
+sa.Index(
+    "ix_vehicle_events_composite_2",
+    VehicleEvents.service_date,
+    VehicleEvents.pm_trip_id,
+    VehicleEvents.stop_sequence,
+)
+
+sa.Index(
+    "ix_vehicle_events_vp_not_null",
+    VehicleEvents.pm_event_id,
+    postgresql_where=(
+        sa.or_(
+            VehicleEvents.vp_move_timestamp.is_not(None),
+            VehicleEvents.vp_stop_timestamp.is_not(None),
+        )
+    ),
 )
 
 
@@ -68,13 +80,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "vehicle_trips"
 
-    pm_trip_id = sa.Column(
-        sa.Integer,
-        nullable=False,
-        server_default=sa.Identity(
-            always=True, start=1, increment=1, cycle=False
-        ),
-    )
+    pm_trip_id = sa.Column(sa.Integer, primary_key=True)
 
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
@@ -109,13 +115,6 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
     updated_on = sa.Column(sa.TIMESTAMP, server_default=sa.func.now())
-
-    __mapper_args__ = {
-        "primary_key": [
-            service_date,
-            pm_trip_id,
-        ]
-    }
 
     __table_args__ = (
         sa.UniqueConstraint(
@@ -192,6 +191,13 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
 
+sa.Index(
+    "ix_metadata_log_not_processed",
+    MetadataLog.path,
+    postgresql_where=(MetadataLog.processed == sa.false()),
+)
+
+
 class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS feed info"""
 
@@ -201,7 +207,7 @@ class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
     feed_start_date = sa.Column(sa.Integer, nullable=False)
     feed_end_date = sa.Column(sa.Integer, nullable=False)
     feed_version = sa.Column(sa.String(75), nullable=False, unique=True)
-    feed_active_date = sa.Column(sa.Integer, nullable=False, index=True)
+    feed_active_date = sa.Column(sa.Integer, nullable=False)
     static_version_key = sa.Column(sa.Integer, nullable=False, unique=True)
     created_on = sa.Column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
@@ -219,7 +225,7 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
     service_id = sa.Column(sa.String(60), nullable=False)
     trip_id = sa.Column(sa.String(128), nullable=False)
-    direction_id = sa.Column(sa.Boolean, index=True)
+    direction_id = sa.Column(sa.Boolean)
     block_id = sa.Column(sa.String(128), nullable=True)
     static_version_key = sa.Column(sa.Integer, nullable=False)
 
@@ -228,7 +234,19 @@ sa.Index(
     "ix_static_trips_composite_1",
     StaticTrips.static_version_key,
     StaticTrips.trip_id,
-    StaticTrips.service_id,
+    StaticTrips.direction_id,
+)
+
+sa.Index(
+    "ix_static_trips_composite_2",
+    StaticTrips.static_version_key,
+    StaticTrips.branch_route_id,
+)
+
+sa.Index(
+    "ix_static_trips_composite_3",
+    StaticTrips.static_version_key,
+    StaticTrips.trunk_route_id,
 )
 
 
@@ -247,7 +265,15 @@ class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
     route_sort_order = sa.Column(sa.Integer, nullable=False)
     route_fare_class = sa.Column(sa.String(30), nullable=False)
     line_id = sa.Column(sa.String(30), nullable=True)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_routes_composite_1",
+    StaticRoutes.static_version_key,
+    StaticRoutes.route_id,
+    StaticRoutes.route_type,
+)
 
 
 class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
@@ -268,6 +294,13 @@ class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
 sa.Index(
     "ix_static_stops_composite_1",
     StaticStops.static_version_key,
+    StaticStops.stop_id,
+)
+
+sa.Index(
+    "ix_static_stops_composite_2",
+    StaticStops.static_version_key,
+    StaticStops.parent_station,
     StaticStops.stop_id,
 )
 
@@ -293,8 +326,13 @@ sa.Index(
     "ix_static_stop_times_composite_1",
     StaticStopTimes.static_version_key,
     StaticStopTimes.trip_id,
-    StaticStopTimes.stop_id,
     StaticStopTimes.stop_sequence,
+)
+
+sa.Index(
+    "ix_static_stop_times_composite_2",
+    StaticStopTimes.static_version_key,
+    StaticStopTimes.stop_id,
 )
 
 
@@ -314,7 +352,16 @@ class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
     sunday = sa.Column(sa.Boolean)
     start_date = sa.Column(sa.Integer, nullable=False)
     end_date = sa.Column(sa.Integer, nullable=False)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_calendar_composite_1",
+    StaticCalendar.static_version_key,
+    StaticCalendar.service_id,
+    StaticCalendar.start_date,
+    StaticCalendar.end_date,
+)
 
 
 class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
@@ -323,11 +370,19 @@ class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_calendar_dates"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    service_id = sa.Column(sa.String(128), nullable=False, index=True)
-    date = sa.Column(sa.Integer, nullable=False, index=True)
+    service_id = sa.Column(sa.String(128), nullable=False)
+    date = sa.Column(sa.Integer, nullable=False)
     exception_type = sa.Column(sa.SmallInteger, nullable=False)
     holiday_name = sa.Column(sa.String(128), nullable=True)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_calendar_dates_composite_1",
+    StaticCalendarDates.static_version_key,
+    StaticCalendarDates.service_id,
+    StaticCalendarDates.date,
+)
 
 
 class StaticDirections(SqlBase):  # pylint: disable=too-few-public-methods
@@ -336,28 +391,19 @@ class StaticDirections(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_directions"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    route_id = sa.Column(sa.String(60), nullable=False, index=True)
-    direction_id = sa.Column(sa.Boolean, index=True)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    direction_id = sa.Column(sa.Boolean)
     direction = sa.Column(sa.String(30), nullable=False)
     direction_destination = sa.Column(sa.String(60), nullable=False)
-    static_version_key = sa.Column(sa.Integer, nullable=False, index=True)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
 
 
-class TempStaticHeadwaysGen(SqlBase):  # pylint: disable=too-few-public-methods
-    """
-    Temp table for used for caulcating scheduled headways when a new static schedule is loaded
-    added by migration de55dc40315d
-    """
-
-    __tablename__ = "temp_static_headways_gen"
-
-    pk_id = sa.Column(sa.Integer, primary_key=True, autoincrement=False)
-    departure_time = sa.Column(sa.Integer, nullable=False)
-    parent_station = sa.Column(sa.String(30), nullable=False)
-    service_id = sa.Column(sa.String(60), nullable=False)
-    direction_id = sa.Column(sa.Boolean)
-    trunk_route_id = sa.Column(sa.String(60), nullable=True)
-    branch_route_id = sa.Column(sa.String(60), nullable=True)
+sa.Index(
+    "ix_static_directions_composite_1",
+    StaticDirections.static_version_key,
+    StaticDirections.route_id,
+    StaticDirections.direction_id,
+)
 
 
 class ServiceIdDates(SqlBase):  # pylint: disable=too-few-public-methods

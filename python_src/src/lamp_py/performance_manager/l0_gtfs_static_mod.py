@@ -6,7 +6,6 @@ from lamp_py.postgres.postgres_schema import (
     StaticStopTimes,
     StaticStops,
     StaticTrips,
-    TempStaticHeadwaysGen,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -51,29 +50,33 @@ def generate_scheduled_travel_times(
     process_logger.log_complete()
 
 
-def generate_scheduled_branch_headways(db_manager: DatabaseManager) -> None:
+def generate_scheduled_branch_headways(
+    static_version_key: int, db_manager: DatabaseManager
+) -> None:
     """
     generate scheduled branch headways and insert into static_stop_times table
     """
+    temp_static_headways = static_headways_subquery(static_version_key)
+
     branch_headways = (
         sa.select(
-            TempStaticHeadwaysGen.pk_id,
+            temp_static_headways.c.pk_id,
             (
-                TempStaticHeadwaysGen.departure_time
-                - sa.func.lag(TempStaticHeadwaysGen.departure_time).over(
+                temp_static_headways.c.departure_time
+                - sa.func.lag(temp_static_headways.c.departure_time).over(
                     partition_by=[
-                        TempStaticHeadwaysGen.parent_station,
-                        TempStaticHeadwaysGen.service_id,
-                        TempStaticHeadwaysGen.direction_id,
-                        TempStaticHeadwaysGen.branch_route_id,
+                        temp_static_headways.c.parent_station,
+                        temp_static_headways.c.service_id,
+                        temp_static_headways.c.direction_id,
+                        temp_static_headways.c.branch_route_id,
                     ],
-                    order_by=TempStaticHeadwaysGen.departure_time,
+                    order_by=temp_static_headways.c.departure_time,
                 )
             ).label("branch_headways"),
         )
-        .select_from(TempStaticHeadwaysGen)
+        .select_from(temp_static_headways)
         .where(
-            TempStaticHeadwaysGen.branch_route_id.is_not(None),
+            temp_static_headways.c.branch_route_id.is_not(None),
         )
         .subquery("scheduled_branch_headways")
     )
@@ -94,29 +97,33 @@ def generate_scheduled_branch_headways(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
-def generate_scheduled_trunk_headways(db_manager: DatabaseManager) -> None:
+def generate_scheduled_trunk_headways(
+    static_version_key: int, db_manager: DatabaseManager
+) -> None:
     """
     generate scheduled trunk headways and insert into static_stop_times table
     """
+    temp_static_headways = static_headways_subquery(static_version_key)
+
     trunk_headways = (
         sa.select(
-            TempStaticHeadwaysGen.pk_id,
+            temp_static_headways.c.pk_id,
             (
-                TempStaticHeadwaysGen.departure_time
-                - sa.func.lag(TempStaticHeadwaysGen.departure_time).over(
+                temp_static_headways.c.departure_time
+                - sa.func.lag(temp_static_headways.c.departure_time).over(
                     partition_by=[
-                        TempStaticHeadwaysGen.parent_station,
-                        TempStaticHeadwaysGen.service_id,
-                        TempStaticHeadwaysGen.direction_id,
-                        TempStaticHeadwaysGen.trunk_route_id,
+                        temp_static_headways.c.parent_station,
+                        temp_static_headways.c.service_id,
+                        temp_static_headways.c.direction_id,
+                        temp_static_headways.c.trunk_route_id,
                     ],
-                    order_by=TempStaticHeadwaysGen.departure_time,
+                    order_by=temp_static_headways.c.departure_time,
                 )
             ).label("trunk_headways"),
         )
-        .select_from(TempStaticHeadwaysGen)
+        .select_from(temp_static_headways)
         .where(
-            TempStaticHeadwaysGen.trunk_route_id.is_not(None),
+            temp_static_headways.c.trunk_route_id.is_not(None),
         )
         .subquery("scheduled_trunk_headways")
     )
@@ -137,15 +144,14 @@ def generate_scheduled_trunk_headways(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
-def load_temp_table_headway_gen(
-    static_version_key: int, db_manager: DatabaseManager
-) -> None:
+def static_headways_subquery(
+    static_version_key: int,
+) -> sa.sql.selectable.Subquery:
     """
-    load static schedule data into temp table for generating scheduled headways
+    return subquery of temp_static_headways columns for generating scheduled headways
 
-    this was selected because executing an update as a CTE statement causes very poor performance
     """
-    load_headways_gen = (
+    return (
         sa.select(
             StaticStopTimes.pk_id,
             StaticStopTimes.departure_time,
@@ -179,25 +185,7 @@ def load_temp_table_headway_gen(
             StaticStops.static_version_key == static_version_key,
             StaticTrips.static_version_key == static_version_key,
         )
-    )
-    columns_to_insert = [
-        "pk_id",
-        "departure_time",
-        "parent_station",
-        "service_id",
-        "direction_id",
-        "trunk_route_id",
-        "branch_route_id",
-    ]
-    insert_from_select = sa.insert(TempStaticHeadwaysGen.__table__).from_select(
-        columns_to_insert, load_headways_gen
-    )
-
-    process_logger = ProcessLogger("gtfs.load_headways_gen_temp")
-    process_logger.log_start()
-    db_manager.truncate_table(TempStaticHeadwaysGen)
-    db_manager.execute(insert_from_select)
-    process_logger.log_complete()
+    ).subquery("temp_static_headways")
 
 
 def modify_static_tables(
@@ -209,7 +197,6 @@ def modify_static_tables(
 
     currently, we are only addding pre-computed metrics values to the static_stop_times tables
     """
-    load_temp_table_headway_gen(static_version_key, db_manager)
     generate_scheduled_travel_times(static_version_key, db_manager)
-    generate_scheduled_branch_headways(db_manager)
-    generate_scheduled_trunk_headways(db_manager)
+    generate_scheduled_branch_headways(static_version_key, db_manager)
+    generate_scheduled_trunk_headways(static_version_key, db_manager)

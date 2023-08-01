@@ -33,7 +33,11 @@ db_details = {
     "performance_manager": {
         "engine": get_local_engine(),
         "target_metadata": SqlBase.metadata,
-    }
+    },
+    "performance_manager_prod": {
+        "engine": get_local_engine(),
+        "target_metadata": SqlBase.metadata,
+    },
 }
 
 # other values from the config, defined by the needs of env.py,

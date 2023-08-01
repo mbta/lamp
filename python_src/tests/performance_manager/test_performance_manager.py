@@ -104,8 +104,9 @@ def fixture_db_manager() -> DatabaseManager:
     """
     set_env_vars()
     db_manager = DatabaseManager()
-    alembic_downgrade_to_base("performance_manager")
-    alembic_upgrade_to_head("performance_manager")
+    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
+    alembic_downgrade_to_base(db_name)
+    alembic_upgrade_to_head(db_name)
     return db_manager
 
 
@@ -364,6 +365,9 @@ def test_gtfs_rt_processing(
         # pm_trip_id and updated_on are handled by postgres
         # trip_id is pulled from parquet but not inserted into vehicle_events table
         expected_columns = set(ve_columns) - {
+            "pm_event_id",
+            "previous_trip_stop_pm_event_id",
+            "next_trip_stop_pm_event_id",
             "updated_on",
             "pm_trip_id",
             "travel_time_seconds",

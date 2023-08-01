@@ -471,22 +471,21 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
 
         try:
             if len(files["tu_paths"]) == 0:
-                # all events come from vp files. add tu key afterwards.
-                events = process_vp_files(
+                # only vp files available. create dummy tu events frame.
+                vp_events = process_vp_files(
                     paths=files["vp_paths"],
                     db_manager=db_manager,
                 )
-                events["tu_stop_timestamp"] = None
+                tu_events = pandas.DataFrame()
             elif len(files["vp_paths"]) == 0:
-                # all events come from tu files. add vp keys afterwards.
-                events = process_tu_files(
+                # only tu files available. create dummy vp events frame.
+                tu_events = process_tu_files(
                     paths=files["tu_paths"],
                     db_manager=db_manager,
                 )
-                events["vp_move_timestamp"] = None
-                events["vp_stop_timestamp"] = None
+                vp_events = pandas.DataFrame()
             else:
-                # events come from tu and vp files. join them together.
+                # files available for vp and tu events
                 vp_events = process_vp_files(
                     paths=files["vp_paths"],
                     db_manager=db_manager,
@@ -495,7 +494,22 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
                     paths=files["tu_paths"],
                     db_manager=db_manager,
                 )
+
+            if vp_events.shape[0] > 0 and tu_events.shape[0] > 0:
+                # combine events when available from tu and vp
                 events = combine_events(vp_events, tu_events)
+            elif vp_events.shape[0] == 0 and tu_events.shape[0] == 0:
+                # no events found
+                events = pandas.DataFrame()
+            elif tu_events.shape[0] == 0:
+                # no tu events found
+                events = vp_events
+                events["tu_stop_timestamp"] = None
+            elif vp_events.shape[0] == 0:
+                # no vp events found
+                events = tu_events
+                events["vp_move_timestamp"] = None
+                events["vp_stop_timestamp"] = None
 
             # continue events processing if records exist
             if events.shape[0] > 0:

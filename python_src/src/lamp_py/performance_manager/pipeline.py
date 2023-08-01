@@ -117,9 +117,10 @@ def start() -> None:
     # configure the environment
     os.environ["SERVICE_NAME"] = "performance_manager"
     validate_environment()
+    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
 
     # run rds migrations
-    alembic_upgrade_to_head(db_name="performance_manager")
+    alembic_upgrade_to_head(db_name=db_name)
 
     # run main method with parsed args
     main(parsed_args)
