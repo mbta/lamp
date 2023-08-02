@@ -8,6 +8,9 @@ from lamp_py.postgres.postgres_schema import (
     StaticTrips,
     TempEventCompare,
     StaticDirections,
+    StaticStopTimes,
+    StaticRoutePatterns,
+    StaticStops,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .l1_cte_statements import (
@@ -364,6 +367,110 @@ def update_directions(db_manager: DatabaseManager) -> None:
     process_logger.log_complete()
 
 
+def update_canonical_stop_sequence(db_manager: DatabaseManager) -> None:
+    """
+    Update canonical_stop_sequence from static_route_patterns
+    """
+    select_update_params = sa.select(
+        TempEventCompare.service_date,
+        TempEventCompare.static_version_key,
+    ).distinct()
+
+    for result in db_manager.select_as_list(select_update_params):
+        service_date = result["service_date"]
+        version_key = result["static_version_key"]
+
+        static_sub = (
+            sa.select(
+                StaticRoutePatterns.direction_id,
+                sa.func.coalesce(
+                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
+                ).label("route_id"),
+                StaticStops.parent_station,
+                StaticStopTimes.stop_sequence,
+            )
+            .select_from(StaticRoutePatterns)
+            .join(
+                StaticTrips,
+                sa.and_(
+                    StaticRoutePatterns.representative_trip_id
+                    == StaticTrips.trip_id,
+                    StaticRoutePatterns.static_version_key
+                    == StaticTrips.static_version_key,
+                ),
+            )
+            .join(
+                StaticStopTimes,
+                sa.and_(
+                    StaticRoutePatterns.representative_trip_id
+                    == StaticStopTimes.trip_id,
+                    StaticRoutePatterns.static_version_key
+                    == StaticStopTimes.static_version_key,
+                ),
+            )
+            .join(
+                StaticStops,
+                sa.and_(
+                    StaticStopTimes.stop_id == StaticStops.stop_id,
+                    StaticStopTimes.static_version_key
+                    == StaticStops.static_version_key,
+                ),
+            )
+            .where(
+                StaticRoutePatterns.static_version_key == version_key,
+                StaticRoutePatterns.route_pattern_typicality == 1,
+                StaticStopTimes.static_version_key == version_key,
+                StaticTrips.static_version_key == version_key,
+                StaticStops.static_version_key == version_key,
+            )
+            .subquery("static_sub")
+        )
+
+        canonical_sub = (
+            sa.select(
+                VehicleEvents.pm_event_id,
+                static_sub.c.stop_sequence,
+            )
+            .select_from(VehicleEvents)
+            .join(
+                VehicleTrips,
+                VehicleEvents.pm_trip_id == VehicleTrips.pm_trip_id,
+            )
+            .join(
+                static_sub,
+                sa.and_(
+                    VehicleTrips.direction_id == static_sub.c.direction_id,
+                    sa.func.coalesce(
+                        VehicleTrips.branch_route_id,
+                        VehicleTrips.trunk_route_id,
+                    )
+                    == static_sub.c.route_id,
+                    VehicleEvents.parent_station == static_sub.c.parent_station,
+                ),
+            )
+            .where(
+                VehicleEvents.service_date == service_date,
+                VehicleTrips.static_version_key == version_key,
+            )
+            .subquery("canonical_sub")
+        )
+
+        update_query = (
+            sa.update(VehicleEvents.__table__)
+            .values(
+                canonical_stop_sequence=canonical_sub.c.stop_sequence,
+            )
+            .where(
+                VehicleEvents.pm_event_id == canonical_sub.c.pm_event_id,
+            )
+        )
+
+    process_logger = ProcessLogger("l1_events.update_canonical_stop_sequence")
+    process_logger.log_start()
+    db_manager.execute(update_query)
+    process_logger.log_complete()
+
+
 # pylint: disable=R0914
 # pylint too many local variables (more than 15)
 def backup_rt_static_trip_match(
@@ -529,4 +636,5 @@ def process_trips(db_manager: DatabaseManager) -> None:
     update_prev_next_trip_stop(db_manager)
     update_static_trip_id_guess_exact(db_manager)
     update_directions(db_manager)
+    update_canonical_stop_sequence(db_manager)
     update_backup_static_trip_id(db_manager)

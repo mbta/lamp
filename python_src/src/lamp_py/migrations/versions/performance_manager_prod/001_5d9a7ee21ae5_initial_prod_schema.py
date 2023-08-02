@@ -243,6 +243,25 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "static_route_patterns",
+        sa.Column("pk_id", sa.Integer(), nullable=False),
+        sa.Column("route_id", sa.String(length=60), nullable=False),
+        sa.Column("direction_id", sa.Boolean(), nullable=True),
+        sa.Column("route_pattern_typicality", sa.SmallInteger(), nullable=True),
+        sa.Column(
+            "representative_trip_id", sa.String(length=128), nullable=False
+        ),
+        sa.Column("static_version_key", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("pk_id"),
+    )
+    op.create_index(
+        "ix_static_route_pattern_composite_1",
+        "static_route_patterns",
+        ["static_version_key", "route_id", "direction_id"],
+        unique=False,
+    )
+
+    op.create_table(
         "temp_event_compare",
         sa.Column("do_update", sa.Boolean(), nullable=True),
         sa.Column("do_insert", sa.Boolean(), nullable=True),
@@ -273,6 +292,7 @@ def upgrade() -> None:
         sa.Column("service_date", sa.Integer(), nullable=False),
         sa.Column("pm_trip_id", sa.Integer(), nullable=False),
         sa.Column("stop_sequence", sa.SmallInteger(), nullable=True),
+        sa.Column("canonical_stop_sequence", sa.SmallInteger(), nullable=True),
         sa.Column("stop_id", sa.String(length=60), nullable=False),
         sa.Column("parent_station", sa.String(length=60), nullable=False),
         sa.Column(
@@ -504,6 +524,12 @@ def downgrade() -> None:
     op.drop_table("vehicle_events")
 
     op.drop_table("temp_event_compare")
+
+    op.drop_index(
+        "ix_static_route_pattern_composite_1",
+        table_name="static_route_patterns",
+    )
+    op.drop_table("static_route_patterns")
 
     op.drop_index("ix_static_trips_composite_3", table_name="static_trips")
     op.drop_index("ix_static_trips_composite_2", table_name="static_trips")

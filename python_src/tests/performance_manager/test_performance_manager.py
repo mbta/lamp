@@ -41,6 +41,7 @@ from lamp_py.postgres.postgres_schema import (
     VehicleEvents,
     VehicleTrips,
     StaticDirections,
+    StaticRoutePatterns,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.alembic_migration import (
@@ -238,6 +239,7 @@ def test_static_tables(
     db_manager.truncate_table(StaticCalendar, restart_identity=True)
     db_manager.truncate_table(StaticCalendarDates, restart_identity=True)
     db_manager.truncate_table(StaticDirections, restart_identity=True)
+    db_manager.truncate_table(StaticRoutePatterns, restart_identity=True)
 
     paths = [file for file in test_files() if "FEED_INFO" in file]
     db_manager.add_metadata_paths(paths)
@@ -264,6 +266,7 @@ def test_static_tables(
         StaticCalendar: 102,
         StaticCalendarDates: 85,
         StaticDirections: 378,
+        StaticRoutePatterns: 141,
     }
 
     with db_manager.session.begin() as session:
@@ -374,6 +377,7 @@ def test_gtfs_rt_processing(
             "dwell_time_seconds",
             "headway_trunk_seconds",
             "headway_branch_seconds",
+            "canonical_stop_sequence",
         }
         expected_columns.add("trip_id")
         expected_columns.add("vehicle_label")

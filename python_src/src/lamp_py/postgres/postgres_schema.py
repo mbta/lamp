@@ -25,6 +25,7 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
 
     # stop identifiers
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
+    canonical_stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=False)
     parent_station = sa.Column(sa.String(60), nullable=False)
 
@@ -403,6 +404,27 @@ sa.Index(
     StaticDirections.static_version_key,
     StaticDirections.route_id,
     StaticDirections.direction_id,
+)
+
+
+class StaticRoutePatterns(SqlBase):  # pylint: disable=too-few-public-methods
+    """Table for GTFS Route Pattern"""
+
+    __tablename__ = "static_route_patterns"
+
+    pk_id = sa.Column(sa.Integer, primary_key=True)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    direction_id = sa.Column(sa.Boolean)
+    route_pattern_typicality = sa.Column(sa.SmallInteger, nullable=True)
+    representative_trip_id = sa.Column(sa.String(128), nullable=False)
+    static_version_key = sa.Column(sa.Integer, nullable=False)
+
+
+sa.Index(
+    "ix_static_route_pattern_composite_1",
+    StaticRoutePatterns.static_version_key,
+    StaticRoutePatterns.route_id,
+    StaticRoutePatterns.direction_id,
 )
 
 
