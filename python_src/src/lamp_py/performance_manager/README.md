@@ -11,7 +11,8 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | service_date | integer | false | |
 | pm_trip_id | integer | false | integer key used to join event record to trip data in [vehicle_trips](#vehicle_trips) table
 | stop_id | string | false | |
-| stop_sequence| small integer | false | |
+| stop_sequence | small integer | false | |
+| canonical_stop_sequence | small integer | false | stop_sequence based on "typical" route trips as defined in the [static_route_patterns](#static_route_patterns) table|
 | parent_station | string | false | |
 | previous_trip_stop_pm_event_id | integer | true | pm_event_id of previous stop of pm_trip_id grouping |
 | next_trip_stop_pm_event_id | integer | true| pm_event_id of next stop of pm_trip_id grouping |
@@ -156,6 +157,16 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | direction_id | boolean | false |
 | direction | string | false |
 | direction_destination | string | false |
+| static_version_key | integer | false | key used to link GTFS static schedule versions between tables |
+
+### `static_route_patterns`
+| column name | data type | nullable | description |
+| ----------- | --------- | -------- | ----------- |
+| pk_id | integer | false | auto incremented primary key |
+| route_id | string | false |
+| direction_id | boolean | false |
+| route_pattern_typicality | smallint | true |
+| representative_trip_id | string | false |
 | static_version_key | integer | false | key used to link GTFS static schedule versions between tables |
 
 # GTFS-RT Data

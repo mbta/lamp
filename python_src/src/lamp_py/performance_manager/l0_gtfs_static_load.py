@@ -18,6 +18,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticTrips,
     StaticCalendarDates,
     StaticDirections,
+    StaticRoutePatterns,
 )
 from lamp_py.postgres.postgres_utils import (
     DatabaseManager,
@@ -210,6 +211,25 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         ],
     )
 
+    route_patterns = StaticTableDetails(
+        table_name="ROUTE_PATTERNS",
+        insert_table=StaticRoutePatterns.__table__,
+        columns_to_pull=[
+            "route_id",
+            "direction_id",
+            "route_pattern_typicality",
+            "representative_trip_id",
+            "timestamp",
+        ],
+        int64_cols=[
+            "timestamp",
+            "route_pattern_typicality",
+        ],
+        bool_cols=[
+            "direction_id",
+        ],
+    )
+
     # this return order also dictates the order that tables are loaded into the RDS
     # the 'static_trips_create_branch_trunk' trigger requires that the `stop_times` table
     # be loaded prior to the `trips` table
@@ -222,6 +242,7 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
         "calendar": calendar,
         "calendar_dates": calendar_dates,
         "directions": directions,
+        "route_patterns": route_patterns,
     }
 
 
@@ -327,6 +348,10 @@ def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
 
     # save new stop_times dataframe for RDS insertion
     static_tables["stop_times"].data_table = stop_times
+
+    static_tables["route_patterns"].data_table = static_tables[
+        "route_patterns"
+    ].data_table.merge(no_bus_route_ids, how="inner", on="route_id")
 
     process_logger.add_metadata(
         stop_times_after_row_count=stop_times.shape[0],
