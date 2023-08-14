@@ -14,8 +14,9 @@ from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 
-from .l0_gtfs_static_load import process_static_tables
+from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
+from .l0_gtfs_static_load import process_static_tables
 
 logging.getLogger().setLevel("INFO")
 
@@ -94,6 +95,7 @@ def main(args: argparse.Namespace) -> None:
         try:
             process_static_tables(db_manager)
             process_gtfs_rt_files(db_manager)
+            write_flat_files(db_manager)
 
             process_logger.log_complete()
         except Exception as exception:

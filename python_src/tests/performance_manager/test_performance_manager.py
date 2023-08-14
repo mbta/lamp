@@ -2,16 +2,25 @@ import logging
 import os
 import pathlib
 from functools import lru_cache
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import (
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    Callable,
+)
 
 import pandas
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 import pyarrow
-from pyarrow import fs, parquet, csv
+from pyarrow import fs, parquet, csv, Table
 
-from lamp_py.performance_manager.flat_file import generate_daily_table
+from lamp_py.performance_manager.flat_file import write_flat_files
 from lamp_py.performance_manager.l0_gtfs_static_load import (
     process_static_tables,
 )
@@ -118,7 +127,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     files instead of s3, so we read these files differently
     """
 
-    def mock_get_static_parquet_paths(
+    def mock__get_static_parquet_paths(
         table_type: str, feed_info_path: str
     ) -> List[str]:
         """
@@ -137,13 +146,13 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
     monkeypatch.setattr(
         "lamp_py.performance_manager.l0_gtfs_static_load.get_static_parquet_paths",
-        mock_get_static_parquet_paths,
+        mock__get_static_parquet_paths,
     )
 
     def mock__get_pyarrow_table(
         filename: Union[str, List[str]],
         filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
-    ) -> pyarrow.Table:
+    ) -> Table:
         logging.debug(
             "Mock Get Pyarrow Table filename=%s, filters=%s", filename, filters
         )
@@ -155,7 +164,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
             to_load = [filename]
 
         if len(to_load) == 0:
-            return pyarrow.Table.from_pydict({})
+            return Table.from_pydict({})
 
         return parquet.ParquetDataset(
             to_load, filesystem=active_fs, filters=filters
@@ -164,59 +173,68 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(
         "lamp_py.aws.s3._get_pyarrow_table", mock__get_pyarrow_table
     )
+
+    # pylint: disable=R0913
+    # pylint too many arguments (more than 5)
+    def mock__write_parquet_file(
+        table: Table,
+        file_type: str,
+        s3_dir: str,
+        partition_cols: List[str],
+        visitor_func: Optional[Callable[..., None]] = None,
+        basename_template: Optional[str] = None,
+    ) -> None:
+        """
+        this will be called when writing the flat file parquet to s3
+        """
+        # check that only that flat file is being written
+        assert file_type == "flat_rail_performance"
+        assert visitor_func is None
+        assert "lamp" in s3_dir
+        assert "flat_file" in s3_dir
+
+        # check that the service date is right in the filename
+        assert basename_template == "2023-05-08-rail-performance-{i}.parquet"
+
+        # check that the shape is good, rows count is precalculated
+        rows, columns = table.shape
+        assert columns == 30
+        assert rows == 4310
+
+        # check that partitioned columns behave appropriately
+        for partition in partition_cols:
+            assert partition in table.column_names
+            assert len(table[partition].unique()) == 1
+
+        # check that these keys have values throughout the file
+        must_have_keys = [
+            "stop_id",
+            "parent_station",
+            "route_id",
+            "direction_id",
+            "start_time",
+            "vehicle_id",
+            "trip_id",
+            "vehicle_label",
+            "year",
+            "month",
+            "day",
+            "service_date",
+        ]
+
+        for key in must_have_keys:
+            assert True not in table[key].is_null(
+                nan_is_null=True
+            ), f"{key} has null values"
+
+    # pylint: enable=R0913
+
+    monkeypatch.setattr(
+        "lamp_py.performance_manager.flat_file.write_parquet_file",
+        mock__write_parquet_file,
+    )
+
     yield
-
-
-def flat_table_check(db_manager: DatabaseManager, service_date: int) -> None:
-    """checks to run on a flat table to ensure it has what would be expected"""
-    flat_table = generate_daily_table(db_manager, service_date)
-
-    # check that the shape is good
-    rows, columns = flat_table.shape
-    assert columns == 30
-
-    expected_row_count = db_manager.select_as_list(
-        sa.select(sa.func.count()).where(
-            sa.and_(
-                VehicleEvents.service_date == service_date,
-                sa.or_(
-                    VehicleEvents.vp_move_timestamp.is_not(None),
-                    VehicleEvents.vp_stop_timestamp.is_not(None),
-                ),
-            )
-        )
-    )[0]["count_1"]
-    assert rows == expected_row_count
-
-    # check that partitioned columns behave appropriately
-    assert "year" in flat_table.column_names
-    assert len(flat_table["year"].unique()) == 1
-
-    assert "month" in flat_table.column_names
-    assert len(flat_table["month"].unique()) == 1
-
-    assert "day" in flat_table.column_names
-    assert len(flat_table["day"].unique()) == 1
-
-    # check that these keys have values throughout the file
-    must_have_keys = [
-        "stop_id",
-        "parent_station",
-        "route_id",
-        "direction_id",
-        "start_time",
-        "vehicle_id",
-        "trip_id",
-        "vehicle_label",
-        "year",
-        "month",
-        "day",
-    ]
-
-    for key in must_have_keys:
-        assert True not in flat_table[key].is_null(
-            nan_is_null=True
-        ), f"{key} has null values"
 
 
 def check_logs(caplog: pytest.LogCaptureFixture) -> None:
@@ -365,9 +383,7 @@ def test_gtfs_rt_processing(
     ]
     db_manager.add_metadata_paths(paths)
 
-    grouped_files = get_gtfs_rt_paths(db_manager)
-
-    for files in grouped_files:
+    for files in get_gtfs_rt_paths(db_manager):
         for path in files["vp_paths"]:
             assert "RT_VEHICLE_POSITIONS" in path
 
@@ -444,7 +460,7 @@ def test_gtfs_rt_processing(
         build_temp_events(events, db_manager)
         update_events_from_temp(db_manager)
 
-    flat_table_check(db_manager=db_manager, service_date=20230508)
+    write_flat_files(db_manager)
 
     check_logs(caplog)
 

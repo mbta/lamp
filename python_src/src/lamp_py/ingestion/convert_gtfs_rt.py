@@ -356,8 +356,8 @@ class GtfsRtConverter(Converter):
             s3_prefix = str(self.config_type)
             write_parquet_file(
                 table=table,
-                config_type=s3_prefix,
-                s3_path=os.path.join(
+                file_type=s3_prefix,
+                s3_dir=os.path.join(
                     os.environ["SPRINGBOARD_BUCKET"],
                     DEFAULT_S3_PREFIX,
                     s3_prefix,
