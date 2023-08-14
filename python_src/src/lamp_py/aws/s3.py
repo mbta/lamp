@@ -232,15 +232,18 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
 # pylint: enable=R0914
 
 
+# pylint: disable=R0913
+# pylint too many arguments (more than 5)
 def write_parquet_file(
     table: Table,
-    config_type: str,
-    s3_path: str,
+    file_type: str,
+    s3_dir: str,
     partition_cols: List[str],
-    visitor_func: Optional[Callable[..., None]],
+    visitor_func: Optional[Callable[..., None]] = None,
+    basename_template: Optional[str] = None,
 ) -> None:
     """
-    Helper function to write out a parquet table to an s3 path, patitioning
+    Helper function to write out a parquet table to an s3 path, partitioning
     based on columns. As files are written, add them to the metadata table of
     the performance manager database.
 
@@ -253,9 +256,23 @@ def write_parquet_file(
     It appears that this bug isn't going to be fixed and using the
     dataset.write_dataset is the preferred method for writing parquet files
     going forward. https://issues.apache.org/jira/browse/ARROW-17068
+
+    @table - the table thats going to be written to parquet
+    @file_type - string used in logging to indicate what type of file was
+        written
+    @s3_dir - the s3 bucket plus prefix "subdirectory" path where the
+        parquet files should be written
+    @partition_cols - column names in the table to partition out into the
+        filepath.
+    @visitor_func - if set, this function will be called with a WrittenFile
+        instance for each file created during the call. a WrittenFile has
+        path and metadata attributes.
+    @basename_template - a template string used to generate base names of
+        written parquet files. The token `{i}` will be replaced with an
+        incremented int.
     """
     process_logger = ProcessLogger(
-        "write_parquet", config_type=config_type, number_of_rows=table.num_rows
+        "write_parquet", file_type=file_type, number_of_rows=table.num_rows
     )
     process_logger.log_start()
 
@@ -265,18 +282,24 @@ def write_parquet_file(
         table.select(partition_cols).schema, flavor="hive"
     )
 
+    if basename_template is None:
+        basename_template = guid() + "-{i}.parquet"
+
     ds.write_dataset(
         data=table,
-        base_dir=s3_path,
+        base_dir=s3_dir,
         filesystem=fs.S3FileSystem(),
         format=ds.ParquetFileFormat(),
         partitioning=partitioning,
         file_visitor=visitor_func,
-        basename_template=guid() + "-{i}.parquet",
+        basename_template=basename_template,
         existing_data_behavior="overwrite_or_ignore",
     )
 
     process_logger.log_complete()
+
+
+# pylint: enable=R0913
 
 
 def get_datetime_from_partition_path(path: str) -> datetime.datetime:

@@ -326,17 +326,17 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
     def mock_write_parquet_file(
         table: Table,
-        config_type: str,
-        s3_path: str,
+        file_type: str,
+        s3_dir: str,
         partition_cols: List[str],
-        visitor_func: Optional[Callable[..., None]],
+        visitor_func: Optional[Callable[..., None]] = None,
     ) -> None:
         """
         instead of writing the parquet file to s3, inspect the contents of the
         table. call the visitor function on a dummy s3 path.
         """
         # pull the name out of the s3 path and check that we are expecting this table
-        table_name = config_type.lower()
+        table_name = file_type.lower()
         tables_written.append(table_name)
 
         table_attributes = all_table_attributes()[table_name]
@@ -352,7 +352,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
         # call the visitor function, which should add the string to the queue to check later
         if visitor_func is not None:
-            visitor_func(os.path.join(s3_path, "written.parquet"))
+            visitor_func(os.path.join(s3_dir, "written.parquet"))
 
     monkeypatch.setattr(
         "lamp_py.ingestion.convert_gtfs.write_parquet_file",

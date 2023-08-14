@@ -1,6 +1,9 @@
+import os
+
 import sqlalchemy as sa
 import pyarrow
 
+from lamp_py.aws.s3 import write_parquet_file
 from lamp_py.performance_manager.gtfs_utils import (
     static_version_key_from_service_date,
 )
@@ -9,8 +12,51 @@ from lamp_py.postgres.postgres_schema import (
     VehicleTrips,
     StaticStopTimes,
     StaticStops,
+    TempEventCompare,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
+def write_flat_files(db_manager: DatabaseManager) -> None:
+    """write flat files to s3 for datetimes"""
+    date_df = db_manager.select_as_dataframe(
+        sa.select(TempEventCompare.service_date).distinct()
+    )
+
+    process_logger = ProcessLogger(
+        "bulk_flat_file_write", date_count=date_df.shape[0]
+    )
+    process_logger.log_start()
+
+    for date in date_df["service_date"]:
+        sub_process_logger = ProcessLogger("flat_file_write", service_date=date)
+        sub_process_logger.log_start()
+
+        try:
+            s3_directory = os.path.join(
+                os.environ["ARCHIVE_BUCKET"], "lamp", "flat_file"
+            )
+
+            as_str = str(date)
+            filename = f"{as_str[0:4]}-{as_str[4:6]}-{as_str[6:8]}-rail-performance-{{i}}.parquet"
+
+            flat_table = generate_daily_table(db_manager, date)
+            sub_process_logger.add_metadata(row_count=flat_table.shape[0])
+
+            write_parquet_file(
+                table=flat_table,
+                file_type="flat_rail_performance",
+                s3_dir=s3_directory,
+                partition_cols=["year", "month", "day"],
+                basename_template=filename,
+            )
+        except Exception as e:
+            sub_process_logger.log_failure(e)
+        else:
+            sub_process_logger.log_complete()
+
+    process_logger.log_complete()
 
 
 def generate_daily_table(
