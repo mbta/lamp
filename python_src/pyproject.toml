@@ -25,6 +25,7 @@ psycopg2 = "^2.9.3"
 psutil = "^5.9.1"
 schedule = "^1.1.0"
 alembic = "^1.10.2"
+types-pytz = "^2023.3.0.1"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"

@@ -7,23 +7,22 @@ from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import (
-    start_time_to_seconds,
-    add_static_version_key_column,
+    add_missing_service_dates,
     add_parent_station_column,
-    unique_trip_stop_columns,
+    add_static_version_key_column,
     rail_routes_from_filepath,
+    start_time_to_seconds,
+    unique_trip_stop_columns,
 )
 
 
 def get_tu_dataframe_chunks(
-    to_load: Union[str, List[str]], db_manager: DatabaseManager
+    to_load: Union[str, List[str]], route_ids: List[str]
 ) -> Iterator[pandas.DataFrame]:
     """
     return interator of dataframe chunks from a trip updates parquet file
     (or list of files)
     """
-    route_ids = rail_routes_from_filepath(to_load, db_manager)
-
     trip_update_columns = [
         "timestamp",
         "stop_time_update",
@@ -113,7 +112,7 @@ def explode_stop_time_update(
 
 
 def get_and_unwrap_tu_dataframe(
-    paths: Union[str, List[str]], db_manager: DatabaseManager
+    paths: Union[str, List[str]], route_ids: List[str]
 ) -> pandas.DataFrame:
     """
     unwrap and explode trip updates records from parquet files
@@ -125,11 +124,12 @@ def get_and_unwrap_tu_dataframe(
     process_logger.log_start()
 
     events = pandas.Series(dtype="object")
+
     # get_tu_dataframe_chunks set to pull ~100_000 trip update records
     # per batch, this should result in ~5-6 GB of memory use per batch
     # after batch goes through explod_stop_time_update vectorize operation,
     # resulting Series has negligible memory use
-    for batch_events in get_tu_dataframe_chunks(paths, db_manager):
+    for batch_events in get_tu_dataframe_chunks(paths, route_ids):
         # store start_date as int64 and rename to service_date
         batch_events.rename(
             columns={"start_date": "service_date"}, inplace=True
@@ -228,8 +228,12 @@ def process_tu_files(
     )
     process_logger.log_start()
 
-    trip_updates = get_and_unwrap_tu_dataframe(paths, db_manager)
+    route_ids = rail_routes_from_filepath(paths, db_manager)
+    trip_updates = get_and_unwrap_tu_dataframe(paths, route_ids)
     if trip_updates.shape[0] > 0:
+        trip_updates = add_missing_service_dates(
+            events_dataframe=trip_updates, timestamp_key="timestamp"
+        )
         trip_updates = add_static_version_key_column(trip_updates, db_manager)
         trip_updates = add_parent_station_column(trip_updates, db_manager)
         trip_updates = reduce_trip_updates(trip_updates)

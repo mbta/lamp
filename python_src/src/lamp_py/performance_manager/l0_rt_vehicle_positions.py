@@ -7,16 +7,17 @@ from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .gtfs_utils import (
-    start_time_to_seconds,
-    add_static_version_key_column,
     add_parent_station_column,
-    unique_trip_stop_columns,
+    add_missing_service_dates,
+    add_static_version_key_column,
     rail_routes_from_filepath,
+    start_time_to_seconds,
+    unique_trip_stop_columns,
 )
 
 
 def get_vp_dataframe(
-    to_load: Union[str, List[str]], db_manager: DatabaseManager
+    to_load: Union[str, List[str]], route_ids: List[str]
 ) -> pandas.DataFrame:
     """
     return a dataframe from a vehicle position parquet file (or list of files)
@@ -24,8 +25,6 @@ def get_vp_dataframe(
     """
     process_logger = ProcessLogger("vp.get_dataframe")
     process_logger.log_start()
-
-    route_ids = rail_routes_from_filepath(to_load, db_manager)
 
     vehicle_position_cols = [
         "current_status",
@@ -206,9 +205,13 @@ def process_vp_files(
     )
     process_logger.log_start()
 
-    vehicle_positions = get_vp_dataframe(paths, db_manager)
+    route_ids = rail_routes_from_filepath(paths, db_manager)
+    vehicle_positions = get_vp_dataframe(paths, route_ids)
     if vehicle_positions.shape[0] > 0:
         vehicle_positions = transform_vp_datatypes(vehicle_positions)
+        vehicle_positions = add_missing_service_dates(
+            vehicle_positions, timestamp_key="vehicle_timestamp"
+        )
         vehicle_positions = add_static_version_key_column(
             vehicle_positions, db_manager
         )
