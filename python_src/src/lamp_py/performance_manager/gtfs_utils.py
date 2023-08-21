@@ -1,7 +1,9 @@
+import datetime
 from typing import Optional, List, Union
 
 import numpy
 import pandas
+import pytz
 import sqlalchemy as sa
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
@@ -24,6 +26,41 @@ def start_time_to_seconds(
         return time
     (hour, minute, second) = time.split(":")
     return int(hour) * 3600 + int(minute) * 60 + int(second)
+
+
+def service_date_from_timestamp(timestamp: int) -> int:
+    """
+    generate the service date from a timestamp. if the timestamp is from before
+    3am, it belongs to the previous days service. otherwise, it belongs to its
+    days service. use the EST timezone when interpreting the timestamp to ensure
+    proper handling of daylight savings time.
+    """
+    date_and_time = datetime.datetime.fromtimestamp(
+        timestamp, tz=pytz.timezone("EST5EDT")
+    )
+
+    if date_and_time.hour < 3:
+        service_date = date_and_time.date() - datetime.timedelta(days=1)
+    else:
+        service_date = date_and_time.date()
+
+    return int(
+        f"{service_date.year:04}{service_date.month:02}{service_date.day:02}"
+    )
+
+
+def add_missing_service_dates(
+    events_dataframe: pandas.DataFrame, timestamp_key: str
+) -> pandas.DataFrame:
+    """
+    # generate the service date from the vehicle timestamp if null
+    """
+    events_dataframe["service_date"] = events_dataframe["service_date"].where(
+        events_dataframe["service_date"].notna(),
+        events_dataframe[timestamp_key].apply(service_date_from_timestamp),
+    )
+
+    return events_dataframe
 
 
 def unique_trip_stop_columns() -> List[str]:
