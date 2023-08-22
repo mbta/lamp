@@ -32,10 +32,8 @@ def unique_trip_stop_columns() -> List[str]:
     """
     return [
         "service_date",
-        "start_time",
         "route_id",
-        "direction_id",
-        "vehicle_id",
+        "trip_id",
         "parent_station",
     ]
 

@@ -49,10 +49,9 @@ def get_vp_dataframe(
         ("vehicle_timestamp", ">", 0),
         ("direction_id", "in", (0, 1)),
         ("route_id", "!=", "None"),
-        ("start_date", "!=", "None"),
-        ("start_time", "!=", "None"),
         ("vehicle_id", "!=", "None"),
         ("route_id", "in", route_ids),
+        ("trip_id", "!=", "None"),
     ]
 
     result = read_parquet(
@@ -89,7 +88,7 @@ def transform_vp_datatypes(
     )
     vehicle_positions["service_date"] = pandas.to_numeric(
         vehicle_positions["service_date"]
-    ).astype("int64")
+    ).astype("Int64")
 
     # rename current_stop_sequence to stop_sequence
     # and convert to int64
@@ -109,7 +108,7 @@ def transform_vp_datatypes(
     vehicle_positions["start_time"] = (
         vehicle_positions["start_time"]
         .apply(start_time_to_seconds)
-        .astype("int64")
+        .astype("Int64")
     )
 
     process_logger.log_complete()
@@ -134,8 +133,6 @@ def transform_vp_timestamps(
     process_logger.log_start()
 
     trip_stop_columns = unique_trip_stop_columns()
-    # TODO: review trip_id processing # pylint: disable=fixme
-    #  add more intelligent trip_id processing, this approach will randomly select trip_id record to keep
 
     # create a pivot table on unique trip-stop events, finding the earliest time
     # that each vehicle/stop pair is and is not moving. rename the vehicle

@@ -32,13 +32,13 @@ def get_tu_dataframe_chunks(
         "start_date",
         "start_time",
         "vehicle_id",
+        "trip_id",
     ]
     trip_update_filters = [
         ("direction_id", "in", (0, 1)),
         ("timestamp", ">", 0),
         ("route_id", "!=", "None"),
-        ("start_date", "!=", "None"),
-        ("start_time", "!=", "None"),
+        ("trip_id", "!=", "None"),
         ("vehicle_id", "!=", "None"),
         ("route_id", "in", route_ids),
     ]
@@ -58,9 +58,10 @@ def explode_stop_time_update(
     timestamp: int,
     direction_id: bool,
     route_id: Any,
-    service_date: int,
-    start_time: int,
+    service_date: Optional[int],
+    start_time: Optional[int],
     vehicle_id: Any,
+    trip_id: Any,
 ) -> Optional[List[dict]]:
     """
     explode nested list of dicts in stop_time_update column
@@ -74,6 +75,7 @@ def explode_stop_time_update(
         "service_date": service_date,
         "start_time": start_time,
         "vehicle_id": vehicle_id,
+        "trip_id": trip_id,
     }
     return_list: List[Dict[str, Any]] = []
 
@@ -134,7 +136,7 @@ def get_and_unwrap_tu_dataframe(
         )
         batch_events["service_date"] = pandas.to_numeric(
             batch_events["service_date"]
-        ).astype("int64")
+        ).astype("Int64")
 
         # store direction_id as bool
         batch_events["direction_id"] = pandas.to_numeric(
@@ -145,7 +147,7 @@ def get_and_unwrap_tu_dataframe(
         batch_events["start_time"] = (
             batch_events["start_time"]
             .apply(start_time_to_seconds)
-            .astype("int64")
+            .astype("Int64")
         )
 
         # expand and filter stop_time_update column using numpy vectorize
@@ -161,6 +163,7 @@ def get_and_unwrap_tu_dataframe(
                 batch_events.service_date,
                 batch_events.start_time,
                 batch_events.vehicle_id,
+                batch_events.trip_id,
             )
         ).dropna()
         events = pandas.concat([events, batch_events])
@@ -203,7 +206,6 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
     # add selected columns
     # trip_updates and vehicle_positions dataframes must all have the same columns
     # available to be correctly joined in combine_events function of l0_gtfs_rt_events.py
-    trip_updates["trip_id"] = None
     trip_updates["stop_sequence"] = None
     trip_updates["vehicle_label"] = None
     trip_updates["vehicle_consist"] = None

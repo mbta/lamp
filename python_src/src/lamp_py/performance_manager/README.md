@@ -208,11 +208,9 @@ Performance Manager compresses GTFS-RT Vehicle Positions event records to store 
 
 Initially, Vehicle Positions events are grouped by unique trip-stop columns:
 * parent_station
-* direction_id
 * route_id
 * service_date
-* start_time
-* vehicle_id
+* trip_id
 
 For each trip_stop event, the earliest `vehicle_timestamp` for a `current_status` indicating the vehicle is stopped is saved as the `vp_stop_timestamp` in the [vehicle_events](#vehicle_events) table. The earliest `vehicle_timestamp` for a `current_status` indicating the vehicle is moving is saved as the `vp_move_timestamp`.
 

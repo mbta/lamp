@@ -145,9 +145,7 @@ def combine_events(
     # we want to drop these null value records whenever possible
     # to prioritize records from vehicle_positions
     event_details["na_sort"] = (
-        event_details[
-            ["trip_id", "stop_sequence", "vehicle_label", "vehicle_consist"]
-        ]
+        event_details[["stop_sequence", "vehicle_label", "vehicle_consist"]]
         .isna()
         .sum(axis=1)
     )
@@ -305,9 +303,7 @@ def build_temp_events(
         .where(
             TempEventCompare.service_date == VehicleTrips.service_date,
             TempEventCompare.route_id == VehicleTrips.route_id,
-            TempEventCompare.direction_id == VehicleTrips.direction_id,
-            TempEventCompare.start_time == VehicleTrips.start_time,
-            TempEventCompare.vehicle_id == VehicleTrips.vehicle_id,
+            TempEventCompare.trip_id == VehicleTrips.trip_id,
         )
     )
     db_manager.execute(update_temp_trip_id)

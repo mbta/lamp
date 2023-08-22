@@ -93,15 +93,13 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
         .distinct(
             TempEventCompare.service_date,
             TempEventCompare.route_id,
-            TempEventCompare.direction_id,
-            TempEventCompare.start_time,
-            TempEventCompare.vehicle_id,
+            TempEventCompare.trip_id,
         )
         .order_by(
             TempEventCompare.service_date,
             TempEventCompare.route_id,
-            TempEventCompare.direction_id,
-            TempEventCompare.start_time,
+            TempEventCompare.trip_id,
+            TempEventCompare.stop_sequence.desc(),
         )
     )
 
@@ -124,9 +122,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
             index_elements=[
                 VehicleTrips.service_date,
                 VehicleTrips.route_id,
-                VehicleTrips.direction_id,
-                VehicleTrips.start_time,
-                VehicleTrips.vehicle_id,
+                VehicleTrips.trip_id,
             ],
         )
     )
@@ -146,15 +142,13 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
         .distinct(
             TempEventCompare.service_date,
             TempEventCompare.route_id,
-            TempEventCompare.direction_id,
-            TempEventCompare.start_time,
-            TempEventCompare.vehicle_id,
+            TempEventCompare.trip_id,
         )
         .order_by(
             TempEventCompare.service_date,
             TempEventCompare.route_id,
-            TempEventCompare.direction_id,
-            TempEventCompare.start_time,
+            TempEventCompare.trip_id,
+            TempEventCompare.stop_sequence.desc(),
         )
         .where(
             sa.or_(
@@ -175,9 +169,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
         .where(
             VehicleTrips.service_date == distinct_update_query.c.service_date,
             VehicleTrips.route_id == distinct_update_query.c.route_id,
-            VehicleTrips.direction_id == distinct_update_query.c.direction_id,
-            VehicleTrips.start_time == distinct_update_query.c.start_time,
-            VehicleTrips.vehicle_id == distinct_update_query.c.vehicle_id,
+            VehicleTrips.trip_id == distinct_update_query.c.trip_id,
         )
     )
     db_manager.execute(trip_update_query)
