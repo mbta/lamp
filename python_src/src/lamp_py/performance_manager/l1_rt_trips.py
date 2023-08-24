@@ -74,6 +74,13 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
 
     This guarantees that all events will have
     matching trips data in the "vehicle_trips" table
+
+    This INSERT/UPDATE logic will load distinct trip information from the last
+    recorded trip-stop event of a trip. The information in the last trip-stop
+    event is assumed to be more accurate than information from the first
+    trip-stop event because some values can carry over from the last trip of the
+    vehicle. The `TempEventCompare.stop_sequence.desc()` `order_by` call is
+    responsible for this behavior.
     """
     process_logger = ProcessLogger("l1_trips.load_new_trips")
     process_logger.log_start()
