@@ -25,7 +25,11 @@ def csv_to_vp_parquet(csv_filepath: str, parquet_filepath: str) -> None:
             "start_time": pyarrow.string(),
             "vehicle_id": pyarrow.string(),
             "vehicle_consist": pyarrow.string(),
-        }
+        },
+        # in our ingestion, if a key is missing, the value written to the
+        # parquet file is null. mimic this behavior by making empty strings
+        # null instead of ''.
+        strings_can_be_null=True,
     )
 
     table = csv.read_csv(csv_filepath, convert_options=vp_csv_options)

@@ -1,5 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.sql.expression import bindparam
+
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.postgres.postgres_schema import (
@@ -13,6 +15,7 @@ from lamp_py.postgres.postgres_schema import (
     StaticStops,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from .gtfs_utils import start_timestamp_to_seconds
 from .l1_cte_statements import (
     static_trips_subquery,
 )
@@ -215,6 +218,100 @@ def update_static_version_key(db_manager: DatabaseManager) -> None:
     process_logger.log_start()
     db_manager.execute(update_query)
     process_logger.log_complete()
+
+
+def update_start_times(db_manager: DatabaseManager) -> None:
+    """
+    Add in start times to trips that do not have one. For scheduled trips,
+    look these up in the static schedule by finding the earliest Stop Time for
+    that trip id. Added trips cannot be found in the static schedule, so use
+    the earliest vehicle position information we have about them.
+    """
+    # reusable subquery to find new events associated with trips that do not
+    # have start times.
+    missing_start_times = (
+        sa.select(TempEventCompare.pm_trip_id)
+        .distinct()
+        .join(
+            VehicleTrips, VehicleTrips.pm_trip_id == TempEventCompare.pm_trip_id
+        )
+        .where(
+            TempEventCompare.start_time.is_(None),
+            VehicleTrips.start_time.is_(None),
+        )
+        .subquery("missing_start_times_sub")
+    )
+
+    # get the start times for scheduled trips from the static schedule. match
+    # the trip id to a trip in the static schedule and find the earliest
+    # departure for that trip. these times are formatted as seconds after
+    # midnight, so a direct insertion with a subquery is ok
+    schedule_start_times_sub = (
+        sa.select(
+            VehicleTrips.pm_trip_id,
+            sa.func.min(StaticStopTimes.departure_time).label("start_time"),
+        )
+        .join(
+            missing_start_times,
+            missing_start_times.c.pm_trip_id == VehicleTrips.pm_trip_id,
+        )
+        .join(
+            StaticStopTimes,
+            VehicleTrips.trip_id == StaticStopTimes.trip_id,
+            VehicleTrips.static_version_key
+            == StaticStopTimes.static_version_key,
+        )
+        .group_by(
+            VehicleTrips.pm_trip_id,
+        )
+        .subquery("scheduled_start_times")
+    )
+
+    schedule_start_times_update_query = (
+        sa.update(VehicleTrips.__table__)
+        .where(VehicleTrips.pm_trip_id == schedule_start_times_sub.c.pm_trip_id)
+        .values(start_time=schedule_start_times_sub.c.start_time)
+    )
+
+    db_manager.execute(schedule_start_times_update_query)
+
+    # get the start times for added trips. by definition, these will not be in
+    # the static schedule, so find the earliest departure from the real time
+    # feed for this trip. these times are formatted as a UTC timestamp, and
+    # need to be converted into seconds after midnight. pull the values out as
+    # a dataframe, apply the conversion, and load back into the database using
+    # a binding.
+    unscheduled_start_times = db_manager.select_as_dataframe(
+        sa.select(
+            VehicleEvents.pm_trip_id.label("b_pm_trip_id"),
+            sa.func.min(VehicleEvents.vp_move_timestamp).label("b_start_time"),
+        )
+        .select_from(VehicleEvents)
+        .join(
+            missing_start_times,
+            VehicleEvents.pm_trip_id == missing_start_times.c.pm_trip_id,
+        )
+        .group_by(
+            VehicleEvents.pm_trip_id,
+        )
+    )
+
+    if unscheduled_start_times.shape[0] > 0:
+        unscheduled_start_times["b_start_time"] = (
+            unscheduled_start_times["b_start_time"]
+            .apply(start_timestamp_to_seconds)
+            .astype("int64")
+        )
+
+        start_times_update_query = (
+            sa.update(VehicleTrips.__table__)
+            .where(VehicleTrips.pm_trip_id == bindparam("b_pm_trip_id"))
+            .values(start_time=bindparam("b_start_time"))
+        )
+
+        db_manager.execute_with_data(
+            start_times_update_query, unscheduled_start_times
+        )
 
 
 def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
@@ -634,6 +731,7 @@ def process_trips(db_manager: DatabaseManager) -> None:
     update_trip_stop_counts(db_manager)
     update_prev_next_trip_stop(db_manager)
     update_static_trip_id_guess_exact(db_manager)
+    update_start_times(db_manager)
     update_directions(db_manager)
     update_canonical_stop_sequence(db_manager)
     update_backup_static_trip_id(db_manager)
