@@ -237,11 +237,7 @@ def trips_for_metrics_subquery(
             sa.func.lead(rt_trips_sub.c.vp_move_timestamp)
             .over(
                 partition_by=rt_trips_sub.c.vehicle_id,
-                order_by=sa.func.coalesce(
-                    rt_trips_sub.c.vp_move_timestamp,
-                    rt_trips_sub.c.vp_stop_timestamp,
-                    rt_trips_sub.c.tu_stop_timestamp,
-                ),
+                order_by=rt_trips_sub.c.vp_move_timestamp,
             )
             .label("next_station_move"),
         )
