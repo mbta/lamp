@@ -92,7 +92,6 @@ def set_env_vars() -> None:
             os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".env"
         )
         logging.debug("bootstrapping with env file %s", env_file)
-        print("bootstrapping with env file %s", env_file)
 
         with open(env_file, "r", encoding="utf8") as reader:
             for line in reader.readlines():
@@ -521,6 +520,71 @@ def test_vp_and_tu(
 
     process_gtfs_rt_files(db_manager)
 
+    check_logs(caplog)
+
+
+def test_missing_start_time(
+    db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: pathlib.Path,
+) -> None:
+    """
+    test the vehicle positions can be updated without trip updates
+    """
+    # capture the info logs to check after running the test
+    caplog.set_level(logging.INFO)
+
+    # clear out old data from the database
+    db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
+        )
+    )
+
+    # create a new parquet file from ths missing start times csv and add it to
+    # the metadata table for processing
+    csv_file = os.path.join(test_files_dir, "vp_missing_start_time.csv")
+    parquet_folder = tmp_path.joinpath(
+        "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
+    )
+    parquet_folder.mkdir(parents=True)
+    parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
+    csv_to_vp_parquet(csv_file, parquet_file)
+    db_manager.add_metadata_paths(
+        [
+            parquet_file,
+        ]
+    )
+
+    # process the parquet file
+    process_gtfs_rt_files(db_manager)
+
+    # check that all trips have an int convertible start time that is in
+    # seconds after midnight.
+    start_time_query = sa.select(VehicleTrips.pm_trip_id).where(
+        VehicleTrips.start_time.is_(None),
+        VehicleTrips.start_time < 0,
+        # 129600 is a day and a half.
+        VehicleTrips.start_time > 129600,
+    )
+
+    weird_start_times = db_manager.select_as_dataframe(start_time_query)
+    assert weird_start_times.shape[0] == 0
+
+    # there is an added trip in the csv data who's first move time is 1683547198
+    # or 7:59:58 AM. that is 25200 + 3540 + 58 = 28798 seconds after midnight.
+    added_trip_start_time = db_manager.select_as_list(
+        sa.select(VehicleTrips.start_time).where(
+            VehicleTrips.trip_id == "ADDED-1581518546"
+        )
+    )
+    assert len(added_trip_start_time) == 1
+    assert added_trip_start_time[0]["start_time"] == 28798
+
+    # check that there are no errors in the logs and that each start log has a
+    # completion log
     check_logs(caplog)
 
 

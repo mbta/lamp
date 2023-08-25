@@ -16,9 +16,16 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 
 
+# boston tzinfo to be used with datetimes that require DST considerations.
+#
+# NOTE: do not use this as an argument for datetime.deatime constructors.
+# instead use BOSTON_TZ with a naive datetime. (https://pypi.org/project/pytz/)
+BOSTON_TZ = pytz.timezone("EST5EDT")
+
+
 def start_time_to_seconds(
     time: Optional[str],
-) -> Optional[float]:
+) -> Optional[int]:
     """
     transform time string in HH:MM:SS format to seconds
     """
@@ -28,6 +35,23 @@ def start_time_to_seconds(
     return int(hour) * 3600 + int(minute) * 60 + int(second)
 
 
+def start_timestamp_to_seconds(start_timestamp: int) -> int:
+    """
+    convert a start timestamp into seconds after midnight of its service date.
+    """
+    service_date_string = str(service_date_from_timestamp(start_timestamp))
+    year = int(service_date_string[:4])
+    month = int(service_date_string[4:6])
+    day = int(service_date_string[6:8])
+    start_of_service_day = int(
+        BOSTON_TZ.localize(
+            datetime.datetime(year=year, month=month, day=day)
+        ).timestamp()
+    )
+
+    return start_timestamp - start_of_service_day
+
+
 def service_date_from_timestamp(timestamp: int) -> int:
     """
     generate the service date from a timestamp. if the timestamp is from before
@@ -35,9 +59,7 @@ def service_date_from_timestamp(timestamp: int) -> int:
     days service. use the EST timezone when interpreting the timestamp to ensure
     proper handling of daylight savings time.
     """
-    date_and_time = datetime.datetime.fromtimestamp(
-        timestamp, tz=pytz.timezone("EST5EDT")
-    )
+    date_and_time = datetime.datetime.fromtimestamp(timestamp, tz=BOSTON_TZ)
 
     if date_and_time.hour < 3:
         service_date = date_and_time.date() - datetime.timedelta(days=1)
