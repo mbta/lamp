@@ -7,9 +7,6 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Sequence,
-    Tuple,
-    Union,
     Callable,
 )
 
@@ -17,8 +14,7 @@ import pandas
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
-import pyarrow
-from pyarrow import fs, parquet, csv, Table
+from pyarrow import Table
 
 from lamp_py.performance_manager.flat_file import write_flat_files
 from lamp_py.performance_manager.l0_gtfs_static_load import (
@@ -62,15 +58,16 @@ from lamp_py.runtime_utils.alembic_migration import (
 from lamp_py.performance_manager.gtfs_utils import (
     add_static_version_key_column,
     add_parent_station_column,
+    rail_routes_from_filepath,
 )
 
-from ..test_resources import springboard_dir, test_files_dir
+from ..test_resources import springboard_dir, test_files_dir, csv_to_vp_parquet
 
 
 @lru_cache
 def test_files() -> List[str]:
     """
-    collaps all of the files in the lamp test files dir into a list
+    collapse all of the files in the lamp test files dir into a list
     """
     paths = []
 
@@ -148,31 +145,6 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(
         "lamp_py.performance_manager.l0_gtfs_static_load.get_static_parquet_paths",
         mock__get_static_parquet_paths,
-    )
-
-    def mock__get_pyarrow_table(
-        filename: Union[str, List[str]],
-        filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
-    ) -> Table:
-        logging.debug(
-            "Mock Get Pyarrow Table filename=%s, filters=%s", filename, filters
-        )
-        active_fs = fs.LocalFileSystem()
-
-        if isinstance(filename, list):
-            to_load = filename
-        else:
-            to_load = [filename]
-
-        if len(to_load) == 0:
-            return Table.from_pydict({})
-
-        return parquet.ParquetDataset(
-            to_load, filesystem=active_fs, filters=filters
-        ).read_pandas()
-
-    monkeypatch.setattr(
-        "lamp_py.aws.s3._get_pyarrow_table", mock__get_pyarrow_table
     )
 
     # pylint: disable=R0913
@@ -391,7 +363,8 @@ def test_gtfs_rt_processing(
             assert "RT_VEHICLE_POSITIONS" in path
 
         # check that we can load the parquet file into a dataframe correctly
-        positions = get_vp_dataframe(files["vp_paths"], db_manager)
+        route_ids = rail_routes_from_filepath(files["vp_paths"], db_manager)
+        positions = get_vp_dataframe(files["vp_paths"], route_ids)
         position_size = positions.shape[0]
         assert positions.shape[1] == 12
 
@@ -413,9 +386,7 @@ def test_gtfs_rt_processing(
         assert positions.shape[1] == 14
         assert position_size > positions.shape[0]
 
-        trip_updates = get_and_unwrap_tu_dataframe(
-            files["tu_paths"], db_manager
-        )
+        trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"], route_ids)
         trip_update_size = trip_updates.shape[0]
         assert trip_updates.shape[1] == 9
 
@@ -572,31 +543,17 @@ def test_whole_table(
     )
 
     csv_file = os.path.join(test_files_dir, "vehicle_positions_flat_input.csv")
-
-    vp_folder = "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
-    parquet_folder = tmp_path.joinpath(vp_folder)
-    parquet_folder.mkdir(parents=True)
-
-    parquet_file = parquet_folder.joinpath("flat_file.parquet")
-
-    options = csv.ConvertOptions(
-        column_types={
-            "current_status": pyarrow.string(),
-            "current_stop_sequence": pyarrow.int64(),
-            "stop_id": pyarrow.string(),
-            "vehicle_timestamp": pyarrow.int64(),
-            "direction_id": pyarrow.int64(),
-            "route_id": pyarrow.string(),
-            "start_date": pyarrow.string(),
-            "start_time": pyarrow.string(),
-            "vehicle_id": pyarrow.string(),
-        }
+    parquet_folder = tmp_path.joinpath(
+        "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
     )
-    table = csv.read_csv(csv_file, convert_options=options)
-    parquet.write_table(table, parquet_file)
+    parquet_folder.mkdir(parents=True)
+    parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
+
+    csv_to_vp_parquet(csv_file, parquet_file)
+
     db_manager.add_metadata_paths(
         [
-            str(parquet_file),
+            parquet_file,
         ]
     )
 
