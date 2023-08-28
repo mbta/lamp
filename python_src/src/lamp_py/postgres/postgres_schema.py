@@ -85,16 +85,16 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
 
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
-    route_id = sa.Column(sa.String(60), nullable=False)
-    direction_id = sa.Column(sa.Boolean, nullable=False)
-    start_time = sa.Column(sa.Integer, nullable=False)
-    vehicle_id = sa.Column(sa.String(60), nullable=False)
+    trip_id = sa.Column(sa.String(128), nullable=False)
 
     # additional trip information
+    route_id = sa.Column(sa.String(60), nullable=False)
+    direction_id = sa.Column(sa.Boolean, nullable=False)
+    start_time = sa.Column(sa.Integer, nullable=True)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
     branch_route_id = sa.Column(sa.String(60), nullable=True)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
     stop_count = sa.Column(sa.SmallInteger, nullable=True)
-    trip_id = sa.Column(sa.String(128), nullable=True)
     vehicle_label = sa.Column(sa.String(128), nullable=True)
     vehicle_consist = sa.Column(sa.String(), nullable=True)
     direction = sa.Column(sa.String(30), nullable=True)
@@ -120,10 +120,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     __table_args__ = (
         sa.UniqueConstraint(
             service_date,
-            route_id,
-            direction_id,
-            start_time,
-            vehicle_id,
+            trip_id,
             name="vehicle_trips_unique_trip",
         ),
     )
@@ -151,10 +148,7 @@ class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
 
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
-    direction_id = sa.Column(sa.Boolean, nullable=False)
-    route_id = sa.Column(sa.String(60), nullable=False)
-    start_time = sa.Column(sa.Integer, nullable=False)
-    vehicle_id = sa.Column(sa.String(60), nullable=False)
+    trip_id = sa.Column(sa.String(128), nullable=False)
 
     # stop identifiers
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
@@ -167,7 +161,10 @@ class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
     tu_stop_timestamp = sa.Column(sa.Integer, nullable=True)
 
     # extra trip information
-    trip_id = sa.Column(sa.String(128), nullable=True)
+    direction_id = sa.Column(sa.Boolean, nullable=False)
+    route_id = sa.Column(sa.String(60), nullable=False)
+    start_time = sa.Column(sa.Integer, nullable=False)
+    vehicle_id = sa.Column(sa.String(60), nullable=False)
     vehicle_label = sa.Column(sa.String(128), nullable=True)
     vehicle_consist = sa.Column(sa.String(), nullable=True)
 

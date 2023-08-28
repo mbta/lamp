@@ -417,15 +417,15 @@ def test_gtfs_rt_processing(
             files["tu_paths"], db_manager
         )
         trip_update_size = trip_updates.shape[0]
-        assert trip_updates.shape[1] == 8
+        assert trip_updates.shape[1] == 9
 
         # check that it can be combined with the static schedule
         trip_updates = add_static_version_key_column(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 9
+        assert trip_updates.shape[1] == 10
         assert trip_update_size == trip_updates.shape[0]
 
         trip_updates = add_parent_station_column(trip_updates, db_manager)
-        assert trip_updates.shape[1] == 10
+        assert trip_updates.shape[1] == 11
         assert trip_update_size == trip_updates.shape[0]
 
         trip_updates = reduce_trip_updates(trip_updates)
@@ -642,6 +642,7 @@ def test_whole_table(
         "headway_branch_seconds": "Int64",
         "headway_trunk_seconds": "Int64",
         "static_trip_id_guess": "Int64",
+        "start_time": "Int64",
     }
     sort_by = [
         "route_id",

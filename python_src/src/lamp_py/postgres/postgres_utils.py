@@ -289,7 +289,11 @@ class DatabaseManager:
             truncate_query = f"{truncate_query} CASCADE"
 
         self.execute(sa.text(f"{truncate_query};"))
-        self.execute(sa.text(f"ANALYZE {truncat_as};"))
+
+        # Execute VACUUM to avoid non-deterministic behavior during testing
+        with self.session.begin() as cursor:
+            cursor.execute(sa.text("END TRANSACTION;"))
+            cursor.execute(sa.text(f"VACUUM (ANALYZE) {truncat_as};"))
 
     def add_metadata_paths(self, paths: List[str]) -> None:
         """
