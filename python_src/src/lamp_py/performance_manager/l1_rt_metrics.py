@@ -6,7 +6,10 @@ from lamp_py.postgres.postgres_schema import (
     TempEventCompare,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from .l1_cte_statements import trips_for_metrics_subquery
+from .l1_cte_statements import (
+    trips_for_metrics_subquery,
+    trips_for_headways_subquery,
+)
 
 
 # pylint: disable=R0914
@@ -26,6 +29,9 @@ def update_metrics_columns(
 
     trips_for_metrics = trips_for_metrics_subquery(
         static_version_key, seed_service_date
+    )
+    trips_for_headways = trips_for_headways_subquery(
+        service_date=seed_service_date,
     )
 
     # travel_times calculation:
@@ -139,29 +145,25 @@ def update_metrics_columns(
     # next station in a trip
     t_headways_branch_sub = (
         sa.select(
-            trips_for_metrics.c.pm_trip_id,
-            trips_for_metrics.c.service_date,
-            trips_for_metrics.c.parent_station,
+            trips_for_headways.c.pm_trip_id,
+            trips_for_headways.c.service_date,
+            trips_for_headways.c.parent_station,
             (
-                trips_for_metrics.c.next_station_move
+                trips_for_headways.c.next_station_move
                 - sa.func.lag(
-                    trips_for_metrics.c.next_station_move,
+                    trips_for_headways.c.next_station_move,
                 ).over(
                     partition_by=(
-                        trips_for_metrics.c.parent_station,
-                        trips_for_metrics.c.branch_route_id,
-                        trips_for_metrics.c.direction_id,
+                        trips_for_headways.c.parent_station,
+                        trips_for_headways.c.branch_route_id,
+                        trips_for_headways.c.direction_id,
                     ),
-                    order_by=trips_for_metrics.c.next_station_move,
+                    order_by=trips_for_headways.c.next_station_move,
                 )
             ).label("headway_branch_seconds"),
         )
         .where(
-            sa.or_(
-                trips_for_metrics.c.stop_count > 1,
-                trips_for_metrics.c.first_stop_flag == sa.false(),
-            ),
-            trips_for_metrics.c.branch_route_id.is_not(None),
+            trips_for_headways.c.branch_route_id.is_not(None),
         )
         .subquery(name="t_headways_branch")
     )
@@ -187,29 +189,25 @@ def update_metrics_columns(
 
     t_headways_trunk_sub = (
         sa.select(
-            trips_for_metrics.c.pm_trip_id,
-            trips_for_metrics.c.service_date,
-            trips_for_metrics.c.parent_station,
+            trips_for_headways.c.pm_trip_id,
+            trips_for_headways.c.service_date,
+            trips_for_headways.c.parent_station,
             (
-                trips_for_metrics.c.next_station_move
+                trips_for_headways.c.next_station_move
                 - sa.func.lag(
-                    trips_for_metrics.c.next_station_move,
+                    trips_for_headways.c.next_station_move,
                 ).over(
                     partition_by=(
-                        trips_for_metrics.c.parent_station,
-                        trips_for_metrics.c.trunk_route_id,
-                        trips_for_metrics.c.direction_id,
+                        trips_for_headways.c.parent_station,
+                        trips_for_headways.c.trunk_route_id,
+                        trips_for_headways.c.direction_id,
                     ),
-                    order_by=trips_for_metrics.c.next_station_move,
+                    order_by=trips_for_headways.c.next_station_move,
                 )
             ).label("headway_trunk_seconds"),
         )
         .where(
-            sa.or_(
-                trips_for_metrics.c.stop_count > 1,
-                trips_for_metrics.c.first_stop_flag == sa.false(),
-            ),
-            trips_for_metrics.c.trunk_route_id.is_not(None),
+            trips_for_headways.c.trunk_route_id.is_not(None),
         )
         .subquery(name="t_headways_trunk")
     )

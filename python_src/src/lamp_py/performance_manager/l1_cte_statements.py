@@ -268,3 +268,50 @@ def trips_for_metrics_subquery(
             static_trips_sub.c.static_trip_stop_rank,
         )
     ).subquery(name="trip_for_metrics")
+
+
+def trips_for_headways_subquery(
+    service_date: int,
+) -> sa.sql.selectable.Subquery:
+    """
+    return Selectable named "trip_for_headways" with fields needed to develop headways values
+
+    will return one record for every unique trip-stop on 'service_date'
+    """
+
+    rt_trips_sub = rt_trips_subquery(service_date)
+
+    return (
+        sa.select(
+            rt_trips_sub.c.pm_trip_id,
+            rt_trips_sub.c.service_date,
+            rt_trips_sub.c.direction_id,
+            rt_trips_sub.c.route_id,
+            rt_trips_sub.c.branch_route_id,
+            rt_trips_sub.c.trunk_route_id,
+            rt_trips_sub.c.parent_station,
+            rt_trips_sub.c.stop_count,
+            rt_trips_sub.c.vehicle_id,
+            rt_trips_sub.c.vp_move_timestamp.label("move_timestamp"),
+            sa.func.lead(rt_trips_sub.c.vp_move_timestamp)
+            .over(
+                partition_by=rt_trips_sub.c.vehicle_id,
+                order_by=rt_trips_sub.c.vp_move_timestamp,
+            )
+            .label("next_station_move"),
+        )
+        .distinct(
+            rt_trips_sub.c.pm_trip_id,
+            rt_trips_sub.c.parent_station,
+        )
+        .select_from(rt_trips_sub)
+        .where(
+            # drop trips with one stop count, probably not valid
+            rt_trips_sub.c.stop_count
+            > 1,
+        )
+        .order_by(
+            rt_trips_sub.c.pm_trip_id,
+            rt_trips_sub.c.parent_station,
+        )
+    ).subquery(name="trip_for_headways")
