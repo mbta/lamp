@@ -20,6 +20,13 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 def write_flat_files(db_manager: DatabaseManager) -> None:
     """write flat files to s3 for datetimes"""
+    if os.environ.get("PUBLIC_ARCHIVE_BUCKET", None) is None:
+        return
+
+    s3_directory = os.path.join(
+        os.environ["PUBLIC_ARCHIVE_BUCKET"], "lamp", "flat_file"
+    )
+
     date_df = db_manager.select_as_dataframe(
         sa.select(TempEventCompare.service_date).distinct()
     )
@@ -34,10 +41,6 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
         sub_process_logger.log_start()
 
         try:
-            s3_directory = os.path.join(
-                os.environ["ARCHIVE_BUCKET"], "lamp", "flat_file"
-            )
-
             as_str = str(date)
             filename = f"{as_str[0:4]}-{as_str[4:6]}-{as_str[6:8]}-rail-performance-{{i}}.parquet"
 
