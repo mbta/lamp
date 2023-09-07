@@ -38,7 +38,6 @@ def validate_environment() -> None:
         "DB_NAME",
         "DB_PORT",
         "DB_USER",
-        "INCOMING_BUCKET",
     ]
 
     missing_required = []

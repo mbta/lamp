@@ -77,5 +77,6 @@ max-line-length = 80
 min-similarity-lines = 10
 # ignore session maker as it gives pylint fits
 # https://github.com/PyCQA/pylint/issues/7090
-ignored-classes = ['sqlalchemy.orm.session.sessionmaker' ]
-ignore = ["migrations"]
+ignored-classes = ['sqlalchemy.orm.session.sessionmaker']
+# ignore the migrations directory. its going to have duplication and _that is ok_.
+ignore-paths = ["^src/lamp_py/migrations/.*$"]
