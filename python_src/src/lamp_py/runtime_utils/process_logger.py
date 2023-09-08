@@ -2,9 +2,9 @@ import logging
 import os
 import time
 import uuid
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Optional
 
-MdValues = Union[str, int, float]
+MdValues = Optional[Union[str, int, float]]
 
 
 class ProcessLogger:

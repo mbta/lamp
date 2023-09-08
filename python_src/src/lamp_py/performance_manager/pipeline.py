@@ -11,8 +11,9 @@ from typing import List
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.postgres.postgres_utils import DatabaseManager
-from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
+from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
@@ -21,38 +22,6 @@ from .l0_gtfs_static_load import process_static_tables
 logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = """Entry Point to Performance Manager"""
-
-
-def validate_environment() -> None:
-    """
-    ensure that the environment has all the variables its required to have
-    before starting triggering main, making certain errors easier to debug.
-    """
-    # these variables required for normal opperation, ensure they are present
-    required_variables = [
-        "SPRINGBOARD_BUCKET",
-        "DB_HOST",
-        "DB_NAME",
-        "DB_PORT",
-        "DB_USER",
-        "SERVICE_NAME",
-        "ALEMBIC_DB_NAME",
-    ]
-
-    missing_required = [
-        key for key in required_variables if os.environ.get(key, None) is None
-    ]
-
-    # if db password is missing, db region is required to generate a token to
-    # use as the password to the cloud database
-    if os.environ.get("DB_PASSWORD", None) is None:
-        if os.environ.get("DB_REGION", None) is None:
-            missing_required.append("DB_REGION")
-
-    if missing_required:
-        raise EnvironmentError(
-            f"Missing required environment variables {missing_required}"
-        )
 
 
 def parse_args(args: List[str]) -> argparse.Namespace:
@@ -120,7 +89,15 @@ def start() -> None:
 
     # configure the environment
     os.environ["SERVICE_NAME"] = "performance_manager"
-    validate_environment()
+    validate_environment(
+        required_variables=[
+            "SPRINGBOARD_BUCKET",
+            "SERVICE_NAME",
+            "ALEMBIC_DB_NAME",
+        ],
+        optional_variables=["PUBLIC_ARCHIVE_BUCKET"],
+        validate_db=True,
+    )
 
     # run rds migrations
     alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_DB_NAME"))
