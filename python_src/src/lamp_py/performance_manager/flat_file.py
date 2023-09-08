@@ -20,21 +20,26 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 def write_flat_files(db_manager: DatabaseManager) -> None:
     """write flat files to s3 for datetimes"""
-    if os.environ.get("PUBLIC_ARCHIVE_BUCKET", None) is None:
+    # if we don't have a public archive bucket, exit
+    if os.environ.get("PUBLIC_ARCHIVE_BUCKET", "") == "":
         return
-
-    s3_directory = os.path.join(
-        os.environ["PUBLIC_ARCHIVE_BUCKET"], "lamp", "flat_file"
-    )
 
     date_df = db_manager.select_as_dataframe(
         sa.select(TempEventCompare.service_date).distinct()
     )
 
+    # if no data has been processed, exit
+    if date_df.shape[0] == 0:
+        return
+
     process_logger = ProcessLogger(
         "bulk_flat_file_write", date_count=date_df.shape[0]
     )
     process_logger.log_start()
+
+    s3_directory = os.path.join(
+        os.environ["PUBLIC_ARCHIVE_BUCKET"], "lamp", "flat_file"
+    )
 
     for date in date_df["service_date"]:
         sub_process_logger = ProcessLogger("flat_file_write", service_date=date)
