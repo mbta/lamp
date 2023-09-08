@@ -284,7 +284,13 @@ def update_start_times(db_manager: DatabaseManager) -> None:
     unscheduled_start_times = db_manager.select_as_dataframe(
         sa.select(
             VehicleEvents.pm_trip_id.label("b_pm_trip_id"),
-            sa.func.min(VehicleEvents.vp_move_timestamp).label("b_start_time"),
+            # we are choosing to define added trip start times as the time when
+            # the train departs the first station. on occasion, a trip will not
+            # have a move time. in those cases, use the earliest stop time.
+            sa.func.coalesce(
+                sa.func.min(VehicleEvents.vp_move_timestamp),
+                sa.func.min(VehicleEvents.vp_stop_timestamp),
+            ).label("b_start_time"),
         )
         .select_from(VehicleEvents)
         .join(
