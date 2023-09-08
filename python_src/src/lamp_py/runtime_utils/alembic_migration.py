@@ -19,7 +19,8 @@ def get_alembic_config(db_name: str) -> Config:
     )
 
     db_names = (
-        "performance_manager",
+        "performance_manager_dev",
+        "performance_manager_staging",
         "performance_manager_prod",
     )
 

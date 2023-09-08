@@ -13,7 +13,7 @@ if config.config_ini_section == "alembic":
     raise SyntaxError("Run alembic with -n flag to specifiy Database name.")
 
 # get database name from -n flag when alembic is run from cmd line
-db_name = config.config_ini_section
+db_name_env = config.config_ini_section
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -31,10 +31,6 @@ from lamp_py.postgres.postgres_schema import SqlBase
 # matches the key used in the db_details dictionary
 db_details = {
     "performance_manager": {
-        "engine": get_local_engine(),
-        "target_metadata": SqlBase.metadata,
-    },
-    "performance_manager_prod": {
         "engine": get_local_engine(),
         "target_metadata": SqlBase.metadata,
     },
@@ -77,6 +73,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # strip off the environment name at the end of the db_name_env.
+    # expected format is "<db_name>_<env>"
+    db_name = db_name_env.rsplit("_", 1)[0]
     connectable = db_details[db_name]["engine"]
 
     with connectable.connect() as connection:

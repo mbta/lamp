@@ -35,6 +35,8 @@ def validate_environment() -> None:
         "DB_NAME",
         "DB_PORT",
         "DB_USER",
+        "SERVICE_NAME",
+        "ALEMBIC_DB_NAME",
     ]
 
     missing_required = [
@@ -119,10 +121,9 @@ def start() -> None:
     # configure the environment
     os.environ["SERVICE_NAME"] = "performance_manager"
     validate_environment()
-    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
 
     # run rds migrations
-    alembic_upgrade_to_head(db_name=db_name)
+    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_DB_NAME"))
 
     # run main method with parsed args
     main(parsed_args)
