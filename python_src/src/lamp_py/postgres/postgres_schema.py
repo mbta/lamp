@@ -315,7 +315,7 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
     schedule_travel_time_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
-    stop_id = sa.Column(sa.String(30), nullable=False)
+    stop_id = sa.Column(sa.String(60), nullable=False)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
     static_version_key = sa.Column(sa.Integer, nullable=False)
 

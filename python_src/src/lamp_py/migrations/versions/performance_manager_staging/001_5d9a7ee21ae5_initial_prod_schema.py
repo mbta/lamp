@@ -167,7 +167,7 @@ def upgrade() -> None:
         sa.Column(
             "schedule_headway_branch_seconds", sa.Integer(), nullable=True
         ),
-        sa.Column("stop_id", sa.String(length=30), nullable=False),
+        sa.Column("stop_id", sa.String(length=60), nullable=False),
         sa.Column("stop_sequence", sa.SmallInteger(), nullable=False),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("pk_id"),
