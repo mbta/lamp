@@ -385,6 +385,7 @@ view_opmi_all_rt_fields_joined = """
             vt.service_date
             , ve.pm_trip_id
             , ve.stop_sequence
+            , ve.canonical_stop_sequence
             , ve.stop_id
             , prev_ve.stop_id as previous_stop_id
             , ve.parent_station
@@ -423,9 +424,13 @@ view_opmi_all_rt_fields_joined = """
         LEFT JOIN
             vehicle_events prev_ve
         ON
-            ve.pm_event_id = prev_ve.previous_trip_stop_pm_event_id
+            ve.pm_event_id = prev_ve.next_trip_stop_pm_event_id
         WHERE
-            ve.vp_stop_timestamp IS NOT null
-            OR ve.vp_move_timestamp IS NOT null
+            ve.previous_trip_stop_pm_event_id is not NULL 
+            AND ( 
+                ve.vp_stop_timestamp IS NOT null
+                OR ve.vp_move_timestamp IS NOT null 
+            )
+            
         ;
     """
