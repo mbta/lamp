@@ -24,6 +24,7 @@ def get_tu_dataframe_chunks(
     (or list of files)
     """
     trip_update_columns = [
+        "feed_timestamp",
         "timestamp",
         "stop_time_update",
         "direction_id",
@@ -35,8 +36,6 @@ def get_tu_dataframe_chunks(
     ]
     trip_update_filters = [
         ("direction_id", "in", (0, 1)),
-        ("timestamp", ">", 0),
-        ("route_id", "!=", "None"),
         ("trip_id", "!=", "None"),
         ("vehicle_id", "!=", "None"),
         ("route_id", "in", route_ids),
@@ -130,6 +129,13 @@ def get_and_unwrap_tu_dataframe(
     # after batch goes through explod_stop_time_update vectorize operation,
     # resulting Series has negligible memory use
     for batch_events in get_tu_dataframe_chunks(paths, route_ids):
+        # use feed_timestamp if timestamp value is null
+        batch_events["timestamp"] = batch_events["timestamp"].where(
+            batch_events["timestamp"].notna(),
+            batch_events["feed_timestamp"],
+        )
+        batch_events = batch_events.drop(columns=["feed_timestamp"])
+
         # store start_date as int64 and rename to service_date
         batch_events.rename(
             columns={"start_date": "service_date"}, inplace=True
