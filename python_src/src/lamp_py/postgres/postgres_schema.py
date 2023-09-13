@@ -163,7 +163,7 @@ class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
     # extra trip information
     direction_id = sa.Column(sa.Boolean, nullable=False)
     route_id = sa.Column(sa.String(60), nullable=False)
-    start_time = sa.Column(sa.Integer, nullable=False)
+    start_time = sa.Column(sa.Integer, nullable=True)
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     vehicle_label = sa.Column(sa.String(128), nullable=True)
     vehicle_consist = sa.Column(sa.String(), nullable=True)
@@ -315,7 +315,7 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
     schedule_travel_time_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
     schedule_headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
-    stop_id = sa.Column(sa.String(30), nullable=False)
+    stop_id = sa.Column(sa.String(60), nullable=False)
     stop_sequence = sa.Column(sa.SmallInteger, nullable=False)
     static_version_key = sa.Column(sa.Integer, nullable=False)
 
