@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import pyarrow
 
 from .gtfs_rt_detail import GTFSRTDetail
@@ -13,18 +14,18 @@ class RtBusTripDetail(GTFSRTDetail):
     def export_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
-                ## header -> timestamp
+                # header -> timestamp
                 ("year", pyarrow.int16()),
                 ("month", pyarrow.int8()),
                 ("day", pyarrow.int8()),
                 ("hour", pyarrow.int8()),
                 ("feed_timestamp", pyarrow.int64()),  # actual: timestamp
-                ## entity
+                # entity
                 ("entity_id", pyarrow.string()),  # actual label: id
                 # "is_deleted" all null during schema review
                 # "alert" all null during schema review
                 # "vehicle" all null during schema review
-                ## entity -> trip_update
+                # entity -> trip_update
                 # "timestamp" all null during schema review
                 # "cause_description" all null during schema review
                 # "cause_id" all null during schema review
@@ -81,7 +82,7 @@ class RtBusTripDetail(GTFSRTDetail):
                         )
                     ),
                 ),
-                ## entity -> trip_update -> trip
+                # entity -> trip_update -> trip
                 ("direction_id", pyarrow.int64()),
                 ("route_id", pyarrow.string()),
                 ("route_pattern_id", pyarrow.string()),
@@ -89,7 +90,7 @@ class RtBusTripDetail(GTFSRTDetail):
                 ("start_date", pyarrow.string()),
                 ("start_time", pyarrow.string()),
                 ("trip_id", pyarrow.string()),
-                ## entity -> trip_update -> vehicle
+                # entity -> trip_update -> vehicle
                 # "license_plate" all null during schema review
                 ("vehicle_id", pyarrow.string()),  # actual label: id
                 ("vehicle_label", pyarrow.string()),  # actual label: label
@@ -111,13 +112,18 @@ class RtBusTripDetail(GTFSRTDetail):
                 ("trip_id",),
             ),
             "entity,trip_update,vehicle": (
-                (
-                    "id",
-                    "vehicle_id",
-                ),
-                (
-                    "label",
-                    "vehicle_label",
-                ),
+                ("id", "vehicle_id"),
+                ("label", "vehicle_label"),
             ),
         }
+
+    @property
+    def table_sort_order(self) -> List[Tuple[str, str]]:
+        return [
+            ("start_date", "ascending"),
+            ("route_pattern_id", "ascending"),
+            ("route_id", "ascending"),
+            ("direction_id", "ascending"),
+            ("vehicle_id", "ascending"),
+            ("feed_timestamp", "ascending"),
+        ]

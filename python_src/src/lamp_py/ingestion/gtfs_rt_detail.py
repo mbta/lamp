@@ -1,6 +1,6 @@
 from abc import ABC
 from abc import abstractmethod
-from typing import Dict
+from typing import Dict, Optional, List, Tuple
 
 import pyarrow
 
@@ -29,3 +29,9 @@ class GTFSRTDetail(ABC):
     def empty_table(self) -> Dict[str, list]:
         """Create an empty table using this details parrow schema."""
         return {key.name: [] for key in self.export_schema}
+
+    @property
+    @abstractmethod
+    def table_sort_order(self) -> Optional[List[Tuple[str, str]]]:
+        """Provide list of fields to sort pyarrow table before writing to parquet"""
+        return None
