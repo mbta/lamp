@@ -354,6 +354,10 @@ class GtfsRtConverter(Converter):
 
         try:
             s3_prefix = str(self.config_type)
+
+            if self.detail.table_sort_order is not None:
+                table = table.sort_by(self.detail.table_sort_order)
+
             write_parquet_file(
                 table=table,
                 file_type=s3_prefix,

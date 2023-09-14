@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import pyarrow
 
 from .gtfs_rt_detail import GTFSRTDetail
@@ -100,3 +101,13 @@ class RtVehicleDetail(GTFSRTDetail):
                 ),
             ),
         }
+
+    @property
+    def table_sort_order(self) -> List[Tuple[str, str]]:
+        return [
+            ("start_date", "ascending"),
+            ("route_id", "ascending"),
+            ("vehicle_id", "ascending"),
+            ("direction_id", "ascending"),
+            ("feed_timestamp", "ascending"),
+        ]

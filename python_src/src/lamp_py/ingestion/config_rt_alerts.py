@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import pyarrow
 
 from .gtfs_rt_detail import GTFSRTDetail
@@ -209,3 +210,12 @@ class RtAlertsDetail(GTFSRTDetail):
                 ("translation", "recurrence_text_translation"),
             ),
         }
+
+    @property
+    def table_sort_order(self) -> List[Tuple[str, str]]:
+        return [
+            ("severity", "ascending"),
+            ("effect", "ascending"),
+            ("cause", "ascending"),
+            ("feed_timestamp", "ascending"),
+        ]
