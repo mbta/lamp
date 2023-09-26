@@ -27,35 +27,52 @@ def get_vp_dataframe(
     process_logger.log_start()
 
     vehicle_position_cols = [
-        "current_status",
-        "current_stop_sequence",
-        "stop_id",
-        "vehicle_timestamp",
-        "direction_id",
-        "route_id",
-        "start_date",
-        "start_time",
-        "vehicle_id",
-        "trip_id",
-        "vehicle_label",
-        "vehicle_consist",
+        "vehicle.current_status",
+        "vehicle.current_stop_sequence",
+        "vehicle.stop_id",
+        "vehicle.timestamp",
+        "vehicle.trip.direction_id",
+        "vehicle.trip.route_id",
+        "vehicle.trip.start_date",
+        "vehicle.trip.start_time",
+        "vehicle.vehicle.id",
+        "vehicle.trip.trip_id",
+        "vehicle.vehicle.label",
+        "vehicle.vehicle.consist",
     ]
 
     vehicle_position_filters = [
-        ("current_status", "!=", "None"),
-        ("current_stop_sequence", ">=", 0),
-        ("stop_id", "!=", "None"),
-        ("vehicle_timestamp", ">", 0),
-        ("direction_id", "in", (0, 1)),
-        ("route_id", "!=", "None"),
-        ("vehicle_id", "!=", "None"),
-        ("route_id", "in", route_ids),
-        ("trip_id", "!=", "None"),
+        ("vehicle.current_status", "!=", "None"),
+        ("vehicle.current_stop_sequence", ">=", 0),
+        ("vehicle.stop_id", "!=", "None"),
+        ("vehicle.timestamp", ">", 0),
+        ("vehicle.trip.direction_id", "in", (0, 1)),
+        ("vehicle.trip.route_id", "!=", "None"),
+        ("vehicle.vehicle.id", "!=", "None"),
+        ("vehicle.trip.route_id", "in", route_ids),
+        ("vehicle.trip.trip_id", "!=", "None"),
     ]
+
+    rename_mapper = {
+        "vehicle.current_status": "current_status",
+        "vehicle.current_stop_sequence": "current_stop_sequence",
+        "vehicle.stop_id": "stop_id",
+        "vehicle.timestamp": "vehicle_timestamp",
+        "vehicle.trip.direction_id": "direction_id",
+        "vehicle.trip.route_id": "route_id",
+        "vehicle.trip.start_date": "start_date",
+        "vehicle.trip.start_time": "start_time",
+        "vehicle.vehicle.id": "vehicle_id",
+        "vehicle.trip.trip_id": "trip_id",
+        "vehicle.vehicle.label": "vehicle_label",
+        "vehicle.vehicle.consist": "vehicle_consist",
+    }
 
     result = read_parquet(
         to_load, columns=vehicle_position_cols, filters=vehicle_position_filters
     )
+
+    result = result.rename(columns=rename_mapper)
 
     process_logger.add_metadata(row_count=result.shape[0])
     process_logger.log_complete()

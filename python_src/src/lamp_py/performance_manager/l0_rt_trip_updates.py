@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Iterator, List, Union
 
 import numpy
 import pandas
@@ -25,89 +25,32 @@ def get_tu_dataframe_chunks(
     """
     trip_update_columns = [
         "feed_timestamp",
-        "timestamp",
-        "stop_time_update",
-        "direction_id",
-        "route_id",
-        "start_date",
-        "start_time",
-        "vehicle_id",
-        "trip_id",
+        "trip_update.timestamp",
+        "trip_update.stop_time_update.stop_id",
+        "trip_update.stop_time_update.arrival.time",
+        "trip_update.trip.direction_id",
+        "trip_update.trip.route_id",
+        "trip_update.trip.start_date",
+        "trip_update.trip.start_time",
+        "trip_update.vehicle.id",
+        "trip_update.trip.trip_id",
     ]
     trip_update_filters = [
-        ("direction_id", "in", (0, 1)),
-        ("trip_id", "!=", "None"),
-        ("vehicle_id", "!=", "None"),
-        ("route_id", "in", route_ids),
+        ("trip_update.trip.direction_id", "in", (0, 1)),
+        ("trip_update.trip.trip_id", "!=", "None"),
+        ("trip_update.vehicle.id", "!=", "None"),
+        ("trip_update.trip.route_id", "in", route_ids),
+        ("trip_update.stop_time_update.arrival.time", ">", 0),
     ]
+
     # 100_000 batch size should result in ~5-6 GB of memory use per batch
     # of trip update records
     return read_parquet_chunks(
         to_load,
-        max_rows=100_000,
+        max_rows=250_000,
         columns=trip_update_columns,
         filters=trip_update_filters,
     )
-
-
-# pylint: disable=too-many-arguments
-def explode_stop_time_update(
-    stop_time_update: Optional[List[Dict[str, Any]]],
-    timestamp: int,
-    direction_id: bool,
-    route_id: Any,
-    service_date: Optional[int],
-    start_time: Optional[int],
-    vehicle_id: Any,
-    trip_id: Any,
-) -> Optional[List[dict]]:
-    """
-    explode nested list of dicts in stop_time_update column
-
-    to be used with numpy vectorize
-    """
-    append_dict = {
-        "timestamp": timestamp,
-        "direction_id": direction_id,
-        "route_id": route_id,
-        "service_date": service_date,
-        "start_time": start_time,
-        "vehicle_id": vehicle_id,
-        "trip_id": trip_id,
-    }
-    return_list: List[Dict[str, Any]] = []
-
-    # fix: https://app.asana.com/0/1203185331040541/1203495730837934
-    # it appears that numpy.vectorize batches function inputs which can
-    # result in None being passed in for stop_time_update
-    if stop_time_update is None:
-        return None
-
-    for record in stop_time_update:
-        try:
-            arrival_time = int(record["arrival"]["time"])
-        except (TypeError, KeyError):
-            continue
-        # filter out stop event predictions that are too far into the future
-        # and are unlikely to be used as a final stop event prediction
-        # (2 minutes) or predictions that go into the past (negative values)
-        if arrival_time - timestamp < 0 or arrival_time - timestamp > 120:
-            continue
-        append_dict.update(
-            {
-                "stop_id": record.get("stop_id"),
-                "tu_stop_timestamp": arrival_time,
-            }
-        )
-        return_list.append(append_dict.copy())
-
-    if len(return_list) == 0:
-        return None
-
-    return return_list
-
-
-# pylint: enable=too-many-arguments
 
 
 def get_and_unwrap_tu_dataframe(
@@ -122,13 +65,27 @@ def get_and_unwrap_tu_dataframe(
     process_logger = ProcessLogger("tu.get_and_unwrap_dataframe")
     process_logger.log_start()
 
-    events = pandas.Series(dtype="object")
+    trip_updates = pandas.DataFrame()
+
+    rename_mapper = {
+        "trip_update.timestamp": "timestamp",
+        "trip_update.stop_time_update.stop_id": "stop_id",
+        "trip_update.stop_time_update.arrival.time": "tu_stop_timestamp",
+        "trip_update.trip.direction_id": "direction_id",
+        "trip_update.trip.route_id": "route_id",
+        "trip_update.trip.start_date": "start_date",
+        "trip_update.trip.start_time": "start_time",
+        "trip_update.vehicle.id": "vehicle_id",
+        "trip_update.trip.trip_id": "trip_id",
+    }
 
     # get_tu_dataframe_chunks set to pull ~100_000 trip update records
     # per batch, this should result in ~5-6 GB of memory use per batch
     # after batch goes through explod_stop_time_update vectorize operation,
     # resulting Series has negligible memory use
     for batch_events in get_tu_dataframe_chunks(paths, route_ids):
+        # rename columns from trip update parquet schema
+        batch_events = batch_events.rename(columns=rename_mapper)
         # use feed_timestamp if timestamp value is null
         batch_events["timestamp"] = batch_events["timestamp"].where(
             batch_events["timestamp"].notna(),
@@ -156,26 +113,22 @@ def get_and_unwrap_tu_dataframe(
             .astype("Int64")
         )
 
-        # expand and filter stop_time_update column using numpy vectorize
-        # numpy vectorize offers significantly better performance over pandas apply
-        # this will return a ndarray with values being list of dicts
-        vector_explode = numpy.vectorize(explode_stop_time_update)
-        batch_events = pandas.Series(
-            vector_explode(
-                batch_events.stop_time_update,
-                batch_events.timestamp,
-                batch_events.direction_id,
-                batch_events.route_id,
-                batch_events.service_date,
-                batch_events.start_time,
-                batch_events.vehicle_id,
-                batch_events.trip_id,
-            )
-        ).dropna()
-        events = pandas.concat([events, batch_events])
+        batch_events["tu_stop_timestamp"] = pandas.to_numeric(
+            batch_events["tu_stop_timestamp"]
+        ).astype("Int64")
 
-    # transform Series of list of dicts into dataframe
-    trip_updates = pandas.json_normalize(events.explode())
+        # filter out stop event predictions that are too far into the future
+        # and are unlikely to be used as a final stop event prediction
+        # (2 minutes) or predictions that go into the past (negative values)
+        batch_events = batch_events[
+            (batch_events["tu_stop_timestamp"] - batch_events["timestamp"] >= 0)
+            & (
+                batch_events["tu_stop_timestamp"] - batch_events["timestamp"]
+                < 120
+            )
+        ]
+
+        trip_updates = pandas.concat([trip_updates, batch_events])
 
     process_logger.add_metadata(row_count=trip_updates.shape[0])
     process_logger.log_complete()

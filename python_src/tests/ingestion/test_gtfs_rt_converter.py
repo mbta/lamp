@@ -4,11 +4,15 @@ from multiprocessing import Queue
 from unittest.mock import patch
 
 from pyarrow import fs
+import pandas
 
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 
-from ..test_resources import incoming_dir
+from ..test_resources import (
+    incoming_dir,
+    test_files_dir,
+)
 
 
 def test_bad_conversion_local() -> None:
@@ -70,7 +74,8 @@ def test_empty_files() -> None:
         assert filename == empty_file
         assert table.to_pandas().shape == (
             0,
-            len(converter.detail.export_schema),
+            len(converter.detail.import_schema)
+            + 5,  # add 5 for header timestamp columns
         )
 
         one_blank_file = os.path.join(incoming_dir, "one_blank_record.json.gz")
@@ -78,8 +83,28 @@ def test_empty_files() -> None:
         assert filename == one_blank_file
         assert table.to_pandas().shape == (
             1,
-            len(converter.detail.export_schema),
+            len(converter.detail.import_schema)
+            + 5,  # add 5 for header timestamp columns
         )
+
+
+def drop_list_columns(table: pandas.DataFrame) -> pandas.DataFrame:
+    """
+    drop any columns with list objects to perform dataframe compare
+    """
+    list_columns = (
+        "consist",
+        "translation",
+        "informed_entity",
+        "active_period",
+        "reminder_times",
+        "stop_time_update",
+    )
+    for column in table.columns:
+        for list_col in list_columns:
+            if list_col in column:
+                table.drop(columns=column, inplace=True)
+    return table
 
 
 def test_vehicle_positions_file_conversion() -> None:
@@ -104,55 +129,21 @@ def test_vehicle_positions_file_conversion() -> None:
 
     assert filename == gtfs_rt_file
 
-    np_df = table.to_pandas()
-
-    # tuple(na count, dtype, max, min)
-    file_details = {
-        "year": (0, "int16", "2022", "2022"),
-        "month": (0, "int8", "1", "1"),
-        "day": (0, "int8", "1", "1"),
-        "hour": (0, "int8", "0", "0"),
-        "feed_timestamp": (0, "int64", "1640995202", "1640995202"),
-        "entity_id": (0, "object", "y4124", "1625"),
-        "current_status": (0, "object", "STOPPED_AT", "INCOMING_AT"),
-        "current_stop_sequence": (29, "float64", "640.0", "1.0"),
-        "occupancy_percentage": (426, "float64", "nan", "nan"),
-        "occupancy_status": (190, "object", "nan", "nan"),
-        "stop_id": (29, "object", "nan", "nan"),
-        "vehicle_timestamp": (0, "int64", "1640995198", "1640994366"),
-        "bearing": (0, "int64", "360", "0"),
-        "latitude": (0, "float64", "42.778499603271484", "41.82632064819336"),
-        "longitude": (0, "float64", "-70.7895736694336", "-71.5481185913086"),
-        "speed": (392, "float64", "29.9", "2.6"),
-        "direction_id": (4, "float64", "1.0", "0.0"),
-        "route_id": (0, "object", "Shuttle-Generic", "1"),
-        "schedule_relationship": (0, "object", "UNSCHEDULED", "ADDED"),
-        "start_date": (40, "object", "nan", "nan"),
-        "start_time": (87, "object", "nan", "nan"),
-        "trip_id": (0, "object", "nan", "nan"),
-        "vehicle_id": (0, "object", "y4124", "1625"),
-        "vehicle_label": (0, "object", "4124", "0420"),
-        "vehicle_consist": (324, "object", "nan", "nan"),
-    }
-
     # 426 records in 'entity' for 2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz
-    assert np_df.shape == (426, len(converter.detail.export_schema))
+    assert table.num_rows == 426
+    assert (
+        table.num_columns == len(converter.detail.import_schema) + 5
+    )  # add 5 for header timestamp columns
 
-    all_expected_paths = set(file_details.keys())
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
 
-    # ensure all of the expected paths were found and there aren't any
-    # additional ones
-    assert all_expected_paths == set(np_df.columns)
+    parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_VP.parquet")
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
 
-    # check file details
-    for col, (na_count, d_type, upper, lower) in file_details.items():
-        print(f"checking: {col}")
-        assert na_count == np_df[col].isna().sum()
-        assert d_type == np_df[col].dtype
-        if upper != "nan":
-            assert upper == str(np_df[col].max())
-        if lower != "nan":
-            assert lower == str(np_df[col].min())
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
     # check that we are able to handle older vp files from 16 sept 2019 - 4 march 2020
     old_gtfs_rt_file = os.path.join(
@@ -165,8 +156,17 @@ def test_vehicle_positions_file_conversion() -> None:
     assert timestamp.year == 2019
     assert timestamp.day == 12
 
-    assert table.shape[0] > 0
-    assert table.shape[1] > 0
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
+
+    parquet_file = os.path.join(
+        test_files_dir, "ingestion_GTFS-RT_VP_OLD.parquet"
+    )
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
+
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
 def test_rt_alert_file_conversion() -> None:
@@ -192,58 +192,23 @@ def test_rt_alert_file_conversion() -> None:
 
     assert filename == gtfs_rt_file
 
-    np_df = table.to_pandas()
-
-    # tuple(na count, dtype, max, min)
-    file_details = {
-        "year": (0, "int16", "2022", "2022"),
-        "month": (0, "int8", "5", "5"),
-        "day": (0, "int8", "4", "4"),
-        "hour": (0, "int8", "15", "15"),
-        "feed_timestamp": (0, "int64", "1651679986", "1651679986"),
-        "entity_id": (0, "object", "442146", "293631"),
-        "effect": (0, "object", "UNKNOWN_EFFECT", "DETOUR"),
-        "effect_detail": (0, "object", "TRACK_CHANGE", "BIKE_ISSUE"),
-        "cause": (0, "object", "UNKNOWN_CAUSE", "CONSTRUCTION"),
-        "cause_detail": (0, "object", "UNKNOWN_CAUSE", "CONSTRUCTION"),
-        "severity": (0, "int64", "10", "0"),
-        "severity_level": (0, "object", "WARNING", "INFO"),
-        "created_timestamp": (0, "int64", "1651679836", "1549051333"),
-        "last_modified_timestamp": (0, "int64", "1651679848", "1549051333"),
-        "alert_lifecycle": (0, "object", "UPCOMING_ONGOING", "NEW"),
-        "duration_certainty": (0, "object", "UNKNOWN", "ESTIMATED"),
-        "last_push_notification": (144, "float64", "nan", "nan"),
-        "active_period": (2, "object", "nan", "nan"),
-        "reminder_times": (132, "object", "nan", "nan"),
-        "closed_timestamp": (142, "float64", "1651679848.0", "1651679682.0"),
-        "short_header_text_translation": (0, "object", "nan", "nan"),
-        "header_text_translation": (0, "object", "nan", "nan"),
-        "description_text_translation": (0, "object", "nan", "nan"),
-        "service_effect_text_translation": (0, "object", "nan", "nan"),
-        "timeframe_text_translation": (44, "object", "nan", "nan"),
-        "url_translation": (138, "object", "nan", "nan"),
-        "recurrence_text_translation": (139, "object", "nan", "nan"),
-        "informed_entity": (0, "object", "nan", "nan"),
-    }
-
     # 144 records in 'entity' for 2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz
-    assert np_df.shape == (144, len(converter.detail.export_schema))
+    assert table.num_rows == 144
+    assert (
+        table.num_columns == len(converter.detail.import_schema) + 5
+    )  # add 5 for header timestamp columns
 
-    all_expected_paths = set(file_details.keys())
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
 
-    # ensure all of the expected paths were found and there aren't any
-    # additional ones
-    assert all_expected_paths == set(np_df.columns)
+    parquet_file = os.path.join(
+        test_files_dir, "ingestion_GTFS-RT_ALERT.parquet"
+    )
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
 
-    # check file details
-    for col, (na_count, d_type, upper, lower) in file_details.items():
-        print(f"checking: {col}")
-        assert na_count == np_df[col].isna().sum()
-        assert d_type == np_df[col].dtype
-        if upper != "nan":
-            assert upper == str(np_df[col].max())
-        if lower != "nan":
-            assert lower == str(np_df[col].min())
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
 def test_rt_trip_file_conversion() -> None:
@@ -269,48 +234,22 @@ def test_rt_trip_file_conversion() -> None:
 
     assert filename == gtfs_rt_file
 
-    np_df = table.to_pandas()
-
-    # tuple(na count, dtype, max, min)
-    file_details = {
-        "year": (0, "int16", "2022", "2022"),
-        "month": (0, "int8", "5", "5"),
-        "day": (0, "int8", "8", "8"),
-        "hour": (0, "int8", "6", "6"),
-        "feed_timestamp": (0, "int64", "1651989896", "1651989896"),
-        "entity_id": (0, "object", "CR-532710-1518", "50922039"),
-        "timestamp": (51, "float64", "1651989886.0", "1651989816.0"),
-        "stop_time_update": (0, "object", "nan", "nan"),
-        "direction_id": (0, "int64", "1", "0"),
-        "route_id": (0, "object", "SL1", "1"),
-        "start_date": (50, "object", "nan", "nan"),
-        "start_time": (51, "object", "nan", "nan"),
-        "trip_id": (0, "object", "CR-532710-1518", "50922039"),
-        "route_pattern_id": (79, "object", "nan", "nan"),
-        "schedule_relationship": (79, "object", "nan", "nan"),
-        "vehicle_id": (39, "object", "nan", "nan"),
-        "vehicle_label": (55, "object", "nan", "nan"),
-    }
-
     # 79 records in 'entity' for
     # 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
-    assert np_df.shape == (79, len(converter.detail.export_schema))
+    assert table.num_rows == 79
+    assert (
+        table.num_columns == len(converter.detail.import_schema) + 5
+    )  # add 5 for header timestamp columns
 
-    all_expected_paths = set(file_details.keys())
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
 
-    # ensure all of the expected paths were found and there aren't any
-    # additional ones
-    assert all_expected_paths == set(np_df.columns)
+    parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_TU.parquet")
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
 
-    # check file details
-    for col, (na_count, d_type, upper, lower) in file_details.items():
-        print(f"checking: {col}")
-        assert na_count == np_df[col].isna().sum()
-        assert d_type == np_df[col].dtype
-        if upper != "nan":
-            assert upper == str(np_df[col].max())
-        if lower != "nan":
-            assert lower == str(np_df[col].min())
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
     # check that we are able to handle older vp files from 16 sept 2019 - 4 march 2020
     old_gtfs_rt_file = os.path.join(
@@ -322,8 +261,17 @@ def test_rt_trip_file_conversion() -> None:
     assert timestamp.year == 2019
     assert timestamp.day == 12
 
-    assert table.shape[0] > 0
-    assert table.shape[1] > 0
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
+
+    parquet_file = os.path.join(
+        test_files_dir, "ingestion_GTFS-RT_TU_OLD.parquet"
+    )
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
+
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
 def test_bus_vehicle_positions_file_conversion() -> None:
@@ -349,66 +297,21 @@ def test_bus_vehicle_positions_file_conversion() -> None:
 
     assert filename == gtfs_rt_file
 
-    np_df = table.to_pandas()
-
-    # tuple(na count, dtype, max, min)
-    file_details = {
-        "year": (0, "int16", "2022", "2022"),
-        "month": (0, "int8", "5", "5"),
-        "day": (0, "int8", "5", "5"),
-        "hour": (0, "int8", "16", "16"),
-        "feed_timestamp": (0, "int64", "1651766414", "1651766414"),
-        "entity_id": (0, "object", "1651766413_1740", "1651764730_1426"),
-        "block_id": (484, "object", "nan", "nan"),
-        "capacity": (12, "float64", "57.0", "36.0"),
-        "current_stop_sequence": (844, "float64", "nan", "nan"),
-        "load": (569, "float64", "42.0", "0.0"),
-        "location_source": (0, "object", "transitmaster", "samsara"),
-        "occupancy_percentage": (569, "float64", "80.0", "0.0"),
-        "occupancy_status": (569, "object", "nan", "nan"),
-        "revenue": (0, "bool", "True", "False"),
-        "run_id": (484, "object", "nan", "nan"),
-        "stop_id": (844, "object", "nan", "nan"),
-        "vehicle_timestamp": (0, "int64", "1651766413", "1651764730"),
-        "bearing": (0, "int64", "356", "0"),
-        "latitude": (0, "float64", "42.65629769", "42.1069972"),
-        "longitude": (0, "float64", "-70.62653102", "-71.272446339"),
-        "speed": (163, "float64", "25.1189", "0.0"),
-        "overload_id": (844, "float64", "nan", "nan"),
-        "overload_offset": (844, "float64", "nan", "nan"),
-        "route_id": (529, "object", "nan", "nan"),
-        "schedule_relationship": (529, "object", "nan", "nan"),
-        "start_date": (779, "object", "nan", "nan"),
-        "trip_id": (529, "object", "nan", "nan"),
-        "vehicle_id": (0, "object", "y3159", "y0408"),
-        "vehicle_label": (0, "object", "3159", "0408"),
-        "assignment_status": (358, "object", "nan", "nan"),
-        "operator_id": (844, "object", "nan", "nan"),
-        "logon_time": (484, "float64", "1651766401.0", "1651740838.0"),
-        "name": (844, "object", "nan", "nan"),
-        "first_name": (844, "object", "nan", "nan"),
-        "last_name": (844, "object", "nan", "nan"),
-        "entity_is_deleted": (0, "bool", "False", "False"),
-    }
-
     # 844 records in 'entity' for 2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
-    assert np_df.shape == (844, len(converter.detail.export_schema))
+    assert table.num_rows == 844
+    assert (
+        table.num_columns == len(converter.detail.import_schema) + 5
+    )  # add 5 for header timestamp columns
 
-    all_expected_paths = set(file_details.keys())
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
 
-    # ensure all of the expected paths were found and there aren't any
-    # additional ones
-    assert all_expected_paths == set(np_df.columns)
+    parquet_file = os.path.join(test_files_dir, "ingestion_BUSLOC_VP.parquet")
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
 
-    # check file details
-    for col, (na_count, d_type, upper, lower) in file_details.items():
-        print(f"checking: {col}")
-        assert na_count == np_df[col].isna().sum()
-        assert d_type == np_df[col].dtype
-        if upper != "nan":
-            assert upper == str(np_df[col].max())
-        if lower != "nan":
-            assert lower == str(np_df[col].min())
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
 def test_bus_trip_updates_file_conversion() -> None:
@@ -434,51 +337,21 @@ def test_bus_trip_updates_file_conversion() -> None:
 
     assert filename == gtfs_rt_file
 
-    np_df = table.to_pandas()
-
-    # tuple(na count, dtype, max, min)
-    file_details = {
-        "year": (0, "int16", "2022", "2022"),
-        "month": (0, "int8", "6", "6"),
-        "day": (0, "int8", "28", "28"),
-        "hour": (0, "int8", "10", "10"),
-        "feed_timestamp": (0, "int64", "1656410597", "1656410597"),
-        "entity_id": (
-            0,
-            "object",
-            "T86-136:86:52101511:495418",
-            "A19-16:19:52110036:495423",
-        ),
-        "stop_time_update": (0, "object", "nan", "nan"),
-        "direction_id": (157, "float64", "nan", "nan"),
-        "route_id": (0, "object", "93", "111"),
-        "route_pattern_id": (157, "object", "nan", "nan"),
-        "schedule_relationship": (0, "object", "SCHEDULED", "SCHEDULED"),
-        "start_date": (157, "object", "nan", "nan"),
-        "start_time": (157, "object", "nan", "nan"),
-        "trip_id": (0, "object", "52271793", "52017959"),
-        "vehicle_id": (145, "object", "nan", "nan"),
-        "vehicle_label": (145, "object", "nan", "nan"),
-    }
-
     # 157 records in 'entity' for 2022-06-28T10_03_18Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz
-    assert np_df.shape == (157, len(converter.detail.export_schema))
+    assert table.num_rows == 157
+    assert (
+        table.num_columns == len(converter.detail.import_schema) + 5
+    )  # add 5 for header timestamp columns
 
-    all_expected_paths = set(file_details.keys())
+    np_df = converter.detail.flatten_schema(table).to_pandas()
+    np_df = drop_list_columns(np_df)
 
-    # ensure all of the expected paths were found and there aren't any
-    # additional ones
-    assert all_expected_paths == set(np_df.columns)
+    parquet_file = os.path.join(test_files_dir, "ingestion_BUSLOC_TU.parquet")
+    parquet_df = pandas.read_parquet(parquet_file)
+    parquet_df = drop_list_columns(parquet_df)
 
-    # check file details
-    for col, (na_count, d_type, upper, lower) in file_details.items():
-        print(f"checking: {col}")
-        assert na_count == np_df[col].isna().sum()
-        assert d_type == np_df[col].dtype
-        if upper != "nan":
-            assert upper == str(np_df[col].max())
-        if lower != "nan":
-            assert lower == str(np_df[col].min())
+    compare_result = np_df.compare(parquet_df, align_axis=1)
+    assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
 def test_start_of_hour() -> None:

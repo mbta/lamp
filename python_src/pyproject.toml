@@ -17,7 +17,7 @@ snapshot = 'lamp_py.postgres.snapshot:run'
 [tool.poetry.dependencies]
 python = "^3.9"
 SQLAlchemy = "^1.4.39"
-pyarrow = "^11.0.0"
+pyarrow = "^13.0.0"
 boto3 = "^1.23.3"
 pandas = "^1.4.3"
 numpy = "^1.23.1"
@@ -77,6 +77,6 @@ max-line-length = 80
 min-similarity-lines = 10
 # ignore session maker as it gives pylint fits
 # https://github.com/PyCQA/pylint/issues/7090
-ignored-classes = ['sqlalchemy.orm.session.sessionmaker']
+ignored-classes = ['sqlalchemy.orm.session.sessionmaker','pyarrow.compute']
 # ignore the migrations directory. its going to have duplication and _that is ok_.
 ignore-paths = ["^src/lamp_py/migrations/.*$"]
