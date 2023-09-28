@@ -49,7 +49,7 @@ class RtAlertsDetail(GTFSRTDetail):
                                             (
                                                 "activities",
                                                 pyarrow.list_(pyarrow.string()),
-                                            ),
+                                            ),  # MBTA Enhanced field
                                         ]
                                     )
                                 ),

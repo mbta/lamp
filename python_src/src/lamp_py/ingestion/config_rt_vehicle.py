@@ -20,15 +20,39 @@ class RtVehicleDetail(GTFSRTDetail):
                     "vehicle",
                     pyarrow.struct(
                         [
-                            ("current_status", pyarrow.string()),
-                            ("current_stop_sequence", pyarrow.uint32()),
-                            ("occupancy_percentage", pyarrow.uint32()),
-                            ("occupancy_status", pyarrow.string()),
-                            ("stop_id", pyarrow.string()),
-                            ("timestamp", pyarrow.uint64()),
-                            ("position", position),
                             ("trip", trip_descriptor),
                             ("vehicle", vehicle_descriptor),
+                            ("position", position),
+                            ("current_stop_sequence", pyarrow.uint32()),
+                            ("stop_id", pyarrow.string()),
+                            ("current_status", pyarrow.string()),
+                            ("timestamp", pyarrow.uint64()),
+                            ("congestion_level", pyarrow.string()),
+                            ("occupancy_status", pyarrow.string()),
+                            ("occupancy_percentage", pyarrow.uint32()),
+                            (
+                                "multi_carriage_details",
+                                pyarrow.list_(
+                                    pyarrow.struct(
+                                        [
+                                            ("id", pyarrow.string()),
+                                            ("label", pyarrow.string()),
+                                            (
+                                                "occupancy_status",
+                                                pyarrow.string(),
+                                            ),
+                                            (
+                                                "occupancy_percentage",
+                                                pyarrow.int32(),
+                                            ),
+                                            (
+                                                "carriage_sequence",
+                                                pyarrow.uint32(),
+                                            ),
+                                        ]
+                                    )
+                                ),
+                            ),
                         ]
                     ),
                 ),

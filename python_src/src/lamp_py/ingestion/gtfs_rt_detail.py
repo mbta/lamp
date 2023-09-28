@@ -56,5 +56,14 @@ class GTFSRTDetail(ABC):
 
     @property
     def table_sort_order(self) -> Optional[List[Tuple[str, str]]]:
-        """Provide list of fields to sort pyarrow table before writing to parquet"""
+        """
+        Provide list of fields to sort pyarrow table before writing to parquet
+
+        table_sort_order should be configured to optimize parquet file size
+        when writing to disk
+
+        Currently specified sort orders were determined by a small amount of experimentation
+
+        TODO: perform additional experiments to optimize sort order of all parquet file types  # pylint: disable=fixme
+        """
         return None

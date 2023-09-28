@@ -32,8 +32,6 @@ class RtTripDetail(GTFSRTDetail):
                     "trip_update",
                     pyarrow.struct(
                         [
-                            ("timestamp", pyarrow.uint64()),
-                            ("delay", pyarrow.int32()),
                             ("trip", trip_descriptor),
                             ("vehicle", vehicle_descriptor),
                             (
@@ -52,11 +50,13 @@ class RtTripDetail(GTFSRTDetail):
                                             (
                                                 "boarding_status",
                                                 pyarrow.string(),
-                                            ),
+                                            ),  # MBTA Enhanced Field
                                         ]
                                     )
                                 ),
                             ),
+                            ("timestamp", pyarrow.uint64()),
+                            ("delay", pyarrow.int32()),
                         ]
                     ),
                 ),

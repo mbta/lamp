@@ -18,7 +18,7 @@ trip_descriptor = pyarrow.struct(
         ("start_time", pyarrow.string()),
         ("start_date", pyarrow.string()),
         ("schedule_relationship", pyarrow.string()),
-        ("route_pattern_id", pyarrow.string()),
+        ("route_pattern_id", pyarrow.string()),  # MBTA Enhanced Field
         ("tm_trip_id", pyarrow.string()),  # Only used by Busloc
         ("overload_id", pyarrow.int64()),  # Only used by Busloc
         ("overload_offset", pyarrow.int64()),  # Only used by Busloc
@@ -39,7 +39,7 @@ vehicle_descriptor = pyarrow.struct(
                     ]
                 ),
             ),
-        ),
+        ),  # MBTA Enhanced Field
         ("assignment_status", pyarrow.string()),  # Only used by Busloc
     ]
 )
