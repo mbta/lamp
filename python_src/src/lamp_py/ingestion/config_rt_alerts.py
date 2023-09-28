@@ -2,6 +2,10 @@ from typing import List, Tuple
 import pyarrow
 
 from .gtfs_rt_detail import GTFSRTDetail
+from .gtfs_rt_structs import (
+    trip_descriptor,
+    translated_string,
+)
 
 
 class RtAlertsDetail(GTFSRTDetail):
@@ -11,211 +15,118 @@ class RtAlertsDetail(GTFSRTDetail):
     """
 
     @property
-    def export_schema(self) -> pyarrow.schema:
+    def import_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
-                # header -> timestamp
-                ("year", pyarrow.int16()),
-                ("month", pyarrow.int8()),
-                ("day", pyarrow.int8()),
-                ("hour", pyarrow.int8()),
-                ("feed_timestamp", pyarrow.int64()),
-                # entity
-                ("entity_id", pyarrow.string()),  # actual label: id
-                # entity -> alert
-                ("effect", pyarrow.string()),
-                ("effect_detail", pyarrow.string()),
-                ("cause", pyarrow.string()),
-                ("cause_detail", pyarrow.string()),
-                ("severity", pyarrow.int64()),
-                ("severity_level", pyarrow.string()),
-                ("created_timestamp", pyarrow.int64()),
-                ("last_modified_timestamp", pyarrow.int64()),
-                ("alert_lifecycle", pyarrow.string()),
-                ("duration_certainty", pyarrow.string()),
-                ("last_push_notification", pyarrow.int64()),
+                ("id", pyarrow.string()),
                 (
-                    "active_period",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("start", pyarrow.int64()),
-                                pyarrow.field("end", pyarrow.int64()),
-                            ]
-                        )
-                    ),
-                ),
-                ("reminder_times", pyarrow.list_(pyarrow.int64())),
-                ("closed_timestamp", pyarrow.int64()),
-                # entity -> alert -> short_header_text
-                (
-                    "short_header_text_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                # entity -> alert -> header_text
-                (
-                    "header_text_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                # entity -> alert -> description_text
-                (
-                    "description_text_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                # entity -> alert -> service_effect_text
-                (
-                    "service_effect_text_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                # entity -> alert -> timeframe_text
-                (
-                    "timeframe_text_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                # entity -> alert -> url
-                (
-                    "url_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                # entity -> alert -> recurrence_text
-                (
-                    "recurrence_text_translation",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("text", pyarrow.string()),
-                                pyarrow.field("language", pyarrow.string()),
-                            ]
-                        )
-                    ),
-                ),  # actual label: translation
-                (
-                    "informed_entity",
-                    pyarrow.list_(
-                        pyarrow.struct(
-                            [
-                                pyarrow.field("stop_id", pyarrow.string()),
-                                pyarrow.field("facility_id", pyarrow.string()),
-                                pyarrow.field(
-                                    "activities",
-                                    pyarrow.list_(pyarrow.string()),
-                                ),
-                                pyarrow.field("agency_id", pyarrow.string()),
-                                pyarrow.field("route_type", pyarrow.int64()),
-                                pyarrow.field("route_id", pyarrow.string()),
-                                pyarrow.field(
-                                    "trip",
+                    "alert",
+                    pyarrow.struct(
+                        [
+                            (
+                                "active_period",
+                                pyarrow.list_(
                                     pyarrow.struct(
                                         [
-                                            pyarrow.field(
-                                                "route_id", pyarrow.string()
-                                            ),
-                                            pyarrow.field(
-                                                "trip_id", pyarrow.string()
-                                            ),
-                                            pyarrow.field(
-                                                "direcction_id", pyarrow.int64()
-                                            ),
+                                            ("start", pyarrow.uint64()),
+                                            ("end", pyarrow.uint64()),
                                         ]
-                                    ),
+                                    )
                                 ),
-                                pyarrow.field("direction_id", pyarrow.int64()),
-                            ]
-                        )
+                            ),
+                            (
+                                "informed_entity",
+                                pyarrow.list_(
+                                    pyarrow.struct(
+                                        [
+                                            ("agency_id", pyarrow.string()),
+                                            ("route_id", pyarrow.string()),
+                                            ("route_type", pyarrow.int32()),
+                                            ("direction_id", pyarrow.uint8()),
+                                            ("trip", trip_descriptor),
+                                            ("stop_id", pyarrow.string()),
+                                            ("facility_id", pyarrow.string()),
+                                            (
+                                                "activities",
+                                                pyarrow.list_(pyarrow.string()),
+                                            ),  # MBTA Enhanced field
+                                        ]
+                                    )
+                                ),
+                            ),
+                            ("cause", pyarrow.string()),
+                            (
+                                "cause_detail",
+                                pyarrow.string(),
+                            ),  # type does not match spec type of <TranslatedString>
+                            ("effect", pyarrow.string()),
+                            (
+                                "effect_detail",
+                                pyarrow.string(),
+                            ),  # type does not match spec type of <TranslatedString>
+                            ("url", translated_string),
+                            ("header_text", translated_string),
+                            ("description_text", translated_string),
+                            ("severity_level", pyarrow.string()),
+                            (
+                                "severity",
+                                pyarrow.uint16(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "created_timestamp",
+                                pyarrow.uint64(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "last_modified_timestamp",
+                                pyarrow.uint64(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "last_push_notification_timestamp",
+                                pyarrow.uint64(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "closed_timestamp",
+                                pyarrow.int64(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "alert_lifecycle",
+                                pyarrow.string(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "duration_certainty",
+                                pyarrow.string(),
+                            ),  # not in message Alert struct spec
+                            (
+                                "reminder_times",
+                                pyarrow.list_(pyarrow.uint64()),
+                            ),  # not in message Alert struct spec
+                            (
+                                "short_header_text",
+                                translated_string,
+                            ),  # not in message Alert struct spec
+                            (
+                                "service_effect_text",
+                                translated_string,
+                            ),  # not in message Alert struct spec
+                            (
+                                "timeframe_text",
+                                translated_string,
+                            ),  # not in message Alert struct spec
+                            (
+                                "recurrence_text",
+                                translated_string,
+                            ),  # not in message Alert struct spec
+                        ]
                     ),
                 ),
             ]
         )
 
     @property
-    def transformation_schema(self) -> dict:
-        return {
-            "entity": (("id", "entity_id"),),
-            "entity,alert": (
-                ("effect",),
-                ("effect_detail",),
-                ("cause",),
-                ("cause_detail",),
-                ("severity",),
-                ("severity_level",),
-                ("created_timestamp",),
-                ("last_modified_timestamp",),
-                ("alert_lifecycle",),
-                ("duration_certainty",),
-                ("last_push_notification",),
-                ("active_period",),
-                ("reminder_times",),
-                ("closed_timestamp",),
-                ("informed_entity",),
-            ),
-            "entity,alert,short_header_text": (
-                ("translation", "short_header_text_translation"),
-            ),
-            "entity,alert,header_text": (
-                ("translation", "header_text_translation"),
-            ),
-            "entity,alert,description_text": (
-                ("translation", "description_text_translation"),
-            ),
-            "entity,alert,service_effect_text": (
-                ("translation", "service_effect_text_translation"),
-            ),
-            "entity,alert,timeframe_text": (
-                ("translation", "timeframe_text_translation"),
-            ),
-            "entity,alert,url": (("translation", "url_translation"),),
-            "entity,alert,recurrence_text": (
-                ("translation", "recurrence_text_translation"),
-            ),
-        }
-
-    @property
     def table_sort_order(self) -> List[Tuple[str, str]]:
         return [
-            ("severity", "ascending"),
-            ("effect", "ascending"),
-            ("cause", "ascending"),
+            ("alert.severity", "ascending"),
+            ("alert.effect", "ascending"),
+            ("alert.cause", "ascending"),
             ("feed_timestamp", "ascending"),
         ]

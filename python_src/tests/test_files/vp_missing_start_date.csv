@@ -1,4 +1,4 @@
-current_status,current_stop_sequence,stop_id,vehicle_timestamp,direction_id,route_id,start_date,start_time,vehicle_id,trip_id,vehicle_label,vehicle_consist
+vehicle.current_status,vehicle.current_stop_sequence,vehicle.stop_id,vehicle.timestamp,vehicle.trip.direction_id,vehicle.trip.route_id,vehicle.trip.start_date,vehicle.trip.start_time,vehicle.vehicle.id,vehicle.trip.trip_id,vehicle.vehicle.label,vehicle.vehicle.consist
 STOPPED_AT,1,70059,1683547153,0,Blue,,07:38:00,B-54768A0A,55458882,0713,
 INCOMING_AT,10,70057,,0,Blue,20230508,07:38:00,B-54768A0A,55458882,0713,
 STOPPED_AT,10,70057,1683547246,0,Blue,,07:38:00,B-54768A0A,55458882,0713,

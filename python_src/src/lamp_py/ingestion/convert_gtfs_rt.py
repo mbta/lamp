@@ -15,8 +15,8 @@ from lamp_py.aws.s3 import move_s3_objects, write_parquet_file
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .config_rt_alerts import RtAlertsDetail
-from .config_rt_bus_trip import RtBusTripDetail
-from .config_rt_bus_vehicle import RtBusVehicleDetail
+from .config_busloc_trip import RtBusTripDetail
+from .config_busloc_vehicle import RtBusVehicleDetail
 from .config_rt_trip import RtTripDetail
 from .config_rt_vehicle import RtVehicleDetail
 from .converter import ConfigType, Converter
@@ -248,33 +248,6 @@ class GtfsRtConverter(Converter):
                 yield table
                 del self.table_groups[iter_ts]
 
-    def record_from_entity(self, entity: dict) -> dict:
-        """
-        Convert an entity in the ingested json dict into a record for a parquet
-        table.
-        """
-
-        def drill_entity(drill_keys: str) -> Optional[dict]:
-            """Util function for recursively getting data out of entity"""
-            ret_dict = entity
-            for key in drill_keys.split(",")[1:]:
-                value = ret_dict.get(key)
-                if value is None:
-                    return value
-                ret_dict = value
-            return ret_dict
-
-        record: dict = {}
-        for drill_keys, fields in self.detail.transformation_schema.items():
-            pull_dict = drill_entity(drill_keys)
-            for get_field in fields:
-                if pull_dict is None:
-                    record[get_field[-1]] = None
-                else:
-                    record[get_field[-1]] = pull_dict.get(get_field[0])
-
-        return record
-
     def gz_to_pyarrow(
         self, filename: str
     ) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
@@ -311,28 +284,44 @@ class GtfsRtConverter(Converter):
                 ) as file:
                     json_data = json.load(file)
 
-            # Create empty 'table' as dict of lists for export schema
-            table = self.detail.empty_table()
-
             # parse timestamp info out of the header
             feed_timestamp = json_data["header"]["timestamp"]
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
 
-            # for each entity in the list, create a record, add it to the table
-            for entity in json_data["entity"]:
-                record = self.record_from_entity(entity=entity)
-                record.update(
-                    {
-                        "year": timestamp.year,
-                        "month": timestamp.month,
-                        "day": timestamp.day,
-                        "hour": timestamp.hour,
-                        "feed_timestamp": feed_timestamp,
-                    }
-                )
+            table = pyarrow.Table.from_pylist(
+                json_data["entity"], schema=self.detail.import_schema
+            )
 
-                for key, value in record.items():
-                    table[key].append(value)
+            table = table.append_column(
+                "year",
+                pyarrow.array(
+                    [timestamp.year] * table.num_rows, pyarrow.uint16()
+                ),
+            )
+            table = table.append_column(
+                "month",
+                pyarrow.array(
+                    [timestamp.month] * table.num_rows, pyarrow.uint8()
+                ),
+            )
+            table = table.append_column(
+                "day",
+                pyarrow.array(
+                    [timestamp.day] * table.num_rows, pyarrow.uint8()
+                ),
+            )
+            table = table.append_column(
+                "hour",
+                pyarrow.array(
+                    [timestamp.hour] * table.num_rows, pyarrow.uint8()
+                ),
+            )
+            table = table.append_column(
+                "feed_timestamp",
+                pyarrow.array(
+                    [feed_timestamp] * table.num_rows, pyarrow.uint64()
+                ),
+            )
 
         except FileNotFoundError as _:
             return (None, filename, None)
@@ -343,7 +332,7 @@ class GtfsRtConverter(Converter):
         return (
             timestamp,
             filename,
-            pyarrow.table(table, schema=self.detail.export_schema),
+            table,
         )
 
     def write_table(self, table: pyarrow.table) -> None:
@@ -354,6 +343,8 @@ class GtfsRtConverter(Converter):
 
         try:
             s3_prefix = str(self.config_type)
+
+            table = self.detail.transform_for_write(table)
 
             if self.detail.table_sort_order is not None:
                 table = table.sort_by(self.detail.table_sort_order)
