@@ -417,6 +417,7 @@ def test_gtfs_rt_processing(
             "headway_trunk_seconds",
             "headway_branch_seconds",
             "canonical_stop_sequence",
+            "sync_stop_sequence",
         }
         expected_columns.add("trip_id")
         expected_columns.add("vehicle_label")
