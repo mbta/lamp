@@ -374,15 +374,45 @@ def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
 
 def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
     """
-    Update static_trip_id_guess with exact matches between rt and static trips
+    Update
+     - static_trip_id_guess
+     - static_stop_count
+     - static_start_time
+
+    for trips with exact matches to static trips
     """
+    static_stop_sub = (
+        sa.select(
+            StaticStopTimes.static_version_key,
+            StaticStopTimes.trip_id,
+            sa.func.count(StaticStopTimes.stop_sequence).label(
+                "static_stop_count"
+            ),
+        )
+        .where(
+            StaticStopTimes.static_version_key
+            == sa.func.any(
+                sa.func.array(
+                    sa.select(TempEventCompare.static_version_key)
+                    .distinct()
+                    .scalar_subquery()
+                )
+            )
+        )
+        .group_by(
+            StaticStopTimes.static_version_key,
+            StaticStopTimes.trip_id,
+        )
+        .subquery("static_stops_count")
+    )
+
     rt_static_match_sub = (
         sa.select(
             TempEventCompare.pm_trip_id,
             TempEventCompare.trip_id,
             sa.true().label("first_last_station_match"),
-            # TODO: add stop_count from static pre-processing when available # pylint: disable=fixme
-            # TODO: add start_time from sattic pre-processing when available # pylint: disable=fixme
+            static_stop_sub.c.static_stop_count,
+            TempEventCompare.start_time,
         )
         .select_from(TempEventCompare)
         .distinct()
@@ -392,10 +422,17 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
                 StaticTrips.static_version_key
                 == TempEventCompare.static_version_key,
                 StaticTrips.trip_id == TempEventCompare.trip_id,
-                StaticTrips.direction_id == TempEventCompare.direction_id,
-                StaticTrips.route_id == TempEventCompare.route_id,
             ),
         )
+        .join(
+            static_stop_sub,
+            sa.and_(
+                static_stop_sub.c.static_version_key
+                == TempEventCompare.static_version_key,
+                static_stop_sub.c.trip_id == TempEventCompare.trip_id,
+            ),
+        )
+        .where(TempEventCompare.start_time.is_not(None))
         .subquery("exact_trip_id_matches")
     )
 
@@ -404,8 +441,8 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
         .values(
             static_trip_id_guess=rt_static_match_sub.c.trip_id,
             first_last_station_match=rt_static_match_sub.c.first_last_station_match,
-            # TODO: add stop_count from static pre-processing when available # pylint: disable=fixme
-            # TODO: add start_time from sattic pre-processing when available # pylint: disable=fixme
+            static_stop_count=rt_static_match_sub.c.static_stop_count,
+            static_start_time=rt_static_match_sub.c.start_time,
         )
         .where(
             VehicleTrips.pm_trip_id == rt_static_match_sub.c.pm_trip_id,
