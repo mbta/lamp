@@ -13,6 +13,7 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | stop_id | string | false | |
 | stop_sequence | small integer | false | |
 | canonical_stop_sequence | small integer | false | stop_sequence based on "typical" route trips as defined in the [static_route_patterns](#static_route_patterns) table|
+| sync_stop_sequence | small integer | false | stop_sequence that is consistent across all branches of a trunk for a particular `parent_station`|
 | parent_station | string | false | |
 | previous_trip_stop_pm_event_id | integer | true | pm_event_id of previous stop of pm_trip_id grouping |
 | next_trip_stop_pm_event_id | integer | true| pm_event_id of next stop of pm_trip_id grouping |

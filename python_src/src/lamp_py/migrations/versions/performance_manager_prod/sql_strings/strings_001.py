@@ -387,6 +387,8 @@ view_opmi_all_rt_fields_joined = """
             , ve.stop_sequence
             , ve.canonical_stop_sequence
             , prev_ve.canonical_stop_sequence as previous_canonical_stop_sequence
+            , ve.sync_stop_sequence
+            , prev_ve.sync_stop_sequence as previous_sync_stop_sequence
             , ve.stop_id
             , prev_ve.stop_id as previous_stop_id
             , ve.parent_station

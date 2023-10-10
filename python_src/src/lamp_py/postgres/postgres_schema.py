@@ -26,6 +26,7 @@ class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
     # stop identifiers
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     canonical_stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
+    sync_stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
     stop_id = sa.Column(sa.String(60), nullable=False)
     parent_station = sa.Column(sa.String(60), nullable=False)
 

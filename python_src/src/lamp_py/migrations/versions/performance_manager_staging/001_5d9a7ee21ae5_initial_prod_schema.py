@@ -293,6 +293,7 @@ def upgrade() -> None:
         sa.Column("pm_trip_id", sa.Integer(), nullable=False),
         sa.Column("stop_sequence", sa.SmallInteger(), nullable=True),
         sa.Column("canonical_stop_sequence", sa.SmallInteger(), nullable=True),
+        sa.Column("sync_stop_sequence", sa.SmallInteger(), nullable=True),
         sa.Column("stop_id", sa.String(length=60), nullable=False),
         sa.Column("parent_station", sa.String(length=60), nullable=False),
         sa.Column(
