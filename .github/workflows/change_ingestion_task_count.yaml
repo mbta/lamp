@@ -19,10 +19,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: echo command
-        run: echo "ecs update-service --service lamp-ingestion-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}"
       - name: run command
-        run: aws ecs update-service --service lamp-ingestion-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
+        run: aws ecs update-service --cluster lamp --service lamp-ingestion-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
