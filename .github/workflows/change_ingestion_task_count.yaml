@@ -4,16 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'dev or staging'
+        description: "dev or staging"
         required: true
       new_count:
-        description: '1 to turn on 0 to turn off'
+        description: "1 to turn on 0 to turn off"
         required: true
 
-
 jobs:
-  run: |
-    aws ecs update-service --service lamp-ingestion-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
-  env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  set_count:
+    if: |
+      ( github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'dev' ) &&
+      ( github.event.inputs.new_count == 0 || github.event.inputs.new_count == 1)
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: echo command
+        run: echo "ecs update-service --service lamp-ingestion-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}"
+      - name: run command
+        run: aws ecs update-service --service lamp-ingestion-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
