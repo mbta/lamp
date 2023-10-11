@@ -60,7 +60,7 @@ def main() -> None:
         check_for_sigterm(metadata_queue, rds_process)
         ingest(metadata_queue=metadata_queue)
         check_for_sigterm(metadata_queue, rds_process)
-        time.sleep(60 * 5)
+        time.sleep(5)
 
 
 def start() -> None:

@@ -85,7 +85,7 @@ class GtfsRtConverter(Converter):
         self.archive_files: List[str] = []
 
     def convert(self) -> None:
-        max_tables_to_convert = 12
+        max_tables_to_convert = 6
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
