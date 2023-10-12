@@ -218,7 +218,7 @@ def process_vp_files(
     Generate a dataframe of Vehicle Events from gtfs_rt vehicle position parquet files.
     """
     process_logger = ProcessLogger(
-        "process_vehicle_positions", file_count=len(paths)
+        "process_vehicle_positions", file_count=len(paths), paths=paths
     )
     process_logger.log_start()
 

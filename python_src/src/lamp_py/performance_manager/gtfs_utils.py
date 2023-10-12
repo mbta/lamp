@@ -31,8 +31,14 @@ def start_time_to_seconds(
     """
     if time is None:
         return time
-    (hour, minute, second) = time.split(":")
-    return int(hour) * 3600 + int(minute) * 60 + int(second)
+
+    try:
+        (hour, minute, second) = time.split(":")
+        return int(hour) * 3600 + int(minute) * 60 + int(second)
+    except ValueError:
+        # some older files have the start time already formatted as seconds
+        # after midnight. in those cases, convert to an int and pass through.
+        return int(time)
 
 
 def start_timestamp_to_seconds(start_timestamp: int) -> int:

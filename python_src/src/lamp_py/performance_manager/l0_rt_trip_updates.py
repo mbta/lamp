@@ -183,7 +183,7 @@ def process_tu_files(
     Generate a dataframe of Vehicle Events from gtfs_rt trip updates parquet files.
     """
     process_logger = ProcessLogger(
-        "process_trip_updates", file_count=len(paths)
+        "process_trip_updates", file_count=len(paths), paths=paths
     )
     process_logger.log_start()
 
