@@ -290,6 +290,7 @@ def update_start_times(db_manager: DatabaseManager) -> None:
             sa.func.coalesce(
                 sa.func.min(VehicleEvents.vp_move_timestamp),
                 sa.func.min(VehicleEvents.vp_stop_timestamp),
+                sa.func.min(VehicleEvents.tu_stop_timestamp),
             ).label("b_start_time"),
         )
         .select_from(VehicleEvents)
