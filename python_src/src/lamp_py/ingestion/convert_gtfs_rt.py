@@ -267,6 +267,9 @@ class GtfsRtConverter(Converter):
             conversion)
         """
         try:
+            process_logger = ProcessLogger("gz_to_pyarrow", filename=filename)
+            process_logger.log_start()
+
             file_system = current_thread().__dict__["file_system"]
             filename = filename.replace("s3://", "")
 
@@ -323,12 +326,15 @@ class GtfsRtConverter(Converter):
                 ),
             )
 
-        except FileNotFoundError as _:
+        except FileNotFoundError as e:
+            process_logger.log_failure(e)
             return (None, filename, None)
-        except Exception as _:
+        except Exception as e:
+            process_logger.log_failure(e)
             self.thread_init()
             return (None, filename, None)
 
+        process_logger.log_complete()
         return (
             timestamp,
             filename,
