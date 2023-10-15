@@ -152,6 +152,7 @@ class GtfsRtConverter(Converter):
             for result_dt, result_filename, result_table in pool.map(
                 self.gz_to_pyarrow, self.files
             ):
+                logging.info(f"results received for {result_filename}")
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
                 # the error and move on to the next file.
@@ -188,17 +189,21 @@ class GtfsRtConverter(Converter):
                 # check if ready to end work because processing files past start_of_hour
                 # waiting for count of files > yield_threshold should allow for
                 # any work from previous hour to finish before exiting
+                logging.info("after yield check")
                 if (
                     result_dt >= self.start_of_hour
                     and len(self.table_groups[timestamp_hr].files)
                     > yield_threshold
                 ):
+                    logging.info("exiting results pool")
                     break
 
         # yield any remaining tables with next_hr_cnt > 0
         # guaranteeing that the end of the hour was hit
         # not sure if we would ever actually hit this
+        logging.info("before final yield check")
         yield from self.yield_check(0, process_logger)
+        logging.info("before final yield check")
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
