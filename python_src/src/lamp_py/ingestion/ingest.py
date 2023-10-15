@@ -1,8 +1,10 @@
 import os
+import logging
 from multiprocessing import Pool, Queue
 from typing import Dict, List
 
 from lamp_py.aws.s3 import move_s3_objects
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .convert_gtfs import GtfsConverter
 from .convert_gtfs_rt import GtfsRtConverter
@@ -47,6 +49,8 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     sort the incoming file list by type and create a converter for each type.
     each converter will ingest and convert its files in its own thread.
     """
+    process_logger = ProcessLogger("ingest_files", file_count=len(files))
+    process_logger.log_start()
     grouped_files = group_sort_file_list(files)
 
     # initialize with an error / no impl converter, the rest will be added in as
@@ -93,7 +97,10 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
+    process_logger.add_metadata(converter_count=len(converters.values()))
     with Pool(processes=len(converters)) as pool:
         pool.map_async(run_converter, converters.values())
         pool.close()
         pool.join()
+
+    process_logger.log_complete()
