@@ -3,7 +3,7 @@
 import logging
 import os
 import signal
-from multiprocessing import Queue
+from multiprocessing import Queue, set_start_method
 
 import time
 
@@ -65,6 +65,8 @@ def main() -> None:
 
 def start() -> None:
     """configure and start the ingestion process"""
+    set_start_method("spawn")
+
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
 
