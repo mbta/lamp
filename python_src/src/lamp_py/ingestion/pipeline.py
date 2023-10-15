@@ -82,8 +82,8 @@ def start() -> None:
         validate_db=True,
     )
 
-    # try forcing multiprocessing to use fork
-    multiprocessing.set_start_method("fork")
+    # try forcing multiprocessing to use spawn
+    multiprocessing.set_start_method("spawn")
 
     # run the main method
     main()
