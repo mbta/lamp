@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 from multiprocessing import Queue
+import multiprocessing
 
 import time
 
@@ -80,6 +81,9 @@ def start() -> None:
         ],
         validate_db=True,
     )
+
+    # try forcing multiprocessing to use fork
+    multiprocessing.set_start_method("fork")
 
     # run the main method
     main()
