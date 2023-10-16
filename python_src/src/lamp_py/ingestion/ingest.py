@@ -1,7 +1,7 @@
 import os
 from multiprocessing import Pool, Queue
 from typing import Dict, List
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 import logging
 
 from lamp_py.aws.s3 import move_s3_objects
@@ -100,7 +100,5 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     #   # pool.close()
     #   # pool.join()
 
-    with ThreadPoolExecutor(max_workers=len(converters)) as pool:
+    with ProcessPoolExecutor(max_workers=len(converters)) as pool:
         pool.map(run_converter, converters.values())
-
-    logging.info("yoyoyo")
