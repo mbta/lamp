@@ -354,8 +354,21 @@ class GtfsRtConverter(Converter):
             pl.log_complete()
 
             if self.detail.table_sort_order is not None:
+                pl = ProcessLogger(
+                    "sort_table",
+                    config_type=self.config_type,
+                    row_count=table.num_rows
+                )
+                pl.log_start()
                 table = table.sort_by(self.detail.table_sort_order)
+                pl.log_complete()
 
+            pl = ProcessLogger(
+                "write_table",
+                config_type=self.config_type,
+                row_count=table.num_rows
+            )
+            pl.log_start()
             write_parquet_file(
                 table=table,
                 file_type=s3_prefix,
@@ -367,10 +380,12 @@ class GtfsRtConverter(Converter):
                 partition_cols=["year", "month", "day", "hour"],
                 visitor_func=self.send_metadata,
             )
+            pl.log_complete()
 
-        except Exception:
+        except Exception as e:
             self.error_files += self.archive_files
             self.archive_files = []
+            logging.error(e)
 
     def move_s3_files(self) -> None:
         """
