@@ -93,5 +93,7 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
-    for converter in converters.values():
-        converter.convert()
+    with Pool(processes=2) as pool:
+        pool.map_async(run_converter, converters.values())
+        pool.close()
+        pool.join()
