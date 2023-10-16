@@ -344,7 +344,14 @@ class GtfsRtConverter(Converter):
         try:
             s3_prefix = str(self.config_type)
 
+            pl = ProcessLogger(
+                "transform_for_write",
+                config_type=self.config_type,
+                row_count=table.num_rows
+            )
+            pl.log_start()
             table = self.detail.transform_for_write(table)
+            pl.log_complete()
 
             if self.detail.table_sort_order is not None:
                 table = table.sort_by(self.detail.table_sort_order)
