@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import gc
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -347,17 +348,18 @@ class GtfsRtConverter(Converter):
             pl = ProcessLogger(
                 "transform_for_write",
                 config_type=self.config_type,
-                row_count=table.num_rows
+                row_count=table.num_rows,
             )
             pl.log_start()
             table = self.detail.transform_for_write(table)
             pl.log_complete()
 
             if self.detail.table_sort_order is not None:
+                gc.collect()
                 pl = ProcessLogger(
                     "sort_table",
                     config_type=self.config_type,
-                    row_count=table.num_rows
+                    row_count=table.num_rows,
                 )
                 pl.log_start()
                 table = table.sort_by(self.detail.table_sort_order)
@@ -366,7 +368,7 @@ class GtfsRtConverter(Converter):
             pl = ProcessLogger(
                 "write_table",
                 config_type=self.config_type,
-                row_count=table.num_rows
+                row_count=table.num_rows,
             )
             pl.log_start()
             write_parquet_file(

@@ -1,7 +1,6 @@
 import os
-from multiprocessing import Pool, Queue, get_context
+from multiprocessing import Pool, Queue
 from typing import Dict, List
-import logging
 
 from lamp_py.aws.s3 import move_s3_objects
 
@@ -94,12 +93,7 @@ def ingest_files(files: List[str], metadata_queue: Queue) -> None:
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
-    with get_context("spawn").Pool(processes=len(converters)) as pool:
-        pool_results = pool.map_async(run_converter, converters.values())
+    with Pool(processes=len(converters)) as pool:
+        pool.map_async(run_converter, converters.values())
         pool.close()
         pool.join()
-
-    try:
-        pool_results.get()
-    except Exception as e:
-        logging.exception(e)
