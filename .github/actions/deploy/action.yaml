@@ -1,5 +1,8 @@
 name: Deploy To Environment
 description: Build docker image and deploy it for each data pipeline.
+permissions:
+  id-token: write
+  contents: read
 inputs:
   aws-role-arn:
     description: AWS_ROLE_ARN
