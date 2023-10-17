@@ -12,14 +12,23 @@ position = pyarrow.struct(
 
 trip_descriptor = pyarrow.struct(
     [
-        ("trip_id", pyarrow.string()),
-        ("route_id", pyarrow.string()),
+        ("trip_id", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("route_id", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
         ("direction_id", pyarrow.uint8()),
-        ("start_time", pyarrow.string()),
-        ("start_date", pyarrow.string()),
-        ("schedule_relationship", pyarrow.string()),
-        ("route_pattern_id", pyarrow.string()),  # MBTA Enhanced Field
-        ("tm_trip_id", pyarrow.string()),  # Only used by Busloc
+        ("start_time", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("start_date", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        (
+            "schedule_relationship",
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+        ),
+        (
+            "route_pattern_id",
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+        ),  # MBTA Enhanced Field
+        (
+            "tm_trip_id",
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+        ),  # Only used by Busloc
         ("overload_id", pyarrow.int64()),  # Only used by Busloc
         ("overload_offset", pyarrow.int64()),  # Only used by Busloc
     ]
@@ -27,9 +36,9 @@ trip_descriptor = pyarrow.struct(
 
 vehicle_descriptor = pyarrow.struct(
     [
-        ("id", pyarrow.string()),
-        ("label", pyarrow.string()),
-        ("license_plate", pyarrow.string()),
+        ("id", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("label", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("license_plate", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
         (
             "consist",
             pyarrow.list_(
@@ -40,7 +49,10 @@ vehicle_descriptor = pyarrow.struct(
                 ),
             ),
         ),  # MBTA Enhanced Field
-        ("assignment_status", pyarrow.string()),  # Only used by Busloc
+        (
+            "assignment_status",
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+        ),  # Only used by Busloc
     ]
 )
 

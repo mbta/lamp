@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import gc
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -326,7 +325,8 @@ class GtfsRtConverter(Converter):
 
         except FileNotFoundError as _:
             return (None, filename, None)
-        except Exception as _:
+        except Exception as e:
+            print(e)
             self.thread_init()
             return (None, filename, None)
 
@@ -355,7 +355,6 @@ class GtfsRtConverter(Converter):
             pl.log_complete()
 
             if self.detail.table_sort_order is not None:
-                gc.collect()
                 pl = ProcessLogger(
                     "sort_table",
                     config_type=self.config_type,
