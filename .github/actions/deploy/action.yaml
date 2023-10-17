@@ -1,11 +1,8 @@
 name: Deploy To Environment
 description: Build docker image and deploy it for each data pipeline.
 inputs:
-  aws-access-key-id:
-    description: AWS_ACCESS_KEY_ID
-    required: true
-  aws-secret-access-key:
-    description: AWS_SECRET_ACCCESS_KEY
+  aws-role-arn:
+    description: AWS_ROLE_ARN
     required: true
   docker-repo:
     description: ECR Docker repo to push to
@@ -20,26 +17,23 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: mbta/actions/build-push-ecr@v1
+    - uses: mbta/actions/build-push-ecr@v2
       id: build-push
       with:
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        role-to-assume: ${{ inputs.aws-role-arn }}
         docker-repo: ${{ inputs.docker-repo }}
         dockerfile-path: ./python_src/
-    - uses: mbta/actions/deploy-ecs@v1
+    - uses: mbta/actions/deploy-ecs@v2
       id: deploy-ingestion
       with:
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        role-to-assume: ${{ inputs.aws-role-arn }}
         ecs-cluster: lamp
         ecs-service: lamp-ingestion-${{ inputs.env-name }}
         docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-    - uses: mbta/actions/deploy-ecs@v1
+    - uses: mbta/actions/deploy-ecs@v2
       id: deploy-performance-manager
       with:
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        role-to-assume: ${{ inputs.aws-role-arn }}
         ecs-cluster: lamp
         ecs-service: lamp-performance-manager-${{ inputs.env-name }}
         docker-tag: ${{ steps.build-push.outputs.docker-tag }}
