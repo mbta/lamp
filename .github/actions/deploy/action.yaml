@@ -4,9 +4,6 @@ permissions:
   id-token: write
   contents: read
 inputs:
-  aws-role-arn:
-    description: AWS_ROLE_ARN
-    required: true
   docker-repo:
     description: ECR Docker repo to push to
     required: true
@@ -15,6 +12,9 @@ inputs:
     required: true
   slack-webhook-url:
     description: Slack URL to post to
+    required: true
+  role-to-assume:
+    description: AWS_ROLE_ARN
     required: true
 
 runs:
