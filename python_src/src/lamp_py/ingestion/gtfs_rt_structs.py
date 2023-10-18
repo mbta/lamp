@@ -12,22 +12,22 @@ position = pyarrow.struct(
 
 trip_descriptor = pyarrow.struct(
     [
-        ("trip_id", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
-        ("route_id", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("trip_id", pyarrow.dictionary(pyarrow.int32(), pyarrow.string())),
+        ("route_id", pyarrow.string()),
         ("direction_id", pyarrow.uint8()),
-        ("start_time", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
-        ("start_date", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("start_time", pyarrow.dictionary(pyarrow.int32(), pyarrow.string())),
+        ("start_date", pyarrow.string()),
         (
             "schedule_relationship",
-            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.string()),
         ),
         (
             "route_pattern_id",
-            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.string()),
         ),  # MBTA Enhanced Field
         (
             "tm_trip_id",
-            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.string()),
         ),  # Only used by Busloc
         ("overload_id", pyarrow.int64()),  # Only used by Busloc
         ("overload_offset", pyarrow.int64()),  # Only used by Busloc
@@ -36,9 +36,12 @@ trip_descriptor = pyarrow.struct(
 
 vehicle_descriptor = pyarrow.struct(
     [
-        ("id", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
-        ("label", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
-        ("license_plate", pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8())),
+        ("id", pyarrow.string()),
+        ("label", pyarrow.dictionary(pyarrow.int32(), pyarrow.string())),
+        (
+            "license_plate",
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.string()),
+        ),
         (
             "consist",
             pyarrow.list_(
@@ -51,7 +54,7 @@ vehicle_descriptor = pyarrow.struct(
         ),  # MBTA Enhanced Field
         (
             "assignment_status",
-            pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8()),
+            pyarrow.dictionary(pyarrow.int32(), pyarrow.string()),
         ),  # Only used by Busloc
     ]
 )

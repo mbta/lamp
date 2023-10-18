@@ -323,7 +323,8 @@ class GtfsRtConverter(Converter):
                 ),
             )
 
-        except FileNotFoundError as _:
+        except FileNotFoundError as e:
+            print(e)
             return (None, filename, None)
         except Exception as e:
             print(e)
@@ -342,34 +343,20 @@ class GtfsRtConverter(Converter):
         if table.num_rows == 0:
             return
 
+        process_logger = ProcessLogger(
+            "write_table",
+            config_type=self.config_type,
+            row_count=table.num_rows,
+        )
+        process_logger.log_start()
         try:
             s3_prefix = str(self.config_type)
 
-            pl = ProcessLogger(
-                "transform_for_write",
-                config_type=self.config_type,
-                row_count=table.num_rows,
-            )
-            pl.log_start()
             table = self.detail.transform_for_write(table)
-            pl.log_complete()
 
             if self.detail.table_sort_order is not None:
-                pl = ProcessLogger(
-                    "sort_table",
-                    config_type=self.config_type,
-                    row_count=table.num_rows,
-                )
-                pl.log_start()
                 table = table.sort_by(self.detail.table_sort_order)
-                pl.log_complete()
 
-            pl = ProcessLogger(
-                "write_table",
-                config_type=self.config_type,
-                row_count=table.num_rows,
-            )
-            pl.log_start()
             write_parquet_file(
                 table=table,
                 file_type=s3_prefix,
@@ -381,12 +368,13 @@ class GtfsRtConverter(Converter):
                 partition_cols=["year", "month", "day", "hour"],
                 visitor_func=self.send_metadata,
             )
-            pl.log_complete()
 
         except Exception as e:
+            process_logger.log_failure(e)
             self.error_files += self.archive_files
             self.archive_files = []
-            logging.error(e)
+
+        process_logger.log_complete()
 
     def move_s3_files(self) -> None:
         """
