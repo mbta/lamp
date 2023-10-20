@@ -18,7 +18,7 @@ inputs:
     required: true
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - uses: mbta/actions/build-push-ecr@v1
       id: build-push
@@ -41,7 +41,7 @@ runs:
         aws-access-key-id: ${{ inputs.aws-access-key-id }}
         aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
         ecs-cluster: lamp
-        ecs-service: lamp-performance-manager-${{ inputs.env-name }}
+        ecs-service: lamp-rail-performance-manager-${{ inputs.env-name }}
         docker-tag: ${{ steps.build-push.outputs.docker-tag }}
     - uses: mbta/actions/notify-slack-deploy@v1
       if: ${{ !cancelled() }}
