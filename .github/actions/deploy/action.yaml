@@ -18,7 +18,7 @@ inputs:
     required: true
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -40,7 +40,7 @@ runs:
       id: deploy-performance-manager
       with:
         ecs-cluster: lamp
-        ecs-service: lamp-performance-manager-${{ inputs.env-name }}
+        ecs-service: lamp-rail-performance-manager-${{ inputs.env-name }}
         docker-tag: ${{ steps.build-push.outputs.docker-tag }}
     - uses: mbta/actions/notify-slack-deploy@v1
       if: ${{ !cancelled() }}
