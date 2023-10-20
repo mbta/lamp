@@ -18,9 +18,9 @@ runs:
 
     - name: Install Python Deps
       working-directory: python_src
-      # env use python3.9 to force usage of python3.9 installed by asdf over system python version
+      # env use python3.10 to force usage of python3.10 installed by asdf over system python version
       run: |
-        poetry env use python3.9
+        poetry env use python3.10
         poetry install -v 
       shell: bash
       if: "!steps.python-cache.outputs.cache-hit"
