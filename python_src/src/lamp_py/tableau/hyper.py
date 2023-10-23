@@ -317,6 +317,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
             # create parquet if no remote parquet found or remote schema
             # does not match expected Job schema
+            was_updated = True
             if (
                 file_info.type == fs.FileType.NotFound
                 or not self.parquet_schema.equals(remote_schema)

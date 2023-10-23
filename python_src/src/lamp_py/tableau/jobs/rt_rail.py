@@ -19,6 +19,8 @@ class HyperRtRail(HyperJob):
         self.table_query = (
             "SELECT"
             "   date(vt.service_date::text) as service_date"
+            "   , TIMEZONE('UTC', TO_TIMESTAMP(extract(epoch FROM date(vt.service_date::text)) + vt.start_time)) as start_datetime"
+            "   , TIMEZONE('UTC', TO_TIMESTAMP(extract(epoch FROM date(vt.service_date::text)) +  vt.static_start_time)) as static_start_datetime"
             "   , ve.pm_trip_id"
             "   , ve.stop_sequence"
             "   , ve.canonical_stop_sequence"
@@ -29,9 +31,14 @@ class HyperRtRail(HyperJob):
             "   , prev_ve.stop_id as previous_stop_id"
             "   , ve.parent_station"
             "   , prev_ve.parent_station as previous_parent_station"
-            "   , ve.vp_move_timestamp as previous_stop_departure_timestamp"
-            "   , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) as stop_arrival_timestamp"
-            "   , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds as stop_departure_timestamp"
+            # "   , ve.vp_move_timestamp as previous_stop_departure_timestamp"
+            "   , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime"
+            # "   , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) as stop_arrival_timestamp"
+            "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime"
+            # "   , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds as stop_departure_timestamp"
+            "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds)) as stop_departure_datetime"
+            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)))::int as previous_stop_departure_sec"
+            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)) + ve.travel_time_seconds)::int as stop_arrival_sec"
             "   , vt.direction_id::int"
             "   , vt.route_id"
             "   , vt.branch_route_id"
@@ -81,6 +88,8 @@ class HyperRtRail(HyperJob):
         return pyarrow.schema(
             [
                 ("service_date", pyarrow.date32()),
+                ("start_datetime", pyarrow.timestamp("us")),
+                ("static_start_datetime", pyarrow.timestamp("us")),
                 ("pm_trip_id", pyarrow.int64()),
                 ("stop_sequence", pyarrow.int16()),
                 ("canonical_stop_sequence", pyarrow.int16()),
@@ -91,14 +100,19 @@ class HyperRtRail(HyperJob):
                 ("previous_stop_id", pyarrow.string()),
                 ("parent_station", pyarrow.string()),
                 ("previous_parent_station", pyarrow.string()),
-                ("previous_stop_departure_timestamp", pyarrow.int64()),
-                ("stop_arrival_timestamp", pyarrow.int64()),
-                ("stop_departure_timestamp", pyarrow.int64()),
+                # ("previous_stop_departure_timestamp", pyarrow.int64()),
+                ("previous_stop_departure_datetime", pyarrow.timestamp("us")),
+                # ("stop_arrival_timestamp", pyarrow.int64()),
+                ("stop_arrival_datetime", pyarrow.timestamp("us")),
+                # ("stop_departure_timestamp", pyarrow.int64()),
+                ("stop_departure_datetime", pyarrow.timestamp("us")),
+                ("previous_stop_departure_sec", pyarrow.int64()),
+                ("stop_arrival_sec", pyarrow.int64()),
                 ("direction_id", pyarrow.int8()),
                 ("route_id", pyarrow.string()),
                 ("branch_route_id", pyarrow.string()),
                 ("trunk_route_id", pyarrow.string()),
-                ("start_time", pyarrow.int32()),
+                ("start_time", pyarrow.int64()),
                 ("vehicle_id", pyarrow.string()),
                 ("stop_count", pyarrow.int16()),
                 ("trip_id", pyarrow.string()),
