@@ -5,10 +5,16 @@ import pyarrow.parquet as pq
 import sqlalchemy as sa
 
 from lamp_py.tableau.hyper import HyperJob
+from lamp_py.aws.s3 import download_file
 
 
 class HyperGTFS(HyperJob):
-    """Base Class for GTFS Hyper Jobs"""
+    """
+    Base Class for GTFS Hyper Jobs
+
+    :param gtfs_table_name: name of GTFS database table
+    :param table_query: multi-line SQL query with %s placeholder for static_version_key WHERE clause
+    """
 
     def __init__(
         self,
@@ -18,7 +24,7 @@ class HyperGTFS(HyperJob):
         HyperJob.__init__(
             self,
             hyper_file_name=f"LAMP_GTFS_Rail_{gtfs_table_name}.hyper",
-            remote_parquet_path=f"s3://{os.getenv('PUBLIC_BUCKET')}/lamp/tableau/rail/LAMP_GTFS_Rail_{gtfs_table_name}.parquet",
+            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_GTFS_Rail_{gtfs_table_name}.parquet",
         )
         self.gtfs_table_name = gtfs_table_name
         self.create_query = table_query % ""
@@ -43,7 +49,10 @@ class HyperGTFS(HyperJob):
         )
 
     def update_parquet(self) -> bool:
-        self.download_parquet()
+        download_file(
+            object_path=self.remote_parquet_path,
+            file_name=self.local_parquet_path,
+        )
 
         max_stats = self.max_stats_of_parquet()
 

@@ -5,6 +5,7 @@ import pyarrow.parquet as pq
 import sqlalchemy as sa
 
 from lamp_py.tableau.hyper import HyperJob
+from lamp_py.aws.s3 import download_file
 
 
 class HyperRtRail(HyperJob):
@@ -14,7 +15,7 @@ class HyperRtRail(HyperJob):
         HyperJob.__init__(
             self,
             hyper_file_name="LAMP_RT_Rail.hyper",
-            remote_parquet_path=f"s3://{os.getenv('PUBLIC_BUCKET')}/lamp/tableau/rail/LAMP_RT_Rail.parquet",
+            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_RT_Rail.parquet",
         )
         self.table_query = (
             "SELECT"
@@ -148,7 +149,10 @@ class HyperRtRail(HyperJob):
         )
 
     def update_parquet(self) -> bool:
-        self.download_parquet()
+        download_file(
+            object_path=self.remote_parquet_path,
+            file_name=self.local_parquet_path,
+        )
 
         max_stats = self.max_stats_of_parquet()
 

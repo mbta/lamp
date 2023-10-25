@@ -20,6 +20,10 @@ from tableauhyperapi import (
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.aws.s3 import (
+    download_file,
+    upload_file,
+)
 
 from .server import (
     overwrite_datasource,
@@ -72,11 +76,16 @@ class HyperJob(ABC):  # pylint: disable=R0902
         """
         Business logic to update existing Job parquet file
 
-        :return bool (parquet was updated)
+        :return: True if local parquet file was updated, else False
         """
 
     def convert_parquet_dtype(self, dtype: pyarrow.DataType) -> SqlType:
         """
+        Converts pyarrow.DataType into HyperFile SqlType
+        for creation of HyperFile TableDefinition object
+
+        Tableau HyperFiles do not support unsigned integers
+
         SqlType.smallint(): 2 byte signed i16
         SqlType.int(): 4 byte signed i32
         SqlType.bigint(): 8 byte signed i64
@@ -105,51 +114,12 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         return SqlType.text()
 
-    def upload_parquet(self) -> None:
-        """
-        Upload local parquet file to remote path
-        """
-        process_logger = ProcessLogger(
-            "hyper_job_upload_parquet",
-            source=self.local_parquet_path,
-            destination=self.remote_parquet_path,
-        )
-        process_logger.log_start()
-        fs.copy_files(
-            source=self.local_parquet_path,
-            destination=self.remote_parquet_path,
-            source_filesystem=fs.LocalFileSystem(),
-            destination_filesystem=self.remote_fs,
-        )
-        process_logger.log_complete()
-
-    def download_parquet(self) -> None:
-        """
-        Download remote parquet file to local path
-        """
-        process_logger = ProcessLogger(
-            "hyper_job_download_parquet",
-            source=self.remote_parquet_path,
-            destination=self.local_parquet_path,
-        )
-        process_logger.log_start()
-
-        if os.path.exists(self.local_parquet_path):
-            os.remove(self.local_parquet_path)
-
-        fs.copy_files(
-            source=self.remote_parquet_path,
-            destination=self.local_parquet_path,
-            source_filesystem=self.remote_fs,
-            destination_filesystem=fs.LocalFileSystem(),
-        )
-
-        process_logger.log_complete()
-
     def max_stats_of_parquet(self) -> Dict[str, str]:
         """
         Create dictionary of maximum value for each column of locally saved
         parquet file
+
+        :return Dict[column_name: max_column_value]
         """
         # get row_groups from parquet metadata (list of dicts)
         row_groups = pq.read_metadata(self.local_parquet_path).to_dict()[
@@ -187,7 +157,10 @@ class HyperJob(ABC):  # pylint: disable=R0902
             ],
         )
 
-        self.download_parquet()
+        download_file(
+            object_path=self.remote_parquet_path,
+            file_name=self.local_parquet_path,
+        )
 
         # create local HyperFile based on remote parquet file
         with HyperProcess(
@@ -217,11 +190,12 @@ class HyperJob(ABC):  # pylint: disable=R0902
         """
         Update Tableau HyperFile if remote parquet file was modified
         """
-        max_retries = 5
+        max_retries = 3
         process_log = ProcessLogger(
             "hyper_job_run_hyper",
             hyper_file_name=self.hyper_file_name,
             tableau_project=self.project_name,
+            max_retries=max_retries,
         )
         process_log.log_start()
 
@@ -238,8 +212,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
                 # Parquet file does not exist, can not run upload
                 if pq_file_info.type == fs.FileType.NotFound:
-                    process_log.add_metadata(no_remote_parquet=True)
-                    break
+                    raise FileNotFoundError(
+                        f"{self.remote_parquet_path} does not exist"
+                    )
 
                 process_log.add_metadata(
                     parquet_last_mod=pq_file_info.mtime.isoformat(),
@@ -256,6 +231,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     and pq_file_info.mtime < datasource.updated_at
                 ):
                     process_log.add_metadata(update_hyper_file=False)
+                    process_log.log_complete()
                     break
 
                 hyper_row_count = self.create_local_hyper()
@@ -264,7 +240,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
                 process_log.add_metadata(
                     hyper_row_count=hyper_row_count,
-                    hyper_file_size=f"{hyper_file_size:.2f}_MB",
+                    hyper_file_siz_mb=f"{hyper_file_size:.2f}",
                     update_hyper_file=True,
                 )
 
@@ -275,15 +251,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
                 os.remove(self.local_hyper_path)
 
-            except Exception as e:
-                if retry_count == max_retries - 1:
-                    process_log.log_failure(exception=e)
-                    return
+                process_log.log_complete()
 
-            else:
                 break
 
-        process_log.log_complete()
+            except Exception as exception:
+                if retry_count == max_retries - 1:
+                    process_log.log_failure(exception=exception)
 
     def run_parquet(self) -> None:
         """
@@ -301,49 +275,47 @@ class HyperJob(ABC):  # pylint: disable=R0902
         process_log.log_start()
 
         try:
+            remote_schema_match = False
             file_info = self.remote_fs.get_file_info(self.remote_parquet_path)
-            process_log.add_metadata(remote_file_type=file_info.type)
 
-            # get remote parquet schema to compare to expected local schema
             if file_info.type == fs.FileType.File:
+                # get remote parquet schema and compare to expected local schema
                 remote_schema = pq.read_schema(
-                    self.remote_parquet_path, filesystem=self.remote_fs
+                    self.remote_parquet_path,
+                    filesystem=self.remote_fs,
                 )
-                process_log.add_metadata(
-                    remote_schema_match=self.parquet_schema.equals(
-                        remote_schema
-                    )
-                )
+                remote_schema_match = self.parquet_schema.equals(remote_schema)
 
-            # create parquet if no remote parquet found or remote schema
-            # does not match expected Job schema
-            was_updated = True
-            if (
-                file_info.type == fs.FileType.NotFound
-                or not self.parquet_schema.equals(remote_schema)
-            ):
-                process_log.add_metadata(created=True, updated=False)
+            if remote_schema_match is False:
+                # create new parquet if no remote parquet found or
+                # remote schema does not match expected local schema
+                run_action = "create"
+                upload_parquet = True
                 self.create_parquet()
-            # else attempt parquet update
             else:
-                was_updated = self.update_parquet()
-                process_log.add_metadata(created=False, updated=was_updated)
+                run_action = "update"
+                upload_parquet = self.update_parquet()
 
-            parquet_file_size = os.path.getsize(self.local_parquet_path) / (
+            parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (
                 1024 * 1024
             )
 
             process_log.add_metadata(
-                parquet_file_size=f"{parquet_file_size:.2f}_MB"
+                remote_schema_match=remote_schema_match,
+                run_action=run_action,
+                upload_parquet=upload_parquet,
+                parquet_file_size_mb=f"{parquet_file_size_mb:.2f}",
             )
 
-            if was_updated:
-                self.upload_parquet()
+            if upload_parquet:
+                upload_file(
+                    file_name=self.local_parquet_path,
+                    object_path=self.remote_parquet_path,
+                )
 
             os.remove(self.local_parquet_path)
 
-        except Exception as e:
-            process_log.log_failure(exception=e)
-
-        else:
             process_log.log_complete()
+
+        except Exception as exception:
+            process_log.log_failure(exception=exception)

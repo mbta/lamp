@@ -32,6 +32,79 @@ def get_s3_client() -> boto3.client:
     return boto3.client("s3")
 
 
+def upload_file(file_name: str, object_path: str) -> bool:
+    """
+    Upload a local file to an S3 Bucket
+
+    :param file_name: local file path to upload
+    :param object_path: S3 object path to upload to (including bucket)
+
+    :return: True if file was uploaded, else False
+    """
+    upload_log = ProcessLogger(
+        "s3_upload_file",
+        file_name=file_name,
+        object_path=object_path,
+    )
+    upload_log.log_start()
+
+    try:
+        if not os.path.exists(file_name):
+            raise FileNotFoundError(f"{file_name} not found locally")
+
+        object_path = object_path.replace("s3://", "")
+        bucket, object_name = object_path.split("/", 1)
+
+        s3_client = get_s3_client()
+
+        s3_client.upload_file(file_name, bucket, object_name)
+
+        upload_log.log_complete()
+
+        return True
+
+    except Exception as exception:
+        upload_log.log_failure(exception=exception)
+        return False
+
+
+def download_file(object_path: str, file_name: str) -> bool:
+    """
+    Download an S3 object to a local file
+    will overwrite local file, if exists
+
+    :param object_path: S3 object path to download from (including bucket)
+    :param file_name: local file path to save object to
+
+    :return: True if file was downloaded, else False
+    """
+    download_log = ProcessLogger(
+        "s3_download_file",
+        file_name=file_name,
+        object_path=object_path,
+    )
+    download_log.log_start()
+
+    try:
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+        object_path = object_path.replace("s3://", "")
+        bucket, object_name = object_path.split("/", 1)
+
+        s3_client = get_s3_client()
+
+        s3_client.download_file(bucket, object_name, file_name)
+
+        download_log.log_complete()
+
+        return True
+
+    except Exception as exception:
+        download_log.log_failure(exception=exception)
+        return False
+
+
 def get_zip_buffer(filename: str) -> IO[bytes]:
     """
     Get a buffer for a zip file from s3 so that it can be read by zipfile
