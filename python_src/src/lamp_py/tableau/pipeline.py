@@ -34,7 +34,6 @@ def start_hyper_updates() -> None:
             "TABLEAU_SERVER",
             "PUBLIC_ARCHIVE_BUCKET",
         ],
-        validate_db=True,
     )
 
     for job in HYPER_JOBS:
