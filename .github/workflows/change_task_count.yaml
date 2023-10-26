@@ -25,11 +25,15 @@ jobs:
       ( github.event.inputs.new_count == 0 || github.event.inputs.new_count == 1)
 
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
-      - name: run command
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Run ECS Update Service Command
         run: aws ecs update-service --cluster lamp --service lamp-${{ github.event.inputs.application_name }}-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: "us-east-1"
