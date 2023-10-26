@@ -163,8 +163,10 @@ class HyperJob(ABC):  # pylint: disable=R0902
         )
 
         # create local HyperFile based on remote parquet file
+        # log_config = "" disables creation of local logfile
         with HyperProcess(
             telemetry=Telemetry.DO_NOT_SEND_USAGE_DATA_TO_TABLEAU,
+            parameters={"log_config": ""},
         ) as hyper:
             with Connection(
                 endpoint=hyper.endpoint,

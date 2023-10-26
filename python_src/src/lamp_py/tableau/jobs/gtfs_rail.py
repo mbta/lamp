@@ -23,8 +23,8 @@ class HyperGTFS(HyperJob):
     ) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name=f"LAMP_GTFS_Rail_{gtfs_table_name}.hyper",
-            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_GTFS_Rail_{gtfs_table_name}.parquet",
+            hyper_file_name=f"LAMP_{gtfs_table_name}.hyper",
+            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_{gtfs_table_name}.parquet",
         )
         self.gtfs_table_name = gtfs_table_name
         self.create_query = table_query % ""
@@ -104,7 +104,8 @@ class HyperServiceIdByRoute(HyperGTFS):
                 "SELECT "
                 "   route_id"
                 "   ,service_id"
-                "   ,date(service_date::text) as service_date"
+                "   ,service_date"
+                "   ,date(service_date::text) as service_date_calc"
                 "   ,static_version_key "
                 "FROM service_id_by_date_and_route "
                 "%s"
@@ -118,7 +119,8 @@ class HyperServiceIdByRoute(HyperGTFS):
             [
                 ("route_id", pyarrow.string()),
                 ("service_id", pyarrow.string()),
-                ("service_date", pyarrow.date32()),
+                ("service_date", pyarrow.int64()),
+                ("service_date_calc", pyarrow.date32()),
                 ("static_version_key", pyarrow.int64()),
             ]
         )
@@ -262,7 +264,8 @@ class HyperStaticCalendarDates(HyperGTFS):
                 "SELECT "
                 "   pk_id"
                 "   ,service_id"
-                "   ,date(date::text) as date"
+                "   ,date"
+                "   ,date(date::text) as calendar_date"
                 "   ,exception_type"
                 "   ,holiday_name"
                 "   ,static_version_key "
@@ -278,7 +281,8 @@ class HyperStaticCalendarDates(HyperGTFS):
             [
                 ("pk_id", pyarrow.int64()),
                 ("service_id", pyarrow.string()),
-                ("date", pyarrow.date32()),
+                ("date", pyarrow.int64()),
+                ("calendar_date", pyarrow.date32()),
                 ("exception_type", pyarrow.int8()),
                 ("holiday_name", pyarrow.string()),
                 ("static_version_key", pyarrow.int64()),

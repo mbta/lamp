@@ -1,3 +1,5 @@
+import os
+
 from lamp_py.runtime_utils.env_validation import validate_environment
 
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
@@ -27,6 +29,8 @@ HYPER_JOBS = (
 
 def start_hyper_updates() -> None:
     """Run all HyperFile Update Jobs"""
+    # configure the environment
+    os.environ["SERVICE_NAME"] = "tableau_hyper_update"
     validate_environment(
         required_variables=[
             "TABLEAU_USER",

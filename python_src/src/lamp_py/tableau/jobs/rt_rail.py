@@ -14,8 +14,8 @@ class HyperRtRail(HyperJob):
     def __init__(self) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name="LAMP_RT_Rail.hyper",
-            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_RT_Rail.parquet",
+            hyper_file_name="LAMP_ALL_RT_fields.hyper",
+            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet",
         )
         self.table_query = (
             "SELECT"
