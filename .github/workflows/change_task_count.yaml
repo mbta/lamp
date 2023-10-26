@@ -1,0 +1,35 @@
+name: Change Task Count
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: What environment to change the task count for
+        options:
+          - dev
+          - staging
+      new_count:
+        description: 1 to turn on 0 to turn off
+        required: true
+      application_name:
+        type: choice
+        description: What application to adjust the task count for
+        options:
+          - ingestion
+          - rail-performance-manager
+
+jobs:
+  set_count:
+    if: |
+      ( github.event.inputs.new_count == 0 || github.event.inputs.new_count == 1)
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: run command
+        run: aws ecs update-service --cluster lamp --service lamp-${{ github.event.inputs.application_name }}-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: "us-east-1"
