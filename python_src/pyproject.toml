@@ -13,12 +13,13 @@ ingestion = 'lamp_py.ingestion.pipeline:start'
 performance_manager = 'lamp_py.performance_manager.pipeline:start'
 seed_metadata = 'lamp_py.postgres.seed_metadata:run'
 snapshot = 'lamp_py.postgres.snapshot:run'
+hyper_update = 'lamp_py.tableau.pipeline:start_hyper_updates'
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 SQLAlchemy = "^1.4.39"
 pyarrow = "^13.0.0"
-boto3 = "^1.23.3"
+boto3 = "^1.28.62"
 pandas = "^1.4.3"
 numpy = "^1.23.1"
 psycopg2 = "^2.9.3"
@@ -26,6 +27,8 @@ psutil = "^5.9.1"
 schedule = "^1.1.0"
 alembic = "^1.10.2"
 types-pytz = "^2023.3.0.1"
+tableauhyperapi = "^0.0.17971"
+tableauserverclient = "^0.28"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
@@ -48,7 +51,7 @@ disallow_untyped_defs = true
 ignore_missing_imports = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 pretty = true
-python_version = 3.9
+python_version = "3.10"
 warn_unreachable = true
 warn_unused_ignores = true
 
