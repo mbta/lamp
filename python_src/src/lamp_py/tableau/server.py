@@ -42,8 +42,8 @@ def tableau_authentication(
 
 
 def project_list(
-    server: TSC.server.server.Server = tableau_server(),
-    auth: TSC.models.tableau_auth.TableauAuth = tableau_authentication(),
+    server: Optional[TSC.server.server.Server] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
 ) -> List[TSC.models.project_item.ProjectItem]:
     """
     Get List of all projects from Tablea server
@@ -53,13 +53,18 @@ def project_list(
 
     :return List[ProjectItem]
     """
+    if server is None:
+        server = tableau_server()
+    if auth is None:
+        auth = tableau_authentication()
+
     with server.auth.sign_in(auth):
         return list(TSC.Pager(server.projects))
 
 
 def datasource_list(
-    server: TSC.server.server.Server = tableau_server(),
-    auth: TSC.models.tableau_auth.TableauAuth = tableau_authentication(),
+    server: Optional[TSC.server.server.Server] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
 ) -> List[TSC.models.datasource_item.DatasourceItem]:
     """
     Get List of all datasources from Tablea server
@@ -69,14 +74,19 @@ def datasource_list(
 
     :return List[DatasourceItem]
     """
+    if server is None:
+        server = tableau_server()
+    if auth is None:
+        auth = tableau_authentication()
+
     with server.auth.sign_in(auth):
         return list(TSC.Pager(server.datasources))
 
 
 def project_from_name(
     project_name: str,
-    server: TSC.server.server.Server = tableau_server(),
-    auth: TSC.models.tableau_auth.TableauAuth = tableau_authentication(),
+    server: Optional[TSC.server.server.Server] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
 ) -> Optional[TSC.models.project_item.ProjectItem]:
     """
     Get Tableau ProjectItem from name
@@ -90,12 +100,17 @@ def project_from_name(
 
 def datasource_from_name(
     datasource_name: str,
-    server: TSC.server.server.Server = tableau_server(),
-    auth: TSC.models.tableau_auth.TableauAuth = tableau_authentication(),
+    server: Optional[TSC.server.server.Server] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
 ) -> Optional[TSC.models.datasource_item.DatasourceItem]:
     """
     Get Tableau DatasourceItem from name
     """
+    if server is None:
+        server = tableau_server()
+    if auth is None:
+        auth = tableau_authentication()
+
     for datasource in datasource_list(server, auth):
         if datasource.name == datasource_name:
             return datasource
@@ -106,12 +121,17 @@ def datasource_from_name(
 def overwrite_datasource(
     project_name: str,
     hyper_path: str,
-    server: TSC.server.server.Server = tableau_server(),
-    auth: TSC.models.tableau_auth.TableauAuth = tableau_authentication(),
+    server: Optional[TSC.server.server.Server] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
 ) -> TSC.models.datasource_item.DatasourceItem:
     """
     Publish locally saved hyperfile to Tableau
     """
+    if server is None:
+        server = tableau_server()
+    if auth is None:
+        auth = tableau_authentication()
+
     publish_mode = TSC.Server.PublishMode.Overwrite
 
     project = project_from_name(project_name)
