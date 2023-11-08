@@ -533,4 +533,7 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
             )
             subprocess_logger.log_failure(error)
 
+    db_manager.vacuum_analyze(VehicleEvents)
+    db_manager.vacuum_analyze(VehicleTrips)
+
     process_logger.log_complete()
