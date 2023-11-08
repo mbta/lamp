@@ -295,6 +295,14 @@ class DatabaseManager:
             cursor.execute(sa.text("END TRANSACTION;"))
             cursor.execute(sa.text(f"VACUUM (ANALYZE) {truncat_as};"))
 
+    def vacuum_analyze(self, table: Any) -> None:
+        """RUN VACUUM (ANALYZE) on table"""
+        table_as = self._get_schema_table(table)
+
+        with self.session.begin() as cursor:
+            cursor.execute(sa.text("END TRANSACTION;"))
+            cursor.execute(sa.text(f"VACUUM (ANALYZE) {table_as};"))
+
     def add_metadata_paths(self, paths: List[str]) -> None:
         """
         add metadata filepaths to metadata table for testing

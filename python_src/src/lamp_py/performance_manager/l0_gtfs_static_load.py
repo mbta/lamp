@@ -364,7 +364,8 @@ def insert_data_tables(
     db_manager: DatabaseManager,
 ) -> None:
     """
-    insert static gtfs data tables into rds tables
+    insert static gtfs data tables into rds tables and run a vacuum analyze
+    afterwards to re-index
     """
     for table in static_tables.values():
         process_logger = ProcessLogger(
@@ -372,6 +373,7 @@ def insert_data_tables(
         )
         process_logger.log_start()
         db_manager.insert_dataframe(table.data_table, table.insert_table)
+        db_manager.vacuum_analyze(table.insert_table)
         process_logger.log_complete()
 
 
