@@ -12,7 +12,7 @@ from lamp_py.tableau.jobs.gtfs_rail import (
     HyperStaticFeedInfo,
     HyperStaticRoutes,
     HyperStaticStops,
-    HyperStaticStopTimes,
+    # HyperStaticStopTimes,
     HyperStaticTrips,
 )
 
@@ -27,7 +27,7 @@ def create_hyper_jobs() -> List[HyperJob]:
         HyperStaticFeedInfo(),
         HyperStaticRoutes(),
         HyperStaticStops(),
-        HyperStaticStopTimes(),
+        # HyperStaticStopTimes(),
         HyperStaticTrips(),
     ]
 
