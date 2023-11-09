@@ -126,10 +126,10 @@ class HyperRtRail(HyperJob):
                 ("static_stop_count", pyarrow.int64()),
                 ("first_last_station_match", pyarrow.bool_()),
                 ("static_version_key", pyarrow.int64()),
-                ("travel_time_seconds", pyarrow.int16()),
-                ("dwell_time_seconds", pyarrow.int16()),
-                ("headway_trunk_seconds", pyarrow.int16()),
-                ("headway_branch_seconds", pyarrow.int16()),
+                ("travel_time_seconds", pyarrow.int32()),
+                ("dwell_time_seconds", pyarrow.int32()),
+                ("headway_trunk_seconds", pyarrow.int32()),
+                ("headway_branch_seconds", pyarrow.int32()),
                 ("updated_on", pyarrow.timestamp("us")),
             ]
         )
