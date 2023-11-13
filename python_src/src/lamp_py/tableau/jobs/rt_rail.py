@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class HyperRtRail(HyperJob):
@@ -150,6 +151,8 @@ class HyperRtRail(HyperJob):
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
+        update_log = ProcessLogger("update_parquet_rt_rail")
+        update_log.log_start()
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -181,6 +184,12 @@ class HyperRtRail(HyperJob):
         ) as writer:
             for batch in old_batches:
                 writer.write_batch(batch)
+        update_log.add_metadata(
+            max_start_date=max_start_date,
+            s3_parquet_rows=pd.dataset(self.local_parquet_path).count_rows(),
+            filter_s3_parquet_rows=pd.dataset(filter_path).count_rows(),
+            db_parquet_rows=pd.dataset(db_parquet_path).count_rows(),
+        )
         os.replace(filter_path, self.local_parquet_path)
 
         joined_dataset = [
@@ -202,5 +211,7 @@ class HyperRtRail(HyperJob):
 
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(db_parquet_path)
+
+        update_log.log_complete()
 
         return True
