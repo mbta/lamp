@@ -9,6 +9,8 @@ import boto3
 import pandas
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
+import pyarrow
+import pyarrow.parquet as pq
 
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -26,6 +28,13 @@ def running_in_docker() -> bool:
         or os.path.isfile(path)
         and any("docker" in line for line in open(path, encoding="UTF-8"))
     )
+
+
+def running_in_aws() -> bool:
+    """
+    return True if running on aws, else False
+    """
+    return bool(os.getenv("AWS_DEFAULT_REGION"))
 
 
 def get_db_password() -> str:
@@ -86,12 +95,14 @@ def get_local_engine(
         db_user = os.environ.get("DB_USER")
         db_ssl_options = ""
 
-        # when using docker, the db host env var will be "local_rds" but
-        # accessed via the "0.0.0.0" ip address (mac specific)
+        # on mac, when running in docker locally db is accessed by "0.0.0.0" ip
         if db_host == "local_rds" and "macos" in platform.platform().lower():
             db_host = "0.0.0.0"
-        # if not running_in_docker():
-        #     db_host = "127.0.0.1"
+
+        # when running application locally in CLI for configuration
+        # and debugging, db is accessed by localhost ip
+        if not running_in_docker() and not running_in_aws():
+            db_host = "127.0.0.1"
 
         assert db_host is not None
         assert db_name is not None
@@ -266,6 +277,44 @@ class DatabaseManager:
         with self.session.begin() as cursor:
             return [row._asdict() for row in cursor.execute(select_query)]
 
+    def write_to_parquet(
+        self,
+        select_query: sa.sql.selectable.Select,
+        write_path: str,
+        schema: pyarrow.schema,
+        batch_size: int = 1024 * 1024,
+    ) -> str:
+        """
+        stream db query results to parquet file in batches
+
+        this function is meant to limit memory usage when creating very large
+        parquet files from db SELECT
+
+        default batch_size of 1024*1024 is based on "row_group_size" parameter
+        of ParquetWriter.write_batch(): row group size will be the minimum of
+        the RecordBatch size and 1024 * 1024. If set larger
+        than 64Mi then 64Mi will be used instead.
+        https://arrow.apache.org/docs/python/generated/pyarrow.parquet.ParquetWriter.html#pyarrow.parquet.ParquetWriter.write_batch
+
+        :param select_query: query to execute
+        :param write_path: local file path for resulting parquet file
+        :param schema: schema of parquet file from select query
+        :param batch_size: number of records to stream from db per batch
+
+        :return local path to created parquet file
+        """
+        with self.session.begin() as cursor:
+            result = cursor.execute(select_query).yield_per(batch_size)
+            with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
+                for part in result.partitions():
+                    pq_writer.write_batch(
+                        pyarrow.RecordBatch.from_pylist(
+                            [row._asdict() for row in part], schema=schema
+                        )
+                    )
+
+        return write_path
+
     def truncate_table(
         self,
         table_to_truncate: Any,
@@ -291,9 +340,7 @@ class DatabaseManager:
         self.execute(sa.text(f"{truncate_query};"))
 
         # Execute VACUUM to avoid non-deterministic behavior during testing
-        with self.session.begin() as cursor:
-            cursor.execute(sa.text("END TRANSACTION;"))
-            cursor.execute(sa.text(f"VACUUM (ANALYZE) {truncat_as};"))
+        self.vacuum_analyze(table_to_truncate)
 
     def vacuum_analyze(self, table: Any) -> None:
         """RUN VACUUM (ANALYZE) on table"""
