@@ -2,10 +2,13 @@ import os
 
 import pyarrow
 import pyarrow.parquet as pq
+import pyarrow.compute as pc
+import pyarrow.dataset as pd
 import sqlalchemy as sa
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
+from lamp_py.postgres.postgres_utils import DatabaseManager
 
 
 class HyperRtRail(HyperJob):
@@ -134,21 +137,19 @@ class HyperRtRail(HyperJob):
             ]
         )
 
-    def create_parquet(self) -> None:
+    def create_parquet(self, db_manager: DatabaseManager) -> None:
         create_query = self.table_query % ""
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
-        pq.write_table(
-            pyarrow.Table.from_pylist(
-                mapping=self.db_manager.select_as_list(sa.text(create_query)),
-                schema=self.parquet_schema,
-            ),
-            self.local_parquet_path,
+        db_manager.write_to_parquet(
+            select_query=sa.text(create_query),
+            write_path=self.local_parquet_path,
+            schema=self.parquet_schema,
         )
 
-    def update_parquet(self) -> bool:
+    def update_parquet(self, db_manager: DatabaseManager) -> bool:
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -162,22 +163,44 @@ class HyperRtRail(HyperJob):
             f" AND vt.service_date >= {max_start_date} ",
         )
 
-        pq.write_table(
-            pyarrow.concat_tables(
-                [
-                    pq.read_table(
-                        self.local_parquet_path,
-                        filters=[("service_date", "<", max_start_date)],
-                    ),
-                    pyarrow.Table.from_pylist(
-                        mapping=self.db_manager.select_as_list(
-                            sa.text(update_query)
-                        ),
-                        schema=self.parquet_schema,
-                    ),
-                ]
-            ),
-            self.local_parquet_path,
+        db_parquet_path = "/tmp/db_local.parquet"
+        db_manager.write_to_parquet(
+            select_query=sa.text(update_query),
+            write_path=db_parquet_path,
+            schema=self.parquet_schema,
         )
+
+        # update downloaded parquet file with filtered service_date
+        old_filter = pc.field("service_date") < max_start_date
+        old_batches = pd.dataset(self.local_parquet_path).to_batches(
+            filter=old_filter, batch_size=1024 * 1024
+        )
+        filter_path = "/tmp/filter_local.parquet"
+        with pq.ParquetWriter(
+            filter_path, schema=self.parquet_schema
+        ) as writer:
+            for batch in old_batches:
+                writer.write_batch(batch)
+        os.replace(filter_path, self.local_parquet_path)
+
+        joined_dataset = [
+            pd.dataset(self.local_parquet_path),
+            pd.dataset(db_parquet_path),
+        ]
+
+        combine_parquet_path = "/tmp/combine.parquet"
+        combine_batches = pd.dataset(
+            joined_dataset,
+            schema=self.parquet_schema,
+        ).to_batches(batch_size=1024 * 1024)
+
+        with pq.ParquetWriter(
+            combine_parquet_path, schema=self.parquet_schema
+        ) as writer:
+            for batch in combine_batches:
+                writer.write_batch(batch)
+
+        os.replace(combine_parquet_path, self.local_parquet_path)
+        os.remove(db_parquet_path)
 
         return True

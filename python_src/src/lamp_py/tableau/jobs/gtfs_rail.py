@@ -2,10 +2,12 @@ import os
 
 import pyarrow
 import pyarrow.parquet as pq
+import pyarrow.dataset as pd
 import sqlalchemy as sa
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
+from lamp_py.postgres.postgres_utils import DatabaseManager
 
 
 class HyperGTFS(HyperJob):
@@ -34,21 +36,17 @@ class HyperGTFS(HyperJob):
     def parquet_schema(self) -> pyarrow.schema:
         """Define GTFS Table Schema"""
 
-    def create_parquet(self) -> None:
+    def create_parquet(self, db_manager: DatabaseManager) -> None:
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
-        pq.write_table(
-            pyarrow.Table.from_pylist(
-                mapping=self.db_manager.select_as_list(
-                    sa.text(self.create_query)
-                ),
-                schema=self.parquet_schema,
-            ),
-            self.local_parquet_path,
+        db_manager.write_to_parquet(
+            select_query=sa.text(self.create_query),
+            write_path=self.local_parquet_path,
+            schema=self.parquet_schema,
         )
 
-    def update_parquet(self) -> bool:
+    def update_parquet(self, db_manager: DatabaseManager) -> bool:
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -62,9 +60,7 @@ class HyperGTFS(HyperJob):
             f"SELECT MAX(static_version_key) FROM {self.gtfs_table_name};"
         )
 
-        max_db_key = self.db_manager.select_as_list(sa.text(max_key_query))[0][
-            "max"
-        ]
+        max_db_key = db_manager.select_as_list(sa.text(max_key_query))[0]["max"]
 
         # no update needed
         if max_db_key <= max_parquet_key:
@@ -75,20 +71,30 @@ class HyperGTFS(HyperJob):
             f" WHERE static_version_key > {max_parquet_key} ",
         )
 
-        pq.write_table(
-            pyarrow.concat_tables(
-                [
-                    pq.read_table(self.local_parquet_path),
-                    pyarrow.Table.from_pylist(
-                        mapping=self.db_manager.select_as_list(
-                            sa.text(update_query)
-                        ),
-                        schema=self.parquet_schema,
-                    ),
-                ]
-            ),
-            self.local_parquet_path,
+        db_parquet_path = "/tmp/db_local.parquet"
+        db_manager.write_to_parquet(
+            select_query=sa.text(update_query),
+            write_path=db_parquet_path,
+            schema=self.parquet_schema,
         )
+
+        old_ds = pd.dataset(self.local_parquet_path)
+        new_ds = pd.dataset(db_parquet_path)
+
+        combine_parquet_path = "/tmp/combine.parquet"
+        combine_batches = pd.dataset(
+            [old_ds, new_ds],
+            schema=self.parquet_schema,
+        ).to_batches(batch_size=1024 * 1024)
+
+        with pq.ParquetWriter(
+            combine_parquet_path, schema=self.parquet_schema
+        ) as writer:
+            for batch in combine_batches:
+                writer.write_batch(batch)
+
+        os.replace(combine_parquet_path, self.local_parquet_path)
+        os.remove(db_parquet_path)
 
         return True
 

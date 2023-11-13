@@ -4,6 +4,7 @@ from typing import List
 from lamp_py.runtime_utils.env_validation import validate_environment
 
 from lamp_py.tableau.hyper import HyperJob
+from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.tableau.jobs.gtfs_rail import (
     HyperServiceIdByRoute,
@@ -12,7 +13,7 @@ from lamp_py.tableau.jobs.gtfs_rail import (
     HyperStaticFeedInfo,
     HyperStaticRoutes,
     HyperStaticStops,
-    # HyperStaticStopTimes,
+    HyperStaticStopTimes,
     HyperStaticTrips,
 )
 
@@ -27,7 +28,7 @@ def create_hyper_jobs() -> List[HyperJob]:
         HyperStaticFeedInfo(),
         HyperStaticRoutes(),
         HyperStaticStops(),
-        # HyperStaticStopTimes(),
+        HyperStaticStopTimes(),
         HyperStaticTrips(),
     ]
 
@@ -43,12 +44,15 @@ def start_hyper_updates() -> None:
             "TABLEAU_SERVER",
             "PUBLIC_ARCHIVE_BUCKET",
         ],
+        private_variables=[
+            "TABLEAU_PASSWORD",
+        ],
     )
     for job in create_hyper_jobs():
         job.run_hyper()
 
 
-def start_parquet_updates() -> None:
+def start_parquet_updates(db_manager: DatabaseManager) -> None:
     """Run all Parquet Update jobs"""
     for job in create_hyper_jobs():
-        job.run_parquet()
+        job.run_parquet(db_manager)

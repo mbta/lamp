@@ -56,8 +56,6 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 "s3://", ""
             )
 
-        self.db_manager = DatabaseManager()
-
     @property
     @abstractmethod
     def parquet_schema(self) -> pyarrow.schema:
@@ -66,13 +64,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
         """
 
     @abstractmethod
-    def create_parquet(self) -> None:
+    def create_parquet(self, db_manager: DatabaseManager) -> None:
         """
         Business logic to create new Job parquet file
         """
 
     @abstractmethod
-    def update_parquet(self) -> bool:
+    def update_parquet(self, db_manager: DatabaseManager) -> bool:
         """
         Business logic to update existing Job parquet file
 
@@ -261,7 +259,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 if retry_count == max_retries - 1:
                     process_log.log_failure(exception=exception)
 
-    def run_parquet(self) -> None:
+    def run_parquet(self, db_manager: DatabaseManager) -> None:
         """
         Remote parquet Create / Update runner
 
@@ -293,10 +291,10 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 # remote schema does not match expected local schema
                 run_action = "create"
                 upload_parquet = True
-                self.create_parquet()
+                self.create_parquet(db_manager)
             else:
                 run_action = "update"
-                upload_parquet = self.update_parquet()
+                upload_parquet = self.update_parquet(db_manager)
 
             parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (
                 1024 * 1024
