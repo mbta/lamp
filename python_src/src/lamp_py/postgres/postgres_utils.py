@@ -283,7 +283,7 @@ class DatabaseManager:
         write_path: str,
         schema: pyarrow.schema,
         batch_size: int = 1024 * 1024,
-    ) -> str:
+    ) -> None:
         """
         stream db query results to parquet file in batches
 
@@ -300,8 +300,6 @@ class DatabaseManager:
         :param write_path: local file path for resulting parquet file
         :param schema: schema of parquet file from select query
         :param batch_size: number of records to stream from db per batch
-
-        :return local path to created parquet file
         """
         with self.session.begin() as cursor:
             result = cursor.execute(select_query).yield_per(batch_size)
@@ -312,8 +310,6 @@ class DatabaseManager:
                             [row._asdict() for row in part], schema=schema
                         )
                     )
-
-        return write_path
 
     def truncate_table(
         self,

@@ -71,9 +71,10 @@ class HyperGTFS(HyperJob):
             f" WHERE static_version_key > {max_parquet_key} ",
         )
 
-        db_parquet_path = db_manager.write_to_parquet(
+        db_parquet_path = "/tmp/db_local.parquet"
+        db_manager.write_to_parquet(
             select_query=sa.text(update_query),
-            write_path="/tmp/db_local.parquet",
+            write_path=db_parquet_path,
             schema=self.parquet_schema,
         )
 
