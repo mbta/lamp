@@ -9,6 +9,7 @@ on:
         options:
           - dev
           - staging
+          - prod
       new_count:
         description: 1 to turn on 0 to turn off
         required: true

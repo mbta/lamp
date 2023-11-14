@@ -13,7 +13,7 @@ jobs:
       group: prod
     uses: ./.github/workflows/deploy-base.yaml
     with:
-      env-name: prod
+      environment: prod
       deploy-ingestion: true
       deploy-rail-pm: true
       deploy-tableau-publisher: true

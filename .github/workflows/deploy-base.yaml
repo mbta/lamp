@@ -8,7 +8,7 @@
 on:
   workflow_call:
     inputs:
-      env-name:
+      environment:
         description: One of 'prod', 'staging', or 'dev'
         required: true
         type: string
@@ -47,14 +47,12 @@ jobs:
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v3
-
       - name: Configure AWS credentials
         id: setup-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-
       - name: Build and Push Docker Image
         id: build-push
         uses: mbta/actions/build-push-ecr@v2
@@ -62,7 +60,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           docker-repo: ${{ secrets.DOCKER_REPO }}
           dockerfile-path: ./python_src/
-
       - name: Deploy Ingestion Application
         id: deploy-ingestion
         if: ${{ inputs.deploy-ingestion }}
@@ -70,9 +67,8 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
-          ecs-service: lamp-ingestion-${{ inputs.env-name }}
+          ecs-service: lamp-ingestion-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-
       - name: Deploy Rail Performance Manager Application
         id: deploy-rail-performance-manager
         if: ${{ inputs.deploy-rail-pm }}
@@ -80,20 +76,18 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
-          ecs-service: lamp-rail-performance-manager-${{ inputs.env-name }}
+          ecs-service: lamp-rail-performance-manager-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
-        if: ${{ inputs.deploy-rail-pm && inputs.env-name == 'prod' }}
+        if: ${{ inputs.deploy-rail-pm && inputs.environment == 'prod' }}
         uses: mbta/actions/deploy-scheduled-ecs@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
-          ecs-service: lamp-tableau-publisher-${{ inputs.env-name }}
-          ecs-task-definition: lamp-tableau-publisher-${{ inputs.env-name }}
+          ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
+          ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-
       - uses: mbta/actions/notify-slack-deploy@v2
         if: ${{ !cancelled() }}
         with:
