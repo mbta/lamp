@@ -2,23 +2,24 @@ name: Manual Deploy
 
 on:
   workflow_dispatch:
-    environment:
-      description: What environment to change the task count for
-      type: choice
-      options:
-        - dev
-        - staging
-        - prod
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
       deploy-ingestion:
-        description: Should the Ingestion Application be Deployed
+        description: Deploy Ingestion
         default: false
         type: boolean
       deploy-rail-pm:
-        description: Should the Rail Performance Manager Application be Deployed
+        description: Deploy Rail Performance Manager
         default: false
         type: boolean
       deploy-tableau-publisher:
-        description: Should the Tableau Publisher Application be Deployed (only run on Prod)
+        description: Deploy Tableau Publisher (only run on Prod)
         default: false
         type: boolean
 
