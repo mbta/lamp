@@ -1,24 +1,22 @@
-name: Deploy to Staging Environment
+name: Deploy to Staging
 
 on:
+  # deploy when ci has been completed on main (should occur after new commits are added to main
+  # directly or via pull request)
   workflow_run:
     workflows: ["Continuous Integration (Python)"]
     types: [completed]
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/deploy
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          docker-repo: ${{ secrets.LAMP_DOCKER_URI }}
-          env-name: staging
-          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+    name: Deploy to Staging
+    concurrency:
+      group: staging
+    uses: ./.github/workflows/deploy-base.yaml
+    with:
+      env-name: staging
+      deploy-ingestion: true
+      deploy-rail-pm: true
+    secrets: inherit

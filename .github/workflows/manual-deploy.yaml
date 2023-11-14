@@ -1,0 +1,36 @@
+name: Manual Deploy
+
+on:
+  workflow_dispatch:
+    environment:
+      description: What environment to change the task count for
+      type: choice
+      options:
+        - dev
+        - staging
+        - prod
+      deploy-ingestion:
+        description: Should the Ingestion Application be Deployed
+        default: false
+        type: boolean
+      deploy-rail-pm:
+        description: Should the Rail Performance Manager Application be Deployed
+        default: false
+        type: boolean
+      deploy-tableau-publisher:
+        description: Should the Tableau Publisher Application be Deployed (only run on Prod)
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    concurrency:
+      group: github.event.inputs.environment
+    uses: ./.github/workflows/deploy-base.yaml
+    with:
+      env-name: github.event.inputs.environment
+      deploy-ingestion: github.envent.inputs.deploy-ingestion
+      deploy-rail-pm: github.envent.inputs.deploy-rail-pm
+      deploy-tableau-publisher: github.envent.inputs.deploy-tableau-publisher
+    secrets: inherit
