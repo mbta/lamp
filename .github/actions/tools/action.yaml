@@ -7,17 +7,18 @@ outputs:
 runs:
   using: composite
   steps:
-      # cache the ASDF directory, using values from .tool-versions
-      - name: ASDF Tools Cache
-        uses: actions/cache@v3
-        id: asdf-cache
-        with:
-          path: ~/.asdf
-          key: ${{ runner.os}}-asdf-${{ hashFiles('**/.tool-versions') }} #runner.os vs CACHE_UUID secret
+    # cache the ASDF directory, using values from .tool-versions
+    - name: ASDF Tools Cache
+      uses: actions/cache@v3
+      id: asdf-cache
+      with:
+        path: ~/.asdf
+        # runner.os vs CACHE_UUID secret
+        key: ${{ runner.os}}-asdf-${{ hashFiles('**/.tool-versions') }}
 
-      - name: Install ASDF Tools
-        uses: asdf-vm/actions/install@v2
-        if: steps.asdf-cache.outputs.cache-hit != 'true'
+    - name: Install ASDF Tools
+      uses: asdf-vm/actions/install@v2
+      if: steps.asdf-cache.outputs.cache-hit != 'true'
 
-      - name: Re-shim ASDF Install
-        uses: mbta/actions/reshim-asdf@v1
+    - name: Re-shim ASDF Install
+      uses: mbta/actions/reshim-asdf@v1

@@ -36,4 +36,10 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
       - name: Run ECS Update Service Command
-        run: aws ecs update-service --cluster lamp --service lamp-${{ github.event.inputs.application_name }}-${{ github.event.inputs.environment }} --desired-count ${{ github.event.inputs.new_count }}
+        # yamllint disable rule:line-length
+        run: >
+          aws ecs update-service
+          --cluster lamp
+          --service lamp-${{ github.event.inputs.application_name }}-${{ github.event.inputs.environment }}
+          --desired-count ${{ github.event.inputs.new_count }}
+        # yamllint enable

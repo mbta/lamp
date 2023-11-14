@@ -15,5 +15,5 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           docker-repo: ${{ secrets.LAMP_DOCKER_URI }}
-          env-name: dev 
+          env-name: dev
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK }}

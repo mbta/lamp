@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
-    command: [ "postgres", "-c", "log_statement=all" ]
+    command: ["postgres", "-c", "log_statement=all"]
 
   performance_manager:
     container_name: performance_manager
@@ -23,8 +23,8 @@ services:
       - local_rds
     working_dir: /lamp
     volumes:
-      - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
-    command: [ "poetry", "run", "performance_manager" ]
+      - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
+    command: ["poetry", "run", "performance_manager"]
 
   seed_metadata:
     container_name: seed_metadata
@@ -40,7 +40,8 @@ services:
       # add in july 17 filepahs json that will be the default seed file path
       - ./python_src/tests/test_files/july_17_filepaths.json:/july_17_filepaths.json
       - ./python_src/tests/test_files/april_2023_filepaths.json:/april_2023_filepaths.json
-    # entrypoint passes in seed file thats added as a volume. if you want to use a different filepath run
+    # entrypoint passes in seed file thats added as a volume. if you want to use a different
+    # filepath run
     # docker-compose run -v /path/to/files.json:/seed.json seed_metadata --seed-file /seed.json
     entrypoint:
       [
