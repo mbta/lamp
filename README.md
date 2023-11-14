@@ -25,8 +25,6 @@ LAMP uses [asdf](https://asdf-vm.com/) to mange runtime versions using the comma
 asdf plugin-add python
 asdf plugin-add direnv
 asdf plugin-add poetry
-asdf plugin-add erlang
-asdf plugin-add elixir
 
 # install versions of plugins specified in .tool-versions
 asdf install
