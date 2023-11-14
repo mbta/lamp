@@ -11,7 +11,7 @@ runs:
       uses: actions/cache@v3
       id: python-cache
       with:
-        path: | 
+        path: |
           ~/.cache/pypoetry
           **/python_src/.venv
         key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
@@ -21,6 +21,6 @@ runs:
       # env use python3.10 to force usage of python3.10 installed by asdf over system python version
       run: |
         poetry env use python3.10
-        poetry install -v 
+        poetry install -v
       shell: bash
       if: "!steps.python-cache.outputs.cache-hit"

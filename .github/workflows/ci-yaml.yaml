@@ -1,0 +1,20 @@
+name: Validate YAML
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.yaml"
+  pull_request:
+    paths:
+      - "**.yaml"
+
+jobs:
+  build:
+    name: Validate YAML actions
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - run: yamllint . -f parsable --strict
