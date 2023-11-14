@@ -1,4 +1,5 @@
 import os
+import datetime
 
 import pyarrow
 import pyarrow.parquet as pq
@@ -157,10 +158,10 @@ class HyperRtRail(HyperJob):
 
         max_stats = self.max_stats_of_parquet()
 
-        max_start_date = max_stats["service_date"]
+        max_start_date: datetime.date = max_stats["service_date"]
 
         update_query = self.table_query % (
-            f" AND vt.service_date >= {max_start_date} ",
+            f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",
         )
 
         db_parquet_path = "/tmp/db_local.parquet"
