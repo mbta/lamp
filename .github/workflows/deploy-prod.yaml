@@ -1,19 +1,20 @@
-name: Deploy to Production Environment
+name: Deploy to Production
 
 on:
-  workflow_dispatch:
+  # deploy when version tags are published
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/deploy
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          docker-repo: ${{ secrets.LAMP_DOCKER_URI }}
-          env-name: prod
-          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+    name: Deploy to Production
+    concurrency:
+      group: prod
+    uses: ./.github/workflows/deploy-base.yaml
+    with:
+      env-name: prod
+      deploy-ingestion: true
+      deploy-rail-pm: true
+      deploy-tableau-publisher: true
+    secrets: inherit
