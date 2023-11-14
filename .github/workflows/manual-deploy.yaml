@@ -25,13 +25,14 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Production
     concurrency:
       group: github.event.inputs.environment
     uses: ./.github/workflows/deploy-base.yaml
     with:
-      env-name: github.event.inputs.environment
-      deploy-ingestion: github.envent.inputs.deploy-ingestion
-      deploy-rail-pm: github.envent.inputs.deploy-rail-pm
-      deploy-tableau-publisher: github.envent.inputs.deploy-tableau-publisher
+      # pass the inputs from the workflow dispatch through to the deploy base. the booleans are
+      # converted to strings, so flip them back using fromJson function
+      environment: ${{ github.event.inputs.environment }}
+      deploy-ingestion: ${{ fromJson(github.event.inputs.deploy-ingestion) }}
+      deploy-rail-pm: ${{ fromJson(github.event.inputs.deploy-rail-pm) }}
+      deploy-tableau-publisher: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) }}
     secrets: inherit

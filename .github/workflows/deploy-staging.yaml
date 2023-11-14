@@ -16,7 +16,7 @@ jobs:
       group: staging
     uses: ./.github/workflows/deploy-base.yaml
     with:
-      env-name: staging
+      environment: staging
       deploy-ingestion: true
       deploy-rail-pm: true
     secrets: inherit
