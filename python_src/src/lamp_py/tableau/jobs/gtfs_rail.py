@@ -40,7 +40,7 @@ class HyperGTFS(HyperJob):
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
-        db_batch_size = 1024 * 1024 / 2
+        db_batch_size = int(1024 * 1024 / 2)
 
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
