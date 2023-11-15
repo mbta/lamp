@@ -133,7 +133,7 @@ class HyperRtRail(HyperJob):
 
         # this is a fairly wide dataset, so dial back the batch size
         # to limit memory usage
-        db_batch_size = 1024 * 1024 / 2
+        db_batch_size = int(1024 * 1024 / 2)
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
