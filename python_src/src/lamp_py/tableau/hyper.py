@@ -199,7 +199,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
         )
         process_log.log_start()
 
-        for retry_count in range(max_retries):
+        for retry_count in range(max_retries + 1):
             try:
                 process_log.add_metadata(retry_count=retry_count)
                 # get datasource from Tableau to check "updated_at" datetime
@@ -256,7 +256,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 break
 
             except Exception as exception:
-                if retry_count == max_retries - 1:
+                if retry_count == max_retries:
                     process_log.log_failure(exception=exception)
 
     def run_parquet(self, db_manager: DatabaseManager) -> None:

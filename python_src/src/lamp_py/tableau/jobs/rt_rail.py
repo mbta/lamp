@@ -26,7 +26,6 @@ class HyperRtRail(HyperJob):
             "   date(vt.service_date::text) as service_date"
             "   , TIMEZONE('UTC', TO_TIMESTAMP(extract(epoch FROM date(vt.service_date::text)) + vt.start_time)) as start_datetime"
             "   , TIMEZONE('UTC', TO_TIMESTAMP(extract(epoch FROM date(vt.service_date::text)) +  vt.static_start_time)) as static_start_datetime"
-            "   , ve.pm_trip_id"
             "   , ve.stop_sequence"
             "   , ve.canonical_stop_sequence"
             "   , prev_ve.canonical_stop_sequence as previous_canonical_stop_sequence"
@@ -36,11 +35,8 @@ class HyperRtRail(HyperJob):
             "   , prev_ve.stop_id as previous_stop_id"
             "   , ve.parent_station"
             "   , prev_ve.parent_station as previous_parent_station"
-            # "   , ve.vp_move_timestamp as previous_stop_departure_timestamp"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime"
-            # "   , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) as stop_arrival_timestamp"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime"
-            # "   , COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds as stop_departure_timestamp"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds)) as stop_departure_datetime"
             "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)))::int as previous_stop_departure_sec"
             "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)) + ve.travel_time_seconds)::int as stop_arrival_sec"
@@ -59,13 +55,12 @@ class HyperRtRail(HyperJob):
             "   , vt.static_trip_id_guess"
             "   , vt.static_start_time"
             "   , vt.static_stop_count"
-            "   , vt.first_last_station_match"
+            "   , vt.first_last_station_match as exact_static_trip_match"
             "   , vt.static_version_key"
             "   , ve.travel_time_seconds"
             "   , ve.dwell_time_seconds"
             "   , ve.headway_trunk_seconds"
             "   , ve.headway_branch_seconds"
-            "   , ve.updated_on "
             "FROM "
             "   vehicle_events ve "
             "LEFT JOIN "
@@ -95,7 +90,6 @@ class HyperRtRail(HyperJob):
                 ("service_date", pyarrow.date32()),
                 ("start_datetime", pyarrow.timestamp("us")),
                 ("static_start_datetime", pyarrow.timestamp("us")),
-                ("pm_trip_id", pyarrow.int64()),
                 ("stop_sequence", pyarrow.int16()),
                 ("canonical_stop_sequence", pyarrow.int16()),
                 ("previous_canonical_stop_sequence", pyarrow.int16()),
@@ -105,11 +99,8 @@ class HyperRtRail(HyperJob):
                 ("previous_stop_id", pyarrow.string()),
                 ("parent_station", pyarrow.string()),
                 ("previous_parent_station", pyarrow.string()),
-                # ("previous_stop_departure_timestamp", pyarrow.int64()),
                 ("previous_stop_departure_datetime", pyarrow.timestamp("us")),
-                # ("stop_arrival_timestamp", pyarrow.int64()),
                 ("stop_arrival_datetime", pyarrow.timestamp("us")),
-                # ("stop_departure_timestamp", pyarrow.int64()),
                 ("stop_departure_datetime", pyarrow.timestamp("us")),
                 ("previous_stop_departure_sec", pyarrow.int64()),
                 ("stop_arrival_sec", pyarrow.int64()),
@@ -128,18 +119,21 @@ class HyperRtRail(HyperJob):
                 ("static_trip_id_guess", pyarrow.string()),
                 ("static_start_time", pyarrow.int64()),
                 ("static_stop_count", pyarrow.int64()),
-                ("first_last_station_match", pyarrow.bool_()),
+                ("exact_static_trip_match", pyarrow.bool_()),
                 ("static_version_key", pyarrow.int64()),
                 ("travel_time_seconds", pyarrow.int32()),
                 ("dwell_time_seconds", pyarrow.int32()),
                 ("headway_trunk_seconds", pyarrow.int32()),
                 ("headway_branch_seconds", pyarrow.int32()),
-                ("updated_on", pyarrow.timestamp("us")),
             ]
         )
 
     def create_parquet(self, db_manager: DatabaseManager) -> None:
         create_query = self.table_query % ""
+
+        # this is a fairly wide dataset, so dial back the batch size
+        # to limit memory usage
+        db_batch_size = 1024 * 1024 / 2
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
@@ -148,9 +142,12 @@ class HyperRtRail(HyperJob):
             select_query=sa.text(create_query),
             write_path=self.local_parquet_path,
             schema=self.parquet_schema,
+            batch_size=db_batch_size,
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
+        dataset_batch_size = 1024 * 1024
+
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -174,7 +171,7 @@ class HyperRtRail(HyperJob):
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
         old_batches = pd.dataset(self.local_parquet_path).to_batches(
-            filter=old_filter, batch_size=1024 * 1024
+            filter=old_filter, batch_size=dataset_batch_size
         )
         filter_path = "/tmp/filter_local.parquet"
         with pq.ParquetWriter(
@@ -193,7 +190,7 @@ class HyperRtRail(HyperJob):
         combine_batches = pd.dataset(
             joined_dataset,
             schema=self.parquet_schema,
-        ).to_batches(batch_size=1024 * 1024)
+        ).to_batches(batch_size=dataset_batch_size)
 
         with pq.ParquetWriter(
             combine_parquet_path, schema=self.parquet_schema

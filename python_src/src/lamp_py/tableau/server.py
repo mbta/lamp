@@ -23,7 +23,7 @@ def tableau_server(
 def tableau_authentication(
     tableau_user: Optional[str] = os.getenv("TABLEAU_USER"),
     tableau_password: Optional[str] = os.getenv("TABLEAU_PASSWORD"),
-    tableau_site: str = "",  # empty string corresponds to Default site
+    tableau_site: str = "",  # empty string corresponds to 'Default' site
 ) -> TSC.models.tableau_auth.TableauAuth:
     """
     Get Tableau Authentication object
