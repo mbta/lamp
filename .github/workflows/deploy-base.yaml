@@ -1,0 +1,95 @@
+# base for all deployments of lamp pipeline
+#
+# pull the contents of a branch
+# create a docker image for the lamp_py project
+# push that image to ecr
+# deploy it (optionally) to ingestion, rail performance manager, and tableau publisher
+# report everything to slack
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: One of 'prod', 'staging', or 'dev'
+        required: true
+        type: string
+      deploy-ingestion:
+        description: Should the Ingestion Application be Deployed
+        required: false
+        default: false
+        type: boolean
+      deploy-rail-pm:
+        description: Should the Rail Performance Manager Application be Deployed
+        required: false
+        default: false
+        type: boolean
+      deploy-tableau-publisher:
+        description: Should the Tableau Publisher Application be Deployed
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      DOCKER_REPO:
+        description: ECR Docker repo to push to
+        required: true
+      SLACK_WEBHOOK:
+        description: Slack URL to post to
+        required: true
+      AWS_ROLE_ARN:
+        description: AWS_ROLE_ARN
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        id: setup-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Build and Push Docker Image
+        id: build-push
+        uses: mbta/actions/build-push-ecr@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          docker-repo: ${{ secrets.DOCKER_REPO }}
+          dockerfile-path: ./python_src/
+      - name: Deploy Ingestion Application
+        id: deploy-ingestion
+        if: ${{ inputs.deploy-ingestion }}
+        uses: mbta/actions/deploy-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-ingestion-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy Rail Performance Manager Application
+        id: deploy-rail-performance-manager
+        if: ${{ inputs.deploy-rail-pm }}
+        uses: mbta/actions/deploy-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-rail-performance-manager-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy Tableau Publisher Application
+        id: deploy-tableau-publisher
+        if: ${{ inputs.deploy-rail-pm && inputs.environment == 'prod' }}
+        uses: mbta/actions/deploy-scheduled-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
+          ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - uses: mbta/actions/notify-slack-deploy@v2
+        if: ${{ !cancelled() }}
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          job-status: ${{ job.status }}
