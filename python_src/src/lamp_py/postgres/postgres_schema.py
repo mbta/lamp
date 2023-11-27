@@ -86,7 +86,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
 
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
-    trip_id = sa.Column(sa.String(128), nullable=False)
+    trip_id = sa.Column(sa.String(512), nullable=False)
 
     # additional trip information
     route_id = sa.Column(sa.String(60), nullable=False)
@@ -102,7 +102,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     direction_destination = sa.Column(sa.String(60), nullable=True)
 
     # static trip matching
-    static_trip_id_guess = sa.Column(sa.String(128), nullable=True)
+    static_trip_id_guess = sa.Column(sa.String(512), nullable=True)
     static_start_time = sa.Column(sa.Integer, nullable=True)
     static_stop_count = sa.Column(sa.SmallInteger, nullable=True)
     first_last_station_match = sa.Column(
@@ -149,7 +149,7 @@ class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
 
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
-    trip_id = sa.Column(sa.String(128), nullable=False)
+    trip_id = sa.Column(sa.String(512), nullable=False)
 
     # stop identifiers
     stop_sequence = sa.Column(sa.SmallInteger, nullable=True)
@@ -223,7 +223,7 @@ class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
     branch_route_id = sa.Column(sa.String(60), nullable=True)
     trunk_route_id = sa.Column(sa.String(60), nullable=True)
     service_id = sa.Column(sa.String(60), nullable=False)
-    trip_id = sa.Column(sa.String(128), nullable=False)
+    trip_id = sa.Column(sa.String(512), nullable=False)
     direction_id = sa.Column(sa.Boolean)
     block_id = sa.Column(sa.String(128), nullable=True)
     static_version_key = sa.Column(sa.Integer, nullable=False)
@@ -310,7 +310,7 @@ class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
     __tablename__ = "static_stop_times"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
-    trip_id = sa.Column(sa.String(128), nullable=False)
+    trip_id = sa.Column(sa.String(512), nullable=False)
     arrival_time = sa.Column(sa.Integer, nullable=False)
     departure_time = sa.Column(sa.Integer, nullable=False)
     schedule_travel_time_seconds = sa.Column(sa.Integer, nullable=True)
@@ -414,7 +414,7 @@ class StaticRoutePatterns(SqlBase):  # pylint: disable=too-few-public-methods
     route_id = sa.Column(sa.String(60), nullable=False)
     direction_id = sa.Column(sa.Boolean)
     route_pattern_typicality = sa.Column(sa.SmallInteger, nullable=True)
-    representative_trip_id = sa.Column(sa.String(128), nullable=False)
+    representative_trip_id = sa.Column(sa.String(512), nullable=False)
     static_version_key = sa.Column(sa.Integer, nullable=False)
 
 
