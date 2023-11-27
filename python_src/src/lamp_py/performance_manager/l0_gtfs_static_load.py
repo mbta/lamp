@@ -32,6 +32,18 @@ from .l0_gtfs_static_mod import modify_static_tables
 
 
 @dataclass
+class StaticTableColumns:
+    """
+    Container Class to hold conversion information for gtfs schedule tables
+    """
+
+    columns_to_pull: List[str]
+    int64_cols: Optional[List[str]] = None
+    bool_cols: Optional[List[str]] = None
+    time_to_seconds_cols: Optional[List[str]] = None
+
+
+@dataclass
 class StaticTableDetails:
     """
     Container class for loading static gtfs schedule tables
@@ -39,10 +51,8 @@ class StaticTableDetails:
 
     table_name: str
     insert_table: sa.sql.schema.Table
-    columns_to_pull: List[str]
-    int64_cols: Optional[List[str]] = None
-    bool_cols: Optional[List[str]] = None
-    time_to_seconds_cols: Optional[List[str]] = None
+    static_version_key_column: sa.sql.schema.Column
+    column_info: StaticTableColumns
     data_table: pandas.DataFrame = pandas.DataFrame()
 
 
@@ -53,181 +63,208 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
     feed_info = StaticTableDetails(
         table_name="FEED_INFO",
         insert_table=StaticFeedInfo.__table__,
-        columns_to_pull=[
-            "feed_start_date",
-            "feed_end_date",
-            "feed_version",
-            "timestamp",
-        ],
-        int64_cols=[
-            "feed_start_date",
-            "feed_end_date",
-            "timestamp",
-        ],
+        static_version_key_column=StaticFeedInfo.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "feed_start_date",
+                "feed_end_date",
+                "feed_version",
+                "timestamp",
+            ],
+            int64_cols=[
+                "feed_start_date",
+                "feed_end_date",
+                "timestamp",
+            ],
+        ),
     )
 
     trips = StaticTableDetails(
         table_name="TRIPS",
         insert_table=StaticTrips.__table__,
-        columns_to_pull=[
-            "route_id",
-            "service_id",
-            "trip_id",
-            "direction_id",
-            "block_id",
-            "timestamp",
-        ],
-        int64_cols=[
-            "timestamp",
-        ],
-        bool_cols=["direction_id"],
+        static_version_key_column=StaticTrips.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "route_id",
+                "service_id",
+                "trip_id",
+                "direction_id",
+                "block_id",
+                "timestamp",
+            ],
+            int64_cols=[
+                "timestamp",
+            ],
+            bool_cols=["direction_id"],
+        ),
     )
 
     routes = StaticTableDetails(
         table_name="ROUTES",
         insert_table=StaticRoutes.__table__,
-        columns_to_pull=[
-            "route_id",
-            "agency_id",
-            "route_short_name",
-            "route_long_name",
-            "route_desc",
-            "route_type",
-            "route_sort_order",
-            "route_fare_class",
-            "line_id",
-            "timestamp",
-        ],
-        int64_cols=[
-            "agency_id",
-            "route_type",
-            "route_sort_order",
-            "timestamp",
-        ],
+        static_version_key_column=StaticRoutes.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "route_id",
+                "agency_id",
+                "route_short_name",
+                "route_long_name",
+                "route_desc",
+                "route_type",
+                "route_sort_order",
+                "route_fare_class",
+                "line_id",
+                "timestamp",
+            ],
+            int64_cols=[
+                "agency_id",
+                "route_type",
+                "route_sort_order",
+                "timestamp",
+            ],
+        ),
     )
 
     stops = StaticTableDetails(
         table_name="STOPS",
         insert_table=StaticStops.__table__,
-        columns_to_pull=[
-            "stop_id",
-            "stop_name",
-            "stop_desc",
-            "platform_code",
-            "platform_name",
-            "parent_station",
-            "timestamp",
-        ],
-        int64_cols=[
-            "timestamp",
-        ],
+        static_version_key_column=StaticStops.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "stop_id",
+                "stop_name",
+                "stop_desc",
+                "platform_code",
+                "platform_name",
+                "parent_station",
+                "timestamp",
+            ],
+            int64_cols=[
+                "timestamp",
+            ],
+        ),
     )
 
     stop_times = StaticTableDetails(
         table_name="STOP_TIMES",
         insert_table=StaticStopTimes.__table__,
-        columns_to_pull=[
-            "trip_id",
-            "arrival_time",
-            "departure_time",
-            "stop_id",
-            "stop_sequence",
-            "timestamp",
-        ],
-        int64_cols=[
-            "stop_sequence",
-            "timestamp",
-        ],
-        time_to_seconds_cols=[
-            "arrival_time",
-            "departure_time",
-        ],
+        static_version_key_column=StaticStopTimes.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timestamp",
+            ],
+            int64_cols=[
+                "stop_sequence",
+                "timestamp",
+            ],
+            time_to_seconds_cols=[
+                "arrival_time",
+                "departure_time",
+            ],
+        ),
     )
 
     calendar = StaticTableDetails(
         table_name="CALENDAR",
         insert_table=StaticCalendar.__table__,
-        columns_to_pull=[
-            "service_id",
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-            "start_date",
-            "end_date",
-            "timestamp",
-        ],
-        int64_cols=[
-            "start_date",
-            "end_date",
-            "timestamp",
-        ],
-        bool_cols=[
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-        ],
+        static_version_key_column=StaticCalendar.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "service_id",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+                "start_date",
+                "end_date",
+                "timestamp",
+            ],
+            int64_cols=[
+                "start_date",
+                "end_date",
+                "timestamp",
+            ],
+            bool_cols=[
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ],
+        ),
     )
 
     calendar_dates = StaticTableDetails(
         table_name="CALENDAR_DATES",
         insert_table=StaticCalendarDates.__table__,
-        columns_to_pull=[
-            "service_id",
-            "date",
-            "exception_type",
-            "holiday_name",
-            "timestamp",
-        ],
-        int64_cols=[
-            "date",
-            "exception_type",
-            "timestamp",
-        ],
+        static_version_key_column=StaticCalendarDates.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "service_id",
+                "date",
+                "exception_type",
+                "holiday_name",
+                "timestamp",
+            ],
+            int64_cols=[
+                "date",
+                "exception_type",
+                "timestamp",
+            ],
+        ),
     )
 
     directions = StaticTableDetails(
         table_name="DIRECTIONS",
         insert_table=StaticDirections.__table__,
-        columns_to_pull=[
-            "route_id",
-            "direction_id",
-            "direction",
-            "direction_destination",
-            "timestamp",
-        ],
-        int64_cols=[
-            "timestamp",
-        ],
-        bool_cols=[
-            "direction_id",
-        ],
+        static_version_key_column=StaticDirections.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "route_id",
+                "direction_id",
+                "direction",
+                "direction_destination",
+                "timestamp",
+            ],
+            int64_cols=[
+                "timestamp",
+            ],
+            bool_cols=[
+                "direction_id",
+            ],
+        ),
     )
 
     route_patterns = StaticTableDetails(
         table_name="ROUTE_PATTERNS",
         insert_table=StaticRoutePatterns.__table__,
-        columns_to_pull=[
-            "route_id",
-            "direction_id",
-            "route_pattern_typicality",
-            "representative_trip_id",
-            "timestamp",
-        ],
-        int64_cols=[
-            "timestamp",
-            "route_pattern_typicality",
-        ],
-        bool_cols=[
-            "direction_id",
-        ],
+        static_version_key_column=StaticRoutePatterns.static_version_key,
+        column_info=StaticTableColumns(
+            columns_to_pull=[
+                "route_id",
+                "direction_id",
+                "route_pattern_typicality",
+                "representative_trip_id",
+                "timestamp",
+            ],
+            int64_cols=[
+                "timestamp",
+                "route_pattern_typicality",
+            ],
+            bool_cols=[
+                "direction_id",
+            ],
+        ),
     )
 
     # this return order also dictates the order that tables are loaded into the RDS
@@ -268,7 +305,7 @@ def load_parquet_files(
             table.table_name, feed_info_path
         )
         table.data_table = read_parquet(
-            paths_to_load, columns=table.columns_to_pull
+            paths_to_load, columns=table.column_info.columns_to_pull
         )
         assert table.data_table.shape[0] > 0
 
@@ -280,20 +317,20 @@ def transform_data_tables(static_tables: Dict[str, StaticTableDetails]) -> None:
     for table in static_tables.values():
         table.data_table = table.data_table.drop_duplicates()
 
-        if table.int64_cols is not None:
-            for col in table.int64_cols:
+        if table.column_info.int64_cols is not None:
+            for col in table.column_info.int64_cols:
                 table.data_table[col] = pandas.to_numeric(
                     table.data_table[col]
                 ).astype("Int64")
 
-        if table.bool_cols is not None:
-            for col in table.bool_cols:
+        if table.column_info.bool_cols is not None:
+            for col in table.column_info.bool_cols:
                 table.data_table[col] = numpy.where(
                     table.data_table[col] == 1, True, False
                 ).astype(numpy.bool_)
 
-        if table.time_to_seconds_cols is not None:
-            for col in table.time_to_seconds_cols:
+        if table.column_info.time_to_seconds_cols is not None:
+            for col in table.column_info.time_to_seconds_cols:
                 table.data_table[col] = (
                     table.data_table[col]
                     .apply(start_time_to_seconds)
@@ -361,20 +398,32 @@ def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
 
 def insert_data_tables(
     static_tables: Dict[str, StaticTableDetails],
+    static_version_key: int,
     db_manager: DatabaseManager,
 ) -> None:
     """
     insert static gtfs data tables into rds tables and run a vacuum analyze
     afterwards to re-index
     """
-    for table in static_tables.values():
-        process_logger = ProcessLogger(
-            "gtfs_insert", table_name=table.table_name
-        )
-        process_logger.log_start()
-        db_manager.insert_dataframe(table.data_table, table.insert_table)
-        db_manager.vacuum_analyze(table.insert_table)
-        process_logger.log_complete()
+    try:
+        for table in static_tables.values():
+            process_logger = ProcessLogger(
+                "gtfs_insert", table_name=table.table_name
+            )
+            process_logger.log_start()
+            db_manager.insert_dataframe(table.data_table, table.insert_table)
+            db_manager.vacuum_analyze(table.insert_table)
+            process_logger.log_complete()
+    except Exception as error:
+        # if an error occurs in loading one of the tables, remove static data
+        # from all tables matching the same static key. re-raise the error so
+        # it can be properly logged.
+        for table in static_tables.values():
+            delete_static = sa.delete(table.insert_table).where(
+                table.static_version_key_column == static_version_key
+            )
+            db_manager.execute(delete_static)
+        raise error
 
 
 def process_static_tables(db_manager: DatabaseManager) -> None:
@@ -406,7 +455,6 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             load_parquet_files(static_tables, folder)
             transform_data_tables(static_tables)
             drop_bus_records(static_tables)
-            insert_data_tables(static_tables, db_manager)
 
             static_version_key = int(
                 static_tables["feed_info"].data_table.loc[
@@ -414,6 +462,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
                 ]
             )
 
+            insert_data_tables(static_tables, static_version_key, db_manager)
             modify_static_tables(static_version_key, db_manager)
 
             update_md_log = (
