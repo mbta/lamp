@@ -121,6 +121,7 @@ class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
     __table_args__ = (
         sa.UniqueConstraint(
             service_date,
+            route_id,
             trip_id,
             name="vehicle_trips_unique_trip",
         ),
