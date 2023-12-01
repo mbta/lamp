@@ -4,7 +4,7 @@ from sqlalchemy.sql.expression import bindparam
 
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
-from lamp_py.postgres.postgres_schema import (
+from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleEvents,
     VehicleTrips,
     StaticTrips,

@@ -8,7 +8,7 @@ import pandas
 import sqlalchemy as sa
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3, read_parquet
-from lamp_py.postgres.postgres_schema import (
+from lamp_py.postgres.rail_performance_manager_schema import (
     MetadataLog,
     StaticCalendar,
     StaticFeedInfo,

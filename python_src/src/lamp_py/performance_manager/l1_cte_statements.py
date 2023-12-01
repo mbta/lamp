@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from lamp_py.postgres.postgres_schema import (
+from lamp_py.postgres.rail_performance_manager_schema import (
     ServiceIdDates,
     StaticStops,
     StaticStopTimes,
