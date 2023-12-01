@@ -8,7 +8,7 @@ from sqlalchemy.sql.functions import count
 
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import get_datetime_from_partition_path
-from lamp_py.postgres.postgres_schema import (
+from lamp_py.postgres.rail_performance_manager_schema import (
     MetadataLog,
     TempEventCompare,
     VehicleEvents,

@@ -16,7 +16,7 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .postgres_schema import MetadataLog
+from .rail_performance_manager_schema import MetadataLog
 
 
 def running_in_docker() -> bool:
