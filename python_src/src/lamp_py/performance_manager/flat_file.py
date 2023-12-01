@@ -7,7 +7,7 @@ from lamp_py.aws.s3 import write_parquet_file
 from lamp_py.performance_manager.gtfs_utils import (
     static_version_key_from_service_date,
 )
-from lamp_py.postgres.postgres_schema import (
+from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleEvents,
     VehicleTrips,
     StaticStopTimes,

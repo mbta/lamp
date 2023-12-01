@@ -37,7 +37,7 @@ from lamp_py.performance_manager.l0_rt_vehicle_positions import (
     transform_vp_timestamps,
     process_vp_files,
 )
-from lamp_py.postgres.postgres_schema import (
+from lamp_py.postgres.rail_performance_manager_schema import (
     MetadataLog,
     StaticCalendar,
     StaticRoutes,

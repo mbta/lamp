@@ -14,7 +14,7 @@ from lamp_py.runtime_utils.alembic_migration import (
     alembic_downgrade_to_base,
 )
 
-from .postgres_schema import (
+from .rail_performance_manager_schema import (
     MetadataLog,
     VehicleEvents,
     VehicleTrips,
