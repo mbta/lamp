@@ -135,7 +135,7 @@ def overwrite_datasource(
     publish_mode = TSC.Server.PublishMode.Overwrite
 
     project = project_from_name(project_name)
-    if project is None:
+    if project is None or project.id is None:
         raise KeyError(f"{project_name} project not found on Tableau server.")
 
     datasource = TSC.DatasourceItem(project_id=project.id)

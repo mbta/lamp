@@ -28,7 +28,7 @@ schedule = "^1.1.0"
 alembic = "^1.10.2"
 types-pytz = "^2023.3.0.1"
 tableauhyperapi = "^0.0.17971"
-tableauserverclient = "^0.28"
+tableauserverclient = "0.25"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
