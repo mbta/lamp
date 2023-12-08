@@ -67,21 +67,40 @@ jobs:
     needs: setup
     env:
       BOOTSTRAPPED: 1
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: pm_test
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      ALEMBIC_DB_NAME: performance_manager_staging
+      MD_DB_HOST: local_rds
+      MD_DB_PORT: 5433
+      MD_DB_NAME: metadata
+      MD_DB_USER: postgres
+      MD_DB_PASSWORD: postgres
+      ALEMBIC_MD_DB_NAME: metadata_prod
+      RPM_DB_HOST: local_rds
+      RPM_DB_PORT: 5434
+      RPM_DB_NAME: performance_manager
+      RPM_DB_USER: postgres
+      RPM_DB_PASSWORD: postgres
+      ALEMBIC_RPM_DB_NAME: performance_manager_prod
     services:
-      postgres:
+      rpm_postgres:
         image: postgres:14.4
         ports:
-          - 5432:5432
+          - 5434:5432
         env:
-          POSTGRES_PASSWORD: ${{env.DB_PASSWORD}}
-          POSTGRES_USER: ${{env.DB_USER}}
-          POSTGRES_DB: ${{env.DB_NAME}}
+          POSTGRES_PASSWORD: ${{env.RPM_DB_PASSWORD}}
+          POSTGRES_USER: ${{env.RPM_DB_USER}}
+          POSTGRES_DB: ${{env.RPM_DB_NAME}}
+        options:
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      md_postgres:
+        image: postgres:14.4
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_PASSWORD: ${{env.MD_DB_PASSWORD}}
+          POSTGRES_USER: ${{env.MD_DB_USER}}
+          POSTGRES_DB: ${{env.MD_DB_NAME}}
         options:
           --health-cmd pg_isready
           --health-interval 10s

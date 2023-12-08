@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from lamp_py.postgres.postgres_utils import get_local_engine
+from lamp_py.postgres.postgres_utils import DatabaseIndex
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -24,15 +24,16 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from lamp_py.postgres.postgres_schema import SqlBase
+from lamp_py.postgres.rail_performance_manager_schema import RpmSqlBase
 
 # using dictionary for engine and target_metadata to support migrating multiple dbs
 # each dictionary name should have a section defined in alembic.ini that
 # matches the key used in the db_details dictionary
+rpm_psql_args = DatabaseIndex.RAIL_PERFORMANCE_MANAGER.get_args_from_env()
 db_details = {
     "performance_manager": {
-        "engine": get_local_engine(),
-        "target_metadata": SqlBase.metadata,
+        "engine": rpm_psql_args.get_local_engine(),
+        "target_metadata": RpmSqlBase.metadata,
     },
 }
 
