@@ -38,7 +38,7 @@ from lamp_py.performance_manager.l0_rt_vehicle_positions import (
     process_vp_files,
 )
 from lamp_py.postgres.rail_performance_manager_schema import (
-    MetadataLog,
+    LegacyMetadataLog,
     StaticCalendar,
     StaticRoutes,
     StaticStops,
@@ -50,7 +50,7 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     StaticDirections,
     StaticRoutePatterns,
 )
-from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.postgres.postgres_utils import DatabaseManager, DatabaseIndex
 from lamp_py.runtime_utils.alembic_migration import (
     alembic_upgrade_to_head,
     alembic_downgrade_to_base,
@@ -111,8 +111,10 @@ def fixture_db_manager() -> DatabaseManager:
     generate a database manager for all of our tests
     """
     set_env_vars()
-    db_manager = DatabaseManager()
-    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
+    db_manager = DatabaseManager(
+        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
+    )
+    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager_prod")
     alembic_downgrade_to_base(db_name)
     alembic_upgrade_to_head(db_name)
     return db_manager
@@ -288,9 +290,9 @@ def test_static_tables(
     db_manager.add_metadata_paths(paths)
 
     unprocessed_static_schedules = db_manager.select_as_list(
-        sa.select(MetadataLog.path).where(
-            (MetadataLog.processed == sa.false())
-            & (MetadataLog.path.contains("FEED_INFO"))
+        sa.select(LegacyMetadataLog.path).where(
+            (LegacyMetadataLog.processed == sa.false())
+            & (LegacyMetadataLog.path.contains("FEED_INFO"))
         )
     )
 
@@ -321,9 +323,9 @@ def test_static_tables(
             ), f"Table {tablename} has incorrect row count"
 
     unprocessed_static_schedules = db_manager.select_as_list(
-        sa.select(MetadataLog.path).where(
-            (MetadataLog.processed == sa.false())
-            & (MetadataLog.path.contains("FEED_INFO"))
+        sa.select(LegacyMetadataLog.path).where(
+            (LegacyMetadataLog.processed == sa.false())
+            & (LegacyMetadataLog.path.contains("FEED_INFO"))
         )
     )
 
@@ -345,8 +347,8 @@ def test_gtfs_rt_processing(
     db_manager.truncate_table(VehicleTrips, restart_identity=True)
 
     db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
+        sa.delete(LegacyMetadataLog.__table__).where(
+            ~LegacyMetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -455,8 +457,8 @@ def test_vp_only(
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
+        sa.delete(LegacyMetadataLog.__table__).where(
+            ~LegacyMetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -483,8 +485,8 @@ def test_tu_only(
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
+        sa.delete(LegacyMetadataLog.__table__).where(
+            ~LegacyMetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -512,8 +514,8 @@ def test_vp_and_tu(
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
+        sa.delete(LegacyMetadataLog.__table__).where(
+            ~LegacyMetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -540,8 +542,8 @@ def test_missing_start_time(
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
+        sa.delete(LegacyMetadataLog.__table__).where(
+            ~LegacyMetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -674,8 +676,8 @@ def test_whole_table(
     db_manager.truncate_table(VehicleEvents, restart_identity=True)
     db_manager.truncate_table(VehicleTrips, restart_identity=True)
     db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
+        sa.delete(LegacyMetadataLog.__table__).where(
+            ~LegacyMetadataLog.path.contains("FEED_INFO")
         )
     )
 

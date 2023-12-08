@@ -10,7 +10,7 @@ import signal
 from typing import List
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.postgres.postgres_utils import DatabaseManager, DatabaseIndex
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -52,7 +52,9 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(verbose=args.verbose)
+    db_manager = DatabaseManager(
+        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER, verbose=args.verbose
+    )
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)

@@ -9,7 +9,7 @@ from sqlalchemy.sql.functions import count
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.postgres.rail_performance_manager_schema import (
-    MetadataLog,
+    LegacyMetadataLog,
     TempEventCompare,
     VehicleEvents,
     VehicleTrips,
@@ -520,16 +520,16 @@ def process_gtfs_rt_files(db_manager: DatabaseManager) -> None:
                     update_metrics_from_temp_events(db_manager)
 
             db_manager.execute(
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(files["ids"]))
+                sa.update(LegacyMetadataLog.__table__)
+                .where(LegacyMetadataLog.pk_id.in_(files["ids"]))
                 .values(processed=1)
             )
             subprocess_logger.add_metadata(event_count=events.shape[0])
             subprocess_logger.log_complete()
         except Exception as error:
             db_manager.execute(
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(files["ids"]))
+                sa.update(LegacyMetadataLog.__table__)
+                .where(LegacyMetadataLog.pk_id.in_(files["ids"]))
                 .values(processed=1, process_fail=1)
             )
             subprocess_logger.log_failure(error)
