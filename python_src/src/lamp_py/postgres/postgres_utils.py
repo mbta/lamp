@@ -1,10 +1,11 @@
 import os
-import platform
 import time
 import urllib.parse as urlparse
+from enum import Enum, auto
 from queue import Queue
 from multiprocessing import Manager, Process
 from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import boto3
 import pandas
@@ -16,7 +17,7 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .rail_performance_manager_schema import MetadataLog
+from .rail_performance_manager_schema import LegacyMetadataLog
 
 
 def running_in_docker() -> bool:
@@ -38,132 +39,187 @@ def running_in_aws() -> bool:
     return bool(os.getenv("AWS_DEFAULT_REGION"))
 
 
-def get_db_password() -> str:
+class PsqlArgs:
     """
-    function to provide rds password
-
-    used to refresh auth token, if required
+    container class for arguments needed to log into postgres db
     """
-    db_password = os.environ.get("DB_PASSWORD", None)
-    db_host = os.environ.get("DB_HOST")
-    db_port = os.environ.get("DB_PORT")
-    db_user = os.environ.get("DB_USER")
-    db_region = os.environ.get("DB_REGION", None)
 
-    if db_password is None:
-        # generate aws db auth token if in rds
+    def __init__(self, prefix: str):
+        # when running application locally in CLI for configuration and
+        # debugging, db is accessed by localhost ip
+        if not running_in_docker() and not running_in_aws():
+            self.host = "127.0.0.1"
+        else:
+            host = os.environ.get(f"{prefix}_DB_HOST")
+            assert host is not None
+            self.host = host
+
+        port = os.environ.get(f"{prefix}_DB_PORT")
+        assert port is not None
+        self.port: str = port
+
+        name = os.environ.get(f"{prefix}_DB_NAME")
+        assert name is not None
+        self.name: str = name
+
+        user = os.environ.get(f"{prefix}_DB_USER")
+        assert user is not None
+        self.user: str = user
+
+        self.password: Optional[str] = os.environ.get(f"{prefix}_DB_PASSWORD")
+
+    def get_password(self) -> str:
+        """
+        function to provide rds password
+
+        used to refresh auth token, if required
+        """
+        if self.password is not None:
+            return self.password
+
+        region = os.environ.get("DB_REGION", None)
+
+        # generate ws db auth token if in rds
         client = boto3.client("rds")
         return client.generate_db_auth_token(
-            DBHostname=db_host,
-            Port=db_port,
-            DBUsername=db_user,
-            Region=db_region,
+            DBHostname=self.host,
+            Port=self.port,
+            DBUsername=self.user,
+            Region=region,
         )
 
-    return db_password
+    def get_local_engine(
+        self,
+        echo: bool = False,
+    ) -> sa.future.engine.Engine:
+        """
+        Get an QL Alchemy engine that connects to a locally Postgres RDS stood
+        via docker using env variables
+        """
+        process_logger = ProcessLogger("create_sql_engine")
+        process_logger.log_start()
+        try:
+            process_logger.add_metadata(**self.metadata())
 
+            # use presence of password as indicator of connection type.
+            #
+            # if its not provided, assume cloud database where ssl is used and
+            # passwords are generated on the fly
+            #
+            # if it is provided, assume local docker database
+            db_ssl_options = ""
+            db_password = self.password
+            if db_password is None:
+                db_password = self.get_password()
+                db_password = urlparse.quote_plus(db_password)
 
-def postgres_event_update_db_password(
-    _: sa.engine.interfaces.Dialect,
-    __: Any,
-    ___: Tuple[Any, ...],
-    cparams: Dict[str, Any],
-) -> None:
-    """
-    update database passord on every new connection attempt
-    this will refresh db auth token passwords
-    """
-    process_logger = ProcessLogger("password_refresh")
-    process_logger.log_start()
-    cparams["password"] = get_db_password()
-    process_logger.log_complete()
+                assert db_password is not None
+                assert db_password != ""
 
+                # set the ssl cert path to the file that should be added to the
+                # lambda function at deploy time
+                db_ssl_cert = os.path.abspath(
+                    os.path.join(
+                        "/", "usr", "local", "share", "amazon-certs.pem"
+                    )
+                )
 
-def get_local_engine(
-    echo: bool = False,
-) -> sa.future.engine.Engine:
-    """
-    Get an SQL Alchemy engine that connects to a locally Postgres RDS stood up
-    via docker using env variables
-    """
-    process_logger = ProcessLogger("create_sql_engine")
-    process_logger.log_start()
-    try:
-        db_host = os.environ.get("DB_HOST")
-        db_name = os.environ.get("DB_NAME")
-        db_password = os.environ.get("DB_PASSWORD", None)
-        db_port = os.environ.get("DB_PORT")
-        db_user = os.environ.get("DB_USER")
-        db_ssl_options = ""
+                assert os.path.isfile(db_ssl_cert)
 
-        # on mac, when running in docker locally db is accessed by "0.0.0.0" ip
-        if db_host == "local_rds" and "macos" in platform.platform().lower():
-            db_host = "0.0.0.0"
+                # update the ssl options string to add to the database url
+                db_ssl_options = (
+                    f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
+                )
 
-        # when running application locally in CLI for configuration
-        # and debugging, db is accessed by localhost ip
-        if not running_in_docker() and not running_in_aws():
-            db_host = "127.0.0.1"
-
-        assert db_host is not None
-        assert db_name is not None
-        assert db_port is not None
-        assert db_user is not None
-
-        process_logger.add_metadata(
-            host=db_host, database_name=db_name, user=db_user, port=db_port
-        )
-
-        # use presence of password as indicator of connection type.
-        #
-        # if its not provided, assume cloud database where ssl is used and
-        # passwords are generated on the fly
-        #
-        # if it is provided, assume local docker database
-        if db_password is None:
-            db_password = get_db_password()
-            db_password = urlparse.quote_plus(db_password)
-
-            assert db_password is not None
-            assert db_password != ""
-
-            # set the ssl cert path to the file that should be added to the
-            # lambda function at deploy time
-            db_ssl_cert = os.path.abspath(
-                os.path.join("/", "usr", "local", "share", "amazon-certs.pem")
+            database_url = (
+                f"postgresql+psycopg2://{self.user}:"
+                f"{db_password}@{self.host}:{self.port}/{self.name}"
+                f"{db_ssl_options}"
             )
 
-            assert os.path.isfile(db_ssl_cert)
+            print(database_url)
 
-            # update the ssl options string to add to the database url
-            db_ssl_options = f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
+            engine = sa.create_engine(
+                database_url,
+                echo=echo,
+                future=True,
+                pool_pre_ping=True,
+                pool_use_lifo=True,
+                pool_size=5,
+                max_overflow=2,
+                connect_args={
+                    "keepalives": 1,
+                    "keepalives_idle": 60,
+                    "keepalives_interval": 60,
+                },
+            )
 
-        database_url = (
-            f"postgresql+psycopg2://{db_user}:"
-            f"{db_password}@{db_host}/{db_name}"
-            f"{db_ssl_options}"
-        )
+            process_logger.log_complete()
+            return engine
+        except Exception as exception:
+            process_logger.log_failure(exception)
+            raise exception
 
-        engine = sa.create_engine(
-            database_url,
-            echo=echo,
-            future=True,
-            pool_pre_ping=True,
-            pool_use_lifo=True,
-            pool_size=5,
-            max_overflow=2,
-            connect_args={
-                "keepalives": 1,
-                "keepalives_idle": 60,
-                "keepalives_interval": 60,
-            },
-        )
+    def metadata(self) -> Dict[str, str]:
+        """
+        generate a dict to add to logs for psql connection details
+        """
+        return {
+            "host": self.host,
+            "database_name": self.name,
+            "user": self.user,
+            "port": self.port,
+        }
 
+
+class DatabaseIndex(Enum):
+    """
+    enum for different databases the projects can use
+    """
+
+    METADATA = auto
+    RAIL_PERFORMANCE_MANAGER = auto()
+
+    def get_env_prefix(self) -> str:
+        """
+        in the environment, all keys for this database have this prefix
+        """
+        if self == self.RAIL_PERFORMANCE_MANAGER:
+            return "RPM"
+        if self == self.METADATA:
+            return "MD"
+        raise NotImplementedError("No environment prefix for index {self.name}")
+
+    def get_args_from_env(self) -> PsqlArgs:
+        """
+        generate a sql argument instance for this ind
+        """
+        prefix = self.get_env_prefix()
+        return PsqlArgs(prefix)
+
+
+def generate_update_db_password_func(psql_args: PsqlArgs) -> Callable:
+    """
+    create a function to update the password for a database when a new
+    connection is created
+    """
+
+    def postgres_event_update_db_password(
+        _: sa.engine.interfaces.Dialect,
+        __: Any,
+        ___: Tuple[Any, ...],
+        cparams: Dict[str, Any],
+    ) -> None:
+        """
+        update database password on every new connection attempt
+        this will refresh db auth token passwords
+        """
+        process_logger = ProcessLogger("password_refresh")
+        process_logger.log_start()
+        cparams["password"] = psql_args.get_password()
         process_logger.log_complete()
-        return engine
-    except Exception as exception:
-        process_logger.log_failure(exception)
-        raise exception
+
+    return postgres_event_update_db_password
 
 
 # Setup the base class that all of the SQL objects will inherit from.
@@ -181,16 +237,18 @@ class DatabaseManager:
     manager class for rds application operations
     """
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, db_index: DatabaseIndex, verbose: bool = False):
         """
         initialize db manager object, creates engine and sessionmaker
         """
-        self.engine = get_local_engine(echo=verbose)
+        self.db_index = db_index
+        self.psql_args = db_index.get_args_from_env()
+        self.engine = self.psql_args.get_local_engine(echo=verbose)
 
         sa.event.listen(
             self.engine,
             "do_connect",
-            postgres_event_update_db_password,
+            generate_update_db_password_func(self.psql_args),
         )
 
         self.session = sessionmaker(bind=self.engine)
@@ -354,7 +412,8 @@ class DatabaseManager:
         print(paths)
         with self.session.begin() as session:
             session.execute(
-                sa.insert(MetadataLog.__table__), [{"path": p} for p in paths]
+                sa.insert(LegacyMetadataLog.__table__),
+                [{"path": p} for p in paths],
             )
 
 
@@ -381,9 +440,11 @@ def get_unprocessed_files(
 
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
-        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
-            (MetadataLog.processed == sa.false())
-            & (MetadataLog.path.contains(path_contains))
+        read_md_log = sa.select(
+            (LegacyMetadataLog.pk_id, LegacyMetadataLog.path)
+        ).where(
+            (LegacyMetadataLog.processed == sa.false())
+            & (LegacyMetadataLog.path.contains(path_contains))
         )
         for path_record in db_manager.select_as_list(read_md_log):
             path_id = path_record.get("pk_id")
@@ -422,12 +483,15 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
     """
     process_logger = ProcessLogger("rds_writer_process")
     process_logger.log_start()
-    engine = get_local_engine()
+
+    db_index = DatabaseIndex.RAIL_PERFORMANCE_MANAGER
+    psql_args = db_index.get_args_from_env()
+    engine = psql_args.get_local_engine()
 
     sa.event.listen(
         engine,
         "do_connect",
-        postgres_event_update_db_password,
+        generate_update_db_password_func(psql_args),
     )
 
     while True:
@@ -436,7 +500,7 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
         if metadata_path is None:
             break
 
-        insert_statement = sa.insert(MetadataLog.__table__).values(
+        insert_statement = sa.insert(LegacyMetadataLog.__table__).values(
             processed=False, path=metadata_path
         )
         insert_logger = ProcessLogger("metadata_insert", filepath=metadata_path)

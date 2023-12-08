@@ -15,11 +15,11 @@ from lamp_py.runtime_utils.alembic_migration import (
 )
 
 from .rail_performance_manager_schema import (
-    MetadataLog,
+    LegacyMetadataLog,
     VehicleEvents,
     VehicleTrips,
 )
-from .postgres_utils import DatabaseManager
+from .postgres_utils import DatabaseManager, DatabaseIndex
 
 
 logging.getLogger().setLevel("INFO")
@@ -83,7 +83,10 @@ def run() -> None:
     """Run The RDS Interaction Script"""
     parsed_args = parse_args(sys.argv[1:])
 
-    db_manager = DatabaseManager(parsed_args.verbose)
+    db_manager = DatabaseManager(
+        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER,
+        verbose=parsed_args.verbose,
+    )
 
     db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
 
@@ -95,12 +98,12 @@ def run() -> None:
         db_manager.truncate_table(VehicleEvents, restart_identity=True)
 
         db_manager.execute(
-            sa.update(MetadataLog.__table__)
+            sa.update(LegacyMetadataLog.__table__)
             .values(
                 processed=False,
                 process_fail=False,
             )
-            .where(MetadataLog.path.like("%RT_%"))
+            .where(LegacyMetadataLog.path.like("%RT_%"))
         )
 
     if parsed_args.seed_file:

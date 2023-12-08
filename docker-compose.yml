@@ -2,17 +2,29 @@ version: '3'
 
 services:
 
-  local_rds:
-    container_name: local_rds
+  rail_pm_rds:
+    container_name: rail_pm_rds
     image: postgres:14.4
     env_file: .env
     shm_size: '2gb'
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${RPM_DB_NAME}
+      POSTGRES_PASSWORD: ${RPM_DB_PASSWORD}
     ports:
-      - "5432:5432"
-    command: ["postgres", "-c", "log_statement=all"]
+      - "${RPM_DB_PORT}:5432"
+    command: [ "postgres", "-c", "log_statement=all" ]
+
+  metadata_rds:
+    container_name: metadata_rds
+    image: postgres:14.4
+    env_file: .env
+    shm_size: '2gb'
+    environment:
+      POSTGRES_DB: ${MD_DB_NAME}
+      POSTGRES_PASSWORD: ${MD_DB_PASSWORD}
+    ports:
+      - "${MD_DB_PORT}:5432"
+    command: [ "postgres", "-c", "log_statement=all" ]
 
   performance_manager:
     container_name: performance_manager
@@ -20,11 +32,12 @@ services:
     build:
       context: ./python_src
     depends_on:
-      - local_rds
+      - rail_pm_rds
+      - metadata_rds
     working_dir: /lamp
     volumes:
-      - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
-    command: ["poetry", "run", "performance_manager"]
+      - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
+    command: [ "poetry", "run", "performance_manager" ]
 
   seed_metadata:
     container_name: seed_metadata
@@ -32,7 +45,7 @@ services:
     build:
       context: ./python_src
     depends_on:
-      - local_rds
+      - metadata_rds
     working_dir: /lamp
     volumes:
       # map credentials to be used by boto3, read-only

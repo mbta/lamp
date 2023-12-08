@@ -3,10 +3,10 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 
-SqlBase: Any = declarative_base()
+RpmSqlBase: Any = declarative_base()
 
 
-class VehicleEvents(SqlBase):  # pylint: disable=too-few-public-methods
+class VehicleEvents(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """
     Table that hold GTFS-RT Events
 
@@ -75,7 +75,7 @@ sa.Index(
 )
 
 
-class VehicleTrips(SqlBase):  # pylint: disable=too-few-public-methods
+class VehicleTrips(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """
     Table that holds GTFS-RT Trips
     """
@@ -136,7 +136,7 @@ sa.Index(
 )
 
 
-class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
+class TempEventCompare(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Hold temporary hash values for comparison to Vehicle Events table"""
 
     __tablename__ = "temp_event_compare"
@@ -177,7 +177,7 @@ class TempEventCompare(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
 
-class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
+class LegacyMetadataLog(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for keeping track of parquet files in S3"""
 
     __tablename__ = "metadata_log"
@@ -193,12 +193,12 @@ class MetadataLog(SqlBase):  # pylint: disable=too-few-public-methods
 
 sa.Index(
     "ix_metadata_log_not_processed",
-    MetadataLog.path,
-    postgresql_where=(MetadataLog.processed == sa.false()),
+    LegacyMetadataLog.path,
+    postgresql_where=(LegacyMetadataLog.processed == sa.false()),
 )
 
 
-class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticFeedInfo(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS feed info"""
 
     __tablename__ = "static_feed_info"
@@ -214,7 +214,7 @@ class StaticFeedInfo(SqlBase):  # pylint: disable=too-few-public-methods
     )
 
 
-class StaticTrips(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticTrips(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS trips"""
 
     __tablename__ = "static_trips"
@@ -256,7 +256,7 @@ sa.Index(
 )
 
 
-class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticRoutes(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS routes"""
 
     __tablename__ = "static_routes"
@@ -282,7 +282,7 @@ sa.Index(
 )
 
 
-class StaticStops(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticStops(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS stops"""
 
     __tablename__ = "static_stops"
@@ -311,7 +311,7 @@ sa.Index(
 )
 
 
-class StaticStopTimes(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticStopTimes(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS stop times"""
 
     __tablename__ = "static_stop_times"
@@ -342,7 +342,7 @@ sa.Index(
 )
 
 
-class StaticCalendar(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticCalendar(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS calendar"""
 
     __tablename__ = "static_calendar"
@@ -370,7 +370,7 @@ sa.Index(
 )
 
 
-class StaticCalendarDates(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticCalendarDates(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS Calendar Dates"""
 
     __tablename__ = "static_calendar_dates"
@@ -391,7 +391,7 @@ sa.Index(
 )
 
 
-class StaticDirections(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticDirections(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS Calendar Dates"""
 
     __tablename__ = "static_directions"
@@ -412,7 +412,7 @@ sa.Index(
 )
 
 
-class StaticRoutePatterns(SqlBase):  # pylint: disable=too-few-public-methods
+class StaticRoutePatterns(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS Route Pattern"""
 
     __tablename__ = "static_route_patterns"
@@ -433,7 +433,7 @@ sa.Index(
 )
 
 
-class ServiceIdDates(SqlBase):  # pylint: disable=too-few-public-methods
+class ServiceIdDates(RpmSqlBase):  # pylint: disable=too-few-public-methods
     """
     Table representing service_id_by_date_and_route VIEW for use by performance_manager
     """

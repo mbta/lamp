@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3, read_parquet
 from lamp_py.postgres.rail_performance_manager_schema import (
-    MetadataLog,
+    LegacyMetadataLog,
     StaticCalendar,
     StaticFeedInfo,
     StaticRoutes,
@@ -466,16 +466,16 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             modify_static_tables(static_version_key, db_manager)
 
             update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
+                sa.update(LegacyMetadataLog.__table__)
+                .where(LegacyMetadataLog.pk_id.in_(ids))
                 .values(processed=1)
             )
             db_manager.execute(update_md_log)
             individual_logger.log_complete()
         except Exception as exception:
             update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
+                sa.update(LegacyMetadataLog.__table__)
+                .where(LegacyMetadataLog.pk_id.in_(ids))
                 .values(processed=1, process_fail=1)
             )
             db_manager.execute(update_md_log)
