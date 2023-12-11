@@ -100,11 +100,12 @@ def project_from_name(
 
 def datasource_from_name(
     datasource_name: str,
+    project_name: str,
     server: Optional[TSC.server.server.Server] = None,
     auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
 ) -> Optional[TSC.models.datasource_item.DatasourceItem]:
     """
-    Get Tableau DatasourceItem from name
+    Get Tableau DatasourceItem from datasource name and project name
     """
     if server is None:
         server = tableau_server()
@@ -112,7 +113,10 @@ def datasource_from_name(
         auth = tableau_authentication()
 
     for datasource in datasource_list(server, auth):
-        if datasource.name == datasource_name:
+        if (
+            datasource.name == datasource_name
+            and datasource.project_name == project_name
+        ):
             return datasource
 
     return None

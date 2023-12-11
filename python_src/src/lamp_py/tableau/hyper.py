@@ -40,7 +40,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
         self,
         hyper_file_name: str,
         remote_parquet_path: str,
-        project_name: str = "Staging Data",
+        project_name: str = "LAMP API",
     ) -> None:
         self.hyper_file_name = hyper_file_name
         self.hyper_table_name = hyper_file_name.replace(".hyper", "")
@@ -203,7 +203,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
             try:
                 process_log.add_metadata(retry_count=retry_count)
                 # get datasource from Tableau to check "updated_at" datetime
-                datasource = datasource_from_name(self.hyper_table_name)
+                datasource = datasource_from_name(
+                    self.hyper_table_name, self.project_name
+                )
 
                 # get file_info on remote parquet file to check "mtime" datetime
                 pq_file_info = self.remote_fs.get_file_info(
