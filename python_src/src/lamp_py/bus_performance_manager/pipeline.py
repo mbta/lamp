@@ -76,7 +76,7 @@ def start() -> None:
             "PUBLIC_ARCHIVE_BUCKET",
             "SERVICE_NAME",
         ],
-        validate_db=True,
+        db_prefixes=["MD"],
     )
 
     # run main method
