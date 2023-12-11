@@ -35,6 +35,8 @@ class HyperRtRail(HyperJob):
             "   , prev_ve.stop_id as previous_stop_id"
             "   , ve.parent_station"
             "   , prev_ve.parent_station as previous_parent_station"
+            "   , ss.stop_name as stop_name"
+            "   , prev_ss.stop_name as previous_stop_name"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds)) as stop_departure_datetime"
@@ -71,6 +73,16 @@ class HyperRtRail(HyperJob):
             "   vehicle_events prev_ve"
             " ON "
             "   ve.pm_event_id = prev_ve.next_trip_stop_pm_event_id"
+            " LEFT JOIN "
+            "   static_stops ss"
+            " ON "
+            "   ve.stop_id = ss.stop_id"
+            "   AND vt.static_version_key = ss.static_version_key"
+            " LEFT JOIN "
+            "   static_stops prev_ss"
+            " ON "
+            "   prev_ve.stop_id = prev_ss.stop_id"
+            "   AND vt.static_version_key = prev_ss.static_version_key"
             " WHERE "
             "   ve.previous_trip_stop_pm_event_id is not NULL"
             "   AND ("
@@ -99,6 +111,8 @@ class HyperRtRail(HyperJob):
                 ("previous_stop_id", pyarrow.string()),
                 ("parent_station", pyarrow.string()),
                 ("previous_parent_station", pyarrow.string()),
+                ("stop_name", pyarrow.string()),
+                ("previous_stop_name", pyarrow.string()),
                 ("previous_stop_departure_datetime", pyarrow.timestamp("us")),
                 ("stop_arrival_datetime", pyarrow.timestamp("us")),
                 ("stop_departure_datetime", pyarrow.timestamp("us")),
