@@ -17,7 +17,8 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .rail_performance_manager_schema import LegacyMetadataLog
+# from .rail_performance_manager_schema import LegacyMetadataLog
+from .metadata_schema import MetadataLog
 
 
 def running_in_docker() -> bool:
@@ -412,7 +413,7 @@ class DatabaseManager:
         print(paths)
         with self.session.begin() as session:
             session.execute(
-                sa.insert(LegacyMetadataLog.__table__),
+                sa.insert(MetadataLog.__table__),
                 [{"path": p} for p in paths],
             )
 
@@ -440,11 +441,9 @@ def get_unprocessed_files(
 
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
-        read_md_log = sa.select(
-            (LegacyMetadataLog.pk_id, LegacyMetadataLog.path)
-        ).where(
-            (LegacyMetadataLog.processed == sa.false())
-            & (LegacyMetadataLog.path.contains(path_contains))
+        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+            (MetadataLog.rail_pm_processed == sa.false())
+            & (MetadataLog.path.contains(path_contains))
         )
         for path_record in db_manager.select_as_list(read_md_log):
             path_id = path_record.get("pk_id")
@@ -500,8 +499,8 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
         if metadata_path is None:
             break
 
-        insert_statement = sa.insert(LegacyMetadataLog.__table__).values(
-            processed=False, path=metadata_path
+        insert_statement = sa.insert(MetadataLog.__table__).values(
+            path=metadata_path
         )
         insert_logger = ProcessLogger("metadata_insert", filepath=metadata_path)
         insert_logger.log_start()

@@ -25,15 +25,21 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from lamp_py.postgres.rail_performance_manager_schema import RpmSqlBase
+from lamp_py.postgres.metadata_schema import MetadataSqlBase
 
 # using dictionary for engine and target_metadata to support migrating multiple dbs
 # each dictionary name should have a section defined in alembic.ini that
 # matches the key used in the db_details dictionary
 rpm_psql_args = DatabaseIndex.RAIL_PERFORMANCE_MANAGER.get_args_from_env()
+md_psql_args = DatabaseIndex.METADATA.get_args_from_env()
 db_details = {
     "performance_manager": {
         "engine": rpm_psql_args.get_local_engine(),
         "target_metadata": RpmSqlBase.metadata,
+    },
+    "metadata": {
+        "engine": md_psql_args.get_local_engine(),
+        "target_metadata": MetadataSqlBase.metadata,
     },
 }
 

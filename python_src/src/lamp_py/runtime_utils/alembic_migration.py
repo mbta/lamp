@@ -22,6 +22,7 @@ def get_alembic_config(db_name: str) -> Config:
         "performance_manager_dev",
         "performance_manager_staging",
         "performance_manager_prod",
+        "metadata_prod",
     )
 
     if db_name not in db_names:

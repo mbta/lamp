@@ -36,8 +36,8 @@ from lamp_py.performance_manager.l0_rt_vehicle_positions import (
     transform_vp_datatypes,
     transform_vp_timestamps,
 )
+from lamp_py.postgres.metadata_schema import MetadataLog
 from lamp_py.postgres.rail_performance_manager_schema import (
-    LegacyMetadataLog,
     StaticCalendar,
     StaticRoutes,
     StaticStops,
@@ -104,8 +104,8 @@ def set_env_vars() -> None:
                 os.environ[key] = value
 
 
-@pytest.fixture(scope="module", name="db_manager")
-def fixture_db_manager() -> DatabaseManager:
+@pytest.fixture(scope="module", name="rpm_db_manager")
+def fixture_rpm_db_manager() -> DatabaseManager:
     """
     generate a database manager for all of our tests
     """
@@ -114,6 +114,19 @@ def fixture_db_manager() -> DatabaseManager:
         db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
     )
     db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager_prod")
+    alembic_downgrade_to_base(db_name)
+    alembic_upgrade_to_head(db_name)
+    return db_manager
+
+
+@pytest.fixture(scope="module", name="md_db_manager")
+def fixture_md_db_manager() -> DatabaseManager:
+    """
+    generate a database manager for all of our tests
+    """
+    set_env_vars()
+    db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA)
+    db_name = "metadata_prod"
     alembic_downgrade_to_base(db_name)
     alembic_upgrade_to_head(db_name)
     return db_manager
@@ -269,33 +282,37 @@ def check_logs(caplog: pytest.LogCaptureFixture) -> None:
 
 
 def test_static_tables(
-    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     test that static schedule files are loaded correctly into our db
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(StaticTrips, restart_identity=True)
-    db_manager.truncate_table(StaticRoutes, restart_identity=True)
-    db_manager.truncate_table(StaticStops, restart_identity=True)
-    db_manager.truncate_table(StaticStopTimes, restart_identity=True)
-    db_manager.truncate_table(StaticCalendar, restart_identity=True)
-    db_manager.truncate_table(StaticCalendarDates, restart_identity=True)
-    db_manager.truncate_table(StaticDirections, restart_identity=True)
-    db_manager.truncate_table(StaticRoutePatterns, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticTrips, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticRoutes, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticStops, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticStopTimes, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticCalendar, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticCalendarDates, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticDirections, restart_identity=True)
+    rpm_db_manager.truncate_table(StaticRoutePatterns, restart_identity=True)
 
     paths = [file for file in test_files() if "FEED_INFO" in file]
-    db_manager.add_metadata_paths(paths)
+    md_db_manager.add_metadata_paths(paths)
 
-    unprocessed_static_schedules = db_manager.select_as_list(
-        sa.select(LegacyMetadataLog.path).where(
-            (LegacyMetadataLog.processed == sa.false())
-            & (LegacyMetadataLog.path.contains("FEED_INFO"))
+    unprocessed_static_schedules = md_db_manager.select_as_list(
+        sa.select(MetadataLog.path).where(
+            (MetadataLog.rail_pm_processed == sa.false())
+            & (MetadataLog.path.contains("FEED_INFO"))
         )
     )
 
-    process_static_tables(db_manager)
+    process_static_tables(
+        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
+    )
 
     # these are the row counts in the parquet files computed in a jupyter
     # notebook without using any of our module. our module should be taking
@@ -313,7 +330,7 @@ def test_static_tables(
         StaticRoutePatterns: 141,
     }
 
-    with db_manager.session.begin() as session:
+    with rpm_db_manager.session.begin() as session:
         for table, should_count in row_counts.items():
             actual_count = session.query(table).count()
             tablename = table.__tablename__
@@ -321,10 +338,10 @@ def test_static_tables(
                 actual_count == should_count
             ), f"Table {tablename} has incorrect row count"
 
-    unprocessed_static_schedules = db_manager.select_as_list(
-        sa.select(LegacyMetadataLog.path).where(
-            (LegacyMetadataLog.processed == sa.false())
-            & (LegacyMetadataLog.path.contains("FEED_INFO"))
+    unprocessed_static_schedules = md_db_manager.select_as_list(
+        sa.select(MetadataLog.path).where(
+            (MetadataLog.rail_pm_processed == sa.false())
+            & (MetadataLog.path.contains("FEED_INFO"))
         )
     )
 
@@ -336,18 +353,20 @@ def test_static_tables(
 # pylint: disable=R0915
 # pylint Too many statements (51/50) (too-many-statements)
 def test_gtfs_rt_processing(
-    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     test that vehicle position and trip updates files can be consumed properly
     """
     caplog.set_level(logging.INFO)
-    db_manager.truncate_table(VehicleEvents, restart_identity=True)
-    db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
 
-    db_manager.execute(
-        sa.delete(LegacyMetadataLog.__table__).where(
-            ~LegacyMetadataLog.path.contains("FEED_INFO")
+    md_db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -357,14 +376,14 @@ def test_gtfs_rt_processing(
         if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file)
         and ("hour=12" in file or "hour=13" in file)
     ]
-    db_manager.add_metadata_paths(paths)
+    md_db_manager.add_metadata_paths(paths)
 
-    for files in get_gtfs_rt_paths(db_manager):
+    for files in get_gtfs_rt_paths(md_db_manager):
         for path in files["vp_paths"]:
             assert "RT_VEHICLE_POSITIONS" in path
 
         # check that we can load the parquet file into a dataframe correctly
-        route_ids = rail_routes_from_filepath(files["vp_paths"], db_manager)
+        route_ids = rail_routes_from_filepath(files["vp_paths"], rpm_db_manager)
         positions = get_vp_dataframe(files["vp_paths"], route_ids)
         position_size = positions.shape[0]
         assert positions.shape[1] == 12
@@ -375,11 +394,11 @@ def test_gtfs_rt_processing(
         assert position_size == positions.shape[0]
 
         # check that it can be combined with the static schedule
-        positions = add_static_version_key_column(positions, db_manager)
+        positions = add_static_version_key_column(positions, rpm_db_manager)
         assert positions.shape[1] == 13
         assert position_size == positions.shape[0]
 
-        positions = add_parent_station_column(positions, db_manager)
+        positions = add_parent_station_column(positions, rpm_db_manager)
         assert positions.shape[1] == 14
         assert position_size == positions.shape[0]
 
@@ -392,11 +411,13 @@ def test_gtfs_rt_processing(
         assert trip_updates.shape[1] == 9
 
         # check that it can be combined with the static schedule
-        trip_updates = add_static_version_key_column(trip_updates, db_manager)
+        trip_updates = add_static_version_key_column(
+            trip_updates, rpm_db_manager
+        )
         assert trip_updates.shape[1] == 10
         assert trip_update_size == trip_updates.shape[0]
 
-        trip_updates = add_parent_station_column(trip_updates, db_manager)
+        trip_updates = add_parent_station_column(trip_updates, rpm_db_manager)
         assert trip_updates.shape[1] == 11
         assert trip_update_size == trip_updates.shape[0]
 
@@ -434,10 +455,10 @@ def test_gtfs_rt_processing(
         missing_columns = set(events.columns) - expected_columns
         assert len(missing_columns) == 0
 
-        build_temp_events(events, db_manager)
-        update_events_from_temp(db_manager)
+        build_temp_events(events, rpm_db_manager)
+        update_events_from_temp(rpm_db_manager)
 
-    write_flat_files(db_manager)
+    write_flat_files(rpm_db_manager)
 
     check_logs(caplog)
 
@@ -446,18 +467,20 @@ def test_gtfs_rt_processing(
 
 
 def test_vp_only(
-    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     test the vehicle positions can be updated without trip updates
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents, restart_identity=True)
-    db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    db_manager.execute(
-        sa.delete(LegacyMetadataLog.__table__).where(
-            ~LegacyMetadataLog.path.contains("FEED_INFO")
+    rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    md_db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -466,26 +489,30 @@ def test_vp_only(
         for p in test_files()
         if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)
     ]
-    db_manager.add_metadata_paths(paths)
+    md_db_manager.add_metadata_paths(paths)
 
-    process_gtfs_rt_files(db_manager)
+    process_gtfs_rt_files(
+        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
+    )
 
     check_logs(caplog)
 
 
 def test_tu_only(
-    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     test the trip updates can be processed without vehicle positions
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents, restart_identity=True)
-    db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    db_manager.execute(
-        sa.delete(LegacyMetadataLog.__table__).where(
-            ~LegacyMetadataLog.path.contains("FEED_INFO")
+    rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    md_db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -495,39 +522,46 @@ def test_tu_only(
         if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)
     ]
 
-    db_manager.add_metadata_paths(paths)
+    md_db_manager.add_metadata_paths(paths)
 
-    process_gtfs_rt_files(db_manager)
+    process_gtfs_rt_files(
+        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
+    )
 
     check_logs(caplog)
 
 
 def test_vp_and_tu(
-    db_manager: DatabaseManager, caplog: pytest.LogCaptureFixture
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     test that vehicle positions and trip updates can be processed together
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents, restart_identity=True)
-    db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    db_manager.execute(
-        sa.delete(LegacyMetadataLog.__table__).where(
-            ~LegacyMetadataLog.path.contains("FEED_INFO")
+    rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    md_db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
     paths = [p for p in test_files() if "hourt=12" in p or "hour=13" in p]
-    db_manager.add_metadata_paths(paths)
+    md_db_manager.add_metadata_paths(paths)
 
-    process_gtfs_rt_files(db_manager)
+    process_gtfs_rt_files(
+        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
+    )
 
     check_logs(caplog)
 
 
 def test_missing_start_time(
-    db_manager: DatabaseManager,
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
     caplog: pytest.LogCaptureFixture,
     tmp_path: pathlib.Path,
 ) -> None:
@@ -538,11 +572,11 @@ def test_missing_start_time(
     caplog.set_level(logging.INFO)
 
     # clear out old data from the database
-    db_manager.truncate_table(VehicleEvents, restart_identity=True)
-    db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    db_manager.execute(
-        sa.delete(LegacyMetadataLog.__table__).where(
-            ~LegacyMetadataLog.path.contains("FEED_INFO")
+    rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    md_db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -555,14 +589,16 @@ def test_missing_start_time(
     parquet_folder.mkdir(parents=True)
     parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
     csv_to_vp_parquet(csv_file, parquet_file)
-    db_manager.add_metadata_paths(
+    md_db_manager.add_metadata_paths(
         [
             parquet_file,
         ]
     )
 
     # process the parquet file
-    process_gtfs_rt_files(db_manager)
+    process_gtfs_rt_files(
+        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
+    )
 
     # check that all trips have an int convertible start time that is in
     # seconds after midnight.
@@ -573,12 +609,12 @@ def test_missing_start_time(
         VehicleTrips.start_time > 129600,
     )
 
-    weird_start_times = db_manager.select_as_dataframe(start_time_query)
+    weird_start_times = rpm_db_manager.select_as_dataframe(start_time_query)
     assert weird_start_times.shape[0] == 0
 
     # there is an added trip in the csv data who's first move time is 1683547198
     # or 7:59:58 AM. that is 25200 + 3540 + 58 = 28798 seconds after midnight.
-    added_trip_start_time = db_manager.select_as_list(
+    added_trip_start_time = rpm_db_manager.select_as_list(
         sa.select(VehicleTrips.start_time).where(
             VehicleTrips.trip_id == "ADDED-1581518546"
         )
@@ -592,7 +628,8 @@ def test_missing_start_time(
 
 
 def test_whole_table(
-    db_manager: DatabaseManager,
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
     caplog: pytest.LogCaptureFixture,
     tmp_path: pathlib.Path,
 ) -> None:
@@ -601,11 +638,11 @@ def test_whole_table(
     """
     caplog.set_level(logging.INFO)
 
-    db_manager.truncate_table(VehicleEvents, restart_identity=True)
-    db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    db_manager.execute(
-        sa.delete(LegacyMetadataLog.__table__).where(
-            ~LegacyMetadataLog.path.contains("FEED_INFO")
+    rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+    md_db_manager.execute(
+        sa.delete(MetadataLog.__table__).where(
+            ~MetadataLog.path.contains("FEED_INFO")
         )
     )
 
@@ -618,13 +655,15 @@ def test_whole_table(
 
     csv_to_vp_parquet(csv_file, parquet_file)
 
-    db_manager.add_metadata_paths(
+    md_db_manager.add_metadata_paths(
         [
             parquet_file,
         ]
     )
 
-    process_gtfs_rt_files(db_manager)
+    process_gtfs_rt_files(
+        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
+    )
 
     result_select = (
         sa.select(
@@ -676,7 +715,7 @@ def test_whole_table(
         "service_date",
         "start_time",
     ]
-    db_result_df = db_manager.select_as_dataframe(result_select)
+    db_result_df = rpm_db_manager.select_as_dataframe(result_select)
     db_result_df = db_result_df.astype(dtype=result_dtypes).sort_values(
         by=sort_by,
         ignore_index=True,
