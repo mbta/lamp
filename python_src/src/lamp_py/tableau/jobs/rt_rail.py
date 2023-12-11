@@ -40,8 +40,9 @@ class HyperRtRail(HyperJob):
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds)) as stop_departure_datetime"
-            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)))::int as previous_stop_departure_sec"
-            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)) + ve.travel_time_seconds)::int as stop_arrival_sec"
+            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text) AT TIME ZONE 'UTC'))::int as previous_stop_departure_sec"
+            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text) AT TIME ZONE 'UTC') + ve.travel_time_seconds)::int as stop_arrival_sec"
+            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text) AT TIME ZONE 'UTC') + ve.travel_time_seconds + ve.dwell_time_seconds)::int as stop_departure_sec"
             "   , vt.direction_id::int"
             "   , vt.route_id"
             "   , vt.branch_route_id"
@@ -118,6 +119,7 @@ class HyperRtRail(HyperJob):
                 ("stop_departure_datetime", pyarrow.timestamp("us")),
                 ("previous_stop_departure_sec", pyarrow.int64()),
                 ("stop_arrival_sec", pyarrow.int64()),
+                ("stop_departure_sec", pyarrow.int64()),
                 ("direction_id", pyarrow.int8()),
                 ("route_id", pyarrow.string()),
                 ("branch_route_id", pyarrow.string()),
