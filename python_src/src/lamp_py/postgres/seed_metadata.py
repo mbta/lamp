@@ -15,11 +15,11 @@ from lamp_py.runtime_utils.alembic_migration import (
 )
 
 from .rail_performance_manager_schema import (
-    LegacyMetadataLog,
     VehicleEvents,
     VehicleTrips,
 )
-from .postgres_utils import DatabaseManager, DatabaseIndex
+from .metadata_schema import MetadataLog
+from .postgres_utils import DatabaseManager, DatabaseIndex, seed_metadata
 
 
 logging.getLogger().setLevel("INFO")
@@ -61,53 +61,53 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-def seed_metadata(db_manager: DatabaseManager, seed_file: str) -> None:
-    """
-    seed metadata table for dev environment
-    """
-    logging.info("Seeding Metadata From File %s", seed_file)
-
-    try:
-        with open(seed_file, "r", encoding="utf8") as seed_json:
-            paths = json.load(seed_json)
-
-        db_manager.add_metadata_paths(paths)
-
-        logging.info("Seeding Metadata Complete")
-
-    except Exception as exception:
-        logging.exception("Seeding Metadata Failed %s", exception)
-
-
 def run() -> None:
     """Run The RDS Interaction Script"""
     parsed_args = parse_args(sys.argv[1:])
 
-    db_manager = DatabaseManager(
+    rpm_db_manager = DatabaseManager(
         db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER,
         verbose=parsed_args.verbose,
     )
 
-    db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager")
+    md_db_manager = DatabaseManager(
+        db_index=DatabaseIndex.METADATA,
+        verbose=parsed_args.verbose,
+    )
+
+    rpm_db_name = os.getenv("ALEMBIC_RPM_DB_NAME", "performance_manager_prod")
+    md_db_name = os.getenv("ALEMBIC_MD_DB_NAME", "metadata_prod")
 
     if parsed_args.clear_static:
-        alembic_downgrade_to_base(db_name)
-        alembic_upgrade_to_head(db_name)
-    elif parsed_args.clear_rt:
-        db_manager.truncate_table(VehicleTrips, restart_identity=True)
-        db_manager.truncate_table(VehicleEvents, restart_identity=True)
+        alembic_downgrade_to_base(rpm_db_name)
+        alembic_upgrade_to_head(rpm_db_name)
 
-        db_manager.execute(
-            sa.update(LegacyMetadataLog.__table__)
+        alembic_downgrade_to_base(md_db_name)
+        alembic_upgrade_to_head(md_db_name)
+    elif parsed_args.clear_rt:
+        rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+        rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+
+        md_db_manager.execute(
+            sa.update(MetadataLog.__table__)
             .values(
-                processed=False,
-                process_fail=False,
+                rail_pm_processed=False,
+                rail_pm_process_fail=False,
             )
-            .where(LegacyMetadataLog.path.like("%RT_%"))
+            .where(MetadataLog.path.like("%RT_%"))
         )
 
     if parsed_args.seed_file:
-        seed_metadata(db_manager, parsed_args.seed_file)
+        try:
+            logging.info("Seeding Metadata")
+
+            with open(parsed_args.seed_file, "r", encoding="utf8") as seed_json:
+                paths = json.load(seed_json)
+            seed_metadata(md_db_manager, paths)
+
+            logging.info("Seeding Metadata Completed")
+        except Exception as exception:
+            logging.exception("Seeding Metadata Failed %s", exception)
 
 
 if __name__ == "__main__":

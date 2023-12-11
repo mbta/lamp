@@ -4,7 +4,6 @@ import urllib.parse as urlparse
 from enum import Enum, auto
 from queue import Queue
 from multiprocessing import Manager, Process
-from typing import Any, Dict, List, Optional, Tuple, Union
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import boto3
@@ -17,7 +16,7 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .rail_performance_manager_schema import LegacyMetadataLog
+from .metadata_schema import MetadataLog
 
 
 def running_in_docker() -> bool:
@@ -39,33 +38,48 @@ def running_in_aws() -> bool:
     return bool(os.getenv("AWS_DEFAULT_REGION"))
 
 
+def environ_get(var_name: str) -> str:
+    """
+    get an environment variable, raising an error if it does not exist. this
+    utility helps with type checking.
+    """
+    value = os.environ.get(var_name)
+    if value is None:
+        raise KeyError(f"Unable to find {var_name} in environment")
+    return value
+
+
 class PsqlArgs:
     """
     container class for arguments needed to log into postgres db
     """
 
     def __init__(self, prefix: str):
-        # when running application locally in CLI for configuration and
-        # debugging, db is accessed by localhost ip
+        self.host: str
         if not running_in_docker() and not running_in_aws():
+            # running on the command line. use localhost ip
             self.host = "127.0.0.1"
         else:
-            host = os.environ.get(f"{prefix}_DB_HOST")
-            assert host is not None
-            self.host = host
+            # running in docker, use the env variable pointing to the image
+            #   name in the container.
+            # OR
+            # running on aws, use the env variable resolving to the aws rds
+            #   instance
+            self.host = environ_get(f"{prefix}_DB_HOST")
 
-        port = os.environ.get(f"{prefix}_DB_PORT")
-        assert port is not None
-        self.port: str = port
+        self.port: str
+        if running_in_docker():
+            # running in docker, use the default port for postgres
+            self.port = "5432"
+        else:
+            # running on the command line, use the forwarded port out of the
+            #   container
+            # OR
+            # running on aws, use the env var for the the aws rds instance
+            self.port = environ_get(f"{prefix}_DB_PORT")
 
-        name = os.environ.get(f"{prefix}_DB_NAME")
-        assert name is not None
-        self.name: str = name
-
-        user = os.environ.get(f"{prefix}_DB_USER")
-        assert user is not None
-        self.user: str = user
-
+        self.name: str = environ_get(f"{prefix}_DB_NAME")
+        self.user: str = environ_get(f"{prefix}_DB_USER")
         self.password: Optional[str] = os.environ.get(f"{prefix}_DB_PASSWORD")
 
     def get_password(self) -> str:
@@ -177,16 +191,16 @@ class DatabaseIndex(Enum):
     enum for different databases the projects can use
     """
 
-    METADATA = auto
+    METADATA = auto()
     RAIL_PERFORMANCE_MANAGER = auto()
 
     def get_env_prefix(self) -> str:
         """
         in the environment, all keys for this database have this prefix
         """
-        if self == self.RAIL_PERFORMANCE_MANAGER:
+        if self == DatabaseIndex.RAIL_PERFORMANCE_MANAGER:
             return "RPM"
-        if self == self.METADATA:
+        if self == DatabaseIndex.METADATA:
             return "MD"
         raise NotImplementedError("No environment prefix for index {self.name}")
 
@@ -411,16 +425,16 @@ class DatabaseManager:
             cursor.execute(sa.text("END TRANSACTION;"))
             cursor.execute(sa.text(f"VACUUM (ANALYZE) {table_as};"))
 
-    def add_metadata_paths(self, paths: List[str]) -> None:
-        """
-        add metadata filepaths to metadata table for testing
-        """
-        print(paths)
-        with self.session.begin() as session:
-            session.execute(
-                sa.insert(LegacyMetadataLog.__table__),
-                [{"path": p} for p in paths],
-            )
+
+def seed_metadata(md_db_manager: DatabaseManager, paths: List[str]) -> None:
+    """
+    add metadata filepaths to metadata table for testing
+    """
+    with md_db_manager.session.begin() as session:
+        session.execute(
+            sa.insert(MetadataLog.__table__),
+            [{"path": p} for p in paths],
+        )
 
 
 def get_unprocessed_files(
@@ -446,11 +460,9 @@ def get_unprocessed_files(
 
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
-        read_md_log = sa.select(
-            (LegacyMetadataLog.pk_id, LegacyMetadataLog.path)
-        ).where(
-            (LegacyMetadataLog.processed == sa.false())
-            & (LegacyMetadataLog.path.contains(path_contains))
+        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+            (MetadataLog.rail_pm_processed == sa.false())
+            & (MetadataLog.path.contains(path_contains))
         )
         for path_record in db_manager.select_as_list(read_md_log):
             path_id = path_record.get("pk_id")
@@ -490,7 +502,7 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
     process_logger = ProcessLogger("rds_writer_process")
     process_logger.log_start()
 
-    db_index = DatabaseIndex.RAIL_PERFORMANCE_MANAGER
+    db_index = DatabaseIndex.METADATA
     psql_args = db_index.get_args_from_env()
     engine = psql_args.get_local_engine()
 
@@ -506,8 +518,8 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
         if metadata_path is None:
             break
 
-        insert_statement = sa.insert(LegacyMetadataLog.__table__).values(
-            processed=False, path=metadata_path
+        insert_statement = sa.insert(MetadataLog.__table__).values(
+            path=metadata_path
         )
         insert_logger = ProcessLogger("metadata_insert", filepath=metadata_path)
         insert_logger.log_start()

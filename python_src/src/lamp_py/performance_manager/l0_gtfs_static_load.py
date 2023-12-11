@@ -8,8 +8,8 @@ import pandas
 import sqlalchemy as sa
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3, read_parquet
+from lamp_py.postgres.metadata_schema import MetadataLog
 from lamp_py.postgres.rail_performance_manager_schema import (
-    LegacyMetadataLog,
     StaticCalendar,
     StaticFeedInfo,
     StaticRoutes,
@@ -433,7 +433,10 @@ def insert_data_tables(
         raise error
 
 
-def process_static_tables(db_manager: DatabaseManager) -> None:
+def process_static_tables(
+    rpm_db_manager: DatabaseManager,
+    md_db_manager: DatabaseManager,
+) -> None:
     """
     process gtfs static table files from metadataLog table
     """
@@ -443,7 +446,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files("FEED_INFO", db_manager)
+    paths_to_load = get_unprocessed_files("FEED_INFO", md_db_manager)
     process_logger.add_metadata(count_of_paths=len(paths_to_load))
 
     for folder_data in paths_to_load:
@@ -469,23 +472,25 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
                 ]
             )
 
-            insert_data_tables(static_tables, static_version_key, db_manager)
-            modify_static_tables(static_version_key, db_manager)
+            insert_data_tables(
+                static_tables, static_version_key, rpm_db_manager
+            )
+            modify_static_tables(static_version_key, rpm_db_manager)
 
             update_md_log = (
-                sa.update(LegacyMetadataLog.__table__)
-                .where(LegacyMetadataLog.pk_id.in_(ids))
-                .values(processed=1)
+                sa.update(MetadataLog.__table__)
+                .where(MetadataLog.pk_id.in_(ids))
+                .values(rail_pm_processed=True)
             )
-            db_manager.execute(update_md_log)
+            md_db_manager.execute(update_md_log)
             individual_logger.log_complete()
         except Exception as exception:
             update_md_log = (
-                sa.update(LegacyMetadataLog.__table__)
-                .where(LegacyMetadataLog.pk_id.in_(ids))
-                .values(processed=1, process_fail=1)
+                sa.update(MetadataLog.__table__)
+                .where(MetadataLog.pk_id.in_(ids))
+                .values(rail_pm_processed=True, rail_pm_process_fail=True)
             )
-            db_manager.execute(update_md_log)
+            md_db_manager.execute(update_md_log)
             individual_logger.log_failure(exception)
 
             infinite_wait(reason=f"Error Loading Static File {folder}")

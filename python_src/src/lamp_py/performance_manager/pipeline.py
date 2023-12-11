@@ -52,8 +52,11 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(
+    rpm_db_manager = DatabaseManager(
         db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER, verbose=args.verbose
+    )
+    md_db_manager = DatabaseManager(
+        db_index=DatabaseIndex.METADATA, verbose=args.verbose
     )
 
     # schedule object that will control the "event loop"
@@ -68,10 +71,10 @@ def main(args: argparse.Namespace) -> None:
         process_logger.log_start()
 
         try:
-            process_static_tables(db_manager)
-            process_gtfs_rt_files(db_manager)
-            write_flat_files(db_manager)
-            start_parquet_updates(db_manager)
+            process_static_tables(rpm_db_manager, md_db_manager)
+            process_gtfs_rt_files(rpm_db_manager, md_db_manager)
+            write_flat_files(rpm_db_manager)
+            start_parquet_updates(rpm_db_manager)
 
             process_logger.log_complete()
         except Exception as exception:
@@ -79,7 +82,7 @@ def main(args: argparse.Namespace) -> None:
         finally:
             scheduler.enter(int(args.interval), 1, iteration)
 
-    # schedule the inital looop and start the scheduler
+    # schedule the initial loop and start the scheduler
     scheduler.enter(0, 1, iteration)
     scheduler.run()
 
@@ -98,14 +101,14 @@ def start() -> None:
         required_variables=[
             "SPRINGBOARD_BUCKET",
             "SERVICE_NAME",
-            "ALEMBIC_DB_NAME",
+            "ALEMBIC_RPM_DB_NAME",
         ],
         optional_variables=["PUBLIC_ARCHIVE_BUCKET"],
-        validate_db=True,
+        db_prefixes=["RPM", "MD"],
     )
 
-    # run rds migrations
-    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_DB_NAME"))
+    # run rail performance manager rds migrations
+    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_RPM_DB_NAME"))
 
     # run main method with parsed args
     main(parsed_args)
