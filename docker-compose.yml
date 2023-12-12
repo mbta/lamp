@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${RPM_DB_PASSWORD}
     ports:
       - "${RPM_DB_PORT}:5432"
-    command: [ "postgres", "-c", "log_statement=all" ]
+    command: ["postgres", "-c", "log_statement=all"]
 
   metadata_rds:
     container_name: metadata_rds
@@ -24,7 +24,7 @@ services:
       POSTGRES_PASSWORD: ${MD_DB_PASSWORD}
     ports:
       - "${MD_DB_PORT}:5432"
-    command: [ "postgres", "-c", "log_statement=all" ]
+    command: ["postgres", "-c", "log_statement=all"]
 
   performance_manager:
     container_name: performance_manager
@@ -36,8 +36,8 @@ services:
       - metadata_rds
     working_dir: /lamp
     volumes:
-      - ~/.aws:/root/.aws:ro # map credentials to be used by boto3, read-only
-    command: [ "poetry", "run", "performance_manager" ]
+      - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
+    command: ["poetry", "run", "performance_manager"]
 
   seed_metadata:
     container_name: seed_metadata
