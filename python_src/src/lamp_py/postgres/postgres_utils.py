@@ -155,6 +155,7 @@ def get_local_engine(
                 "keepalives": 1,
                 "keepalives_idle": 60,
                 "keepalives_interval": 60,
+                "options": "-c timezone=utc",
             },
         )
 
