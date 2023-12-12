@@ -9,8 +9,11 @@ import time
 import signal
 from typing import List
 
+import sqlalchemy as sa
+
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.postgres.postgres_utils import DatabaseManager, DatabaseIndex
+from lamp_py.postgres.rail_performance_manager_schema import LegacyMetadataLog
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -46,6 +49,17 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
+def legacy_metadata_exists(rpm_db_manager: DatabaseManager) -> bool:
+    """
+    are there any records in the legacy metadata table
+    """
+    metadata = rpm_db_manager.select_as_dataframe(
+        sa.select(LegacyMetadataLog.path)
+    )
+
+    return not metadata.empty
+
+
 def main(args: argparse.Namespace) -> None:
     """entrypoint into performance manager event loop"""
     main_process_logger = ProcessLogger("main", **vars(args))
@@ -71,6 +85,11 @@ def main(args: argparse.Namespace) -> None:
         process_logger.log_start()
 
         try:
+            # temporary check to see if legacy metadata exists. if it does,
+            # raise an exception and try again on the next cycle.
+            if legacy_metadata_exists(rpm_db_manager):
+                raise EnvironmentError("Legacy Metadata Detected")
+
             process_static_tables(rpm_db_manager, md_db_manager)
             process_gtfs_rt_files(rpm_db_manager, md_db_manager)
             write_flat_files(rpm_db_manager)

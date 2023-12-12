@@ -17,7 +17,7 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-# from .rail_performance_manager_schema import LegacyMetadataLog
+from .rail_performance_manager_schema import LegacyMetadataLog
 from .metadata_schema import MetadataLog
 
 
@@ -416,6 +416,42 @@ class DatabaseManager:
                 sa.insert(MetadataLog.__table__),
                 [{"path": p} for p in paths],
             )
+
+
+def move_metadata() -> None:
+    """
+    take metadata records from the rail performance manager and copy them to
+    the metadata database
+    """
+    process_logger = ProcessLogger("move_metadata")
+    process_logger.log_start()
+
+    try:
+        rpm_db_manager = DatabaseManager(
+            db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
+        )
+        md_db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA)
+
+        metadata = rpm_db_manager.select_as_dataframe(
+            sa.select(
+                LegacyMetadataLog.path,
+                LegacyMetadataLog.processed,
+                LegacyMetadataLog.process_fail,
+            )
+        )
+
+        process_logger.add_metadata(record_count=metadata.size)
+        rename_map = {
+            "processed": "rail_pm_processed",
+            "process_fail": "rail_pm_process_fail",
+        }
+        metadata = metadata.rename(columns=rename_map)
+
+        md_db_manager.insert_dataframe(metadata, MetadataLog)
+        rpm_db_manager.truncate_table(LegacyMetadataLog)
+        process_logger.log_complete()
+    except Exception as error:
+        process_logger.log_failure(error)
 
 
 def get_unprocessed_files(
