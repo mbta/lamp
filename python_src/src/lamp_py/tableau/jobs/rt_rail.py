@@ -95,7 +95,6 @@ class HyperRtRail(HyperJob):
             " ORDER BY "
             "   ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id"
             ";"
-            "SET SESSION timezone to 'UTC';"
         )
 
     @property
@@ -185,6 +184,7 @@ class HyperRtRail(HyperJob):
             write_path=db_parquet_path,
             schema=self.parquet_schema,
         )
+        db_manager.execute(sa.text("SET SESSION timezone to 'UTC';"))
 
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
