@@ -22,6 +22,7 @@ class HyperRtRail(HyperJob):
             remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet",
         )
         self.table_query = (
+            "SET SESSION timezone to 'America/New_York';"
             "SELECT"
             "   date(vt.service_date::text) as service_date"
             "   , TIMEZONE('UTC', TO_TIMESTAMP(extract(epoch FROM date(vt.service_date::text)) + vt.start_time)) as start_datetime"
@@ -40,9 +41,9 @@ class HyperRtRail(HyperJob):
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime"
             "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) + ve.dwell_time_seconds)) as stop_departure_datetime"
-            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)::timestamp WITH TIME ZONE AT TIME ZONE 'UTC'))::int as previous_stop_departure_sec"
-            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)::timestamp WITH TIME ZONE AT TIME ZONE 'UTC') + ve.travel_time_seconds)::int as stop_arrival_sec"
-            "   , (ve.vp_move_timestamp - extract(epoch FROM date(vt.service_date::text)::timestamp WITH TIME ZONE AT TIME ZONE 'UTC') + ve.travel_time_seconds + ve.dwell_time_seconds)::int as stop_departure_sec"
+            "   , (ve.vp_move_timestamp - extract(epoch FROM vt.service_date::text::timestamp WITH TIME ZONE AT TIME ZONE 'UTC'))::int as previous_stop_departure_sec"
+            "   , (COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) - extract(epoch FROM vt.service_date::text::timestamp WITH TIME ZONE AT TIME ZONE 'UTC'))::int as stop_arrival_sec"
+            "   , (COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp) - extract(epoch FROM vt.service_date::text::timestamp WITH TIME ZONE AT TIME ZONE 'UTC') + ve.dwell_time_seconds)::int as stop_departure_sec"
             "   , vt.direction_id::int"
             "   , vt.route_id"
             "   , vt.branch_route_id"
@@ -183,6 +184,7 @@ class HyperRtRail(HyperJob):
             write_path=db_parquet_path,
             schema=self.parquet_schema,
         )
+        db_manager.execute(sa.text("SET SESSION timezone to 'UTC';"))
 
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
