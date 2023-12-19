@@ -511,6 +511,13 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
     """
     Update canonical_stop_sequence  and sync_stop_sequence from static_route_patterns
     """
+    partition_by = (
+        StaticRoutePatterns.static_version_key,
+        StaticRoutePatterns.direction_id,
+        sa.func.coalesce(
+            StaticTrips.branch_route_id, StaticTrips.trunk_route_id
+        ).label("route_id"),
+    )
     static_canon = (
         sa.select(
             StaticRoutePatterns.direction_id,
@@ -519,7 +526,11 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 StaticTrips.branch_route_id, StaticTrips.trunk_route_id
             ).label("route_id"),
             StaticStops.parent_station,
-            StaticStopTimes.stop_sequence,
+            sa.over(
+                sa.func.row_number(),
+                partition_by=partition_by,
+                order_by=StaticStopTimes.stop_sequence,
+            ).label("stop_sequence"),
             StaticRoutePatterns.static_version_key,
         )
         .select_from(StaticRoutePatterns)
