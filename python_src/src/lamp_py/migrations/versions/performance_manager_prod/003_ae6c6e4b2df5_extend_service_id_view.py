@@ -28,6 +28,13 @@ def upgrade() -> None:
     op.execute("DROP VIEW IF EXISTS service_id_by_date_and_route;")
     op.execute(view_service_id_by_date_and_route)
 
+    op.create_index(
+        "ix_static_trips_composite_4",
+        "static_trips",
+        ["static_version_key", "service_id"],
+        unique=False,
+    )
+
     update_stop_sequences = (
         "UPDATE vehicle_events "
         "SET canonical_stop_sequence = static_canon.stop_sequence "
@@ -67,4 +74,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    op.drop_index("ix_static_trips_composite_4", table_name="static_trips")
