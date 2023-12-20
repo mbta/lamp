@@ -249,6 +249,12 @@ sa.Index(
     StaticTrips.trunk_route_id,
 )
 
+sa.Index(
+    "ix_static_trips_composite_4",
+    StaticTrips.static_version_key,
+    StaticTrips.service_id,
+)
+
 
 class StaticRoutes(SqlBase):  # pylint: disable=too-few-public-methods
     """Table for GTFS routes"""
