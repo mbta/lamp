@@ -511,26 +511,24 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
     """
     Update canonical_stop_sequence  and sync_stop_sequence from static_route_patterns
     """
-    partition_by = (
-        StaticRoutePatterns.static_version_key,
-        StaticRoutePatterns.direction_id,
-        sa.func.coalesce(
-            StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-        ).label("route_id"),
-    )
-    static_canon = (
+    # select canonical trip_id for each trip_pattern and direction combination
+    # this will first select any representative_trip_id where the route_pattern_typicality = 5
+    # and then fall back to where the route_pattern_typicality = 1
+    canon_trips = (
         sa.select(
             StaticRoutePatterns.direction_id,
+            StaticRoutePatterns.representative_trip_id,
             StaticTrips.trunk_route_id,
             sa.func.coalesce(
                 StaticTrips.branch_route_id, StaticTrips.trunk_route_id
             ).label("route_id"),
-            StaticStops.parent_station,
-            sa.over(
-                sa.func.row_number(),
-                partition_by=partition_by,
-                order_by=StaticStopTimes.stop_sequence,
-            ).label("stop_sequence"),
+            StaticRoutePatterns.static_version_key,
+        )
+        .distinct(
+            sa.func.coalesce(
+                StaticTrips.branch_route_id, StaticTrips.trunk_route_id
+            ),
+            StaticRoutePatterns.direction_id,
             StaticRoutePatterns.static_version_key,
         )
         .select_from(StaticRoutePatterns)
@@ -543,12 +541,54 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 == StaticTrips.static_version_key,
             ),
         )
+        .where(
+            StaticRoutePatterns.static_version_key
+            == sa.func.any(
+                sa.func.array(
+                    sa.select(TempEventCompare.static_version_key)
+                    .distinct()
+                    .scalar_subquery()
+                )
+            ),
+            sa.or_(
+                StaticRoutePatterns.route_pattern_typicality == 1,
+                StaticRoutePatterns.route_pattern_typicality == 5,
+            ),
+        )
+        .order_by(
+            sa.func.coalesce(
+                StaticTrips.branch_route_id, StaticTrips.trunk_route_id
+            ),
+            StaticRoutePatterns.direction_id,
+            StaticRoutePatterns.static_version_key,
+            StaticRoutePatterns.route_pattern_typicality.desc(),
+        )
+        .subquery("canon_trips")
+    )
+    partition_by = (
+        canon_trips.c.static_version_key,
+        canon_trips.c.direction_id,
+        canon_trips.c.route_id,
+    )
+    static_canon = (
+        sa.select(
+            canon_trips.c.direction_id,
+            canon_trips.c.trunk_route_id,
+            canon_trips.c.route_id,
+            StaticStops.parent_station,
+            sa.over(
+                sa.func.row_number(),
+                partition_by=partition_by,
+                order_by=StaticStopTimes.stop_sequence,
+            ).label("stop_sequence"),
+            canon_trips.c.static_version_key,
+        )
+        .select_from(canon_trips)
         .join(
             StaticStopTimes,
             sa.and_(
-                StaticRoutePatterns.representative_trip_id
-                == StaticStopTimes.trip_id,
-                StaticRoutePatterns.static_version_key
+                canon_trips.c.representative_trip_id == StaticStopTimes.trip_id,
+                canon_trips.c.static_version_key
                 == StaticStopTimes.static_version_key,
             ),
         )
@@ -559,17 +599,6 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 StaticStopTimes.static_version_key
                 == StaticStops.static_version_key,
             ),
-        )
-        .where(
-            StaticRoutePatterns.static_version_key
-            == sa.func.any(
-                sa.func.array(
-                    sa.select(TempEventCompare.static_version_key)
-                    .distinct()
-                    .scalar_subquery()
-                )
-            ),
-            StaticRoutePatterns.route_pattern_typicality == 1,
         )
         .subquery("static_canon")
     )
@@ -655,7 +684,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         .subquery("zero_points")
     )
 
-    # select stop_sequence number for the zerp_point parent_station of each route-branch,
+    # select stop_sequence number for the zero_point parent_station of each route-branch,
     # consider this value the stop_sequence "adjustment" value
     zero_seq_vals = (
         sa.select(
