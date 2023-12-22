@@ -157,7 +157,7 @@ def upgrade() -> None:
     op.create_table(
         "static_stop_times",
         sa.Column("pk_id", sa.Integer(), nullable=False),
-        sa.Column("trip_id", sa.String(length=128), nullable=False),
+        sa.Column("trip_id", sa.String(length=512), nullable=False),
         sa.Column("arrival_time", sa.Integer(), nullable=False),
         sa.Column("departure_time", sa.Integer(), nullable=False),
         sa.Column("schedule_travel_time_seconds", sa.Integer(), nullable=True),
@@ -217,7 +217,7 @@ def upgrade() -> None:
         sa.Column("branch_route_id", sa.String(length=60), nullable=True),
         sa.Column("trunk_route_id", sa.String(length=60), nullable=True),
         sa.Column("service_id", sa.String(length=60), nullable=False),
-        sa.Column("trip_id", sa.String(length=128), nullable=False),
+        sa.Column("trip_id", sa.String(length=512), nullable=False),
         sa.Column("direction_id", sa.Boolean(), nullable=True),
         sa.Column("block_id", sa.String(length=128), nullable=True),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
@@ -241,6 +241,12 @@ def upgrade() -> None:
         ["static_version_key", "trunk_route_id"],
         unique=False,
     )
+    op.create_index(
+        "ix_static_trips_composite_4",
+        "static_trips",
+        ["static_version_key", "service_id"],
+        unique=False,
+    )
 
     op.create_table(
         "static_route_patterns",
@@ -249,7 +255,7 @@ def upgrade() -> None:
         sa.Column("direction_id", sa.Boolean(), nullable=True),
         sa.Column("route_pattern_typicality", sa.SmallInteger(), nullable=True),
         sa.Column(
-            "representative_trip_id", sa.String(length=128), nullable=False
+            "representative_trip_id", sa.String(length=512), nullable=False
         ),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("pk_id"),
@@ -279,7 +285,7 @@ def upgrade() -> None:
         sa.Column("vp_move_timestamp", sa.Integer(), nullable=True),
         sa.Column("vp_stop_timestamp", sa.Integer(), nullable=True),
         sa.Column("tu_stop_timestamp", sa.Integer(), nullable=True),
-        sa.Column("trip_id", sa.String(length=128), nullable=False),
+        sa.Column("trip_id", sa.String(length=512), nullable=False),
         sa.Column("vehicle_label", sa.String(length=128), nullable=True),
         sa.Column("vehicle_consist", sa.String(), nullable=True),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
@@ -348,12 +354,12 @@ def upgrade() -> None:
         sa.Column("branch_route_id", sa.String(length=60), nullable=True),
         sa.Column("trunk_route_id", sa.String(length=60), nullable=True),
         sa.Column("stop_count", sa.SmallInteger(), nullable=True),
-        sa.Column("trip_id", sa.String(length=128), nullable=False),
+        sa.Column("trip_id", sa.String(length=512), nullable=False),
         sa.Column("vehicle_label", sa.String(length=128), nullable=True),
         sa.Column("vehicle_consist", sa.String(), nullable=True),
         sa.Column("direction", sa.String(length=30), nullable=True),
         sa.Column("direction_destination", sa.String(length=60), nullable=True),
-        sa.Column("static_trip_id_guess", sa.String(length=128), nullable=True),
+        sa.Column("static_trip_id_guess", sa.String(length=512), nullable=True),
         sa.Column("static_start_time", sa.Integer(), nullable=True),
         sa.Column("static_stop_count", sa.SmallInteger(), nullable=True),
         sa.Column("first_last_station_match", sa.Boolean(), nullable=False),
@@ -530,6 +536,7 @@ def downgrade() -> None:
     )
     op.drop_table("static_route_patterns")
 
+    op.drop_index("ix_static_trips_composite_4", table_name="static_trips")
     op.drop_index("ix_static_trips_composite_3", table_name="static_trips")
     op.drop_index("ix_static_trips_composite_2", table_name="static_trips")
     op.drop_index("ix_static_trips_composite_1", table_name="static_trips")

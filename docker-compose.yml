@@ -37,9 +37,8 @@ services:
     volumes:
       # map credentials to be used by boto3, read-only
       - ~/.aws:/root/.aws:ro
-      # add in july 17 filepahs json that will be the default seed file path
-      - ./python_src/tests/test_files/july_17_filepaths.json:/july_17_filepaths.json
-      - ./python_src/tests/test_files/april_2023_filepaths.json:/april_2023_filepaths.json
+      # add in filepath json that will be the default seed file path
+      - ./python_src/tests/test_files/staging_dec_10.json:/seed_paths.json
     # entrypoint passes in seed file thats added as a volume. if you want to use a different
     # filepath run
     # docker-compose run -v /path/to/files.json:/seed.json seed_metadata --seed-file /seed.json
@@ -49,6 +48,7 @@ services:
         "run",
         "seed_metadata",
         "--clear-static",
+        "--clear-rt",
         "--seed-file",
-        "/april_2023_filepaths.json"
+        "/seed_paths.json"
       ]
