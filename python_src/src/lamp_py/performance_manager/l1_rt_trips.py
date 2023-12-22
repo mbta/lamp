@@ -565,11 +565,11 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         )
         .subquery("canon_trips")
     )
-    partition_by = (
-        canon_trips.c.static_version_key,
-        canon_trips.c.direction_id,
-        canon_trips.c.route_id,
-    )
+    # using the representative_trip_id's from the canon_trips query, create
+    # stop_sequence values for each parent_station on each route in each direction.
+    # stop_sequence's are created using the row_number function so that they
+    # always start at 1 and increment according to the
+    # StaticStopTimes.stop_sequence order
     static_canon = (
         sa.select(
             canon_trips.c.direction_id,
@@ -578,7 +578,11 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
             StaticStops.parent_station,
             sa.over(
                 sa.func.row_number(),
-                partition_by=partition_by,
+                partition_by=(
+                    canon_trips.c.static_version_key,
+                    canon_trips.c.direction_id,
+                    canon_trips.c.route_id,
+                ),
                 order_by=StaticStopTimes.stop_sequence,
             ).label("stop_sequence"),
             canon_trips.c.static_version_key,
@@ -603,6 +607,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         .subquery("static_canon")
     )
 
+    # subquery to join static_canon results to vehicle_events records
     rt_canon = (
         sa.select(
             VehicleEvents.pm_event_id,
