@@ -16,7 +16,7 @@ services:
 
   metadata_rds:
     container_name: metadata_rds
-    image: postgres:14.4
+    image: postgres:15
     env_file: .env
     shm_size: '2gb'
     environment:

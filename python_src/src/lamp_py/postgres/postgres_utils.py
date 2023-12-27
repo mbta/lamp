@@ -17,7 +17,6 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .rail_performance_manager_schema import LegacyMetadataLog
 from .metadata_schema import MetadataLog
 
 
@@ -178,16 +177,17 @@ class DatabaseIndex(Enum):
     enum for different databases the projects can use
     """
 
-    METADATA = auto
+    METADATA = auto()
     RAIL_PERFORMANCE_MANAGER = auto()
 
-    def get_env_prefix(self) -> str:
+    @property
+    def env_prefix(self) -> str:
         """
         in the environment, all keys for this database have this prefix
         """
-        if self == self.RAIL_PERFORMANCE_MANAGER:
+        if self is DatabaseIndex.RAIL_PERFORMANCE_MANAGER:
             return "RPM"
-        if self == self.METADATA:
+        if self is DatabaseIndex.METADATA:
             return "MD"
         raise NotImplementedError("No environment prefix for index {self.name}")
 
@@ -195,8 +195,7 @@ class DatabaseIndex(Enum):
         """
         generate a sql argument instance for this ind
         """
-        prefix = self.get_env_prefix()
-        return PsqlArgs(prefix)
+        return PsqlArgs(self.env_prefix)
 
 
 def generate_update_db_password_func(psql_args: PsqlArgs) -> Callable:
@@ -406,52 +405,16 @@ class DatabaseManager:
             cursor.execute(sa.text("END TRANSACTION;"))
             cursor.execute(sa.text(f"VACUUM (ANALYZE) {table_as};"))
 
-    def add_metadata_paths(self, paths: List[str]) -> None:
-        """
-        add metadata filepaths to metadata table for testing
-        """
-        print(paths)
-        with self.session.begin() as session:
-            session.execute(
-                sa.insert(MetadataLog.__table__),
-                [{"path": p} for p in paths],
-            )
 
-
-def move_metadata() -> None:
+def seed_metadata(md_db_manager: DatabaseManager, paths: List[str]) -> None:
     """
-    take metadata records from the rail performance manager and copy them to
-    the metadata database
+    add metadata filepaths to metadata table for testing
     """
-    process_logger = ProcessLogger("move_metadata")
-    process_logger.log_start()
-
-    try:
-        rpm_db_manager = DatabaseManager(
-            db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
+    with md_db_manager.session.begin() as session:
+        session.execute(
+            sa.insert(MetadataLog.__table__),
+            [{"path": p} for p in paths],
         )
-        md_db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA)
-
-        metadata = rpm_db_manager.select_as_dataframe(
-            sa.select(
-                LegacyMetadataLog.path,
-                LegacyMetadataLog.processed,
-                LegacyMetadataLog.process_fail,
-            )
-        )
-
-        process_logger.add_metadata(record_count=metadata.size)
-        rename_map = {
-            "processed": "rail_pm_processed",
-            "process_fail": "rail_pm_process_fail",
-        }
-        metadata = metadata.rename(columns=rename_map)
-
-        md_db_manager.insert_dataframe(metadata, MetadataLog)
-        rpm_db_manager.truncate_table(LegacyMetadataLog)
-        process_logger.log_complete()
-    except Exception as error:
-        process_logger.log_failure(error)
 
 
 def get_unprocessed_files(

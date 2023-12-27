@@ -6,8 +6,13 @@ Create Date: 2023-12-11 15:12:47.261091
 
 """
 from alembic import op
+from sqlalchemy.dialects.postgresql import insert as psql_insert
+from sqlalchemy.exc import ProgrammingError
+import logging
 import sqlalchemy as sa
 
+from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
+from lamp_py.postgres.metadata_schema import MetadataLog
 
 # revision identifiers, used by Alembic.
 revision = "07903947aabe"
@@ -40,6 +45,52 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("rail_pm_processed = false"),
     )
+
+    # pull metadata from the rail performance manager database into the
+    # metadata database. the table may or may not exist, so wrap this in a try
+    # except
+    try:
+        rpm_db_manager = DatabaseManager(
+            db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
+        )
+        md_db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA)
+
+        insert_data = []
+        # pull metadata from the rail performance manager database via direct
+        # sql query. the metadata_log table may or may not exist.
+        with rpm_db_manager.session.begin() as session:
+            result = session.execute(
+                "SELECT path, processed, process_fail FROM metadata_log"
+            )
+            for row in result:
+                (path, processed, process_fail) = row
+                insert_data.append(
+                    {
+                        "path": path,
+                        "rail_pm_processed": processed,
+                        "rail_pm_process_fail": process_fail,
+                    }
+                )
+
+        # insert data into the metadata database
+        with md_db_manager.session.begin() as session:
+            # do nothing on conflicts in file paths
+            result = session.execute(
+                psql_insert(MetadataLog.__table__)
+                .values(insert_data)
+                .on_conflict_do_nothing()
+            )
+
+    except ProgrammingError as error:
+        # Error 42P01 is an 'Undefined Table' error. This occurs when there is
+        # no metadata_log table in the rail performance manager database
+        #
+        # Raise all other sql errors
+        if error.orig.pgcode == "42P01":
+            logging.info("No Metadata Table in Rail Performance Manager")
+        else:
+            raise
+
     # ### end Alembic commands ###
 
 
@@ -48,7 +99,6 @@ def downgrade() -> None:
     op.drop_index(
         "ix_metadata_log_not_processed",
         table_name="metadata_log",
-        postgresql_where=sa.text("rail_pm_processed = false"),
     )
     op.drop_table("metadata_log")
     # ### end Alembic commands ###

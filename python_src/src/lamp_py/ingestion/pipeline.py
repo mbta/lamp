@@ -10,10 +10,7 @@ import time
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3
-from lamp_py.postgres.postgres_utils import (
-    start_rds_writer_process,
-    move_metadata,
-)
+from lamp_py.postgres.postgres_utils import start_rds_writer_process
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -88,8 +85,6 @@ def start() -> None:
 
     # run metadata rds migrations
     alembic_upgrade_to_head(db_name="metadata_prod")
-
-    move_metadata()
 
     # run the main method
     main()

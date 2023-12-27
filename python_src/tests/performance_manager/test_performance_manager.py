@@ -49,7 +49,11 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     StaticDirections,
     StaticRoutePatterns,
 )
-from lamp_py.postgres.postgres_utils import DatabaseManager, DatabaseIndex
+from lamp_py.postgres.postgres_utils import (
+    DatabaseManager,
+    DatabaseIndex,
+    seed_metadata,
+)
 from lamp_py.runtime_utils.alembic_migration import (
     alembic_upgrade_to_head,
     alembic_downgrade_to_base,
@@ -301,7 +305,7 @@ def test_static_tables(
     rpm_db_manager.truncate_table(StaticRoutePatterns, restart_identity=True)
 
     paths = [file for file in test_files() if "FEED_INFO" in file]
-    md_db_manager.add_metadata_paths(paths)
+    seed_metadata(md_db_manager, paths)
 
     unprocessed_static_schedules = md_db_manager.select_as_list(
         sa.select(MetadataLog.path).where(
@@ -376,7 +380,7 @@ def test_gtfs_rt_processing(
         if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file)
         and ("hour=12" in file or "hour=13" in file)
     ]
-    md_db_manager.add_metadata_paths(paths)
+    seed_metadata(md_db_manager, paths)
 
     for files in get_gtfs_rt_paths(md_db_manager):
         for path in files["vp_paths"]:
@@ -489,7 +493,7 @@ def test_vp_only(
         for p in test_files()
         if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)
     ]
-    md_db_manager.add_metadata_paths(paths)
+    seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(
         rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
@@ -521,8 +525,7 @@ def test_tu_only(
         for p in test_files()
         if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)
     ]
-
-    md_db_manager.add_metadata_paths(paths)
+    seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(
         rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
@@ -550,7 +553,7 @@ def test_vp_and_tu(
     )
 
     paths = [p for p in test_files() if "hourt=12" in p or "hour=13" in p]
-    md_db_manager.add_metadata_paths(paths)
+    seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(
         rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
@@ -588,12 +591,9 @@ def test_missing_start_time(
     )
     parquet_folder.mkdir(parents=True)
     parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
+
     csv_to_vp_parquet(csv_file, parquet_file)
-    md_db_manager.add_metadata_paths(
-        [
-            parquet_file,
-        ]
-    )
+    seed_metadata(md_db_manager, paths=[parquet_file])
 
     # process the parquet file
     process_gtfs_rt_files(
@@ -654,12 +654,7 @@ def test_whole_table(
     parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
 
     csv_to_vp_parquet(csv_file, parquet_file)
-
-    md_db_manager.add_metadata_paths(
-        [
-            parquet_file,
-        ]
-    )
+    seed_metadata(md_db_manager, paths=[parquet_file])
 
     process_gtfs_rt_files(
         rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
