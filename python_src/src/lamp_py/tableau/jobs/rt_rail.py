@@ -172,6 +172,8 @@ class HyperRtRail(HyperJob):
         max_stats = self.max_stats_of_parquet()
 
         max_start_date: datetime.date = max_stats["service_date"]
+        # subtract additional day incase of early spurious service_date record
+        max_start_date -= datetime.timedelta(days=1)
 
         update_query = self.table_query % (
             f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",
