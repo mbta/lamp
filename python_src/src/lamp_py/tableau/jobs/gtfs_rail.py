@@ -22,6 +22,7 @@ class HyperGTFS(HyperJob):
         self,
         gtfs_table_name: str,
         table_query: str,
+        always_create_parquet: bool = False,
     ) -> None:
         HyperJob.__init__(
             self,
@@ -31,6 +32,7 @@ class HyperGTFS(HyperJob):
         self.gtfs_table_name = gtfs_table_name
         self.create_query = table_query % ""
         self.update_query = table_query
+        self.always_create_parquet = always_create_parquet
 
     @property
     def parquet_schema(self) -> pyarrow.schema:
@@ -68,6 +70,10 @@ class HyperGTFS(HyperJob):
         # no update needed
         if max_db_key <= max_parquet_key:
             return False
+
+        if self.always_create_parquet:
+            self.create_parquet(db_manager)
+            return True
 
         # add WHERE clause to UPDATE query
         update_query = self.update_query % (
@@ -120,6 +126,7 @@ class HyperServiceIdByRoute(HyperGTFS):
                 "%s"
                 "ORDER BY static_version_key, service_id, service_date"
             ),
+            always_create_parquet=True,
         )
 
     @property
