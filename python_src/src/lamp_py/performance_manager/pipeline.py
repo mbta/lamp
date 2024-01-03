@@ -56,7 +56,7 @@ def main(args: argparse.Namespace) -> None:
         db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER, verbose=args.verbose
     )
     md_db_manager = DatabaseManager(
-        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER, verbose=args.verbose
+        db_index=DatabaseIndex.METADATA, verbose=args.verbose
     )
 
     # schedule object that will control the "event loop"
@@ -101,14 +101,14 @@ def start() -> None:
         required_variables=[
             "SPRINGBOARD_BUCKET",
             "SERVICE_NAME",
-            "ALEMBIC_DB_NAME",
+            "ALEMBIC_RPM_DB_NAME",
         ],
         optional_variables=["PUBLIC_ARCHIVE_BUCKET"],
-        validate_db=True,
+        db_prefixes=["RPM", "MD"],
     )
 
     # run rail performance manager rds migrations
-    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_DB_NAME"))
+    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_RPM_DB_NAME"))
 
     # run main method with parsed args
     main(parsed_args)

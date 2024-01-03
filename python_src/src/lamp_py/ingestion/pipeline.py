@@ -79,12 +79,13 @@ def start() -> None:
             "ERROR_BUCKET",
             "INCOMING_BUCKET",
             "SPRINGBOARD_BUCKET",
+            "ALEMBIC_MD_DB_NAME",
         ],
-        validate_db=True,
+        db_prefixes=["MD"],
     )
 
     # run metadata rds migrations
-    alembic_upgrade_to_head(db_name="metadata_prod")
+    alembic_upgrade_to_head(db_name=os.environ["ALEMBIC_MD_DB_NAME"])
 
     # run the main method
     main()

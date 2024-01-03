@@ -4,7 +4,6 @@ import urllib.parse as urlparse
 from enum import Enum, auto
 from queue import Queue
 from multiprocessing import Manager, Process
-from typing import Any, Dict, List, Optional, Tuple, Union
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import boto3
@@ -17,6 +16,7 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
+# from .rail_performance_manager_schema import LegacyMetadataLog
 from .metadata_schema import MetadataLog
 
 
@@ -39,33 +39,48 @@ def running_in_aws() -> bool:
     return bool(os.getenv("AWS_DEFAULT_REGION"))
 
 
+def environ_get(var_name: str) -> str:
+    """
+    get an environment variable, raising an error if it does not exist. this
+    utility helps with type checking.
+    """
+    value = os.environ.get(var_name)
+    if value is None:
+        raise KeyError(f"Unable to find {var_name} in environment")
+    return value
+
+
 class PsqlArgs:
     """
     container class for arguments needed to log into postgres db
     """
 
     def __init__(self, prefix: str):
-        # when running application locally in CLI for configuration and
-        # debugging, db is accessed by localhost ip
+        self.host: str
         if not running_in_docker() and not running_in_aws():
+            # running on the command line. use localhost ip
             self.host = "127.0.0.1"
         else:
-            host = os.environ.get(f"{prefix}_DB_HOST")
-            assert host is not None
-            self.host = host
+            # running in docker, use the env variable pointing to the image
+            #   name in the container.
+            # OR
+            # running on aws, use the env variable resolving to the aws rds
+            #   instance
+            self.host = environ_get(f"{prefix}_DB_HOST")
 
-        port = os.environ.get(f"{prefix}_DB_PORT")
-        assert port is not None
-        self.port: str = port
+        self.port: str
+        if running_in_docker():
+            # running in docker, use the default port for postgres
+            self.port = "5432"
+        else:
+            # running on the command line, use the forwarded port out of the
+            #   container
+            # OR
+            # running on aws, use the env var for the the aws rds instance
+            self.port = environ_get(f"{prefix}_DB_PORT")
 
-        name = os.environ.get(f"{prefix}_DB_NAME")
-        assert name is not None
-        self.name: str = name
-
-        user = os.environ.get(f"{prefix}_DB_USER")
-        assert user is not None
-        self.user: str = user
-
+        self.name: str = environ_get(f"{prefix}_DB_NAME")
+        self.user: str = environ_get(f"{prefix}_DB_USER")
         self.password: Optional[str] = os.environ.get(f"{prefix}_DB_PASSWORD")
 
     def get_password(self) -> str:
@@ -180,14 +195,13 @@ class DatabaseIndex(Enum):
     METADATA = auto()
     RAIL_PERFORMANCE_MANAGER = auto()
 
-    @property
-    def env_prefix(self) -> str:
+    def get_env_prefix(self) -> str:
         """
         in the environment, all keys for this database have this prefix
         """
-        if self is DatabaseIndex.RAIL_PERFORMANCE_MANAGER:
+        if self == DatabaseIndex.RAIL_PERFORMANCE_MANAGER:
             return "RPM"
-        if self is DatabaseIndex.METADATA:
+        if self == DatabaseIndex.METADATA:
             return "MD"
         raise NotImplementedError("No environment prefix for index {self.name}")
 
@@ -195,7 +209,8 @@ class DatabaseIndex(Enum):
         """
         generate a sql argument instance for this ind
         """
-        return PsqlArgs(self.env_prefix)
+        prefix = self.get_env_prefix()
+        return PsqlArgs(prefix)
 
 
 def generate_update_db_password_func(psql_args: PsqlArgs) -> Callable:

@@ -3,7 +3,7 @@ version: '3'
 services:
 
   rail_pm_rds:
-    container_name: rail_pm_rds
+    container_name: ${RPM_DB_HOST}
     image: postgres:14.4
     env_file: .env
     shm_size: '2gb'
@@ -15,7 +15,7 @@ services:
     command: ["postgres", "-c", "log_statement=all"]
 
   metadata_rds:
-    container_name: metadata_rds
+    container_name: ${MD_DB_HOST}
     image: postgres:15
     env_file: .env
     shm_size: '2gb'
@@ -45,6 +45,7 @@ services:
     build:
       context: ./python_src
     depends_on:
+      - rail_pm_rds
       - metadata_rds
     working_dir: /lamp
     volumes:
