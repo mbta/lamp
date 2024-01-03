@@ -37,7 +37,7 @@ class TableData:
                  can be yielded
     """
 
-    tables: List[pyarrow.table] = field(default_factory=list)
+    table: Optional[pyarrow.table] = None
     files: List[str] = field(default_factory=list)
     next_hr_cnt: int = 0
 
@@ -177,7 +177,19 @@ class GtfsRtConverter(Converter):
                     # add result to matching timestamp_hr key
                     if iter_ts == timestamp_hr:
                         table_group.files.append(result_filename)
-                        table_group.tables.append(result_table)
+                        if table_group.table is None:
+                            table_group.table = self.detail.transform_for_write(
+                                result_table
+                            )
+                        else:
+                            table_group.table = pyarrow.concat_tables(
+                                [
+                                    table_group.table,
+                                    self.detail.transform_for_write(
+                                        result_table
+                                    ),
+                                ]
+                            )
                         table_group.next_hr_cnt = 0
                     # increment next_hr_cnt if key is before timestamp_hr
                     elif timestamp_hr > iter_ts:
@@ -229,23 +241,25 @@ class GtfsRtConverter(Converter):
         @yield pyarrow.table - a concatenated table of all the gtfs realtime
             data over the corse of an hour.
         """
-        for iter_ts in list(self.table_groups.keys()):
+        for iter_ts, table_group in self.table_groups.items():
             if (
-                self.table_groups[iter_ts].next_hr_cnt > yield_threshold
+                table_group.next_hr_cnt > yield_threshold
                 and iter_ts < self.start_of_hour
             ):
-                self.archive_files += self.table_groups[iter_ts].files
-                table = pyarrow.concat_tables(self.table_groups[iter_ts].tables)
+                self.archive_files += table_group.files
+
+                assert table_group.table is not None
+
                 process_logger.add_metadata(
-                    file_count=len(self.table_groups[iter_ts].files),
-                    number_of_rows=table.num_rows,
+                    file_count=len(table_group.files),
+                    number_of_rows=table_group.table.num_rows,
                 )
                 process_logger.log_complete()
 
                 process_logger.add_metadata(file_count=0, number_of_rows=0)
                 process_logger.log_start()
 
-                yield table
+                yield table_group.table
                 del self.table_groups[iter_ts]
 
     def gz_to_pyarrow(
@@ -343,8 +357,6 @@ class GtfsRtConverter(Converter):
 
         try:
             s3_prefix = str(self.config_type)
-
-            table = self.detail.transform_for_write(table)
 
             if self.detail.table_sort_order is not None:
                 table = table.sort_by(self.detail.table_sort_order)
