@@ -241,25 +241,27 @@ class GtfsRtConverter(Converter):
         @yield pyarrow.table - a concatenated table of all the gtfs realtime
             data over the corse of an hour.
         """
-        for iter_ts, table_group in self.table_groups.items():
+        for iter_ts in list(self.table_groups.keys()):
             if (
-                table_group.next_hr_cnt > yield_threshold
+                self.table_groups[iter_ts].next_hr_cnt > yield_threshold
                 and iter_ts < self.start_of_hour
             ):
-                self.archive_files += table_group.files
+                self.archive_files += self.table_groups[iter_ts].files
 
-                assert table_group.table is not None
+                table = self.table_groups[iter_ts].table
+
+                assert table is not None
 
                 process_logger.add_metadata(
-                    file_count=len(table_group.files),
-                    number_of_rows=table_group.table.num_rows,
+                    file_count=len(self.table_groups[iter_ts].files),
+                    number_of_rows=table.num_rows,
                 )
                 process_logger.log_complete()
 
                 process_logger.add_metadata(file_count=0, number_of_rows=0)
                 process_logger.log_start()
 
-                yield table_group.table
+                yield table
                 del self.table_groups[iter_ts]
 
     def gz_to_pyarrow(
