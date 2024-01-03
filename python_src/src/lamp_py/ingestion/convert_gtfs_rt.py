@@ -360,8 +360,13 @@ class GtfsRtConverter(Converter):
         try:
             s3_prefix = str(self.config_type)
 
+            sort_log = ProcessLogger(
+                "pyarrow_sort_by", table_rows=table.num_rows
+            )
+            sort_log.log_start()
             if self.detail.table_sort_order is not None:
                 table = table.sort_by(self.detail.table_sort_order)
+            sort_log.log_complete()
 
             write_parquet_file(
                 table=table,
