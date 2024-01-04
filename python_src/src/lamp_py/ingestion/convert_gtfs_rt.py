@@ -1,3 +1,4 @@
+import gc
 import json
 import logging
 import os
@@ -97,6 +98,7 @@ class GtfsRtConverter(Converter):
         table_count = 0
         try:
             for table in self.process_files():
+                gc.collect()
                 self.write_table(table)
                 self.move_s3_files()
 
@@ -361,7 +363,9 @@ class GtfsRtConverter(Converter):
             s3_prefix = str(self.config_type)
 
             sort_log = ProcessLogger(
-                "pyarrow_sort_by", table_rows=table.num_rows
+                "pyarrow_sort_by",
+                table_rows=table.num_rows
+                config_type=str(self.config_type),
             )
             sort_log.log_start()
             if self.detail.table_sort_order is not None:
