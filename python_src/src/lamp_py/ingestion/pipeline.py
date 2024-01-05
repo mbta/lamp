@@ -3,7 +3,8 @@
 import logging
 import os
 import signal
-from multiprocessing import Queue
+from queue import Queue
+from typing import Optional
 
 import time
 
@@ -21,7 +22,7 @@ DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def ingest(metadata_queue: Queue) -> None:
+def ingest(metadata_queue: Queue[Optional[str]]) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs files, convert each batch into tables, write the

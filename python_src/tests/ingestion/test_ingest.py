@@ -3,7 +3,7 @@
 # fixtures work. https://stackoverflow.com/q/59664605
 
 import os
-from multiprocessing import Queue
+from queue import Queue
 import pytest
 
 from lamp_py.ingestion.converter import ConfigType

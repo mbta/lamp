@@ -312,7 +312,7 @@ def write_parquet_file(
     file_type: str,
     s3_dir: str,
     partition_cols: List[str],
-    visitor_func: Optional[Callable[..., None]] = None,
+    visitor_func: Optional[Callable[[str], None]] = None,
     basename_template: Optional[str] = None,
 ) -> None:
     """

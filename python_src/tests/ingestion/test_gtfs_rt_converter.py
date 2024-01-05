@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone
-from multiprocessing import Queue
+from queue import Queue
 from unittest.mock import patch
 
 from pyarrow import fs

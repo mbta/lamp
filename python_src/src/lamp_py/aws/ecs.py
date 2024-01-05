@@ -1,7 +1,8 @@
 import time
 import os
 import sys
-from multiprocessing import Process, Queue
+from multiprocessing import Process
+from queue import Queue
 from typing import Any, Optional
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -18,7 +19,7 @@ def handle_ecs_sigterm(_: int, __: Any) -> None:
 
 
 def check_for_sigterm(
-    metadata_queue: Optional[Queue] = None,
+    metadata_queue: Optional[Queue[Optional[str]]] = None,
     rds_process: Optional[Process] = None,
 ) -> None:
     """

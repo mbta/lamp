@@ -4,7 +4,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from multiprocessing import Queue
+from queue import Queue
 from threading import current_thread
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -54,7 +54,9 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue) -> None:
+    def __init__(
+        self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]
+    ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
