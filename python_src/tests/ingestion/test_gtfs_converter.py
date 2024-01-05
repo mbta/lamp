@@ -1,5 +1,5 @@
 import os
-from multiprocessing import Queue
+from queue import Queue
 from typing import Callable, Iterator, Optional, List, Dict
 
 import pytest

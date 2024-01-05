@@ -2,7 +2,8 @@ import os
 import platform
 import time
 import urllib.parse as urlparse
-from multiprocessing import Manager, Process, Queue
+from queue import Queue
+from multiprocessing import Manager, Process
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -413,7 +414,7 @@ def get_unprocessed_files(
     ][:file_limit]
 
 
-def _rds_writer_process(metadata_queue: Queue) -> None:
+def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
     """
     process for writing matadata paths recieved from metadata_queue
 
@@ -430,12 +431,11 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
     )
 
     while True:
-        metadata = metadata_queue.get()
+        metadata_path = metadata_queue.get()
 
-        if metadata is None:
+        if metadata_path is None:
             break
 
-        metadata_path = metadata.path
         insert_statement = sa.insert(MetadataLog.__table__).values(
             processed=False, path=metadata_path
         )
@@ -462,15 +462,14 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
     process_logger.log_complete()
 
 
-def start_rds_writer_process() -> Tuple[Queue, Process]:
+def start_rds_writer_process() -> Tuple[Queue[Optional[str]], Process]:
     """
     create metadata queue and rds writer process
 
     return metadata queue
     """
-    # mypy: Function "multiprocessing.Manager" is not valid as a type
-    queue_manager: Manager = Manager()  # type: ignore
-    metadata_queue: Queue = queue_manager.Queue()  # type: ignore
+    queue_manager = Manager()
+    metadata_queue: Queue[Optional[str]] = queue_manager.Queue()
 
     writer_process = Process(target=_rds_writer_process, args=(metadata_queue,))
     writer_process.start()

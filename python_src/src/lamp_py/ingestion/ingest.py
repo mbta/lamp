@@ -1,6 +1,7 @@
 import os
-from multiprocessing import Pool, Queue
-from typing import Dict, List
+from multiprocessing import Pool
+from queue import Queue
+from typing import Dict, List, Optional
 
 from lamp_py.aws.s3 import move_s3_objects
 
@@ -25,7 +26,9 @@ class NoImplConverter(Converter):
         )
 
 
-def get_converter(config_type: ConfigType, metadata_queue: Queue) -> Converter:
+def get_converter(
+    config_type: ConfigType, metadata_queue: Queue[Optional[str]]
+) -> Converter:
     """
     get the correct converter for this config type. it may raise an exception if
     the gtfs_rt file type does not have an implemented detail
@@ -42,7 +45,9 @@ def run_converter(converter: Converter) -> None:
     converter.convert()
 
 
-def ingest_files(files: List[str], metadata_queue: Queue) -> None:
+def ingest_files(
+    files: List[str], metadata_queue: Queue[Optional[str]]
+) -> None:
     """
     sort the incoming file list by type and create a converter for each type.
     each converter will ingest and convert its files in its own thread.
