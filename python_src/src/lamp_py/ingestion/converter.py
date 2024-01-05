@@ -10,6 +10,8 @@ from multiprocessing import Queue
 from enum import auto
 from enum import Enum
 
+import logging
+
 from .error import ConfigTypeFromFilenameException
 
 
@@ -111,6 +113,9 @@ class Converter(ABC):
     def send_metadata(self, written_file: Any) -> None:
         """send metadata path to rds writer process"""
         self.metadata_queue.put(written_file)
+        logging.info(
+            f"added {written_file} to metadata queue {self.metadata_queue.qsize()}"
+        )
 
     @abstractmethod
     def convert(self) -> None:

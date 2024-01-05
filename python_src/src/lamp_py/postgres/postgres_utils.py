@@ -1,4 +1,5 @@
 import os
+import logging
 import platform
 import time
 import urllib.parse as urlparse
@@ -450,6 +451,9 @@ def _rds_writer_process(metadata_queue: Queue) -> None:
                     cursor.execute(insert_statement)
 
             except Exception as _:
+                logging.info(
+                    f"unable to execute insert statement retry {retry_attempt}"
+                )
                 retry_attempt += 1
                 # wait for gremlins to disappear
                 time.sleep(15)

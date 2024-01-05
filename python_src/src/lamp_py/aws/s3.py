@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import re
 import time
@@ -174,8 +175,8 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
     :return - 'None' if exception occured during move, otherwise 'filename'
     """
     try:
-        process_logger = ProcessLogger("move_s3_object", filename=filename)
-        process_logger.log_start()
+        # process_logger = ProcessLogger("move_s3_object", filename=filename)
+        # process_logger.log_start()
 
         s3_resource = current_thread().__dict__["boto_s3_resource"]
 
@@ -202,14 +203,14 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
         source_bucket = s3_resource.Bucket(from_bucket)
         source_object = source_bucket.Object(copy_key)
         response = source_object.delete()
-        process_logger.add_metadata(**response)
+        # process_logger.add_metadata(**response)
 
     except Exception as error:
         _init_process_session()
-        process_logger.log_failure(error)
+        # process_logger.log_failure(error)
         return None
 
-    process_logger.log_complete()
+    # process_logger.log_complete()
     return filename
 
 
@@ -376,6 +377,7 @@ def write_parquet_file(
 
     # call the visitor function if it exists
     if visitor_func is not None:
+        logging.info("calling visitor func")
         visitor_func(write_path)
 
     process_logger.log_complete()
