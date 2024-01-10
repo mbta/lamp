@@ -1,29 +1,32 @@
 """Utilities for Interacting with Tableau and Hyper files"""
+import logging
+from types import ModuleType
+from typing import Optional
+
+from lamp_py.postgres.postgres_utils import DatabaseManager
+
+# pylint: disable=C0103 (invalid-name)
+# pylint wants pipeline to conform to an UPPER_CASE constant naming style. its
+# a module though, so disabling to allow it to use normal import rules.
+pipeline: Optional[ModuleType]
 
 try:
-    # pylint: disable=C0414
-    #
-    # Import alias does not rename original package. The intent is to grab it
-    # here and pass it through other portions of the codebase.
-    from .pipeline import start_parquet_updates as start_parquet_updates
+    from . import pipeline
+except ModuleNotFoundError:
+    pipeline = None
 
-    # pylint: enable=C0414
+# pylint: enable=C0103 (invalid-name)
 
-except ModuleNotFoundError as mfl_exception:
-    import logging
-    from lamp_py.postgres.postgres_utils import DatabaseManager
 
-    # pylint: disable=W0613
-    #
-    # db_manaager is unused because this method has to match the function
-    # signature of the method its replacing.
-    def start_parquet_updates(db_manager: DatabaseManager) -> None:
-        """
-        re-implimentation of start parquet updates in the event that the
-        tableauhyperapi module cannot be found.
-        """
-        logging.exception(
+def start_parquet_updates(db_manager: DatabaseManager) -> None:
+    """
+    wrapper around pipeline.start_parquet_updates function. if a module not
+    found error occurs (which happens when using osx arm64 dependencies), log
+    an error and do nothing. else, run the function.
+    """
+    if pipeline is None:
+        logging.error(
             "Unable to run parquet files on this machine due to Module Not Found error"
         )
-
-    # pylint: enable=W0613
+    else:
+        pipeline.start_parquet_updates(db_manager=db_manager)

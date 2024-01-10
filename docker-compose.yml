@@ -19,8 +19,6 @@ services:
     env_file: .env
     build:
       context: ./python_src
-      args:
-        BUILDPLATFORM: $BUILDPLATFORM
     depends_on:
       - local_rds
     working_dir: /lamp
@@ -33,8 +31,6 @@ services:
     env_file: .env
     build:
       context: ./python_src
-      args:
-        BUILDPLATFORM: $BUILDPLATFORM
     depends_on:
       - local_rds
     working_dir: /lamp

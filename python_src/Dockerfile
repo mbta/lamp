@@ -25,9 +25,9 @@ COPY pyproject.toml pyproject.toml
 
 # Tableau dependencies for arm64 cannot be resolved (since salesforce doesn't
 # support them yet). For that buildplatform build without those dependencies
-ARG BUILDPLATFORM
-RUN echo "Installing python dependencies for ${BUILDPLATFORM}."
-RUN if [ "$BUILDPLATFORM" = "arm64" ]; then \
+ARG TARGETARCH BUILDPLATFORM TARGETPLATFORM
+RUN echo "Installing python dependencies for build: ${BUILDPLATFORM} target: ${TARGETPLATFORM}"
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
     poetry install --without tableau --no-interaction --no-ansi -v ;\
     else poetry install --no-interaction --no-ansi -v ;\
     fi
