@@ -19,4 +19,5 @@ jobs:
       environment: staging
       deploy-ingestion: true
       deploy-rail-pm: true
+      deploy-bus-pm: true
     secrets: inherit
