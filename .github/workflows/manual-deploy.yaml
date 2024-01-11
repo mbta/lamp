@@ -18,6 +18,10 @@ on:
         description: Deploy Rail Performance Manager
         default: false
         type: boolean
+      deploy-bus-pm:
+        description: Deploy Bus Performance Manager
+        default: false
+        type: boolean
       deploy-tableau-publisher:
         description: Deploy Tableau Publisher (only run on Prod)
         default: false
@@ -34,5 +38,6 @@ jobs:
       environment: ${{ github.event.inputs.environment }}
       deploy-ingestion: ${{ fromJson(github.event.inputs.deploy-ingestion) }}
       deploy-rail-pm: ${{ fromJson(github.event.inputs.deploy-rail-pm) }}
+      deploy-bus-pm: ${{ fromJson(github.event.inputs.deploy-bus-pm) }}
       deploy-tableau-publisher: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) }}
     secrets: inherit

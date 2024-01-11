@@ -26,6 +26,18 @@ services:
       - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
     command: ["poetry", "run", "performance_manager"]
 
+  bus_performance_manager:
+    container_name: bus_performance_manager
+    env_file: .env
+    build:
+      context: ./python_src
+    depends_on:
+      - local_rds
+    working_dir: /lamp
+    volumes:
+      - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
+    command: ["poetry", "run", "bus_performance_manager"]
+
   seed_metadata:
     container_name: seed_metadata
     env_file: .env

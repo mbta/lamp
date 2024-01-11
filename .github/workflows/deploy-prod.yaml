@@ -16,5 +16,6 @@ jobs:
       environment: prod
       deploy-ingestion: true
       deploy-rail-pm: true
+      deploy-bus-pm: true
       deploy-tableau-publisher: true
     secrets: inherit

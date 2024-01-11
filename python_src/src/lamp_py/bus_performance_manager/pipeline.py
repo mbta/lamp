@@ -4,26 +4,18 @@ import argparse
 import logging
 import os
 import sched
+import signal
 import sys
 import time
-import signal
 from typing import List
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.postgres.postgres_utils import DatabaseManager
-from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from lamp_py.tableau import start_parquet_updates
-
-from .flat_file import write_flat_files
-from .l0_gtfs_rt_events import process_gtfs_rt_files
-from .l0_gtfs_static_load import process_static_tables
-
 logging.getLogger().setLevel("INFO")
 
-DESCRIPTION = """Entry Point to Rail Performance Manager"""
+DESCRIPTION = """Entry Point to Bus Performance Manager"""
 
 
 def parse_args(args: List[str]) -> argparse.Namespace:
@@ -36,13 +28,6 @@ def parse_args(args: List[str]) -> argparse.Namespace:
         help="interval to run event loop on",
     )
 
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        dest="verbose",
-        help="if set, verbose sql logging",
-    )
-
     return parser.parse_args(args)
 
 
@@ -50,9 +35,6 @@ def main(args: argparse.Namespace) -> None:
     """entrypoint into performance manager event loop"""
     main_process_logger = ProcessLogger("main", **vars(args))
     main_process_logger.log_start()
-
-    # get the engine that manages sessions that read and write to the db
-    db_manager = DatabaseManager(verbose=args.verbose)
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)
@@ -66,24 +48,20 @@ def main(args: argparse.Namespace) -> None:
         process_logger.log_start()
 
         try:
-            process_static_tables(db_manager)
-            process_gtfs_rt_files(db_manager)
-            write_flat_files(db_manager)
-            start_parquet_updates(db_manager)
-
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
             scheduler.enter(int(args.interval), 1, iteration)
 
-    # schedule the inital looop and start the scheduler
+    # schedule the initial loop and start the scheduler
     scheduler.enter(0, 1, iteration)
     scheduler.run()
+    main_process_logger.log_complete()
 
 
 def start() -> None:
-    """configure and start the performance manager process"""
+    """configure and start the bus performance manager process"""
     # parse arguments from the command line
     parsed_args = parse_args(sys.argv[1:])
 
@@ -91,21 +69,17 @@ def start() -> None:
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
 
     # configure the environment
-    os.environ["SERVICE_NAME"] = "performance_manager"
+    os.environ["SERVICE_NAME"] = "bus_performance_manager"
     validate_environment(
         required_variables=[
             "SPRINGBOARD_BUCKET",
+            "PUBLIC_ARCHIVE_BUCKET",
             "SERVICE_NAME",
-            "ALEMBIC_DB_NAME",
         ],
-        optional_variables=["PUBLIC_ARCHIVE_BUCKET"],
         validate_db=True,
     )
 
-    # run rds migrations
-    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_DB_NAME"))
-
-    # run main method with parsed args
+    # run main method
     main(parsed_args)
 
 

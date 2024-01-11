@@ -22,6 +22,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy-bus-pm:
+        description: Should the Bus Performance Manager Application be Deployed
+        required: false
+        default: false
+        type: boolean
       deploy-tableau-publisher:
         description: Should the Tableau Publisher Application be Deployed
         required: false
@@ -77,6 +82,15 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
           ecs-service: lamp-rail-performance-manager-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy Bus Performance Manager Application
+        id: deploy-bus-performance-manager
+        if: ${{ inputs.deploy-bus-pm }}
+        uses: mbta/actions/deploy-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-bus-performance-manager-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
