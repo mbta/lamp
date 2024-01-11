@@ -71,22 +71,20 @@ def upgrade() -> None:
                     }
                 )
 
-        # insert data into the metadata database
-        with md_db_manager.session.begin() as session:
-            # do nothing on conflicts in file paths
-            result = session.execute(
-                sa.insert(MetadataLog.__table__).values(insert_data)
-            )
-
     except ProgrammingError as error:
         # Error 42P01 is an 'Undefined Table' error. This occurs when there is
         # no metadata_log table in the rail performance manager database
         #
         # Raise all other sql errors
+        insert_data = []
         if error.orig.pgcode == "42P01":
             logging.info("No Metadata Table in Rail Performance Manager")
         else:
             raise
+
+    # insert data into the metadata database
+    if insert_data:
+        op.bulk_insert(MetadataLog.__table, insert_data)
 
     # ### end Alembic commands ###
 

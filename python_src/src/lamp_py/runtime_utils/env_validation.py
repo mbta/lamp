@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from .process_logger import ProcessLogger
 
@@ -8,7 +8,7 @@ def validate_environment(
     required_variables: List[str],
     private_variables: Optional[List[str]] = None,
     optional_variables: Optional[List[str]] = None,
-    db_prefixes: Optional[List[str]] = None,
+    db_prefixes: Iterable[str] = (),
 ) -> None:
     """
     ensure that the environment has all the variables its required to have
@@ -24,18 +24,17 @@ def validate_environment(
     required_variables.append("SERVICE_NAME")
 
     # add required database variables
-    if db_prefixes is not None:
-        for prefix in db_prefixes:
-            required_variables += [
-                f"{prefix}_DB_HOST",
-                f"{prefix}_DB_NAME",
-                f"{prefix}_DB_PORT",
-                f"{prefix}_DB_USER",
-            ]
-            # if db password is missing, db region is required to generate a
-            # token to use as the password to the cloud database
-            if os.environ.get(f"{prefix}_DB_PASSWORD", None) is None:
-                required_variables.append("DB_REGION")
+    for prefix in db_prefixes:
+        required_variables += [
+            f"{prefix}_DB_HOST",
+            f"{prefix}_DB_NAME",
+            f"{prefix}_DB_PORT",
+            f"{prefix}_DB_USER",
+        ]
+        # if db password is missing, db region is required to generate a
+        # token to use as the password to the cloud database
+        if os.environ.get(f"{prefix}_DB_PASSWORD", None) is None:
+            required_variables.append("DB_REGION")
 
     # check for missing variables. add found variables to our logs.
     missing_required = []
