@@ -17,7 +17,7 @@ hyper_update = 'lamp_py.tableau.pipeline:start_hyper_updates'
 
 [tool.poetry.dependencies]
 python = "^3.10"
-SQLAlchemy = "^1.4.39"
+SQLAlchemy = "^2.0.25"
 pyarrow = "^13.0.0"
 boto3 = "^1.28.62"
 pandas = "^1.4.3"
