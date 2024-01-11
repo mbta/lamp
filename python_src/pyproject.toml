@@ -27,10 +27,15 @@ psutil = "^5.9.1"
 schedule = "^1.1.0"
 alembic = "^1.10.2"
 types-pytz = "^2023.3.0.1"
+
+[tool.poetry.group.tableau]
+optional = false
+
+[tool.poetry.group.tableau.dependencies]
 tableauhyperapi = "^0.0.17971"
 tableauserverclient = "0.25"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
 mypy = "^1.1.1"
 pylint = "^2.17.0"
@@ -80,6 +85,6 @@ max-line-length = 80
 min-similarity-lines = 10
 # ignore session maker as it gives pylint fits
 # https://github.com/PyCQA/pylint/issues/7090
-ignored-classes = ['sqlalchemy.orm.session.sessionmaker','pyarrow.compute']
+ignored-classes = ['sqlalchemy.orm.session.sessionmaker', 'pyarrow.compute']
 # ignore the migrations directory. its going to have duplication and _that is ok_.
 ignore-paths = ["^src/lamp_py/migrations/.*$"]

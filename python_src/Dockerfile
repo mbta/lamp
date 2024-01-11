@@ -16,13 +16,21 @@ RUN chmod a=r /usr/local/share/amazon-certs.pem
 
 # Install poetry
 RUN pip install -U pip
-RUN pip install "poetry==1.4.2"
+RUN pip install "poetry==1.7.1"
 
 # copy poetry and pyproject files and install dependencies
 WORKDIR /lamp/
 COPY poetry.lock poetry.lock
 COPY pyproject.toml pyproject.toml
-RUN poetry install --no-dev --no-interaction --no-ansi -v
+
+# Tableau dependencies for arm64 cannot be resolved (since salesforce doesn't
+# support them yet). For that buildplatform build without those dependencies
+ARG TARGETARCH BUILDPLATFORM TARGETPLATFORM
+RUN echo "Installing python dependencies for build: ${BUILDPLATFORM} target: ${TARGETPLATFORM}"
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+    poetry install --without tableau --no-interaction --no-ansi -v ;\
+    else poetry install --no-interaction --no-ansi -v ;\
+    fi
 
 # Copy src directory to run against and build lamp py
 COPY src src
