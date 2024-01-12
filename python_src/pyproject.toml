@@ -32,7 +32,7 @@ types-pytz = "^2023.3.0.1"
 optional = false
 
 [tool.poetry.group.tableau.dependencies]
-tableauhyperapi = "^0.0.17971"
+tableauhyperapi = "^0.0.18441"
 tableauserverclient = "0.25"
 
 [tool.poetry.group.dev.dependencies]
