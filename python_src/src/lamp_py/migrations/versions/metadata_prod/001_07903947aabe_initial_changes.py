@@ -52,7 +52,6 @@ def upgrade() -> None:
         rpm_db_manager = DatabaseManager(
             db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
         )
-        md_db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA)
 
         insert_data = []
         # pull metadata from the rail performance manager database via direct
@@ -84,7 +83,7 @@ def upgrade() -> None:
 
     # insert data into the metadata database
     if insert_data:
-        op.bulk_insert(MetadataLog.__table, insert_data)
+        op.bulk_insert(MetadataLog.__table__, insert_data)
 
     # ### end Alembic commands ###
 
