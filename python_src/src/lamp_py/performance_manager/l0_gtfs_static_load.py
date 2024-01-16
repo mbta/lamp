@@ -25,6 +25,7 @@ from lamp_py.postgres.postgres_utils import (
     get_unprocessed_files,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.infinite_wait import infinite_wait
 
 from .gtfs_utils import start_time_to_seconds
 
@@ -411,6 +412,7 @@ def insert_data_tables(
                 "gtfs_insert", table_name=table.table_name
             )
             process_logger.log_start()
+
             db_manager.insert_dataframe(table.data_table, table.insert_table)
             db_manager.vacuum_analyze(table.insert_table)
             process_logger.log_complete()
@@ -419,10 +421,15 @@ def insert_data_tables(
         # from all tables matching the same static key. re-raise the error so
         # it can be properly logged.
         for table in static_tables.values():
+            process_logger = ProcessLogger(
+                "gtfs_clean", table_name=table.table_name
+            )
+            process_logger.log_start()
             delete_static = sa.delete(table.insert_table).where(
                 table.static_version_key_column == static_version_key
             )
             db_manager.execute(delete_static)
+            process_logger.log_complete()
         raise error
 
 
@@ -480,5 +487,7 @@ def process_static_tables(db_manager: DatabaseManager) -> None:
             )
             db_manager.execute(update_md_log)
             individual_logger.log_failure(exception)
+
+            infinite_wait(reason=f"Error Loading Static File {folder}")
 
     process_logger.log_complete()
