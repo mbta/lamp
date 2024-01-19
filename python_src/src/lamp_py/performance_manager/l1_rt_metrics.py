@@ -48,7 +48,6 @@ def update_metrics_columns(
             VehicleEvents.pm_trip_id == trips_for_metrics.c.pm_trip_id,
             VehicleEvents.service_date == trips_for_metrics.c.service_date,
             VehicleEvents.parent_station == trips_for_metrics.c.parent_station,
-            trips_for_metrics.c.first_stop_flag == sa.false(),
             trips_for_metrics.c.stop_timestamp.is_not(None),
             trips_for_metrics.c.move_timestamp.is_not(None),
             trips_for_metrics.c.stop_timestamp
