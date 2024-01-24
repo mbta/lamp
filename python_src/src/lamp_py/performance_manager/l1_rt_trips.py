@@ -210,7 +210,7 @@ def update_static_version_key(db_manager: DatabaseManager) -> None:
             static_version_key=version_key_sub.c.max_version_key,
         )
         .where(
-            VehicleTrips.pm_trip_id == version_key_sub.c.service_date,
+            VehicleTrips.service_date == version_key_sub.c.service_date,
         )
     )
 
