@@ -17,6 +17,7 @@ from lamp_py.tableau.jobs.gtfs_rail import (
     HyperStaticStopTimes,
     HyperStaticTrips,
 )
+from lamp_py.aws.ecs import check_for_parallel_tasks
 
 
 def create_hyper_jobs() -> List[HyperJob]:
@@ -38,17 +39,24 @@ def start_hyper_updates() -> None:
     """Run all HyperFile Update Jobs"""
     # configure the environment
     os.environ["SERVICE_NAME"] = "tableau_hyper_update"
+
     validate_environment(
         required_variables=[
             "TABLEAU_USER",
             "TABLEAU_PASSWORD",
             "TABLEAU_SERVER",
             "PUBLIC_ARCHIVE_BUCKET",
+            "ECS_CLUSTER",
+            "ECS_TASK_GROUP",
         ],
         private_variables=[
             "TABLEAU_PASSWORD",
         ],
     )
+
+    # make sure only one publisher runs at a time
+    check_for_parallel_tasks()
+
     for job in create_hyper_jobs():
         job.run_hyper()
 
