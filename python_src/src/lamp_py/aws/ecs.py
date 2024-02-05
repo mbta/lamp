@@ -66,24 +66,29 @@ def check_for_parallel_tasks() -> None:
     ecs_cluster = os.environ["ECS_CLUSTER"]
     ecs_task_group = os.environ["ECS_TASK_GROUP"]
 
-    # get all of the tasks running on the cluster
-    task_arns = client.list_tasks(cluster=ecs_cluster)["taskArns"]
+    try:
+        # get all of the tasks running on the cluster
+        task_arns = client.list_tasks(cluster=ecs_cluster)["taskArns"]
 
-    # if tasks are running on the cluster, get their descriptions and check to
-    # count matches the ecs task group.
-    match_count = 0
-    if task_arns:
-        running_tasks = client.describe_tasks(
-            cluster=ecs_cluster, tasks=task_arns
-        )["tasks"]
+        # if tasks are running on the cluster, get their descriptions and check to
+        # count matches the ecs task group.
+        match_count = 0
+        if task_arns:
+            running_tasks = client.describe_tasks(
+                cluster=ecs_cluster, tasks=task_arns
+            )["tasks"]
 
-        for task in running_tasks:
-            if ecs_task_group == task["group"]:
-                match_count += 1
+            for task in running_tasks:
+                if ecs_task_group == task["group"]:
+                    match_count += 1
 
-    # if the group matches, raise an exception that will terminate the process
-    if match_count > 1:
-        exception = SystemError(f"Multiple {ecs_cluster} ECS Tasks Running")
+        # if the group matches, raise an exception that will terminate the process
+        if match_count > 1:
+            raise SystemError(
+                f"Multiple {ecs_task_group} ECS Tasks Running in {ecs_cluster}"
+            )
+
+    except Exception as exception:
         process_logger.log_failure(exception)
         raise exception
 
