@@ -4,6 +4,7 @@ import numpy
 import pandas
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.sql.functions import count
 
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import get_datetime_from_partition_path
@@ -220,16 +221,16 @@ def flag_insert_update_events(db_manager: DatabaseManager) -> Tuple[int, int]:
     db_manager.execute(update_do_update)
 
     # get count of do_update records
-    update_count_query = sa.select(
-        sa.func.count(TempEventCompare.do_update)
-    ).where(TempEventCompare.do_update == sa.true())
+    update_count_query = sa.select(count(TempEventCompare.do_update)).where(
+        TempEventCompare.do_update == sa.true()
+    )
     update_count = int(
         db_manager.select_as_list(update_count_query)[0]["count"]
     )
 
     # populate do_insert column of temp_event_compare
     do_insert_pre_select = (
-        sa.select(None)
+        sa.select(sa.null())
         .where(
             VehicleEvents.service_date == TempEventCompare.service_date,
             VehicleEvents.pm_trip_id == TempEventCompare.pm_trip_id,
@@ -247,9 +248,9 @@ def flag_insert_update_events(db_manager: DatabaseManager) -> Tuple[int, int]:
     db_manager.execute(update_do_insert)
 
     # get count of do_insert records
-    insert_count_query = sa.select(
-        sa.func.count(TempEventCompare.do_insert)
-    ).where(TempEventCompare.do_insert == sa.true())
+    insert_count_query = sa.select(count(TempEventCompare.do_insert)).where(
+        TempEventCompare.do_insert == sa.true()
+    )
     insert_count = int(
         db_manager.select_as_list(insert_count_query)[0]["count"]
     )

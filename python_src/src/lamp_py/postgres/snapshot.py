@@ -79,7 +79,7 @@ def save_state(db_manager: DatabaseManager) -> None:
         if "temp" in table_name:
             continue
 
-        dataframe = db_manager.select_as_dataframe(sa.select(table.columns))
+        dataframe = db_manager.select_as_dataframe(sa.select(table.columns))  # type: ignore
 
         # no need to save pk id or updated on columns. we can't load them in
         # anyway.

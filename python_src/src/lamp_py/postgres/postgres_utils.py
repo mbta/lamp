@@ -198,7 +198,13 @@ class DatabaseManager:
     def _get_schema_table(self, table: Any) -> sa.sql.schema.Table:
         if isinstance(table, sa.sql.schema.Table):
             return table
-        if isinstance(table, sa.orm.decl_api.DeclarativeMeta):
+        if isinstance(
+            table,
+            (
+                sa.orm.decl_api.DeclarativeMeta,
+                sa.orm.decl_api.DeclarativeAttributeIntercept,
+            ),
+        ):
             # mypy error: "DeclarativeMeta" has no attribute "__table__"
             return table.__table__  # type: ignore
 
@@ -219,7 +225,7 @@ class DatabaseManager:
             sa.sql.dml.Insert,
             sa.sql.elements.TextClause,
         ],
-    ) -> sa.engine.BaseCursorResult:
+    ) -> sa.engine.CursorResult:
         """
         execute db action WITHOUT data
         """
@@ -236,7 +242,7 @@ class DatabaseManager:
             sa.sql.dml.Insert,
         ],
         data: pandas.DataFrame,
-    ) -> sa.engine.BaseCursorResult:
+    ) -> sa.engine.CursorResult:
         """
         execute db action WITH data as pandas dataframe
         """
@@ -381,7 +387,7 @@ def get_unprocessed_files(
 
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
-        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+        read_md_log = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
             (MetadataLog.processed == sa.false())
             & (MetadataLog.path.contains(path_contains))
         )

@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.expression import bindparam
+from sqlalchemy.sql.functions import count
 
 
 from lamp_py.postgres.postgres_utils import DatabaseManager
@@ -257,9 +258,11 @@ def update_start_times(db_manager: DatabaseManager) -> None:
         )
         .join(
             StaticStopTimes,
-            VehicleTrips.trip_id == StaticStopTimes.trip_id,
-            VehicleTrips.static_version_key
-            == StaticStopTimes.static_version_key,
+            sa.and_(
+                VehicleTrips.trip_id == StaticStopTimes.trip_id,
+                VehicleTrips.static_version_key
+                == StaticStopTimes.static_version_key,
+            ),
         )
         .group_by(
             VehicleTrips.pm_trip_id,
@@ -337,7 +340,7 @@ def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
     new_stop_counts_cte = (
         sa.select(
             VehicleEvents.pm_trip_id,
-            sa.func.count(VehicleEvents.pm_trip_id).label("stop_count"),
+            count(VehicleEvents.pm_trip_id).label("stop_count"),
         )
         .select_from(VehicleEvents)
         .join(
@@ -386,9 +389,7 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
         sa.select(
             StaticStopTimes.static_version_key,
             StaticStopTimes.trip_id,
-            sa.func.count(StaticStopTimes.stop_sequence).label(
-                "static_stop_count"
-            ),
+            count(StaticStopTimes.stop_sequence).label("static_stop_count"),
         )
         .where(
             StaticStopTimes.static_version_key
@@ -678,7 +679,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         )
         .order_by(
             static_canon.c.trunk_route_id,
-            sa.func.count(
+            count(
                 static_canon.c.stop_sequence,
             ).desc(),
             (
