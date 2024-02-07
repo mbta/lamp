@@ -1597,14 +1597,14 @@ tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
 name = "tableauhyperapi"
-version = "0.0.17971"
+version = "0.0.18618"
 description = "Hyper API for Python"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "tableauhyperapi-0.0.17971-py3-none-macosx_10_11_x86_64.whl", hash = "sha256:2ab8d1ba011e9c2dfe4577430ca4a6203c528621da5ea2520f49380f06464b62"},
-    {file = "tableauhyperapi-0.0.17971-py3-none-manylinux2014_x86_64.whl", hash = "sha256:7171acae4a193f5733c4c058a439d13f3b66485da64e168938f9396d9af65526"},
-    {file = "tableauhyperapi-0.0.17971-py3-none-win_amd64.whl", hash = "sha256:402695488afd9a4c7e9dd982655d0713f2d79f240655a0011c9b04fcf0809a93"},
+    {file = "tableauhyperapi-0.0.18618-py3-none-macosx_10_11_x86_64.whl", hash = "sha256:839b088d3b9f892ab4732f87e3b7659ff35c35112043558ab58256fbe7ad7485"},
+    {file = "tableauhyperapi-0.0.18618-py3-none-manylinux2014_x86_64.whl", hash = "sha256:732bf166e007bf1b05e49f012acaf0ee3dbc4873be1bed9e76fe7b1652817284"},
+    {file = "tableauhyperapi-0.0.18618-py3-none-win_amd64.whl", hash = "sha256:a7df9e603927c3dc76896969952e208896149d1dc34d161cddd3c13c2dd3178f"},
 ]
 
 [package.dependencies]
@@ -1739,4 +1739,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "9d1432eb2e788d4ae27f7ee205254bfb6babe7388c704e6ae352c62ee187e1e8"
+content-hash = "221b31a42fed2bc22ce3ef6885d2f408fdcd075f9760f948d16bc5dcc6e09e2b"
