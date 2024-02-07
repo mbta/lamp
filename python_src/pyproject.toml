@@ -34,7 +34,7 @@ optional = false
 
 [tool.poetry.group.tableau.dependencies]
 tableauhyperapi = "^0.0.18618"
-tableauserverclient = "0.25"
+tableauserverclient = "0.30"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
