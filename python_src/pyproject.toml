@@ -27,7 +27,7 @@ psycopg2 = "^2.9.3"
 psutil = "^5.9.1"
 schedule = "^1.1.0"
 alembic = "^1.10.2"
-types-pytz = "^2023.3.0.1"
+types-pytz = "^2024.1.0.20240203"
 
 [tool.poetry.group.tableau]
 optional = false
