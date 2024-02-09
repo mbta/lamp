@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from sqlalchemy.sql.functions import rank
 from lamp_py.postgres.postgres_schema import (
     ServiceIdDates,
     StaticStops,
@@ -53,7 +54,7 @@ def static_trips_subquery(
                 )
                 .is_(None)
             ).label("static_trip_last_stop"),
-            sa.func.rank()
+            rank()
             .over(
                 partition_by=(
                     StaticStopTimes.static_version_key,
@@ -158,7 +159,7 @@ def rt_trips_subquery(service_date: int) -> sa.sql.selectable.Subquery:
                 )
                 .is_(None)
             ).label("rt_trip_last_stop_flag"),
-            sa.func.rank()
+            rank()
             .over(
                 partition_by=(VehicleEvents.pm_trip_id),
                 order_by=VehicleEvents.stop_sequence,

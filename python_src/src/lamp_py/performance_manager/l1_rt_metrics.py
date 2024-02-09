@@ -75,36 +75,34 @@ def update_metrics_columns(
             trips_for_metrics.c.service_date,
             trips_for_metrics.c.parent_station,
             sa.case(
-                [
-                    (
-                        sa.and_(
-                            trips_for_metrics.c.last_stop_flag == sa.false(),
-                            trips_for_metrics.c.first_stop_flag == sa.false(),
-                        ),
-                        sa.func.lead(
-                            trips_for_metrics.c.move_timestamp,
-                        ).over(
-                            partition_by=trips_for_metrics.c.vehicle_id,
-                            order_by=trips_for_metrics.c.sort_timestamp,
-                        )
-                        - trips_for_metrics.c.stop_timestamp,
+                (
+                    sa.and_(
+                        trips_for_metrics.c.last_stop_flag == sa.false(),
+                        trips_for_metrics.c.first_stop_flag == sa.false(),
                     ),
-                    (
-                        trips_for_metrics.c.first_stop_flag == sa.true(),
-                        sa.func.lead(
-                            trips_for_metrics.c.move_timestamp,
-                        ).over(
-                            partition_by=trips_for_metrics.c.vehicle_id,
-                            order_by=trips_for_metrics.c.sort_timestamp,
-                        )
-                        - sa.func.lag(
-                            trips_for_metrics.c.stop_timestamp,
-                        ).over(
-                            partition_by=trips_for_metrics.c.vehicle_id,
-                            order_by=trips_for_metrics.c.sort_timestamp,
-                        ),
+                    sa.func.lead(
+                        trips_for_metrics.c.move_timestamp,
+                    ).over(
+                        partition_by=trips_for_metrics.c.vehicle_id,
+                        order_by=trips_for_metrics.c.sort_timestamp,
+                    )
+                    - trips_for_metrics.c.stop_timestamp,
+                ),
+                (
+                    trips_for_metrics.c.first_stop_flag == sa.true(),
+                    sa.func.lead(
+                        trips_for_metrics.c.move_timestamp,
+                    ).over(
+                        partition_by=trips_for_metrics.c.vehicle_id,
+                        order_by=trips_for_metrics.c.sort_timestamp,
+                    )
+                    - sa.func.lag(
+                        trips_for_metrics.c.stop_timestamp,
+                    ).over(
+                        partition_by=trips_for_metrics.c.vehicle_id,
+                        order_by=trips_for_metrics.c.sort_timestamp,
                     ),
-                ],
+                ),
                 else_=sa.literal(None),
             ).label("dwell_time_seconds"),
         )
