@@ -8,6 +8,7 @@ Details
 * upgrade -> change "trip_id" field from length 128 to 512
 * downgrade -> change "trip_id" field from length 512 to 128
 """
+
 from alembic import op
 import sqlalchemy as sa
 
