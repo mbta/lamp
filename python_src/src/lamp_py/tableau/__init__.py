@@ -1,4 +1,5 @@
 """Utilities for Interacting with Tableau and Hyper files"""
+
 import logging
 from types import ModuleType
 from typing import Optional

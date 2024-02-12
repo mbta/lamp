@@ -198,9 +198,9 @@ def add_static_version_key_column(
         )
 
         service_date_mask = events_dataframe["service_date"] == service_date
-        events_dataframe.loc[
-            service_date_mask, "static_version_key"
-        ] = static_version_key
+        events_dataframe.loc[service_date_mask, "static_version_key"] = (
+            static_version_key
+        )
 
     process_logger.log_complete()
 

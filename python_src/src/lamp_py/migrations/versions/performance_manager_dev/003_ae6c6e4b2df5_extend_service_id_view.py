@@ -10,6 +10,7 @@ Details
 
 * downgrade -> Nothing
 """
+
 from alembic import op
 
 from lamp_py.migrations.versions.performance_manager_staging.sql_strings.strings_003 import (
