@@ -629,7 +629,7 @@ def test_missing_start_time(
 
 
 def test_process_vp_files(
-    db_manager: DatabaseManager,
+    rpm_db_manager: DatabaseManager,
     caplog: pytest.LogCaptureFixture,
     tmp_path: pathlib.Path,
 ) -> None:
@@ -647,7 +647,7 @@ def test_process_vp_files(
 
     csv_to_vp_parquet(csv_file, parquet_file)
 
-    result_df = process_vp_files(parquet_file, db_manager)
+    result_df = process_vp_files(parquet_file, rpm_db_manager)
 
     result_dtypes = {
         "service_date": "int64",

@@ -5,8 +5,10 @@ Revises:
 Create Date: 2023-12-11 15:12:47.261091
 
 """
+
 from alembic import op
 from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.sql import text
 import logging
 import sqlalchemy as sa
 
@@ -58,7 +60,7 @@ def upgrade() -> None:
         # sql query. the metadata_log table may or may not exist.
         with rpm_db_manager.session.begin() as session:
             result = session.execute(
-                "SELECT path, processed, process_fail FROM metadata_log"
+                text("SELECT path, processed, process_fail FROM metadata_log")
             )
             for row in result:
                 (path, processed, process_fail) = row
@@ -76,7 +78,12 @@ def upgrade() -> None:
         #
         # Raise all other sql errors
         insert_data = []
-        if error.orig.pgcode == "42P01":
+        original_error = error.orig
+        if (
+            original_error is not None
+            and hasattr(original_error, "pgcode")
+            and original_error.pgcode == "42P01"
+        ):
             logging.info("No Metadata Table in Rail Performance Manager")
         else:
             raise
