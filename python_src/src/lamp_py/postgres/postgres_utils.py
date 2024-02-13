@@ -460,7 +460,7 @@ def get_unprocessed_files(
 
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
-        read_md_log = sa.select((MetadataLog.pk_id, MetadataLog.path)).where(
+        read_md_log = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
             (MetadataLog.rail_pm_processed == sa.false())
             & (MetadataLog.path.contains(path_contains))
         )

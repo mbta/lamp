@@ -7,11 +7,13 @@ Create Date: 2023-12-28 12:18:25.412282
 check that all information in the metadata table has been copied to the
 metadata database before dropping the table and its indexes entirely.
 """
+
 import time
 
 from alembic import op
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.sql import text
 import logging
 import sqlalchemy as sa
 
@@ -35,7 +37,9 @@ def upgrade() -> None:
             md_db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA)
 
             with rpm_db_manager.session.begin() as session:
-                legacy_result = session.execute("SELECT path FROM metadata_log")
+                legacy_result = session.execute(
+                    text("SELECT path FROM metadata_log")
+                )
                 legacy_paths = set(
                     [record[0] for record in legacy_result.fetchall()]
                 )
@@ -58,7 +62,12 @@ def upgrade() -> None:
             # no metadata_log table in the rail performance manager database
             #
             # Raise all other sql errors
-            if error.orig.pgcode == "42P01":
+            original_error = error.orig
+            if (
+                original_error is not None
+                and hasattr(original_error, "pgcode")
+                and original_error.pgcode == "42P01"
+            ):
                 logging.info("No Metadata Table in Rail Performance Manager")
                 legacy_paths = set()
             else:
