@@ -35,6 +35,7 @@ from lamp_py.performance_manager.l0_rt_vehicle_positions import (
     get_vp_dataframe,
     transform_vp_datatypes,
     transform_vp_timestamps,
+    process_vp_files,
 )
 from lamp_py.postgres.postgres_schema import (
     MetadataLog,
@@ -589,6 +590,77 @@ def test_missing_start_time(
     check_logs(caplog)
 
 
+def test_process_vp_files(
+    db_manager: DatabaseManager,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: pathlib.Path,
+) -> None:
+    """
+    check whole flat file
+    """
+    caplog.set_level(logging.INFO)
+
+    csv_file = os.path.join(test_files_dir, "vehicle_positions_flat_input.csv")
+    parquet_folder = tmp_path.joinpath(
+        "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
+    )
+    parquet_folder.mkdir(parents=True)
+    parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
+
+    csv_to_vp_parquet(csv_file, parquet_file)
+
+    result_df = process_vp_files(parquet_file, db_manager)
+
+    result_dtypes = {
+        "service_date": "int64",
+        "route_id": "string",
+        "trip_id": "string",
+        "parent_station": "string",
+        "stop_id": "string",
+        "vehicle_id": "string",
+        "vehicle_label": "string",
+        "vehicle_consist": "string",
+        "vp_move_timestamp": "Int64",
+        "vp_stop_timestamp": "Int64",
+        "start_time": "Int64",
+    }
+
+    csv_result_df = pandas.read_csv(
+        os.path.join(test_files_dir, "process_vp_files_flat_out.csv"),
+        dtype=result_dtypes,
+    )
+
+    sort_by = list(csv_result_df.columns)
+
+    csv_result_df = csv_result_df.sort_values(
+        by=sort_by,
+        ignore_index=True,
+    )
+    result_df = result_df.astype(dtype=result_dtypes).sort_values(
+        by=sort_by,
+        ignore_index=True,
+    )
+
+    column_exceptions = []
+    for column in csv_result_df.columns:
+        try:
+            pandas.testing.assert_series_equal(
+                result_df[column], csv_result_df[column]
+            )
+        except Exception as exception:
+            logging.error(
+                "Pipeline values in %s column do not match process_vp_files_flat_out.csv CSV file",
+                column,
+            )
+            column_exceptions.append(exception)
+
+    # will only raise one column exception, but error logging will print all columns with issues
+    if column_exceptions:
+        raise column_exceptions[0]
+
+    check_logs(caplog)
+
+
 def test_whole_table(
     db_manager: DatabaseManager,
     caplog: pytest.LogCaptureFixture,
@@ -657,6 +729,16 @@ def test_whole_table(
         )
     )
     result_dtypes = {
+        "stop_id": "string",
+        "parent_station": "string",
+        "direction": "string",
+        "direction_destination": "string",
+        "route_id": "string",
+        "branch_route_id": "string",
+        "trunk_route_id": "string",
+        "vehicle_id": "string",
+        "trip_id": "string",
+        "vehicle_label": "string",
         "vp_move_timestamp": "Int64",
         "vp_stop_timestamp": "Int64",
         "dwell_time_seconds": "Int64",
@@ -689,7 +771,21 @@ def test_whole_table(
         ignore_index=True,
     )
 
-    compare_result = db_result_df.compare(csv_result_df, align_axis=1)
-    assert compare_result.shape[0] == 0, f"{compare_result}"
+    column_exceptions = []
+    for column in csv_result_df.columns:
+        try:
+            pandas.testing.assert_series_equal(
+                db_result_df[column], csv_result_df[column]
+            )
+        except Exception as exception:
+            logging.error(
+                "Pipeline values in %s column do not match pipeline_flat_out.csv CSV file",
+                column,
+            )
+            column_exceptions.append(exception)
+
+    # will only raise one column exception, but error logging will print all columns with issues
+    if column_exceptions:
+        raise column_exceptions[0]
 
     check_logs(caplog)
