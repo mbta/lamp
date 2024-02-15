@@ -158,7 +158,7 @@ def transform_vp_timestamps(
         vehicle_positions,
         index=trip_stop_columns,
         columns="is_moving",
-        aggfunc={"vehicle_timestamp": min},
+        aggfunc={"vehicle_timestamp": "min"},
     ).reset_index(drop=False)
 
     rename_mapper: Dict[Tuple[str, Union[str, bool]], str] = {
