@@ -65,6 +65,7 @@ from lamp_py.performance_manager.gtfs_utils import (
 from ..test_resources import springboard_dir, test_files_dir, csv_to_vp_parquet
 
 
+@pytest.mark.skip("utility function, not a test")
 @lru_cache
 def test_files() -> List[str]:
     """

@@ -296,8 +296,11 @@ def trips_for_headways_subquery(
             rt_trips_sub.c.vp_move_timestamp.label("move_timestamp"),
             sa.func.lead(rt_trips_sub.c.vp_move_timestamp)
             .over(
-                partition_by=rt_trips_sub.c.vehicle_id,
-                order_by=rt_trips_sub.c.vp_move_timestamp,
+                partition_by=rt_trips_sub.c.pm_trip_id,
+                order_by=sa.func.coalesce(
+                    rt_trips_sub.c.vp_move_timestamp,
+                    rt_trips_sub.c.vp_stop_timestamp,
+                ),
             )
             .label("next_station_move"),
         )
