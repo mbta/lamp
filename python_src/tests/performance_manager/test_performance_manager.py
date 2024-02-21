@@ -19,6 +19,8 @@ from pyarrow import Table
 from lamp_py.performance_manager.flat_file import write_flat_files
 from lamp_py.performance_manager.l0_gtfs_static_load import (
     process_static_tables,
+    get_table_objects,
+    load_parquet_files,
 )
 from lamp_py.performance_manager.l0_gtfs_rt_events import (
     combine_events,
@@ -157,8 +159,13 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
             table_type,
             feed_info_path,
         )
-        table_dir = feed_info_path.replace("FEED_INFO", table_type)
-        files = [os.path.join(table_dir, f) for f in os.listdir(table_dir)]
+        try:
+            table_dir = feed_info_path.replace("FEED_INFO", table_type)
+            files = [os.path.join(table_dir, f) for f in os.listdir(table_dir)]
+        except FileNotFoundError as _:
+            # allow empty list to be returned if path has no files
+            # this mimicks behavior of file_list_from_s3
+            files = []
         logging.debug("Mock Static Parquet Paths return%s", files)
         return files
 
@@ -354,6 +361,28 @@ def test_static_tables(
     assert len(unprocessed_static_schedules) == 0
 
     check_logs(caplog)
+
+
+def test_good_empty_static_table(caplog: pytest.LogCaptureFixture) -> None:
+    """
+    test that empty/missing static calendar_dates can be turned into dataframe
+    """
+    static_tables = get_table_objects()
+    test_table = {"calendar_dates": static_tables["calendar_dates"]}
+    load_parquet_files(test_table, "/tmp/FEED_INFO/timestamp=0000000000")
+
+    check_logs(caplog)
+
+
+def test_bad_empty_static_table() -> None:
+    """
+    test that empty/missing static parquet (that should have data) raises KeyError
+    """
+    static_tables = get_table_objects()
+    test_table = {"stop_times": static_tables["stop_times"]}
+
+    with pytest.raises(KeyError):
+        load_parquet_files(test_table, "/tmp/FEED_INFO/timestamp=0000000000")
 
 
 # pylint: disable=R0915

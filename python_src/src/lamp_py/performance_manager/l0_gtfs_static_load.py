@@ -55,6 +55,7 @@ class StaticTableDetails:
     static_version_key_column: sa.sql.schema.Column
     column_info: StaticTableColumns
     data_table: pandas.DataFrame = pandas.DataFrame()
+    allow_empty_dataframe: bool = False
 
 
 def get_table_objects() -> Dict[str, StaticTableDetails]:
@@ -223,6 +224,7 @@ def get_table_objects() -> Dict[str, StaticTableDetails]:
                 "timestamp",
             ],
         ),
+        allow_empty_dataframe=True,
     )
 
     directions = StaticTableDetails(
@@ -305,10 +307,18 @@ def load_parquet_files(
         paths_to_load = get_static_parquet_paths(
             table.table_name, feed_info_path
         )
-        table.data_table = read_parquet(
-            paths_to_load, columns=table.column_info.columns_to_pull
-        )
-        assert table.data_table.shape[0] > 0
+        try:
+            table.data_table = read_parquet(
+                paths_to_load, columns=table.column_info.columns_to_pull
+            )
+            assert table.data_table.shape[0] > 0
+        except KeyError as exception:
+            if table.allow_empty_dataframe is False:
+                raise exception
+
+            table.data_table = pandas.DataFrame(
+                columns=table.column_info.columns_to_pull
+            )
 
 
 def transform_data_tables(static_tables: Dict[str, StaticTableDetails]) -> None:
@@ -413,8 +423,11 @@ def insert_data_tables(
             )
             process_logger.log_start()
 
-            db_manager.insert_dataframe(table.data_table, table.insert_table)
-            db_manager.vacuum_analyze(table.insert_table)
+            if table.data_table.shape[0] > 0:
+                db_manager.insert_dataframe(
+                    table.data_table, table.insert_table
+                )
+                db_manager.vacuum_analyze(table.insert_table)
             process_logger.log_complete()
     except Exception as error:
         # if an error occurs in loading one of the tables, remove static data
