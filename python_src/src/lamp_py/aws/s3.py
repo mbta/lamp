@@ -105,6 +105,40 @@ def download_file(object_path: str, file_name: str) -> bool:
         return False
 
 
+def delete_object(del_obj: str) -> bool:
+    """
+    delete s3 object
+
+    :param del_obj - expected as 's3://my_bucket/object' or 'my_bucket/object'
+
+    :return: True if file success, else False
+    """
+    try:
+        process_logger = ProcessLogger("delete_s3_object", del_obj=del_obj)
+        process_logger.log_start()
+
+        s3_client = get_s3_client()
+
+        # trim off leading s3://
+        del_obj = del_obj.replace("s3://", "")
+
+        # split into bucket and object name
+        bucket, obj = del_obj.split("/", 1)
+
+        # delete the source object
+        _ = s3_client.delete_object(
+            Bucket=bucket,
+            Key=obj,
+        )
+
+        process_logger.log_complete()
+        return True
+
+    except Exception as error:
+        process_logger.log_failure(error)
+        return False
+
+
 def get_zip_buffer(filename: str) -> IO[bytes]:
     """
     Get a buffer for a zip file from s3 so that it can be read by zipfile

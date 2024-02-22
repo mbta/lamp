@@ -16,6 +16,7 @@ from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from lamp_py.tableau import start_parquet_updates
+from lamp_py.tableau import clean_parquet_paths
 
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
@@ -44,6 +45,16 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     )
 
     return parser.parse_args(args)
+
+
+def run_on_app_start() -> None:
+    """Anything that should be run once at application start"""
+    on_app_start_log = ProcessLogger("run_on_app_start")
+    on_app_start_log.log_start()
+
+    clean_parquet_paths()
+
+    on_app_start_log.log_complete()
 
 
 def main(args: argparse.Namespace) -> None:
@@ -109,6 +120,9 @@ def start() -> None:
 
     # run rail performance manager rds migrations
     alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_RPM_DB_NAME"))
+
+    # run one time actions at every application deployment
+    run_on_app_start()
 
     # run main method with parsed args
     main(parsed_args)

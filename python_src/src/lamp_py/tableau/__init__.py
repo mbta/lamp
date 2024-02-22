@@ -31,3 +31,17 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         )
     else:
         pipeline.start_parquet_updates(db_manager=db_manager)
+
+
+def clean_parquet_paths() -> None:
+    """
+    wrapper around pipeline.clean_parquet_paths function. if a module not
+    found error occurs (which happens when using osx arm64 dependencies), log
+    an error and do nothing. else, run the function.
+    """
+    if pipeline is None:
+        logging.error(
+            "Unable to run parquet files on this machine due to Module Not Found error"
+        )
+    else:
+        pipeline.clean_parquet_paths()
