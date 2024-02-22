@@ -70,8 +70,6 @@ def main(args: argparse.Namespace) -> None:
         db_index=DatabaseIndex.METADATA, verbose=args.verbose
     )
 
-    run_on_app_start()
-
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)
 
@@ -122,6 +120,9 @@ def start() -> None:
 
     # run rail performance manager rds migrations
     alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_RPM_DB_NAME"))
+
+    # run one time actions at every application deployment
+    run_on_app_start()
 
     # run main method with parsed args
     main(parsed_args)
