@@ -18,6 +18,7 @@ from lamp_py.tableau.jobs.gtfs_rail import (
     HyperStaticTrips,
 )
 from lamp_py.aws.ecs import check_for_parallel_tasks
+from lamp_py.aws.s3 import delete_object
 
 
 def create_hyper_jobs() -> List[HyperJob]:
@@ -69,3 +70,9 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
     # ECS Memory Utilization appeared to stay elevated after initial calling
     # of `run_parquet` to create all parquet files, this may resolve that...
     gc.collect()
+
+
+def clean_parquet_paths() -> None:
+    """Delete all remote parquet files for all hyper jobs"""
+    for job in create_hyper_jobs():
+        delete_object(job.remote_parquet_path)
