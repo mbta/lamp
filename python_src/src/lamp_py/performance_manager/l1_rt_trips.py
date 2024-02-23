@@ -821,10 +821,11 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         )
     )
 
-    process_logger = ProcessLogger("l1_events.update_sync_stop_sequence")
-    process_logger.log_start()
-    db_manager.execute(update_rt_sync)
-    process_logger.log_complete()
+    # FIX ME: temporarily disable update_sync_stop_sequence because of very long query time on prod
+    # process_logger = ProcessLogger("l1_events.update_sync_stop_sequence")
+    # process_logger.log_start()
+    # db_manager.execute(update_rt_sync)
+    # process_logger.log_complete()
 
 
 # pylint: disable=R0914
