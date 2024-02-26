@@ -413,85 +413,84 @@ def test_gtfs_rt_processing(
     ]
     seed_metadata(md_db_manager, paths)
 
-    for files in get_gtfs_rt_paths(md_db_manager):
-        for path in files["vp_paths"]:
-            assert "RT_VEHICLE_POSITIONS" in path
+    files = get_gtfs_rt_paths(md_db_manager)
 
-        # check that we can load the parquet file into a dataframe correctly
-        route_ids = rail_routes_from_filepath(files["vp_paths"], rpm_db_manager)
-        positions = get_vp_dataframe(files["vp_paths"], route_ids)
-        position_size = positions.shape[0]
-        assert positions.shape[1] == 12
+    for path in files["vp_paths"]:
+        assert "RT_VEHICLE_POSITIONS" in path
 
-        # check that the types can be set correctly
-        positions = transform_vp_datatypes(positions)
-        assert positions.shape[1] == 12
-        assert position_size == positions.shape[0]
+    # check that we can load the parquet file into a dataframe correctly
+    route_ids = rail_routes_from_filepath(files["vp_paths"], rpm_db_manager)
+    positions = get_vp_dataframe(files["vp_paths"], route_ids)
+    position_size = positions.shape[0]
+    assert positions.shape[1] == 12
 
-        # check that it can be combined with the static schedule
-        positions = add_static_version_key_column(positions, rpm_db_manager)
-        assert positions.shape[1] == 13
-        assert position_size == positions.shape[0]
+    # check that the types can be set correctly
+    positions = transform_vp_datatypes(positions)
+    assert positions.shape[1] == 12
+    assert position_size == positions.shape[0]
 
-        positions = add_parent_station_column(positions, rpm_db_manager)
-        assert positions.shape[1] == 14
-        assert position_size == positions.shape[0]
+    # check that it can be combined with the static schedule
+    positions = add_static_version_key_column(positions, rpm_db_manager)
+    assert positions.shape[1] == 13
+    assert position_size == positions.shape[0]
 
-        positions = transform_vp_timestamps(positions)
-        assert positions.shape[1] == 14
-        assert position_size > positions.shape[0]
+    positions = add_parent_station_column(positions, rpm_db_manager)
+    assert positions.shape[1] == 14
+    assert position_size == positions.shape[0]
 
-        trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"], route_ids)
-        trip_update_size = trip_updates.shape[0]
-        assert trip_updates.shape[1] == 9
+    positions = transform_vp_timestamps(positions)
+    assert positions.shape[1] == 14
+    assert position_size > positions.shape[0]
 
-        # check that it can be combined with the static schedule
-        trip_updates = add_static_version_key_column(
-            trip_updates, rpm_db_manager
-        )
-        assert trip_updates.shape[1] == 10
-        assert trip_update_size == trip_updates.shape[0]
+    trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"], route_ids)
+    trip_update_size = trip_updates.shape[0]
+    assert trip_updates.shape[1] == 9
 
-        trip_updates = add_parent_station_column(trip_updates, rpm_db_manager)
-        assert trip_updates.shape[1] == 11
-        assert trip_update_size == trip_updates.shape[0]
+    # check that it can be combined with the static schedule
+    trip_updates = add_static_version_key_column(trip_updates, rpm_db_manager)
+    assert trip_updates.shape[1] == 10
+    assert trip_update_size == trip_updates.shape[0]
 
-        trip_updates = reduce_trip_updates(trip_updates)
-        assert trip_update_size > trip_updates.shape[0]
+    trip_updates = add_parent_station_column(trip_updates, rpm_db_manager)
+    assert trip_updates.shape[1] == 11
+    assert trip_update_size == trip_updates.shape[0]
 
-        events = combine_events(positions, trip_updates)
+    trip_updates = reduce_trip_updates(trip_updates)
+    assert trip_update_size > trip_updates.shape[0]
 
-        ve_columns = [c.key for c in VehicleEvents.__table__.columns]
-        # pm_trip_id and updated_on are handled by postgres
-        # trip_id is pulled from parquet but not inserted into vehicle_events table
-        expected_columns = set(ve_columns) - {
-            "pm_event_id",
-            "previous_trip_stop_pm_event_id",
-            "next_trip_stop_pm_event_id",
-            "updated_on",
-            "pm_trip_id",
-            "travel_time_seconds",
-            "dwell_time_seconds",
-            "headway_trunk_seconds",
-            "headway_branch_seconds",
-            "canonical_stop_sequence",
-            "sync_stop_sequence",
-        }
-        expected_columns.add("trip_id")
-        expected_columns.add("vehicle_label")
-        expected_columns.add("vehicle_consist")
-        expected_columns.add("direction_id")
-        expected_columns.add("route_id")
-        expected_columns.add("start_time")
-        expected_columns.add("vehicle_id")
-        expected_columns.add("static_version_key")
-        assert len(expected_columns) == len(events.columns)
+    events = combine_events(positions, trip_updates)
 
-        missing_columns = set(events.columns) - expected_columns
-        assert len(missing_columns) == 0
+    ve_columns = [c.key for c in VehicleEvents.__table__.columns]
+    # pm_trip_id and updated_on are handled by postgres
+    # trip_id is pulled from parquet but not inserted into vehicle_events table
+    expected_columns = set(ve_columns) - {
+        "pm_event_id",
+        "previous_trip_stop_pm_event_id",
+        "next_trip_stop_pm_event_id",
+        "updated_on",
+        "pm_trip_id",
+        "travel_time_seconds",
+        "dwell_time_seconds",
+        "headway_trunk_seconds",
+        "headway_branch_seconds",
+        "canonical_stop_sequence",
+        "sync_stop_sequence",
+    }
+    expected_columns.add("trip_id")
+    expected_columns.add("vehicle_label")
+    expected_columns.add("vehicle_consist")
+    expected_columns.add("direction_id")
+    expected_columns.add("route_id")
+    expected_columns.add("start_time")
+    expected_columns.add("vehicle_id")
+    expected_columns.add("static_version_key")
+    assert len(expected_columns) == len(events.columns)
 
-        build_temp_events(events, rpm_db_manager)
-        update_events_from_temp(rpm_db_manager)
+    missing_columns = set(events.columns) - expected_columns
+    assert len(missing_columns) == 0
+
+    build_temp_events(events, rpm_db_manager)
+    update_events_from_temp(rpm_db_manager)
 
     write_flat_files(rpm_db_manager)
 
