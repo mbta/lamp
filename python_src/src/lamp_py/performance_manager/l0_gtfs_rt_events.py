@@ -6,7 +6,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.functions import count
 
-from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.postgres.metadata_schema import MetadataLog
 from lamp_py.postgres.rail_performance_manager_schema import (
@@ -27,10 +26,20 @@ from .l1_rt_trips import process_trips, load_new_trip_data
 from .l1_rt_metrics import update_metrics_from_temp_events
 
 
-def get_gtfs_rt_paths(md_db_manager: DatabaseManager) -> List[Dict[str, List]]:
+def get_gtfs_rt_paths(
+    md_db_manager: DatabaseManager, path_count: int = 12
+) -> Dict[str, List]:
     """
-    get all of the gtfs_rt files and group them by the hour they are from.
-    within a group, include the non bus route ids for the timestamp
+    get lists of GTFS-RT paths, grouped by type, and DB primary keys of each path
+    limit number of paths in each list to a max of `path_count`
+    will be ordered by oldest first
+
+    :return {
+        "vp_paths": List[RT_VEHICLE_POSITIONS paths],
+        "tu_paths": List[RT_TRIPI_UPDATES paths],
+        "ids": List[DB ids of path files]
+    }
+
     """
     process_logger = ProcessLogger("gtfs_rt.get_files")
     process_logger.log_start()
@@ -64,12 +73,25 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager) -> List[Dict[str, List]]:
                 "vp_paths": [],
             }
 
-    process_logger.add_metadata(hours_found=len(grouped_files))
+    return_dict: Dict[str, List[str]] = {
+        "vp_paths": [],
+        "tu_paths": [],
+        "ids": [],
+    }
+
+    for timestamp in sorted(grouped_files.keys())[:path_count]:
+        return_dict["vp_paths"] += grouped_files[timestamp]["vp_paths"]
+        return_dict["tu_paths"] += grouped_files[timestamp]["tu_paths"]
+        return_dict["ids"] += grouped_files[timestamp]["ids"]
+
+    process_logger.add_metadata(
+        hours_found=len(grouped_files),
+        tu_paths_returned=len(return_dict["tu_paths"]),
+        vp_paths_returned=len(return_dict["vp_paths"]),
+    )
     process_logger.log_complete()
 
-    return [
-        grouped_files[timestamp] for timestamp in sorted(grouped_files.keys())
-    ]
+    return return_dict
 
 
 def combine_events(
@@ -453,91 +475,82 @@ def process_gtfs_rt_files(
     MetadataLog table.
     """
     hours_to_process = 12
-    process_logger = ProcessLogger("l0_gtfs_rt_tables_loader")
+    process_logger = ProcessLogger("l0_gtfs_rt_table_loader")
     process_logger.log_start()
 
-    for files in get_gtfs_rt_paths(md_db_manager):
-        check_for_sigterm()
-        if hours_to_process == 0:
-            break
-        hours_to_process -= 1
+    files = get_gtfs_rt_paths(md_db_manager, path_count=hours_to_process)
 
-        subprocess_logger = ProcessLogger(
-            "l0_gtfs_rt_table_loader",
-            tu_file_count=len(files["tu_paths"]),
-            vp_file_count=len(files["vp_paths"]),
+    if len(files["vp_paths"]) == 0 and len(files["tu_paths"]) == 0:
+        process_logger.log_complete()
+        return
+
+    try:
+        if len(files["tu_paths"]) == 0:
+            # only vp files available. create dummy tu events frame.
+            vp_events = process_vp_files(
+                paths=files["vp_paths"],
+                db_manager=rpm_db_manager,
+            )
+            tu_events = pandas.DataFrame()
+        elif len(files["vp_paths"]) == 0:
+            # only tu files available. create dummy vp events frame.
+            tu_events = process_tu_files(
+                paths=files["tu_paths"],
+                db_manager=rpm_db_manager,
+            )
+            vp_events = pandas.DataFrame()
+        else:
+            # files available for vp and tu events
+            vp_events = process_vp_files(
+                paths=files["vp_paths"],
+                db_manager=rpm_db_manager,
+            )
+            tu_events = process_tu_files(
+                paths=files["tu_paths"],
+                db_manager=rpm_db_manager,
+            )
+
+        if vp_events.shape[0] > 0 and tu_events.shape[0] > 0:
+            # combine events when available from tu and vp
+            events = combine_events(vp_events, tu_events)
+        elif vp_events.shape[0] == 0 and tu_events.shape[0] == 0:
+            # no events found
+            events = pandas.DataFrame()
+        elif tu_events.shape[0] == 0:
+            # no tu events found
+            events = vp_events
+            events["tu_stop_timestamp"] = None
+        elif vp_events.shape[0] == 0:
+            # no vp events found
+            events = tu_events
+            events["vp_move_timestamp"] = None
+            events["vp_stop_timestamp"] = None
+
+        # continue events processing if records exist
+        if events.shape[0] > 0:
+            change_count = build_temp_events(events, rpm_db_manager)
+
+            if change_count > 0:
+                update_events_from_temp(rpm_db_manager)
+                # update trips data in vehicle_trips table
+                process_trips(rpm_db_manager)
+                # update event metrics columns
+                update_metrics_from_temp_events(rpm_db_manager)
+
+        md_db_manager.execute(
+            sa.update(MetadataLog.__table__)
+            .where(MetadataLog.pk_id.in_(files["ids"]))
+            .values(rail_pm_processed=True)
         )
-        subprocess_logger.log_start()
-
-        try:
-            if len(files["tu_paths"]) == 0:
-                # only vp files available. create dummy tu events frame.
-                vp_events = process_vp_files(
-                    paths=files["vp_paths"],
-                    db_manager=rpm_db_manager,
-                )
-                tu_events = pandas.DataFrame()
-            elif len(files["vp_paths"]) == 0:
-                # only tu files available. create dummy vp events frame.
-                tu_events = process_tu_files(
-                    paths=files["tu_paths"],
-                    db_manager=rpm_db_manager,
-                )
-                vp_events = pandas.DataFrame()
-            else:
-                # files available for vp and tu events
-                vp_events = process_vp_files(
-                    paths=files["vp_paths"],
-                    db_manager=rpm_db_manager,
-                )
-                tu_events = process_tu_files(
-                    paths=files["tu_paths"],
-                    db_manager=rpm_db_manager,
-                )
-
-            if vp_events.shape[0] > 0 and tu_events.shape[0] > 0:
-                # combine events when available from tu and vp
-                events = combine_events(vp_events, tu_events)
-            elif vp_events.shape[0] == 0 and tu_events.shape[0] == 0:
-                # no events found
-                events = pandas.DataFrame()
-            elif tu_events.shape[0] == 0:
-                # no tu events found
-                events = vp_events
-                events["tu_stop_timestamp"] = None
-            elif vp_events.shape[0] == 0:
-                # no vp events found
-                events = tu_events
-                events["vp_move_timestamp"] = None
-                events["vp_stop_timestamp"] = None
-
-            # continue events processing if records exist
-            if events.shape[0] > 0:
-                change_count = build_temp_events(events, rpm_db_manager)
-
-                if change_count > 0:
-                    update_events_from_temp(rpm_db_manager)
-                    # update trips data in vehicle_trips table
-                    process_trips(rpm_db_manager)
-                    # update event metrics columns
-                    update_metrics_from_temp_events(rpm_db_manager)
-
-            md_db_manager.execute(
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(files["ids"]))
-                .values(rail_pm_processed=True)
-            )
-            subprocess_logger.add_metadata(event_count=events.shape[0])
-            subprocess_logger.log_complete()
-        except Exception as error:
-            md_db_manager.execute(
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(files["ids"]))
-                .values(rail_pm_processed=True, rail_pm_process_fail=True)
-            )
-            subprocess_logger.log_failure(error)
+        process_logger.add_metadata(event_count=events.shape[0])
+        process_logger.log_complete()
+    except Exception as error:
+        md_db_manager.execute(
+            sa.update(MetadataLog.__table__)
+            .where(MetadataLog.pk_id.in_(files["ids"]))
+            .values(rail_pm_processed=True, rail_pm_process_fail=True)
+        )
+        process_logger.log_failure(error)
 
     rpm_db_manager.vacuum_analyze(VehicleEvents)
     rpm_db_manager.vacuum_analyze(VehicleTrips)
-
-    process_logger.log_complete()
