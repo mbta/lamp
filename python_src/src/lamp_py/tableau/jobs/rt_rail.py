@@ -166,7 +166,7 @@ class HyperRtRail(HyperJob):
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
-        dataset_batch_size = 1024 * 1024
+        dataset_batch_size = 1024 * 512
 
         download_file(
             object_path=self.remote_parquet_path,
