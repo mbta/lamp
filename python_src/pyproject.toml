@@ -39,7 +39,7 @@ tableauserverclient = "0.30"
 black = "^24.2.0"
 mypy = "^1.1.1"
 pylint = "^3.0.3"
-pytest = "^8.0.1"
+pytest = "^8.0.2"
 ipykernel = "^6.29.2"
 
 [build-system]
