@@ -42,7 +42,7 @@ class HyperGTFS(HyperJob):
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
-        db_batch_size = int(1024 * 1024 / 2)
+        db_batch_size = int(1024 * 1024 / 4)
 
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
@@ -94,7 +94,7 @@ class HyperGTFS(HyperJob):
         combine_batches = pd.dataset(
             [old_ds, new_ds],
             schema=self.parquet_schema,
-        ).to_batches(batch_size=1024 * 1024)
+        ).to_batches(batch_size=int(1024 * 1024 / 4))
 
         with pq.ParquetWriter(
             combine_parquet_path, schema=self.parquet_schema
