@@ -224,4 +224,8 @@ class HyperRtRail(HyperJob):
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(db_parquet_path)
 
+        combine_batches = None
+        joined_dataset = None
+        old_batches = None
+
         return True

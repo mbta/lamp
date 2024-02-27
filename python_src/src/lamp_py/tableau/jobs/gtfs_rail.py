@@ -107,6 +107,10 @@ class HyperGTFS(HyperJob):
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(db_parquet_path)
 
+        old_ds = None
+        new_ds = None
+        combine_batches = None
+
         return True
 
 
