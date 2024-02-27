@@ -380,6 +380,12 @@ class DatabaseManager:
         :param schema: schema of parquet file from select query
         :param batch_size: number of records to stream from db per batch
         """
+        process_logger = ProcessLogger(
+            "postgres_write_to_parquet",
+            batch_size=batch_size,
+            write_path=write_path,
+        )
+        process_logger.log_start()
         statement = select_query.execution_options(yield_per=batch_size)
         with self.session.begin() as cursor:
             with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
@@ -389,6 +395,8 @@ class DatabaseManager:
                             [row._asdict() for row in part], schema=schema
                         )
                     )
+
+        process_logger.log_complete()
 
     def truncate_table(
         self,
