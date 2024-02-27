@@ -64,6 +64,11 @@ def start_hyper_updates() -> None:
 
 def start_parquet_updates(db_manager: DatabaseManager) -> None:
     """Run all Parquet Update jobs"""
+
+    # ECS dying possibly because of high memory utilization
+    # attempt to free resources before parquet writing
+    gc.collect()
+
     for job in create_hyper_jobs():
         job.run_parquet(db_manager)
 
