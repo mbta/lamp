@@ -38,7 +38,7 @@ tableauserverclient = "0.30"
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
 mypy = "^1.1.1"
-pylint = "^3.0.3"
+pylint = "^3.1.0"
 pytest = "^8.0.1"
 ipykernel = "^6.29.2"
 
