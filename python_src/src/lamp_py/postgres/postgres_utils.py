@@ -1,4 +1,5 @@
 import os
+import gc
 import time
 import urllib.parse as urlparse
 from enum import Enum, auto
@@ -389,6 +390,8 @@ class DatabaseManager:
                             [row._asdict() for row in part], schema=schema
                         )
                     )
+
+        gc.collect()
 
     def truncate_table(
         self,

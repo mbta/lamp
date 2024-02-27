@@ -153,7 +153,7 @@ class HyperRtRail(HyperJob):
 
         # this is a fairly wide dataset, so dial back the batch size
         # to limit memory usage
-        db_batch_size = int(1024 * 1024 / 4)
+        db_batch_size = int(1024 * 1024 / 8)
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
@@ -166,7 +166,7 @@ class HyperRtRail(HyperJob):
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
-        dataset_batch_size = int(1024 * 1024 / 4)
+        dataset_batch_size = int(1024 * 1024 / 8)
 
         download_file(
             object_path=self.remote_parquet_path,
@@ -188,6 +188,7 @@ class HyperRtRail(HyperJob):
             select_query=sa.text(update_query),
             write_path=db_parquet_path,
             schema=self.parquet_schema,
+            batch_size=dataset_batch_size,
         )
 
         # update downloaded parquet file with filtered service_date
@@ -219,6 +220,9 @@ class HyperRtRail(HyperJob):
         ) as writer:
             for batch in combine_batches:
                 writer.write_batch(batch)
+
+        del old_batches
+        del combine_batches
 
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(db_parquet_path)
