@@ -17,6 +17,7 @@ from lamp_py.aws.s3 import get_datetime_from_partition_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .metadata_schema import MetadataLog
+from .rail_performance_manager_schema import VehicleTrips
 
 
 def running_in_docker() -> bool:
@@ -297,12 +298,22 @@ class DatabaseManager:
             sa.sql.dml.Insert,
             sa.sql.elements.TextClause,
         ],
+        disable_trip_tigger: bool = False,
     ) -> sa.engine.CursorResult:
         """
         execute db action WITHOUT data
+
+        :param disable_trip_trigger if True, will disable rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
         """
+        if disable_trip_tigger:
+            self._disable_trip_trigger()
+
         with self.session.begin() as cursor:
             result = cursor.execute(statement)
+
+        if disable_trip_tigger:
+            self._enable_trip_trigger()
+
         return result  # type: ignore
 
     def execute_with_data(
@@ -314,12 +325,22 @@ class DatabaseManager:
             sa.sql.dml.Insert,
         ],
         data: pandas.DataFrame,
+        disable_trip_tigger: bool = False,
     ) -> sa.engine.CursorResult:
         """
         execute db action WITH data as pandas dataframe
+
+        :param disable_trip_trigger if True, will disable rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
         """
+        if disable_trip_tigger:
+            self._disable_trip_trigger()
+
         with self.session.begin() as cursor:
             result = cursor.execute(statement, data.to_dict(orient="records"))
+
+        if disable_trip_tigger:
+            self._enable_trip_trigger()
+
         return result  # type: ignore
 
     def insert_dataframe(
@@ -380,15 +401,27 @@ class DatabaseManager:
         :param schema: schema of parquet file from select query
         :param batch_size: number of records to stream from db per batch
         """
+        process_logger = ProcessLogger(
+            "postgres_write_to_parquet",
+            batch_size=batch_size,
+            write_path=write_path,
+        )
+        process_logger.log_start()
+
+        part_stmt = select_query.execution_options(
+            stream_results=True,
+            max_row_buffer=batch_size,
+        )
         with self.session.begin() as cursor:
-            result = cursor.execute(select_query).yield_per(batch_size)
             with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
-                for part in result.partitions():
+                for part in cursor.execute(part_stmt).partitions(batch_size):
                     pq_writer.write_batch(
                         pyarrow.RecordBatch.from_pylist(
                             [row._asdict() for row in part], schema=schema
                         )
                     )
+
+        process_logger.log_complete()
 
     def truncate_table(
         self,
@@ -424,6 +457,36 @@ class DatabaseManager:
         with self.session.begin() as cursor:
             cursor.execute(sa.text("END TRANSACTION;"))
             cursor.execute(sa.text(f"VACUUM (ANALYZE) {table_as};"))
+
+    def _disable_trip_trigger(self) -> None:
+        """
+        DISABLE rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
+
+        Based on our current RDS schema, any UPDATE action against the vehicle_trips
+        table results in the rt_trips_update_branch_trunk TRIGGER running an expensive
+        evaluation against all UPDATED records to determine the trunk_route_id and branch_route_id
+        for the trip. This evaluation is rarely needed, and is slowlying down very
+        simple queries.
+        """
+        table = self._get_schema_table(VehicleTrips)
+        disable_trigger = (
+            f"ALTER TABLE {table} DISABLE TRIGGER rt_trips_update_branch_trunk;"
+        )
+
+        with self.session.begin() as cursor:
+            cursor.execute(sa.text(disable_trigger))
+
+    def _enable_trip_trigger(self) -> None:
+        """
+        ENABLE rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
+        """
+        table = self._get_schema_table(VehicleTrips)
+        enable_trigger = (
+            f"ALTER TABLE {table} ENABLE TRIGGER rt_trips_update_branch_trunk;"
+        )
+
+        with self.session.begin() as cursor:
+            cursor.execute(sa.text(enable_trigger))
 
 
 def seed_metadata(md_db_manager: DatabaseManager, paths: List[str]) -> None:

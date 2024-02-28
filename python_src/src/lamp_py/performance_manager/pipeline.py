@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import gc
 import sched
 import sys
 import time
@@ -91,6 +92,7 @@ def main(args: argparse.Namespace) -> None:
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
+            gc.collect()
             scheduler.enter(int(args.interval), 1, iteration)
 
     # schedule the initial loop and start the scheduler
