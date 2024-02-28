@@ -183,7 +183,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
             VehicleTrips.trip_id == distinct_update_query.c.trip_id,
         )
     )
-    db_manager.execute(trip_update_query)
+    db_manager.execute(trip_update_query, disable_trip_tigger=True)
 
     process_logger.log_complete()
 
@@ -217,7 +217,7 @@ def update_static_version_key(db_manager: DatabaseManager) -> None:
 
     process_logger = ProcessLogger("l1_trips.update_static_version_key")
     process_logger.log_start()
-    db_manager.execute(update_query)
+    db_manager.execute(update_query, disable_trip_tigger=True)
     process_logger.log_complete()
 
 
@@ -270,13 +270,13 @@ def update_start_times(db_manager: DatabaseManager) -> None:
         .subquery("scheduled_start_times")
     )
 
-    schedule_start_times_update_query = (
+    schedule_start_times_update = (
         sa.update(VehicleTrips.__table__)
         .where(VehicleTrips.pm_trip_id == schedule_start_times_sub.c.pm_trip_id)
         .values(start_time=schedule_start_times_sub.c.start_time)
     )
 
-    db_manager.execute(schedule_start_times_update_query)
+    db_manager.execute(schedule_start_times_update, disable_trip_tigger=True)
 
     # get the start times for added trips. by definition, these will not be in
     # the static schedule, so find the earliest departure from the real time
@@ -320,7 +320,9 @@ def update_start_times(db_manager: DatabaseManager) -> None:
         )
 
         db_manager.execute_with_data(
-            start_times_update_query, unscheduled_start_times
+            start_times_update_query,
+            unscheduled_start_times,
+            disable_trip_tigger=True,
         )
 
 
@@ -453,7 +455,7 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
 
     process_logger = ProcessLogger("l1_trips.update_exact_trip_matches")
     process_logger.log_start()
-    db_manager.execute(update_query)
+    db_manager.execute(update_query, disable_trip_tigger=True)
     process_logger.log_complete()
 
 
@@ -504,7 +506,7 @@ def update_directions(db_manager: DatabaseManager) -> None:
 
     process_logger = ProcessLogger("l1_trips.update_directions")
     process_logger.log_start()
-    db_manager.execute(update_query)
+    db_manager.execute(update_query, disable_trip_tigger=True)
     process_logger.log_complete()
 
 
@@ -952,7 +954,7 @@ def backup_rt_static_trip_match(
         )
     )
 
-    db_manager.execute(update_query)
+    db_manager.execute(update_query, disable_trip_tigger=True)
 
 
 def update_backup_static_trip_id(db_manager: DatabaseManager) -> None:
