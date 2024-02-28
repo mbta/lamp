@@ -8,6 +8,7 @@ from threading import current_thread
 from typing import (
     IO,
     Callable,
+    Dict,
     Iterator,
     List,
     Optional,
@@ -235,6 +236,31 @@ def file_list_from_s3(
         return []
 
 
+def file_list_from_s3_with_details(
+    bucket_name: str, file_prefix: str
+) -> List[Dict]:
+    """
+    get a list of files from s3 along with size and last modified details
+    """
+    s3_client = get_s3_client()
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=file_prefix)
+    file_list = []
+
+    for obj in response.get("Contents", []):
+        if obj["Size"] == 0:
+            continue
+
+        file_list.append(
+            {
+                "filepath": os.path.join("s3://", bucket_name, obj["Key"]),
+                "size": obj["Size"],
+                "last_modified": obj["LastModified"],
+            }
+        )
+
+    return file_list
+
+
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
     """
     move a single s3 file to the to_bucket bucket. break the incoming s3 path
@@ -385,9 +411,10 @@ def write_parquet_file(
     table: Table,
     file_type: str,
     s3_dir: str,
-    partition_cols: List[str],
+    partition_cols: Optional[List[str]] = None,
     visitor_func: Optional[Callable[[str], None]] = None,
     basename_template: Optional[str] = None,
+    filename: Optional[str] = None,
 ) -> None:
     """
     Helper function to write out a parquet table to an s3 path, partitioning
@@ -418,6 +445,8 @@ def write_parquet_file(
     @basename_template - a template string used to generate base names of
         written parquet files. The token `{i}` will be replaced with an
         incremented int.
+    @filename - if set, the filename that will be written to. if left empty,
+        the basename template (or _its_ fallback) will be used.
     """
     process_logger = ProcessLogger(
         "write_parquet", file_type=file_type, number_of_rows=table.num_rows
@@ -425,6 +454,9 @@ def write_parquet_file(
     process_logger.log_start()
 
     # pull out the partition information into a list of strings.
+    if partition_cols is None:
+        partition_cols = []
+
     partition_strings = []
     for col in partition_cols:
         unique_list = pc.unique(table.column(col)).to_pylist()
@@ -433,12 +465,15 @@ def write_parquet_file(
 
     table = table.drop(partition_cols)
 
-    # generate an s3 path to write this file to
-    if basename_template is None:
-        basename_template = guid() + "-{i}.parquet"
-    write_path = os.path.join(
-        s3_dir, *partition_strings, basename_template.format(i=0)
-    )
+    # generate an s3 path to write this file to. if there is a filename, use
+    # that. if not use the basename template, with its uuid fallback, to
+    # generate the filename
+    if filename is None:
+        if basename_template is None:
+            basename_template = guid() + "-{i}.parquet"
+        filename = basename_template.format(i=0)
+
+    write_path = os.path.join(s3_dir, *partition_strings, filename)
 
     process_logger.add_metadata(write_path=write_path)
 
