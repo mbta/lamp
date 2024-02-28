@@ -87,7 +87,7 @@ def main(args: argparse.Namespace) -> None:
             process_static_tables(rpm_db_manager, md_db_manager)
             process_gtfs_rt_files(rpm_db_manager, md_db_manager)
             write_flat_files(rpm_db_manager)
-            start_parquet_updates(rpm_db_manager)
+            # start_parquet_updates(rpm_db_manager) # FIXME: renable when live
 
             process_logger.log_complete()
         except Exception as exception:
