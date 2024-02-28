@@ -3,7 +3,6 @@ from abc import ABC
 from abc import abstractmethod
 from itertools import chain
 from typing import Dict
-import logging
 
 import pyarrow
 from pyarrow import fs
@@ -289,10 +288,6 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
                 remote_schema_match = self.parquet_schema.equals(remote_schema)
 
-            logging.warning(
-                f"hyper_job_run_parquet got file_info remote_schema_match={remote_schema_match}"
-            )
-
             if remote_schema_match is False:
                 # create new parquet if no remote parquet found or
                 # remote schema does not match expected local schema
@@ -305,10 +300,6 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
             parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (
                 1024 * 1024
-            )
-
-            logging.warning(
-                f"hyper_job_run_parquet made local parquet file parquet_file_size_mb={parquet_file_size_mb}"
             )
 
             process_log.add_metadata(

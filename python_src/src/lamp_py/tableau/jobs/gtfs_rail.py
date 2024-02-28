@@ -42,7 +42,7 @@ class HyperGTFS(HyperJob):
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
-        db_batch_size = int(1024 * 1024 / 10)
+        db_batch_size = int(1024 * 1024)
 
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
@@ -52,7 +52,7 @@ class HyperGTFS(HyperJob):
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
-        batch_size = int(1024 * 1024 / 10)
+        batch_size = int(1024 * 1024)
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,

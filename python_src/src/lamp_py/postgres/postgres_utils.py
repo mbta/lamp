@@ -386,16 +386,18 @@ class DatabaseManager:
             write_path=write_path,
         )
         process_logger.log_start()
+
+        stm = select_query.execution_options(
+            stream_results=True, max_row_buffer=batch_size
+        )
         with self.session.begin() as cursor:
-            result = cursor.execute(select_query).yield_per(batch_size)
             with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
-                for part in result.partitions():
+                for part in cursor.execute(stm).partitions(batch_size):
                     pq_writer.write_batch(
                         pyarrow.RecordBatch.from_pylist(
                             [row._asdict() for row in part], schema=schema
                         )
                     )
-            result = None
 
         process_logger.log_complete()
 
