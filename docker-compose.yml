@@ -45,7 +45,7 @@ services:
     build:
       context: ./python_src
     depends_on:
-      - local_rds
+      - metadata_rds
     working_dir: /lamp
     volumes:
       - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
