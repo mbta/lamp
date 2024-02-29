@@ -185,6 +185,13 @@ class HyperRtRail(HyperJob):
             schema=self.parquet_schema,
         )
 
+        check_filter = pc.field("service_date") >= max_start_date
+        if pd.dataset(db_parquet_path).count_rows() == pd.dataset(
+            self.local_parquet_path
+        ).count_rows(filter=check_filter):
+            # No new records from database, no upload requried
+            return False
+
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
         old_batches = pd.dataset(self.local_parquet_path).to_batches(
