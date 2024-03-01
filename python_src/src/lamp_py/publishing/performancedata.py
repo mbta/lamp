@@ -1,0 +1,33 @@
+import os
+
+from lamp_py.aws.s3 import upload_file
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
+def publish_performance_index() -> None:
+    """
+    Upload index.html to https://performancedata.mbta.com bucket
+    """
+    bucket = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
+    here = os.path.dirname(os.path.abspath(__file__))
+    index_file = "index.html"
+
+    if bucket == "":
+        return
+
+    local_index_path = os.path.join(here, index_file)
+    upload_index_path = os.path.join(bucket, index_file)
+
+    logger = ProcessLogger(
+        "upload_performancedata_index",
+        local_index_path=local_index_path,
+        upload_index_path=upload_index_path,
+    )
+    logger.log_start()
+
+    upload_file(
+        file_name=local_index_path,
+        object_path=upload_index_path,
+    )
+
+    logger.log_complete()
