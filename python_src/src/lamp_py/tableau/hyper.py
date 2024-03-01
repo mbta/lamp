@@ -23,6 +23,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import (
     download_file,
     upload_file,
+    object_metadata,
 )
 
 from .server import (
@@ -40,11 +41,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
         self,
         hyper_file_name: str,
         remote_parquet_path: str,
+        lamp_version: str,
         project_name: str = "LAMP API",
     ) -> None:
         self.hyper_file_name = hyper_file_name
         self.hyper_table_name = hyper_file_name.replace(".hyper", "")
         self.remote_parquet_path = remote_parquet_path
+        self.lamp_version = lamp_version
         self.project_name = project_name
         self.local_parquet_path = "/tmp/local.parquet"
         self.local_hyper_path = f"/tmp/{hyper_file_name}"
@@ -136,6 +139,21 @@ class HyperJob(ABC):  # pylint: disable=R0902
             for col in parquet_column_stats
             if col["statistics"]
         }
+
+    def remote_version_match(self) -> bool:
+        """
+        Compare "lamp_version" of remote parquet file to expected.
+
+        :return True if remote and expected version match, else False
+        """
+        lamp_version = object_metadata(self.remote_parquet_path).get(
+            "lamp_version", ""
+        )
+
+        if lamp_version == self.lamp_version:
+            return True
+
+        return False
 
     def create_local_hyper(self) -> int:
         """
@@ -288,7 +306,10 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
                 remote_schema_match = self.parquet_schema.equals(remote_schema)
 
-            if remote_schema_match is False:
+            if (
+                remote_schema_match is False
+                or self.remote_version_match() is False
+            ):
                 # create new parquet if no remote parquet found or
                 # remote schema does not match expected local schema
                 run_action = "create"
@@ -313,6 +334,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 upload_file(
                     file_name=self.local_parquet_path,
                     object_path=self.remote_parquet_path,
+                    extra_args={
+                        "Metadata": {"lamp_version": self.lamp_version}
+                    },
                 )
 
             os.remove(self.local_parquet_path)

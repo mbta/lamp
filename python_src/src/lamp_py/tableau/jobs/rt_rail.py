@@ -20,6 +20,7 @@ class HyperRtRail(HyperJob):
             self,
             hyper_file_name="LAMP_ALL_RT_fields.hyper",
             remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet",
+            lamp_version="1.0",
         )
         self.table_query = (
             "SELECT"
