@@ -19,6 +19,8 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.tableau import start_parquet_updates
 from lamp_py.tableau import clean_parquet_paths
 
+from lamp_py.publishing.performancedata import publish_performance_index
+
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
 from .l0_gtfs_static_load import process_static_tables
@@ -54,6 +56,7 @@ def run_on_app_start() -> None:
     on_app_start_log.log_start()
 
     clean_parquet_paths()
+    publish_performance_index()
 
     on_app_start_log.log_complete()
 
