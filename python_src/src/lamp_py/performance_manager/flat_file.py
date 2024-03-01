@@ -127,7 +127,7 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
 
     for service_date in service_dates:
         sub_process_logger = ProcessLogger(
-            "flat_file_write", service_date=service_date
+            "flat_file_write", service_date=service_date.strftime("%Y-%m-%d")
         )
         sub_process_logger.log_start()
 
@@ -157,12 +157,12 @@ def write_csv_index() -> None:
     df = pandas.DataFrame(file_details)
 
     # drop details for the index cvs and add in service date column
-    df = df[df["filepath"] != S3Archive.INDEX_FILENAME]
+    df = df[~df["filepath"].str.endswith(S3Archive.INDEX_FILENAME)]
     df["service_date"] = df["filepath"].apply(lambda x: x.split("/")[-1][:10])
 
     # write to local csv and upload file to s3
     csv_path = "/tmp/rpm_archive_index.csv"
-    df.to_csv(csv_path)
+    df.to_csv(csv_path, index=False)
 
     upload_file(
         file_name=csv_path,
