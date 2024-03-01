@@ -150,10 +150,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
             "lamp_version", ""
         )
 
-        if lamp_version == self.lamp_version:
-            return True
-
-        return False
+        return lamp_version == self.lamp_version
 
     def create_local_hyper(self) -> int:
         """
