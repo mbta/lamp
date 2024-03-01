@@ -1,22 +1,23 @@
 import logging
 import os
+import datetime
 import pathlib
+import re
 from functools import lru_cache
 from typing import (
+    cast,
     Dict,
     Iterator,
     List,
     Optional,
-    Callable,
 )
 
 import pandas
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
-from pyarrow import Table
 
-from lamp_py.performance_manager.flat_file import write_flat_files
+from lamp_py.performance_manager.flat_file import write_flat_files, S3Archive
 from lamp_py.performance_manager.l0_gtfs_static_load import (
     process_static_tables,
     get_table_objects,
@@ -174,64 +175,164 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         mock__get_static_parquet_paths,
     )
 
-    # pylint: disable=R0913
-    # pylint too many arguments (more than 5)
-    def mock__write_parquet_file(
-        table: Table,
-        file_type: str,
-        s3_dir: str,
-        partition_cols: List[str],
-        visitor_func: Optional[Callable[..., None]] = None,
-        basename_template: Optional[str] = None,
-    ) -> None:
+    yield
+
+
+@pytest.fixture(name="_flat_file_s3_patch")
+def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
+    """
+    monkeypatch s3 interactions for the flat file writing function
+    """
+    public_archive_file_details = [
+        {
+            "filepath": "s3://bucket_name/lamp/subway_on_time_performance-v1/index.csv",
+            "size": 123,
+            "last_modified": datetime.datetime.now(),
+        },
+        {
+            "filepath": "s3://bucket_name/lamp/subway_on_time_performance-v1/2023-04-06-subway-on-time-performance-v1.parquet",
+            "size": 123,
+            "last_modified": datetime.datetime.now(),
+        },
+        {
+            "filepath": "s3://bucket_name/lamp/subway_on_time_performance-v1/2023-04-07-subway-on-time-performance-v1.parquet",
+            "size": 123,
+            "last_modified": datetime.datetime.now(),
+        },
+    ]
+
+    test_archive_value = "TEST_GTFS_PUBLIC"
+    monkeypatch.setattr(S3Archive, "BUCKET_NAME", test_archive_value)
+
+    def mock__file_list_from_s3(
+        bucket_name: str, file_prefix: str, max_list_size: int = 250_000
+    ) -> List[str]:
         """
-        this will be called when writing the flat file parquet to s3
+        this is used to get all of the files that are already on s3.
         """
-        # check that only that flat file is being written
-        assert file_type == "flat_rail_performance"
-        assert visitor_func is None
-        assert "lamp" in s3_dir
-        assert "flat_file" in s3_dir
+        assert bucket_name == test_archive_value
+        assert file_prefix == "lamp/subway-on-time-performance-v1"
+        assert max_list_size == 250_000
 
-        # check that the service date is right in the filename
-        assert basename_template == "2023-05-08-rail-performance-{i}.parquet"
+        files: List[str] = []
+        for file in public_archive_file_details:
+            filepath = cast(str, file["filepath"])
+            files.append(filepath)
 
-        # check that the shape is good, rows count is precalculated
-        rows, columns = table.shape
-        assert columns == 30
-        assert rows == 4310
-
-        # check that partitioned columns behave appropriately
-        for partition in partition_cols:
-            assert partition in table.column_names
-            assert len(table[partition].unique()) == 1
-
-        # check that these keys have values throughout the file
-        must_have_keys = [
-            "stop_id",
-            "parent_station",
-            "route_id",
-            "direction_id",
-            "start_time",
-            "vehicle_id",
-            "trip_id",
-            "vehicle_label",
-            "year",
-            "month",
-            "day",
-            "service_date",
-        ]
-
-        for key in must_have_keys:
-            assert True not in table[key].is_null(
-                nan_is_null=True
-            ), f"{key} has null values"
-
-    # pylint: enable=R0913
+        return files
 
     monkeypatch.setattr(
-        "lamp_py.performance_manager.flat_file.write_parquet_file",
-        mock__write_parquet_file,
+        "lamp_py.performance_manager.flat_file.file_list_from_s3",
+        mock__file_list_from_s3,
+    )
+
+    def mock__file_list_from_s3_with_details(
+        bucket_name: str, file_prefix: str
+    ) -> List[Dict]:
+        """
+        this is used to write the index csv in the flat file
+        """
+        assert bucket_name == test_archive_value
+        assert file_prefix == "lamp/subway-on-time-performance-v1"
+
+        return public_archive_file_details
+
+    monkeypatch.setattr(
+        "lamp_py.performance_manager.flat_file.file_list_from_s3_with_details",
+        mock__file_list_from_s3_with_details,
+    )
+
+    def mock__upload_file(
+        file_name: str, object_path: str, extra_args: Optional[Dict] = None
+    ) -> bool:
+        """
+        this is used by the flat file writer to move parquet and index csv files to s3
+
+        use it here to inspect contents instead
+        """
+
+        def inspect_csv(filepath: str) -> None:
+            index_data = pandas.read_csv(filepath)
+
+            # check that the columns are correct
+            expected_columns = [
+                "filepath",
+                "service_date",
+                "size",
+                "last_modified",
+            ]
+            assert set(index_data.columns) == set(
+                expected_columns
+            ), "index.csv has incorrect columns"
+
+            # ensure that the index didn't refer to itself
+            assert not (
+                index_data["filepath"].str.endswith("index.csv")
+            ).any(), 'Found a record with filepath value "index.csv"'
+
+            assert len(index_data) == 2, "index.csv has incorrect length"
+
+        def inspect_parquet(filepath: str) -> None:
+            flat_data = pandas.read_parquet(filepath)
+
+            expected_columns = [
+                "stop_sequence",
+                "stop_id",
+                "parent_station",
+                "move_timestamp",
+                "stop_timestamp",
+                "travel_time_seconds",
+                "dwell_time_seconds",
+                "headway_trunk_seconds",
+                "headway_branch_seconds",
+                "service_date",
+                "route_id",
+                "direction_id",
+                "start_time",
+                "vehicle_id",
+                "branch_route_id",
+                "trunk_route_id",
+                "stop_count",
+                "trip_id",
+                "vehicle_label",
+                "vehicle_consist",
+                "direction",
+                "direction_destination",
+                "scheduled_arrival_time",
+                "scheduled_departure_time",
+                "scheduled_travel_time",
+                "scheduled_headway_branch",
+                "scheduled_headway_trunk",
+            ]
+
+            assert set(flat_data.columns) == set(
+                expected_columns
+            ), "flat parquet file has incorrect columns"
+
+            assert not flat_data.empty, "flat parquet file has no data"
+
+        assert extra_args is None
+
+        if object_path.endswith("index.csv"):
+            inspect_csv(file_name)
+        else:
+            regex_pattern = (
+                test_archive_value
+                + "/lamp/subway-on-time-performance-v1/"
+                + r"(?P<date>\d{4}-\d{1,2}-\d{1,2})-subway-on-time-performance-v1.parquet"
+            )
+            match = re.search(
+                regex_pattern,
+                object_path,
+            )
+            assert match, f"bad path {object_path}"
+            inspect_parquet(file_name)
+
+        return True
+
+    monkeypatch.setattr(
+        "lamp_py.performance_manager.flat_file.upload_file",
+        mock__upload_file,
     )
 
     yield
@@ -391,6 +492,7 @@ def test_gtfs_rt_processing(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
     caplog: pytest.LogCaptureFixture,
+    _flat_file_s3_patch: MonkeyPatch,
 ) -> None:
     """
     test that vehicle position and trip updates files can be consumed properly

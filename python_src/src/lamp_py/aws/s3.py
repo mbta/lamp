@@ -6,9 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from threading import current_thread
 from typing import (
-    IO,
     Callable,
     Dict,
+    IO,
     Iterator,
     List,
     Optional,
@@ -16,7 +16,6 @@ from typing import (
     Tuple,
     Union,
     cast,
-    Dict,
 )
 
 import boto3
