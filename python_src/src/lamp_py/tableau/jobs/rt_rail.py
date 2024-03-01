@@ -99,6 +99,8 @@ class HyperRtRail(HyperJob):
             "   ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id, vt.start_time"
             ";"
         )
+        self.ds_batch_size = 1024 * 1024
+        self.db_parquet_path = "/tmp/db_local.parquet"
 
     @property
     def parquet_schema(self) -> pyarrow.schema:
@@ -161,8 +163,6 @@ class HyperRtRail(HyperJob):
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
-        dataset_batch_size = 1024 * 1024
-
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -178,15 +178,14 @@ class HyperRtRail(HyperJob):
             f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",
         )
 
-        db_parquet_path = "/tmp/db_local.parquet"
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
-            write_path=db_parquet_path,
+            write_path=self.db_parquet_path,
             schema=self.parquet_schema,
         )
 
         check_filter = pc.field("service_date") >= max_start_date
-        if pd.dataset(db_parquet_path).count_rows() == pd.dataset(
+        if pd.dataset(self.db_parquet_path).count_rows() == pd.dataset(
             self.local_parquet_path
         ).count_rows(filter=check_filter):
             # No new records from database, no upload requried
@@ -195,7 +194,7 @@ class HyperRtRail(HyperJob):
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
         old_batches = pd.dataset(self.local_parquet_path).to_batches(
-            filter=old_filter, batch_size=dataset_batch_size
+            filter=old_filter, batch_size=self.ds_batch_size
         )
         filter_path = "/tmp/filter_local.parquet"
         with pq.ParquetWriter(
@@ -207,14 +206,14 @@ class HyperRtRail(HyperJob):
 
         joined_dataset = [
             pd.dataset(self.local_parquet_path),
-            pd.dataset(db_parquet_path),
+            pd.dataset(self.db_parquet_path),
         ]
 
         combine_parquet_path = "/tmp/combine.parquet"
         combine_batches = pd.dataset(
             joined_dataset,
             schema=self.parquet_schema,
-        ).to_batches(batch_size=dataset_batch_size)
+        ).to_batches(batch_size=self.ds_batch_size)
 
         with pq.ParquetWriter(
             combine_parquet_path, schema=self.parquet_schema
@@ -223,6 +222,6 @@ class HyperRtRail(HyperJob):
                 writer.write_batch(batch)
 
         os.replace(combine_parquet_path, self.local_parquet_path)
-        os.remove(db_parquet_path)
+        os.remove(self.db_parquet_path)
 
         return True
