@@ -15,6 +15,7 @@ from typing import (
     Tuple,
     Union,
     cast,
+    Dict,
 )
 
 import boto3
@@ -32,12 +33,15 @@ def get_s3_client() -> boto3.client:
     return boto3.client("s3")
 
 
-def upload_file(file_name: str, object_path: str) -> bool:
+def upload_file(
+    file_name: str, object_path: str, extra_args: Optional[Dict] = None
+) -> bool:
     """
     Upload a local file to an S3 Bucket
 
     :param file_name: local file path to upload
     :param object_path: S3 object path to upload to (including bucket)
+    :param extra_agrs: additional upload ags available per: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/customizations/s3.html#boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS
 
     :return: True if file was uploaded, else False
     """
@@ -57,7 +61,7 @@ def upload_file(file_name: str, object_path: str) -> bool:
 
         s3_client = get_s3_client()
 
-        s3_client.upload_file(file_name, bucket, object_name)
+        s3_client.upload_file(file_name, bucket, object_name, extra_args)
 
         upload_log.log_complete()
 
@@ -137,6 +141,42 @@ def delete_object(del_obj: str) -> bool:
     except Exception as error:
         process_logger.log_failure(error)
         return False
+
+
+def object_metadata(obj: str) -> Dict[str, str]:
+    """
+    retrieve s3 object Metadata
+
+    Will throw if object does not exist
+
+    :param obj - expected as 's3://my_bucket/object' or 'my_bucket/object'
+
+    :return: Metadata{"Key":"Value"}
+    """
+    try:
+        process_logger = ProcessLogger("s3_object_metadata", obj=obj)
+        process_logger.log_start()
+
+        s3_client = get_s3_client()
+
+        # trim off leading s3://
+        obj = obj.replace("s3://", "")
+
+        # split into bucket and object name
+        bucket, obj = obj.split("/", 1)
+
+        # delete the source object
+        object_head = s3_client.head_object(
+            Bucket=bucket,
+            Key=obj,
+        )
+
+        process_logger.log_complete()
+        return object_head["Metadata"]
+
+    except Exception as error:
+        process_logger.log_failure(error)
+        raise error
 
 
 def get_zip_buffer(filename: str) -> IO[bytes]:
