@@ -293,6 +293,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         try:
             remote_schema_match = False
+            remote_version_match = False
             file_info = self.remote_fs.get_file_info(self.remote_parquet_path)
 
             if file_info.type == fs.FileType.File:
@@ -302,11 +303,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     filesystem=self.remote_fs,
                 )
                 remote_schema_match = self.parquet_schema.equals(remote_schema)
+                remote_version_match = self.remote_version_match()
 
-            if (
-                remote_schema_match is False
-                or self.remote_version_match() is False
-            ):
+            if remote_schema_match is False or remote_version_match is False:
                 # create new parquet if no remote parquet found or
                 # remote schema does not match expected local schema
                 run_action = "create"
