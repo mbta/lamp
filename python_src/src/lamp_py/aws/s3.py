@@ -52,9 +52,6 @@ def upload_file(
     )
     upload_log.log_start()
 
-    if extra_args is None:
-        extra_args = {}
-
     try:
         if not os.path.exists(file_name):
             raise FileNotFoundError(f"{file_name} not found locally")
