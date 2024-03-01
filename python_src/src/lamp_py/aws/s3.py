@@ -41,6 +41,7 @@ def upload_file(
 
     :param file_name: local file path to upload
     :param object_path: S3 object path to upload to (including bucket)
+    :param extra_agrs: additional upload ags available per: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/customizations/s3.html#boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS
 
     :return: True if file was uploaded, else False
     """
