@@ -61,7 +61,9 @@ def upload_file(
 
         s3_client = get_s3_client()
 
-        s3_client.upload_file(file_name, bucket, object_name, extra_args)
+        s3_client.upload_file(
+            file_name, bucket, object_name, ExtraArgs=extra_args
+        )
 
         upload_log.log_complete()
 
