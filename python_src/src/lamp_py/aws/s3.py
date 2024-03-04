@@ -49,8 +49,9 @@ def upload_file(
         "s3_upload_file",
         file_name=file_name,
         object_path=object_path,
-        **extra_args,
     )
+    if isinstance(extra_args, dict):
+        upload_log.add_metadata(**extra_args)
     upload_log.log_start()
 
     try:
