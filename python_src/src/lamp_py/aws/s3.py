@@ -49,6 +49,7 @@ def upload_file(
         "s3_upload_file",
         file_name=file_name,
         object_path=object_path,
+        **extra_args,
     )
     upload_log.log_start()
 
