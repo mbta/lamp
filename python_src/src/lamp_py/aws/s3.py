@@ -49,6 +49,7 @@ def upload_file(
         "s3_upload_file",
         file_name=file_name,
         object_path=object_path,
+        **extra_args,
     )
     upload_log.log_start()
 
@@ -61,7 +62,9 @@ def upload_file(
 
         s3_client = get_s3_client()
 
-        s3_client.upload_file(file_name, bucket, object_name, extra_args)
+        s3_client.upload_file(
+            file_name, bucket, object_name, ExtraArgs=extra_args
+        )
 
         upload_log.log_complete()
 
