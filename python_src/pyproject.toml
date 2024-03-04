@@ -40,7 +40,7 @@ black = "^24.2.0"
 mypy = "^1.1.1"
 pylint = "^3.1.0"
 pytest = "^8.0.2"
-ipykernel = "^6.29.2"
+ipykernel = "^6.29.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
