@@ -157,8 +157,16 @@ def write_csv_index() -> None:
     df = pandas.DataFrame(file_details)
 
     # drop details for the index cvs and add in service date column
-    df = df[~df["filepath"].str.endswith(S3Archive.INDEX_FILENAME)]
-    df["service_date"] = df["filepath"].apply(lambda x: x.split("/")[-1][:10])
+    df = df[~df["s3_obj_path"].str.endswith(S3Archive.INDEX_FILENAME)]
+    df["service_date"] = df["s3_obj_path"].apply(
+        lambda x: x.split("/")[-1][:10]
+    )
+
+    # replace "s3://[S3Archive.BUCKET_NAME]" with "https://performancedata.mbta.com"
+    df["file_url"] = df["s3_obj_path"].str.replace(
+        f"s3://{S3Archive.BUCKET_NAME}", "https://performancedata.mbta.com/"
+    )
+    df = df.drop(columns=["s3_obj_path"])
 
     # write to local csv and upload file to s3
     csv_path = "/tmp/rpm_archive_index.csv"

@@ -202,12 +202,14 @@ def file_list_from_s3(
     bucket_name: str, file_prefix: str, max_list_size: int = 250_000
 ) -> List[str]:
     """
-    generate filename, filesize tuples for every file in an s3 bucket
+    get a list of s3 objects
 
     :param bucket_name: the name of the bucket to look inside of
-    :param file_prefix: prefix for files to generate
+    :param file_prefix: prefix filter for object keys
 
-    :return list of s3 filepaths
+    :return List[
+        object path as s3://bucket-name/object-key
+    ]
     """
     process_logger = ProcessLogger(
         "file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix
@@ -243,7 +245,18 @@ def file_list_from_s3_with_details(
     bucket_name: str, file_prefix: str
 ) -> List[Dict]:
     """
-    get a list of files from s3 along with size and last modified details
+    get a list of s3 objects with additional details
+
+    :param bucket_name: the name of the bucket to look inside of
+    :param file_prefix: prefix filter for object keys
+
+    return_dict = {
+        "s3_obj_path": "str: object path as s3://bucket-name/object-key",
+        "size_bytes": "int: size of object in bytes",
+        "last_modified": "datetime.datetime: object creation date",
+    }
+
+    :return List[return_dict]
     """
     s3_client = get_s3_client()
     response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=file_prefix)
@@ -255,8 +268,8 @@ def file_list_from_s3_with_details(
 
         file_list.append(
             {
-                "filepath": os.path.join("s3://", bucket_name, obj["Key"]),
-                "size": obj["Size"],
+                "s3_obj_path": os.path.join("s3://", bucket_name, obj["Key"]),
+                "size_bytes": obj["Size"],
                 "last_modified": obj["LastModified"],
             }
         )
