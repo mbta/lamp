@@ -185,18 +185,18 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     """
     public_archive_file_details = [
         {
-            "filepath": "s3://bucket_name/lamp/subway_on_time_performance-v1/index.csv",
-            "size": 123,
+            "s3_obj_path": "s3://bucket_name/lamp/subway_on_time_performance-v1/index.csv",
+            "size_bytes": 123,
             "last_modified": datetime.datetime.now(),
         },
         {
-            "filepath": "s3://bucket_name/lamp/subway_on_time_performance-v1/2023-04-06-subway-on-time-performance-v1.parquet",
-            "size": 123,
+            "s3_obj_path": "s3://bucket_name/lamp/subway_on_time_performance-v1/2023-04-06-subway-on-time-performance-v1.parquet",
+            "size_bytes": 123,
             "last_modified": datetime.datetime.now(),
         },
         {
-            "filepath": "s3://bucket_name/lamp/subway_on_time_performance-v1/2023-04-07-subway-on-time-performance-v1.parquet",
-            "size": 123,
+            "s3_obj_path": "s3://bucket_name/lamp/subway_on_time_performance-v1/2023-04-07-subway-on-time-performance-v1.parquet",
+            "size_bytes": 123,
             "last_modified": datetime.datetime.now(),
         },
     ]
@@ -216,7 +216,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
         files: List[str] = []
         for file in public_archive_file_details:
-            filepath = cast(str, file["filepath"])
+            filepath = cast(str, file["s3_obj_path"])
             files.append(filepath)
 
         return files
@@ -256,9 +256,9 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
             # check that the columns are correct
             expected_columns = [
-                "filepath",
+                "file_url",
                 "service_date",
-                "size",
+                "size_bytes",
                 "last_modified",
             ]
             assert set(index_data.columns) == set(
@@ -267,7 +267,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
             # ensure that the index didn't refer to itself
             assert not (
-                index_data["filepath"].str.endswith("index.csv")
+                index_data["file_url"].str.endswith("index.csv")
             ).any(), 'Found a record with filepath value "index.csv"'
 
             assert len(index_data) == 2, "index.csv has incorrect length"
