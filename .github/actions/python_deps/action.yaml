@@ -13,11 +13,11 @@ runs:
       with:
         path: |
           ~/.cache/pypoetry
-          **/python_src/.venv
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          **/.venv
+        key: ${{ runner.os }}-poetry-${{ hashFiles('./poetry.lock') }}
 
     - name: Install Python Deps
-      working-directory: python_src
+      working-directory: .
       # env use python3.10 to force usage of python3.10 installed by asdf over system python version
       run: |
         poetry env use python3.10

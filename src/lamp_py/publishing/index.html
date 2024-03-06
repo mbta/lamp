@@ -1,0 +1,119 @@
+<html>
+
+<head>
+    <title>MBTA LAMP Public Data</title>
+</head>
+
+<body>
+    <h1>Hello from the MBTA LAMP Team!</h1>
+
+    <h2>What is LAMP?</h2>
+    <p>
+        LAMP (Lightweight Application for Measuring Performance):
+        Our goal is to consume real-time data from the MBTA network, process it
+        to create helpful performance metrics, and make that data publicly
+        available for any and all to use.
+    </p>
+    <p>
+        Our application code is available on github:
+        <a href="https://github.com/mbta/lamp">https://github.com/mbta/lamp</a>
+    </p>
+
+    <p>
+        <b>
+            <i>
+                Please note that we are in the early days of making datasets
+                publicly available. This page may change frequently, check back
+                for updates.
+            </i>
+        </b>
+    </p>
+    <hr>
+
+    <h2>
+        On Time Performance Data (Subway)
+    </h2>
+    <p>
+        Performance Data for the MBTA Subway system partitioned by service date.
+    </p>
+    <p>
+        URL Construction: Replace [YYYY-MM-DD] with the YEAR, MONTH and DAY of the requested service date:
+    </p>
+    <ul>
+        <li>
+            <i>https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/<u>YYYY-MM-DD</u>-subway-on-time-performance-v1.parquet</i>
+        </li>
+    </ul>
+    <p>
+        CSV File of all published service dates, and file paths, available here:
+        <a
+            href="https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/index.csv">https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/index.csv</a>
+    </p>
+    <p>
+        Data dictionary of on time performance files:
+        <a
+            href="https://github.com/mbta/lamp/blob/main/src/lamp_py/performance_manager/README.md#file-structure">https://github.com/mbta/lamp/blob/main/src/lamp_py/performance_manager/README.md#file-structure</a>
+    </p>
+
+    <hr>
+    <h2>
+        OMPI Tableau Data Tables
+    </h2>
+    <p>
+        LAMP creates several datasets for
+        <a href="https://www.massdottracker.com/wp/about/what-is-opmi-2/">OPMI</a>'s Tableau server.
+        OPMI uses these datasets to develop dashboards, metrics and reports for the public and MBTA Operations.
+        These datasets are available at the following links.
+    <ul>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_service_id_by_date_and_route.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_service_id_by_date_and_route.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_calendar_dates.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_calendar_dates.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_calendar.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_calendar.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_feed_info.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_feed_info.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_routes.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_routes.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_stop_times.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_stop_times.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_stops.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_stops.parquet
+            </a>
+        </li>
+        <li>
+            <a href="https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_trips.parquet">
+                https://performancedata.mbta.com/lamp/tableau/rail/LAMP_static_trips.parquet
+            </a>
+        </li>
+    </ul>
+    </p>
+
+
+</body>
+
+</html>

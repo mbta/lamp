@@ -2,7 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: pip
-    directory: "/python_src"
+    directory: "."
     schedule:
       interval: weekly
       time: "08:00"

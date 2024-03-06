@@ -2,8 +2,8 @@
 LAMP is a collection of applications used to measure performance of the MBTA transit system.
 
 ## LAMP Applications:
-* [Ingestion (Parquet Archiver)](python_src/src/lamp_py/ingestion/README.md)
-* [Performance Manager (Rail Performance)](python_src/src/lamp_py/performance_manager/README.md)
+* [Ingestion (Parquet Archiver)](src/lamp_py/ingestion/README.md)
+* [Performance Manager (Rail Performance)](src/lamp_py/performance_manager/README.md)
 
 ## Architecture
 
@@ -52,7 +52,7 @@ Additionally, [docker-compose.yml](docker-compose.yml) is configured to use [.en
 
 To ensure code quality, linting, type checking, static analysis and unit tests are automatically run via github actions when pull requests are opened. 
 
-CI for LAMP python applications can be run locally, in the `python_src/` directory, with the following `poetry` commands:
+CI for LAMP python applications can be run locally, in the root project directory, with the following `poetry` commands:
 ```sh
 # black for Formatting
 poetry run black .
@@ -82,14 +82,4 @@ LAMP uses `docker` and `docker-compose` to run local instances of applications f
 
 This repository contains all LAMP source code used to run, test and deploy LAMP applications.
 
-Source code for LAMP python applications can be found in the [python_src/](python_src/)  directory. 
-
-Source code for the elixir API application can be found in the [api/](api/) directory.
-
-### `python_src/` [Python Application Library]
-
-The [python_src/](python_src/) directory contains a shared python library used by all LAMP python applications.
-
-The shared library is structured in a standard source and tests directory structure.
-
-The root of the [python_src/](python_src/) directory contains files that define dependencies and tooling ([python_src/pyproject.toml](python_src/pyproject.toml)), database management configuration ([python_src/alembic.ini](python_src/alembic.ini)), and application containers ([python_src/Dockerfile](python_src/Dockerfile)).
+Source code for LAMP python applications can be found in the [src/](src/)  directory. 
