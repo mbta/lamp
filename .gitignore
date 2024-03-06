@@ -20,7 +20,6 @@ htmlcov
 .DS_Store
 package
 dist
-*.zip
 *.sh
 .devcontainer/*
 .vscode/*
