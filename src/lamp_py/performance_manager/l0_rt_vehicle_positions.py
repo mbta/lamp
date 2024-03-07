@@ -39,6 +39,7 @@ def get_vp_dataframe(
         "vehicle.trip.trip_id",
         "vehicle.vehicle.label",
         "vehicle.vehicle.consist",
+        "vehicle.multi_carriage_details",
     ]
 
     vehicle_position_filters = [
@@ -66,6 +67,7 @@ def get_vp_dataframe(
         "vehicle.trip.trip_id": "trip_id",
         "vehicle.vehicle.label": "vehicle_label",
         "vehicle.vehicle.consist": "vehicle_consist",
+        "vehicle.multi_carriage_details": "multi_carriage_details",
     }
 
     result = read_parquet(
@@ -203,6 +205,25 @@ def transform_vp_timestamps(
     ].map(
         lambda vc: "|".join(str(vc_val["label"]) for vc_val in vc),
         na_action="ignore",
+    )
+
+    # change multi_carriage_details to pipe delimited string
+    vehicle_positions["multi_carriage_details"] = vehicle_positions[
+        "multi_carriage_details"
+    ].map(
+        lambda vc: "|".join(str(vc_val["label"]) for vc_val in vc),
+        na_action="ignore",
+    )
+
+    # coalesce vehicle_consist with multi_carriage_details.
+    # vehicle_consist dropped from RT_VEHICLE_POSITIONS feed on 2024-03-05
+    vehicle_positions["vehicle_consist"] = numpy.where(
+        vehicle_positions["vehicle_consist"].isnull(),
+        vehicle_positions["multi_carriage_details"],
+        vehicle_positions["vehicle_consist"],
+    )
+    vehicle_positions = vehicle_positions.drop(
+        columns=["multi_carriage_details"]
     )
 
     process_logger.add_metadata(after_row_count=vehicle_positions.shape[0])
