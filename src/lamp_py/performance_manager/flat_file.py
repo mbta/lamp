@@ -164,7 +164,7 @@ def write_csv_index() -> None:
 
     # replace "s3://[S3Archive.BUCKET_NAME]" with "https://performancedata.mbta.com"
     df["file_url"] = df["s3_obj_path"].str.replace(
-        f"s3://{S3Archive.BUCKET_NAME}", "https://performancedata.mbta.com/"
+        f"s3://{S3Archive.BUCKET_NAME}", "https://performancedata.mbta.com"
     )
     df = df.drop(columns=["s3_obj_path"])
 
