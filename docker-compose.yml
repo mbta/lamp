@@ -29,8 +29,7 @@ services:
   performance_manager:
     container_name: performance_manager
     env_file: .env
-    build:
-      context: ./python_src
+    build: .
     depends_on:
       - rail_pm_rds
       - metadata_rds
@@ -42,8 +41,7 @@ services:
   bus_performance_manager:
     container_name: bus_performance_manager
     env_file: .env
-    build:
-      context: ./python_src
+    build: .
     depends_on:
       - metadata_rds
     working_dir: /lamp
@@ -54,8 +52,7 @@ services:
   seed_metadata:
     container_name: seed_metadata
     env_file: .env
-    build:
-      context: ./python_src
+    build: .
     depends_on:
       - rail_pm_rds
       - metadata_rds
@@ -64,7 +61,7 @@ services:
       # map credentials to be used by boto3, read-only
       - ~/.aws:/root/.aws:ro
       # add in filepath json that will be the default seed file path
-      - ./python_src/tests/test_files/staging_dec_10.json:/seed_paths.json
+      - ./tests/test_files/staging_dec_10.json:/seed_paths.json
     # entrypoint passes in seed file thats added as a volume. if you want to use a different
     # filepath run
     # docker-compose run -v /path/to/files.json:/seed.json seed_metadata --seed-file /seed.json

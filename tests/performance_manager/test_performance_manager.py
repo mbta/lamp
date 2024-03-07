@@ -98,7 +98,7 @@ def set_env_vars() -> None:
         logging.warning("already bootstrapped")
     else:
         env_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".env"
+            os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env"
         )
         logging.debug("bootstrapping with env file %s", env_file)
 

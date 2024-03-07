@@ -64,7 +64,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           docker-repo: ${{ secrets.DOCKER_REPO }}
-          dockerfile-path: ./python_src/
+          dockerfile-path: .
       - name: Deploy Ingestion Application
         id: deploy-ingestion
         if: ${{ inputs.deploy-ingestion }}

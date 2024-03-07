@@ -20,7 +20,6 @@ from .utils import DEFAULT_S3_PREFIX
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
-HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def ingest(metadata_queue: Queue[Optional[str]]) -> None:

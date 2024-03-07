@@ -5,19 +5,19 @@ on:
     branches:
       - main
     paths:
-      - 'python_src/**'
+      - './**'
       - '.github/workflows/ci_python.yaml'
       - '.github/python_deps/action.yaml'
   pull_request:
     paths:
-      - 'python_src/**'
+      - './**'
       - '.github/workflows/ci_python.yaml'
       - '.github/python_deps/action.yaml'
 
 defaults:
   run:
     shell: bash
-    working-directory: python_src
+    working-directory: .
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/python_deps
 
-      - run: poetry run pylint src tests
+      - run: poetry run pylint src tests --rcfile pyproject.toml
 
   test:
     name: Test
