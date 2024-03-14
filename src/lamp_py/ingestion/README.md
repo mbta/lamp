@@ -6,7 +6,7 @@ Ingestion is an application to transform and aggregate GTFS-RT and GTFS Static f
 
 Ingestion operates with a chronologic event loop with a 5 minute delay between each iteration.
 
-Ingestion connects to the [Performance Manager](../performance_manager/README.md) application via the `metadata_log` table of the Performance Manager RDS. When Ingestion creates a new parquet file, the S3 path of that file is written to the `metadata_log` table for Performance Manager to process.
+Ingestion connects to the [Performance Manager](../performance_manager/README.md) application via the `metadata_log` table of the Metadata RDS. When Ingestion creates a new parquet file, the S3 path of that file is written to the `metadata_log` table for Performance Manager to process.
 
 For each event loop, GTFS Static files are processed prior to any GTFS-RT files, when available.
 
@@ -41,8 +41,8 @@ This application aggregates gzipped GTFS-RT update files, saved on S3 by Delta, 
 
 GTFS-RT parquet files are transformed and partitioned based on their `Converter Class` configuration:
 
-* [Busloc Trip Updates](./config_rt_bus_trip.py)
-* [Busloc Vehicle Positions](./config_rt_bus_vehicle.py)
+* [Busloc Trip Updates](./config_busloc_trip.py)
+* [Busloc Vehicle Positions](./config_busloc_vehicle.py)
 * [Realtime Vehicle Positions](./config_rt_vehicle.py)
 * [Realtime Trip Updates](./config_rt_trip.py)
 * [Sevice Alerts](./config_rt_alerts.py)
