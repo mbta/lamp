@@ -12,7 +12,7 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | pm_trip_id | integer | false | integer key used to join event record to trip data in [vehicle_trips](#vehicle_trips) table
 | stop_id | string | false | |
 | stop_sequence | small integer | false | |
-| canonical_stop_sequence | small integer | false | stop_sequence based on "typical" route trips as defined in the [static_route_patterns](#static_route_patterns) table|
+| canonical_stop_sequence | small integer | false | stop sequence based on "typical" route trip as defined in [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#route_patternstxt) table |
 | sync_stop_sequence | small integer | false | stop_sequence that is consistent across all branches of a trunk for a particular `parent_station`|
 | parent_station | string | false | |
 | previous_trip_stop_pm_event_id | integer | true | pm_event_id of previous stop of pm_trip_id grouping |
@@ -49,15 +49,6 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | first_last_station_match | boolean | false | true if `static_trip_id_guess` is exact match to `trip_id` |
 | static_version_key | integer | false | GTFS static schedule version key for trip |
 | updated_on | timestamp | false | timestamp field that is auto updated on any record change |
-
-### `metadata_log`
-| column name | data type | nullable | description |
-| ----------- | --------- | -------- | ----------- |
-| pk_id | integer | false | auto incremented primary key for S3 objects |
-| processed | boolean | false | was the object processed by performance manager|
-| process_fail | boolean | false | did an exception occur while processing |
-| path | string | false | S3 object path |
-| created_on | datetime | false | datetime field that is auto updated on record insert |
 
 ### `static_feed_info`
 | column name | data type | nullable | description |
@@ -178,12 +169,12 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 
 The Performance Manager application uses two MBTA GTFS-RT feeds:
 
-* [Vehicle Positions](https://developers.google.com/transit/gtfs-realtime/guides/vehicle-positions)
-* [Trip Updates](https://developers.google.com/transit/gtfs-realtime/guides/trip-updates)
+* [Vehicle Positions](https://gtfs.org/realtime/reference/#message-vehicleposition)
+* [Trip Updates](https://gtfs.org/realtime/reference/#message-tripupdate)
 
-Trip Updates are predictive data used to supplement Vehicle Positions station stop data when the Vehicle Positions feed does not record an expected stop event.
+Trip Updates are predictive data used to supplement Vehicle Positions data when the Vehicle Positions feed does not record an expected stop event.
 
-All time based values that are used or created by Performance Manager are saved as whole second integers. 
+All timestamp values used, or created by, Performance Manager are saved as whole second integers. 
 
 ## Data Loading
 
@@ -294,76 +285,33 @@ For each GTFS Static schedule the following metrics are pre-calculated and store
 The business logic of these calculations follows the same rules as the GTFS-RT metrics, except that headway metrics are partitioned by `parent_station`, `service_id`, `direction_id` and `trunk/branch_route_id`. 
 
 
-# Daily Flat File Schema and Generation
+# Data Exports
 
-## File Overview
-
-For each service date processed, the performance manager generates a flat parquet file and makes it publicly available. The flat file serves as a structured snapshot of data extracted from the Rail Performance Manager database. It enables efficient data exchange between different systems, reporting, and analysis.
-
-The extracted data is a join of realtime data from the [vehicle_events](#vehicle_events) and [vehicle_trips](#vehicle_trips) tables and static schedule data from the [static_stop_times](#static_stop_times) table.
-
-The performance manager loads new realtime data on an hourly basis. Whenever new data has been processed and corresponding flat files are either written or updated.
-
-## File Structure
-
-The flat files are saved as parquet files that are partitioned by year, month, and day on the service date. Service dates are defined as the date at the start of a continuous block of service. Trips occuring after midnight and before suspension of service have the previous days service date. At the end of each partitioned filepath, there is a single flat file named `<iso_date_format for service date>-rail-performance.parquet`. This file uses the following schema:
-
-| column name | data type | description | data source |
-| ----------- | --------- | ----------- | ------------ |
-| service_date | int64 | equivalent to GTFS-RT `start_date` value in [Trip Descriptor](https://developers.google.com/transit/gtfs-realtime/reference#message-tripdescriptor) as int instead of string | GTFS-RT |
-| start_time | int64 |  equivalent to GTFS-RT `start_date` value in [Trip Descriptor](https://developers.google.com/transit/gtfs-realtime/reference#message-tripdescriptor) as int instead of string | GTFS-RT |
-| route_id | string | the name of the route | GTFS-RT |
-| branch_route_id | string | branch id indicating distinct route for lines with multiple routes, null if line has no branches | GTFS-RT |
-| trunk_route_id | string | trunk id indicating route_id or line for lines with multiple routes | GTFS-RT |
-| trip_id | string | Identifier for the trip the vehicle is working during this event. It should correspond to a trip_id in the GTFS Schedule, but is not guaranteed to. | GTFS-RT |
-| direction_id | int8 | equivalent to GTFS-RT `direction_id`value in [Trip Descriptor](https://developers.google.com/transit/gtfs-realtime/reference#message-tripdescriptor) | GTFS-RT |
-| direction | string | human readable text corresponding to a direction | GTFS |
-| direction_destination | string | customer facing direction name, i.e. `Ashmont` / `Braintree` | GTFS |
-| stop_count | int16 | number of stops on this trip | LAMP Calculated |
-| | | | |
-| vehicle_id | string | Internal system identification of the vehicle. Should be unique per vehicle, and is used for tracking the vehicle as it proceeds through the system. Equivalent to GTFS-RT `ìd` in [VehicleDescriptor](https://developers.google.com/transit/gtfs-realtime/reference#message-vehicledescriptor) | GTFS-RT
-| vehicle_label | string | User visible label shown to help passengers identify the correct vehicle. Equivalent to GTFS-RT `label` in [VehicleDescriptor](https://developers.google.com/transit/gtfs-realtime/reference#message-vehicledescriptor). | GTFS-RT
-| vehicle_consist | string | | GTFS-RT
-| | | | |
-| stop_id | string | Identifier for the stop the vehicle is moving towards and stopping at for this event. This value should correspond to a stop_id in the GTFS Schedule. For stops location within stations, the stop_id represents a specific boarding area.  | GTFS-RT || GTFS-RT |
-| parent_station | string | Name of the facility the stop id exists within | GTFS-RT |
-| stop_sequence | int16 | Where in the stop sequence of this route this stop occurs | GTFS-RT |
-| | | | |
-| scheduled_departure_time | int64 | time this vehicle is scheduled to depart this station | GTFS |
-| move_timestamp | int64 | earliest moving status timestamp from GTFS-RT Vehicle Positions | LAMP Calculated |
-| scheduled_arrival_time | int64 | time this vehicle is scheduled to arrive at this station | GTFS |
-| stop_timestamp | int64 | earliest stop status timestamp from GTFS-RT Vehicle Positions or last timestamp found from GTFS-RT Trip Updates event, defaulting to Vehicle Positions if it exists | LAMP Calculated |
-| scheduled_travel_time | int64 | expected time for the vehicle to travel to this station | GTFS|
-| travel_time_seconds | int64 | seconds the vehicle spends traveling to this station | LAMP Calculated |
-| dwell_time_seconds | int64 | seconds the vehicle spends waiting at this station | LAMP Calculated |
-| scheduled_headway_trunk | int64 | scheduled departure to departure, `parent_station` wait time for vehicles traveling on `trunk_route_id` | GTFS |
-| headway_trunk_seconds | int64 | actual departure to departure, `parent_station` wait time for vehicles traveling on `trunk_route_id` | LAMP Calculated |
-| scheduled_headway_branch | int64 | scheduled departure to departure, `parent_station` wait time for vehicles traveling on `branch_route_id` | GTFS |
-| headway_branch_seconds | int64 | actual departure to departure, `parent_station` wait time for vehicles traveling on `branch_route_id` | LAMP Calculated |
+For information regarding data exports, refer to [https://performancedata.mbta.com](https://performancedata.mbta.com) and our [Data Dictionary](../../../Data_Dictionary.md) documentation.
 
 
 # Developer Usage
 
 The Performance Manager application image is described in a [Dockerfile](../../../Dockerfile). This image is used for local testing and AWS deployment. 
 
-The [docker-compose.yml](../../../../docker-compose.yml) file, found in the project root directory, describes a local environment for testing the performance manager application. This environment includes a local PostgreSQL database and `seed_metadata` application that can be used to configure / migrate the local database and seed it with selected AWS S3 object paths. 
+The [docker-compose.yml](../../../docker-compose.yml) file, found in the project root directory, describes a local environment for testing the performance manager application. This environment includes a local PostgreSQL database and `seed_metadata` application that can be used to configure / migrate the local database and seed it with selected AWS S3 object paths. 
 
 To build application images run the following in the project root directory:
 ```sh
 docker-compose build
 ```
 
-To seed the local PostgreSQL database with AWS S3 objects paths, add selected parameters to `ENTRYPOINT` for the `seed_metadata` application in [docker-compose.yml](../../../../docker-compose.yml) and run the following in the project root directory:
+To seed the local PostgreSQL database with AWS S3 objects paths, add selected parameters to `ENTRYPOINT` for the `seed_metadata` application in [docker-compose.yml](../../../docker-compose.yml) and run the following in the project root directory:
 ```sh
 docker-compose up seed_metadata
 ```
 ### `seed_metadata` Parameters:
 * `--clear-rt` (reset Real-Time RDS tables, leaving GTFS Static tables intact)
 * `--clear-static` (reset Real-Time and Static RDS tables, full database reset)
-* `--seed-file` (path to json seed file, inside of docker image, that will be loaded into [metadata_log](#metadata_log) database table)
+* `--seed-file` (path to json seed file, inside of docker image, that will be loaded into `metadata_log` table of the metadata RDS.)
 
 To start a local version of the performance manager application run the following in the project root directory:
 ```sh
 docker-compose up performance_manager
 ```
-The performance manager application will chronologically process any un-processed S3 object paths contained in the [metadata_log](#metadata_log) database table.
+The performance manager application will chronologically process any un-processed S3 object paths contained in the `metadata_log` table of the metadata RDS.
