@@ -35,12 +35,20 @@ optional = false
 tableauhyperapi = "^0.0.18618"
 tableauserverclient = "0.30"
 
+[tool.poetry.group.investigation]
+optional = true
+
+[tool.poetry.group.investigation.dependencies]
+ipykernel = "^6.29.2"
+matplotlib = "^3.8.3"
+seaborn = "^0.13.2"
+tabulate = "^0.9.0"
+
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
 mypy = "^1.1.1"
 pylint = "^3.1.0"
 pytest = "^8.0.2"
-ipykernel = "^6.29.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

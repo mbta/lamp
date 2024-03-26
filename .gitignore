@@ -10,6 +10,7 @@ erl_crash.dump
 .elixir_ls/
 /performance_manager/test.db
 /notebook
+/investigation
 
 
 __pycache__
