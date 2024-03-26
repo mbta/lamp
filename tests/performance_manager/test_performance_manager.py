@@ -524,20 +524,20 @@ def test_gtfs_rt_processing(
     route_ids = rail_routes_from_filepath(files["vp_paths"], rpm_db_manager)
     positions = get_vp_dataframe(files["vp_paths"], route_ids)
     position_size = positions.shape[0]
-    assert positions.shape[1] == 12
+    assert positions.shape[1] == 13
 
     # check that the types can be set correctly
     positions = transform_vp_datatypes(positions)
-    assert positions.shape[1] == 12
+    assert positions.shape[1] == 13
     assert position_size == positions.shape[0]
 
     # check that it can be combined with the static schedule
     positions = add_static_version_key_column(positions, rpm_db_manager)
-    assert positions.shape[1] == 13
+    assert positions.shape[1] == 14
     assert position_size == positions.shape[0]
 
     positions = add_parent_station_column(positions, rpm_db_manager)
-    assert positions.shape[1] == 14
+    assert positions.shape[1] == 15
     assert position_size == positions.shape[0]
 
     positions = transform_vp_timestamps(positions)
