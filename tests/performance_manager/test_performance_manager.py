@@ -204,6 +204,28 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     test_archive_value = "TEST_GTFS_PUBLIC"
     monkeypatch.setattr(S3Archive, "BUCKET_NAME", test_archive_value)
 
+    test_version_value = "v1.0.0.test"
+    monkeypatch.setattr(S3Archive, "RPM_VERSION", test_version_value)
+
+    def mock__object_metadata(obj: str) -> Dict[str, str]:
+        """
+        this is used to get the metadata for the index file
+
+        assert that we're only checking the object metadata for the index.
+        return the current value, implying that we're not testing the logic
+        that will reset old versions.
+        """
+        assert (
+            obj
+            == f"{test_archive_value}/lamp/subway-on-time-performance-v1/index.csv"
+        )
+        return {S3Archive.VERSION_KEY: test_version_value}
+
+    monkeypatch.setattr(
+        "lamp_py.performance_manager.flat_file.object_metadata",
+        mock__object_metadata,
+    )
+
     def mock__file_list_from_s3(
         bucket_name: str, file_prefix: str, max_list_size: int = 250_000
     ) -> List[str]:
@@ -311,7 +333,10 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
             assert not flat_data.empty, "flat parquet file has no data"
 
-        assert extra_args is None
+        expected_extra_args = {
+            "Metadata": {S3Archive.VERSION_KEY: test_version_value}
+        }
+        assert extra_args == expected_extra_args
 
         if object_path.endswith("index.csv"):
             inspect_csv(file_name)

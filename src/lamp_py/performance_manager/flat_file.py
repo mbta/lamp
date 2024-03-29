@@ -3,13 +3,16 @@ import re
 from typing import Set, List
 from datetime import datetime
 
+from botocore.exceptions import ClientError
 import sqlalchemy as sa
 import pandas
 import pyarrow
 
 from lamp_py.aws.s3 import (
+    delete_object,
     file_list_from_s3,
     file_list_from_s3_with_details,
+    object_metadata,
     upload_file,
 )
 from lamp_py.performance_manager.gtfs_utils import (
@@ -36,6 +39,8 @@ class S3Archive:
         "lamp", "subway-on-time-performance-v1"
     )
     INDEX_FILENAME = "index.csv"
+    VERSION_KEY = "rpm_version"
+    RPM_VERSION = "1.0.0"
 
 
 def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
@@ -114,33 +119,83 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
     if S3Archive.BUCKET_NAME == "":
         return
 
-    service_dates = dates_to_update(db_manager)
-
-    # if no data to archive, early exit
-    if len(service_dates) == 0:
-        return
-
-    process_logger = ProcessLogger(
-        "bulk_flat_file_write", date_count=len(service_dates)
-    )
+    process_logger = ProcessLogger("bulk_flat_file_write")
     process_logger.log_start()
 
-    for service_date in service_dates:
-        sub_process_logger = ProcessLogger(
-            "flat_file_write", service_date=service_date.strftime("%Y-%m-%d")
-        )
-        sub_process_logger.log_start()
+    try:
 
-        try:
-            write_daily_table(db_manager=db_manager, service_date=service_date)
-        except Exception as e:
-            sub_process_logger.log_failure(e)
+        # check the file version, deleting records if they need to be replaced
+        check_version()
+
+        # get the service dates that need to be archived
+        service_dates = dates_to_update(db_manager)
+
+        process_logger.add_metadata(date_count=len(service_dates))
+
+        # if no data to archive, early exit
+        if len(service_dates) == 0:
+            process_logger.log_complete()
+            return
+
+        for service_date in service_dates:
+            sub_process_logger = ProcessLogger(
+                "flat_file_write",
+                service_date=service_date.strftime("%Y-%m-%d"),
+            )
+            sub_process_logger.log_start()
+
+            try:
+                write_daily_table(
+                    db_manager=db_manager, service_date=service_date
+                )
+            except Exception as e:
+                sub_process_logger.log_failure(e)
+            else:
+                sub_process_logger.log_complete()
+
+        write_csv_index()
+
+        process_logger.log_complete()
+
+    except Exception as e:
+        process_logger.log_failure(e)
+
+
+def check_version() -> None:
+    """
+    check the version of of the index csv file. if it is behind the current
+    version, delete all of the files with the rail performance manager prefix.
+    """
+    index_object = os.path.join(
+        S3Archive.BUCKET_NAME,
+        S3Archive.RAIL_PERFORMANCE_PREFIX,
+        S3Archive.INDEX_FILENAME,
+    )
+
+    # get the version of the index from the metadata. a 404 will happen if the
+    # file doesn't exist, set the version to None in that case.
+    try:
+        version = object_metadata(index_object).get(S3Archive.VERSION_KEY)
+    except ClientError as error:
+        if error.response["Error"]["Code"] == "404":
+            version = None
         else:
-            sub_process_logger.log_complete()
+            raise
 
-    write_csv_index()
+    # if the versions mismatch, delete everything with the rail performance
+    # manager flat file prefix.
+    if version != S3Archive.RPM_VERSION:
+        files_to_remove = file_list_from_s3(
+            bucket_name=S3Archive.BUCKET_NAME,
+            file_prefix=S3Archive.RAIL_PERFORMANCE_PREFIX,
+        )
 
-    process_logger.log_complete()
+        for file in files_to_remove:
+            success = delete_object(file)
+            if not success:
+                raise RuntimeError(
+                    f"Failed to delete {file} when updating flat files"
+                )
 
 
 def write_csv_index() -> None:
@@ -179,6 +234,7 @@ def write_csv_index() -> None:
             S3Archive.RAIL_PERFORMANCE_PREFIX,
             S3Archive.INDEX_FILENAME,
         ),
+        extra_args={"Metadata": {S3Archive.VERSION_KEY: S3Archive.RPM_VERSION}},
     )
 
     os.remove(csv_path)
@@ -333,7 +389,11 @@ def write_daily_table(
         schema=flat_schema,
     )
 
-    upload_file(file_name=temp_local_path, object_path=s3_path)
+    upload_file(
+        file_name=temp_local_path,
+        object_path=s3_path,
+        extra_args={"Metadata": {S3Archive.VERSION_KEY: S3Archive.RPM_VERSION}},
+    )
 
     # delete the local file
     os.remove(temp_local_path)
