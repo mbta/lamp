@@ -474,7 +474,7 @@ def process_gtfs_rt_files(
     will be logged and the file will be marked with a process_fail in the
     MetadataLog table.
     """
-    hours_to_process = 24
+    hours_to_process = 12
     process_logger = ProcessLogger("l0_gtfs_rt_table_loader")
     process_logger.log_start()
 
