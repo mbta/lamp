@@ -337,6 +337,13 @@ def write_daily_table(
                 VehicleEvents.vp_stop_timestamp.is_not(None),
             ),
         )
+        .order_by(
+            sa.func.coalesce(
+                VehicleEvents.vp_move_timestamp,
+                VehicleEvents.vp_stop_timestamp,
+                VehicleEvents.tu_stop_timestamp,
+            )
+        )
     )
 
     flat_schema = pyarrow.schema(
