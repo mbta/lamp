@@ -1,3 +1,4 @@
+import logging
 import os
 import datetime
 
@@ -185,12 +186,16 @@ class HyperRtRail(HyperJob):
             schema=self.parquet_schema,
         )
 
+        logging.info("wrote_parquet")
         check_filter = pc.field("service_date") >= max_start_date
         if pd.dataset(self.db_parquet_path).count_rows() == pd.dataset(
             self.local_parquet_path
         ).count_rows(filter=check_filter):
+            logging.info("check filter no new records")
             # No new records from database, no upload requried
             return False
+        else:
+            logging.info("check filter new records")
 
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
@@ -198,11 +203,15 @@ class HyperRtRail(HyperJob):
             filter=old_filter, batch_size=self.ds_batch_size
         )
         filter_path = "/tmp/filter_local.parquet"
+        logging.info("have old batches")
         with pq.ParquetWriter(
             filter_path, schema=self.parquet_schema
         ) as writer:
             for batch in old_batches:
+                logging.info("writing old batch")
                 writer.write_batch(batch)
+
+        logging.info("replacing path")
         os.replace(filter_path, self.local_parquet_path)
 
         joined_dataset = [
@@ -215,13 +224,16 @@ class HyperRtRail(HyperJob):
             joined_dataset,
             schema=self.parquet_schema,
         ).to_batches(batch_size=self.ds_batch_size)
+        logging.info("have combined batches")
 
         with pq.ParquetWriter(
             combine_parquet_path, schema=self.parquet_schema
         ) as writer:
             for batch in combine_batches:
+                logging.info("writing combined batch")
                 writer.write_batch(batch)
 
+        logging.info("running some os cleanup")
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(self.db_parquet_path)
 

@@ -84,9 +84,9 @@ def main(args: argparse.Namespace) -> None:
         process_logger.log_start()
 
         try:
-            process_static_tables(rpm_db_manager, md_db_manager)
-            process_gtfs_rt_files(rpm_db_manager, md_db_manager)
-            write_flat_files(rpm_db_manager)
+            # process_static_tables(rpm_db_manager, md_db_manager)
+            # process_gtfs_rt_files(rpm_db_manager, md_db_manager)
+            # write_flat_files(rpm_db_manager)
             start_parquet_updates(rpm_db_manager)
 
             process_logger.log_complete()
