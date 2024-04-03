@@ -116,4 +116,18 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/python_deps
 
-      - run: poetry run pytest
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest \
+          --cov-report lcov:coverage.info \
+          --cov-report term \
+          --cov=lamp_py
+
+      # Upload Coverage as an Artifact for Subsequent Jobs
+      - name: Report code coverage
+        uses: mbta/github-actions-report-lcov@v1
+        with:
+          coverage-files: coverage.info
+          artifact-name: python-code-coverage
+          github-token: ${{ secrets.GITHUB_TOKEN }}
