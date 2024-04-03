@@ -208,7 +208,7 @@ class HyperRtRail(HyperJob):
             filter_path, schema=self.parquet_schema
         ) as writer:
             for batch in old_batches:
-                logging.info("writing old batch")
+                logging.info(f"writing old batch rows={batch.num_rows}, bytes={batch.nbytes}")
                 writer.write_batch(batch)
 
         logging.info("replacing path")
@@ -230,7 +230,7 @@ class HyperRtRail(HyperJob):
             combine_parquet_path, schema=self.parquet_schema
         ) as writer:
             for batch in combine_batches:
-                logging.info("writing combined batch")
+                logging.info(f"writing combined batch rows={batch.num_rows}, bytes={batch.nbytes}")
                 writer.write_batch(batch)
 
         logging.info("running some os cleanup")
