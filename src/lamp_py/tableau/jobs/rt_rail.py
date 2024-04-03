@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class HyperRtRail(HyperJob):
@@ -163,7 +164,13 @@ class HyperRtRail(HyperJob):
             schema=self.parquet_schema,
         )
 
+    # pylint: disable=R0914
+    # there are a lot of vars in here used for logging and it pushes the total
+    # method variables past the threshold.
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
+        process_logger = ProcessLogger("update_rt_rail_parquet")
+        process_logger.log_start()
+
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -189,8 +196,12 @@ class HyperRtRail(HyperJob):
         if pd.dataset(self.db_parquet_path).count_rows() == pd.dataset(
             self.local_parquet_path
         ).count_rows(filter=check_filter):
-            # No new records from database, no upload requried
+            process_logger.add_metadata(new_data=False)
+            process_logger.log_complete()
+            # No new records from database, no upload required
             return False
+
+        process_logger.add_metadata(new_data=True)
 
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
@@ -198,12 +209,26 @@ class HyperRtRail(HyperJob):
             filter=old_filter, batch_size=self.ds_batch_size
         )
         filter_path = "/tmp/filter_local.parquet"
+
+        old_batch_count = 0
+        old_batch_rows = 0
+        old_batch_bytes = 0
+
         with pq.ParquetWriter(
             filter_path, schema=self.parquet_schema
         ) as writer:
             for batch in old_batches:
+                old_batch_count += 1
+                old_batch_rows += batch.num_rows
+                old_batch_bytes += batch.nbytes
                 writer.write_batch(batch)
         os.replace(filter_path, self.local_parquet_path)
+
+        process_logger.add_metadata(
+            old_batch_count=old_batch_count,
+            old_batch_rows=old_batch_rows,
+            old_batch_bytes=old_batch_bytes,
+        )
 
         joined_dataset = [
             pd.dataset(self.local_parquet_path),
@@ -216,13 +241,30 @@ class HyperRtRail(HyperJob):
             schema=self.parquet_schema,
         ).to_batches(batch_size=self.ds_batch_size)
 
+        combine_batch_count = 0
+        combine_batch_rows = 0
+        combine_batch_bytes = 0
+
         with pq.ParquetWriter(
             combine_parquet_path, schema=self.parquet_schema
         ) as writer:
             for batch in combine_batches:
+                combine_batch_count += 1
+                combine_batch_rows += batch.num_rows
+                combine_batch_bytes += batch.nbytes
+
                 writer.write_batch(batch)
+
+        process_logger.add_metadata(
+            combine_batch_count=combine_batch_count,
+            combine_batch_rows=combine_batch_rows,
+            combine_batch_bytes=combine_batch_bytes,
+        )
 
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(self.db_parquet_path)
 
+        process_logger.log_complete()
         return True
+
+    # pylint: enable=R0914
