@@ -121,7 +121,8 @@ jobs:
         run: |
           poetry run pytest \
           --cov-report lcov:coverage.info \
-          --cov-report term \
+          --cov-report term-missing \
+          --cov-branch \
           --cov=lamp_py
 
       # Upload Coverage as an Artifact for Subsequent Jobs
