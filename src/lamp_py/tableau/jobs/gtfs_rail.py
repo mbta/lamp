@@ -28,7 +28,7 @@ class HyperGTFS(HyperJob):
             self,
             hyper_file_name=f"LAMP_{gtfs_table_name}.hyper",
             remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_{gtfs_table_name}.parquet",
-            lamp_version="1.0.beta",
+            lamp_version="1.0.0",
         )
         self.gtfs_table_name = gtfs_table_name
         self.create_query = table_query % ""
