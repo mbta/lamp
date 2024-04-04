@@ -61,6 +61,8 @@ class ProcessLogger:
             if key in ProcessLogger.protected_keys:
                 continue
             self.metadata[str(key)] = str(value)
+        self.default_data["status"] = "add_metadata"
+        logging.info(self._get_log_string())
 
     def log_start(self) -> None:
         """log the start of a proccess"""

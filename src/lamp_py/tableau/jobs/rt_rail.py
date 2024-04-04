@@ -221,14 +221,14 @@ class HyperRtRail(HyperJob):
                 old_batch_count += 1
                 old_batch_rows += batch.num_rows
                 old_batch_bytes += batch.nbytes
+                process_logger.add_metadata(
+                    old_batch_count=old_batch_count,
+                    old_batch_rows=old_batch_rows,
+                    old_batch_bytes=old_batch_bytes,
+                )
+
                 writer.write_batch(batch)
         os.replace(filter_path, self.local_parquet_path)
-
-        process_logger.add_metadata(
-            old_batch_count=old_batch_count,
-            old_batch_rows=old_batch_rows,
-            old_batch_bytes=old_batch_bytes,
-        )
 
         joined_dataset = [
             pd.dataset(self.local_parquet_path),
@@ -252,14 +252,13 @@ class HyperRtRail(HyperJob):
                 combine_batch_count += 1
                 combine_batch_rows += batch.num_rows
                 combine_batch_bytes += batch.nbytes
+                process_logger.add_metadata(
+                    combine_batch_count=combine_batch_count,
+                    combine_batch_rows=combine_batch_rows,
+                    combine_batch_bytes=combine_batch_bytes,
+                )
 
                 writer.write_batch(batch)
-
-        process_logger.add_metadata(
-            combine_batch_count=combine_batch_count,
-            combine_batch_rows=combine_batch_rows,
-            combine_batch_bytes=combine_batch_bytes,
-        )
 
         os.replace(combine_parquet_path, self.local_parquet_path)
         os.remove(self.db_parquet_path)
