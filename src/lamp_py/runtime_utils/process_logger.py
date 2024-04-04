@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import uuid
+import shutil
 from typing import Any, Dict, Union, Optional
 
 MdValues = Optional[Union[str, int, float]]
@@ -21,6 +22,9 @@ class ProcessLogger:
         "status",
         "duration",
         "error_type",
+        "total_disk_bytes",
+        "used_disk_bytes",
+        "free_disk_bytes",
     ]
 
     def __init__(self, process_name: str, **metadata: MdValues) -> None:
@@ -42,6 +46,10 @@ class ProcessLogger:
 
     def _get_log_string(self) -> str:
         """create logging string for log write"""
+        total, used, free = shutil.disk_usage("/")
+        self.default_data["total_disk_bytes"] = total
+        self.default_data["used_disk_bytes"] = used
+        self.default_data["free_disk_bytes"] = free
         logging_list = []
         # add default data to log output
         for key, value in self.default_data.items():
@@ -61,8 +69,10 @@ class ProcessLogger:
             if key in ProcessLogger.protected_keys:
                 continue
             self.metadata[str(key)] = str(value)
-        self.default_data["status"] = "add_metadata"
-        logging.info(self._get_log_string())
+
+        if self.default_data.get("status") is not None:
+            self.default_data["status"] = "add_metadata"
+            logging.info(self._get_log_string())
 
     def log_start(self) -> None:
         """log the start of a proccess"""
