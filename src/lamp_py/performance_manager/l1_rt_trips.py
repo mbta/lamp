@@ -1,3 +1,6 @@
+from typing import Optional
+
+import pandas
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.expression import bindparam
@@ -326,12 +329,145 @@ def update_start_times(db_manager: DatabaseManager) -> None:
         )
 
 
+def update_branch_trunk_route_id(db_manager: DatabaseManager) -> None:
+    """
+    update `branch_route_id` and `trunk_route_id` fields in trips table
+    """
+    distinct_t_trips = (
+        sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id)
+        .distinct()
+        .subquery("distinct_trips")
+    )
+
+    distinct_trips = (
+        sa.select(
+            VehicleTrips.pm_trip_id,
+            VehicleTrips.route_id,
+            VehicleTrips.branch_route_id,
+            VehicleTrips.trunk_route_id,
+        )
+        .select_from(VehicleTrips)
+        .join(
+            distinct_t_trips,
+            sa.and_(
+                distinct_t_trips.c.service_date == VehicleTrips.service_date,
+                distinct_t_trips.c.pm_trip_id == VehicleTrips.pm_trip_id,
+            ),
+        )
+    )
+
+    distinct_red_trips = (
+        sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id)
+        .distinct()
+        .where(TempEventCompare.route_id == "Red")
+        .subquery("distinct_trips")
+    )
+
+    red_events = (
+        sa.select(
+            VehicleEvents.pm_trip_id,
+            VehicleEvents.stop_id,
+        )
+        .select_from(VehicleEvents)
+        .join(
+            distinct_red_trips,
+            sa.and_(
+                distinct_red_trips.c.service_date == VehicleEvents.service_date,
+                distinct_red_trips.c.pm_trip_id == VehicleEvents.pm_trip_id,
+            ),
+        )
+    )
+
+    process_logger = ProcessLogger("l1_trips.update_branch_trunk_route_id")
+    process_logger.log_start()
+
+    trips_df = db_manager.select_as_dataframe(distinct_trips)
+    red_events_df = db_manager.select_as_dataframe(red_events)
+
+    def get_red_branch(pm_trip_id: int) -> Optional[str]:
+        ashmont_stop_ids = {
+            "70087",
+            "70088",
+            "70089",
+            "70090",
+            "70091",
+            "70092",
+            "70093",
+            "70094",
+            "70085",
+            "70086",
+        }
+        braintree_stop_ids = {
+            "70097",
+            "70098",
+            "70099",
+            "70100",
+            "70101",
+            "70102",
+            "70103",
+            "70104",
+            "70105",
+            "70095",
+            "70096",
+        }
+        trip_stop_ids = set(
+            red_events_df[red_events_df["pm_trip_id"] == pm_trip_id]["stop_id"]
+        )
+        if trip_stop_ids & ashmont_stop_ids:
+            return "Red-A"
+        if trip_stop_ids & braintree_stop_ids:
+            return "Red-B"
+        return None
+
+    def map_trunk_route_id(route_id: str) -> str:
+        if str(route_id).startswith("Green"):
+            return "Green"
+        return route_id
+
+    def apply_branch_route_id(record: pandas.Series) -> Optional[str]:
+        if str(record["route_id"]).startswith("Green"):
+            return record["route_id"]
+        if str(record["route_id"]) == "Red":
+            return get_red_branch(record["pm_trip_id"])
+        return None
+
+    trips_df["trunk_route_id"] = trips_df["route_id"].map(map_trunk_route_id)
+    trips_df["branch_route_id"] = trips_df.apply(apply_branch_route_id, axis=1)
+
+    trips_df = trips_df[
+        [
+            "pm_trip_id",
+            "branch_route_id",
+            "trunk_route_id",
+        ]
+    ].rename(
+        columns={
+            "pm_trip_id": "b_pm_trip_id",
+            "branch_route_id": "b_branch_route_id",
+            "trunk_route_id": "b_trunk_route_id",
+        }
+    )
+
+    start_times_update_query = (
+        sa.update(VehicleTrips.__table__)
+        .where(VehicleTrips.pm_trip_id == bindparam("b_pm_trip_id"))
+        .values(
+            branch_route_id=bindparam("b_branch_route_id"),
+            trunk_route_id=bindparam("b_trunk_route_id"),
+        )
+    )
+
+    db_manager.execute_with_data(
+        start_times_update_query,
+        trips_df,
+        disable_trip_tigger=True,
+    )
+    process_logger.log_complete()
+
+
 def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
     """
     Update "stop_count" field for trips with new events
-
-    this function call should also update branch_route_id and trunk_route_id columns
-    for the trips table by activiating the rt_trips_update_branch_trunk TDS trigger
     """
     distinct_trips = (
         sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id)
@@ -374,7 +510,7 @@ def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
 
     process_logger = ProcessLogger("l1_trips.update_trip_stop_counts")
     process_logger.log_start()
-    db_manager.execute(update_query)
+    db_manager.execute(update_query, disable_trip_tigger=True)
     process_logger.log_complete()
 
 
@@ -517,314 +653,315 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
     # select canonical trip_id for each trip_pattern and direction combination
     # this will first select any representative_trip_id where the route_pattern_typicality = 5
     # and then fall back to where the route_pattern_typicality = 1
-    canon_trips = (
-        sa.select(
-            StaticRoutePatterns.direction_id,
-            StaticRoutePatterns.representative_trip_id,
-            StaticTrips.trunk_route_id,
-            sa.func.coalesce(
-                StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-            ).label("route_id"),
-            StaticRoutePatterns.static_version_key,
-        )
-        .distinct(
-            sa.func.coalesce(
-                StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-            ),
-            StaticRoutePatterns.direction_id,
-            StaticRoutePatterns.static_version_key,
-        )
-        .select_from(StaticRoutePatterns)
+    distinct_query = (
+        sa.select(VehicleTrips.service_date, VehicleTrips.static_version_key)
+        .distinct()
         .join(
-            StaticTrips,
-            sa.and_(
-                StaticRoutePatterns.representative_trip_id
-                == StaticTrips.trip_id,
-                StaticRoutePatterns.static_version_key
-                == StaticTrips.static_version_key,
-            ),
+            TempEventCompare,
+            VehicleTrips.pm_trip_id == TempEventCompare.pm_trip_id,
         )
-        .where(
-            StaticRoutePatterns.static_version_key
-            == sa.func.any(
-                sa.func.array(
-                    sa.select(TempEventCompare.static_version_key)
-                    .distinct()
-                    .scalar_subquery()
-                )
-            ),
-            sa.or_(
-                StaticRoutePatterns.route_pattern_typicality == 1,
-                StaticRoutePatterns.route_pattern_typicality == 5,
-            ),
-        )
-        .order_by(
-            sa.func.coalesce(
-                StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-            ),
-            StaticRoutePatterns.direction_id,
-            StaticRoutePatterns.static_version_key,
-            StaticRoutePatterns.route_pattern_typicality.desc(),
-        )
-        .subquery("canon_trips")
     )
-    # using the representative_trip_id's from the canon_trips query, create
-    # stop_sequence values for each parent_station on each route in each direction.
-    # stop_sequence's are created using the row_number function so that they
-    # always start at 1 and increment according to the
-    # StaticStopTimes.stop_sequence order
-    static_canon = (
-        sa.select(
-            canon_trips.c.direction_id,
-            canon_trips.c.trunk_route_id,
-            canon_trips.c.route_id,
-            StaticStops.parent_station,
-            sa.over(
-                sa.func.row_number(),
-                partition_by=(
-                    canon_trips.c.static_version_key,
-                    canon_trips.c.direction_id,
-                    canon_trips.c.route_id,
+    for record in db_manager.select_as_list(distinct_query):
+        canon_trips = (
+            sa.select(
+                StaticRoutePatterns.direction_id,
+                StaticRoutePatterns.representative_trip_id,
+                StaticTrips.trunk_route_id,
+                sa.func.coalesce(
+                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
+                ).label("route_id"),
+                StaticRoutePatterns.static_version_key,
+            )
+            .distinct(
+                sa.func.coalesce(
+                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
                 ),
-                order_by=StaticStopTimes.stop_sequence,
-            ).label("stop_sequence"),
-            canon_trips.c.static_version_key,
-        )
-        .select_from(canon_trips)
-        .join(
-            StaticStopTimes,
-            sa.and_(
-                canon_trips.c.representative_trip_id == StaticStopTimes.trip_id,
-                canon_trips.c.static_version_key
-                == StaticStopTimes.static_version_key,
-            ),
-        )
-        .join(
-            StaticStops,
-            sa.and_(
-                StaticStopTimes.stop_id == StaticStops.stop_id,
-                StaticStopTimes.static_version_key
-                == StaticStops.static_version_key,
-            ),
-        )
-        .subquery("static_canon")
-    )
-
-    # subquery to join static_canon results to vehicle_events records
-    rt_canon = (
-        sa.select(
-            VehicleEvents.pm_event_id,
-            static_canon.c.stop_sequence,
-        )
-        .select_from(VehicleEvents)
-        .join(
-            VehicleTrips,
-            VehicleEvents.pm_trip_id == VehicleTrips.pm_trip_id,
-        )
-        .join(
-            static_canon,
-            sa.and_(
-                VehicleTrips.direction_id == static_canon.c.direction_id,
+                StaticRoutePatterns.direction_id,
+                StaticRoutePatterns.static_version_key,
+            )
+            .select_from(StaticRoutePatterns)
+            .join(
+                StaticTrips,
+                sa.and_(
+                    StaticRoutePatterns.representative_trip_id
+                    == StaticTrips.trip_id,
+                    StaticRoutePatterns.static_version_key
+                    == StaticTrips.static_version_key,
+                ),
+            )
+            .where(
+                StaticRoutePatterns.static_version_key
+                == record["static_version_key"],
+                sa.or_(
+                    StaticRoutePatterns.route_pattern_typicality == 1,
+                    StaticRoutePatterns.route_pattern_typicality == 5,
+                ),
+            )
+            .order_by(
                 sa.func.coalesce(
-                    VehicleTrips.branch_route_id,
-                    VehicleTrips.trunk_route_id,
-                )
-                == static_canon.c.route_id,
-                VehicleTrips.static_version_key
-                == static_canon.c.static_version_key,
-                VehicleEvents.parent_station == static_canon.c.parent_station,
-            ),
+                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
+                ),
+                StaticRoutePatterns.direction_id,
+                StaticRoutePatterns.static_version_key,
+                StaticRoutePatterns.route_pattern_typicality.desc(),
+            )
+            .subquery("canon_trips")
         )
-        .where(
-            VehicleEvents.service_date
-            == sa.func.any(
-                sa.func.array(
-                    sa.select(TempEventCompare.service_date)
-                    .distinct()
-                    .scalar_subquery()
-                )
-            ),
+        # using the representative_trip_id's from the canon_trips query, create
+        # stop_sequence values for each parent_station on each route in each direction.
+        # stop_sequence's are created using the row_number function so that they
+        # always start at 1 and increment according to the
+        # StaticStopTimes.stop_sequence order
+        static_canon = (
+            sa.select(
+                canon_trips.c.direction_id,
+                canon_trips.c.trunk_route_id,
+                canon_trips.c.route_id,
+                StaticStops.parent_station,
+                sa.over(
+                    sa.func.row_number(),
+                    partition_by=(
+                        canon_trips.c.static_version_key,
+                        canon_trips.c.direction_id,
+                        canon_trips.c.route_id,
+                    ),
+                    order_by=StaticStopTimes.stop_sequence,
+                ).label("stop_sequence"),
+                canon_trips.c.static_version_key,
+            )
+            .select_from(canon_trips)
+            .join(
+                StaticStopTimes,
+                sa.and_(
+                    canon_trips.c.representative_trip_id
+                    == StaticStopTimes.trip_id,
+                    canon_trips.c.static_version_key
+                    == StaticStopTimes.static_version_key,
+                ),
+            )
+            .join(
+                StaticStops,
+                sa.and_(
+                    StaticStopTimes.stop_id == StaticStops.stop_id,
+                    StaticStopTimes.static_version_key
+                    == StaticStops.static_version_key,
+                ),
+            )
+            .subquery("static_canon")
         )
-        .subquery("rt_canon")
-    )
 
-    update_rt_canon = (
-        sa.update(VehicleEvents.__table__)
-        .values(
-            canonical_stop_sequence=rt_canon.c.stop_sequence,
-        )
-        .where(
-            VehicleEvents.pm_event_id == rt_canon.c.pm_event_id,
-        )
-    )
-
-    process_logger = ProcessLogger("l1_events.update_canonical_stop_sequence")
-    process_logger.log_start()
-    db_manager.execute(update_rt_canon)
-    process_logger.log_complete()
-
-    # select "zero_point" parent_stations
-    # this query will produce one parent_station for each trunk_route_id that
-    # is the most likey to have all branch_routes passing through them
-    zero_point_stop = (
-        sa.select(
-            static_canon.c.trunk_route_id,
-            static_canon.c.parent_station,
-            sa.literal(0).label("sync_start"),
-        )
-        .distinct(
-            static_canon.c.trunk_route_id,
-        )
-        .group_by(
-            static_canon.c.trunk_route_id,
-            static_canon.c.parent_station,
-        )
-        .order_by(
-            static_canon.c.trunk_route_id,
-            count(
+        # subquery to join static_canon results to vehicle_events records
+        rt_canon = (
+            sa.select(
+                VehicleEvents.pm_event_id,
                 static_canon.c.stop_sequence,
-            ).desc(),
-            (
-                sa.func.max(static_canon.c.stop_sequence)
-                - sa.func.min(static_canon.c.stop_sequence)
-            ).desc(),
+            )
+            .select_from(VehicleEvents)
+            .join(
+                VehicleTrips,
+                VehicleEvents.pm_trip_id == VehicleTrips.pm_trip_id,
+            )
+            .join(
+                static_canon,
+                sa.and_(
+                    VehicleTrips.direction_id == static_canon.c.direction_id,
+                    sa.func.coalesce(
+                        VehicleTrips.branch_route_id,
+                        VehicleTrips.trunk_route_id,
+                    )
+                    == static_canon.c.route_id,
+                    VehicleTrips.static_version_key
+                    == static_canon.c.static_version_key,
+                    VehicleEvents.parent_station
+                    == static_canon.c.parent_station,
+                ),
+            )
+            .where(
+                VehicleEvents.service_date == record["service_date"],
+            )
+            .subquery("rt_canon")
         )
-        .subquery("zero_points")
-    )
 
-    # select stop_sequence number for the zero_point parent_station of each route-branch,
-    # consider this value the stop_sequence "adjustment" value
-    zero_seq_vals = (
-        sa.select(
-            static_canon.c.direction_id,
-            static_canon.c.route_id,
-            static_canon.c.stop_sequence.label("seq_adjust"),
+        update_rt_canon = (
+            sa.update(VehicleEvents.__table__)
+            .values(
+                canonical_stop_sequence=rt_canon.c.stop_sequence,
+            )
+            .where(
+                VehicleEvents.pm_event_id == rt_canon.c.pm_event_id,
+            )
         )
-        .select_from(static_canon)
-        .join(
-            zero_point_stop,
-            sa.and_(
-                zero_point_stop.c.trunk_route_id
-                == static_canon.c.trunk_route_id,
-                zero_point_stop.c.parent_station
-                == static_canon.c.parent_station,
-            ),
-        )
-        .subquery("zero_seq_vals")
-    )
 
-    # select the minimum stop_sequence value and minimum difference
-    # between a stop_sequence and stop_sequence "adjustment" for each branch-route
-    # these values will be used to normalize canonical stop_sequence values across a trunk
-    sync_adjust_vals = (
-        sa.select(
-            static_canon.c.direction_id,
-            static_canon.c.trunk_route_id,
-            sa.func.min(static_canon.c.stop_sequence).label("min_seq"),
-            sa.func.min(
-                static_canon.c.stop_sequence - zero_seq_vals.c.seq_adjust
-            ).label("min_sync"),
+        process_logger = ProcessLogger(
+            "l1_events.update_canonical_stop_sequence",
+            service_date=record["service_date"],
+            static_version_key=record["static_version_key"],
         )
-        .select_from(static_canon)
-        .join(
-            zero_seq_vals,
-            sa.and_(
-                zero_seq_vals.c.direction_id == static_canon.c.direction_id,
-                zero_seq_vals.c.route_id == static_canon.c.route_id,
-            ),
-        )
-        .group_by(
-            static_canon.c.direction_id,
-            static_canon.c.trunk_route_id,
-        )
-        .subquery("sync_adjust_vals")
-    )
+        process_logger.log_start()
+        db_manager.execute(update_rt_canon)
+        process_logger.log_complete()
 
-    # create sync_stop_sequence
-    # canonical_stop_sequence - zero_parent_stop_sequence - minimum_sync_sequence_adjustment(for trunk) + minimum_canonical_stop_sequence(for trunk)
-    sync_values = (
-        sa.select(
-            static_canon.c.direction_id,
-            static_canon.c.route_id,
-            static_canon.c.parent_station,
-            static_canon.c.static_version_key,
-            (
-                static_canon.c.stop_sequence
-                - zero_seq_vals.c.seq_adjust
-                - sync_adjust_vals.c.min_sync
-                + sync_adjust_vals.c.min_seq
-            ).label("sync_stop_sequence"),
+        # select "zero_point" parent_stations
+        # this query will produce one parent_station for each trunk_route_id that
+        # is the most likey to have all branch_routes passing through them
+        zero_point_stop = (
+            sa.select(
+                static_canon.c.trunk_route_id,
+                static_canon.c.parent_station,
+                sa.literal(0).label("sync_start"),
+            )
+            .distinct(
+                static_canon.c.trunk_route_id,
+            )
+            .group_by(
+                static_canon.c.trunk_route_id,
+                static_canon.c.parent_station,
+            )
+            .order_by(
+                static_canon.c.trunk_route_id,
+                count(
+                    static_canon.c.stop_sequence,
+                ).desc(),
+                (
+                    sa.func.max(static_canon.c.stop_sequence)
+                    - sa.func.min(static_canon.c.stop_sequence)
+                ).desc(),
+            )
+            .subquery("zero_points")
         )
-        .select_from(static_canon)
-        .join(
-            zero_seq_vals,
-            sa.and_(
-                zero_seq_vals.c.direction_id == static_canon.c.direction_id,
-                zero_seq_vals.c.route_id == static_canon.c.route_id,
-            ),
-        )
-        .join(
-            sync_adjust_vals,
-            sa.and_(
-                sync_adjust_vals.c.direction_id == static_canon.c.direction_id,
-                sync_adjust_vals.c.trunk_route_id
-                == static_canon.c.trunk_route_id,
-            ),
-        )
-        .subquery(("sync_values"))
-    )
 
-    rt_sync = (
-        sa.select(
-            VehicleEvents.pm_event_id,
-            sync_values.c.sync_stop_sequence,
+        # select stop_sequence number for the zero_point parent_station of each route-branch,
+        # consider this value the stop_sequence "adjustment" value
+        zero_seq_vals = (
+            sa.select(
+                static_canon.c.direction_id,
+                static_canon.c.route_id,
+                static_canon.c.stop_sequence.label("seq_adjust"),
+            )
+            .select_from(static_canon)
+            .join(
+                zero_point_stop,
+                sa.and_(
+                    zero_point_stop.c.trunk_route_id
+                    == static_canon.c.trunk_route_id,
+                    zero_point_stop.c.parent_station
+                    == static_canon.c.parent_station,
+                ),
+            )
+            .subquery("zero_seq_vals")
         )
-        .select_from(VehicleEvents)
-        .join(
-            VehicleTrips,
-            VehicleEvents.pm_trip_id == VehicleTrips.pm_trip_id,
-        )
-        .join(
-            sync_values,
-            sa.and_(
-                VehicleTrips.direction_id == sync_values.c.direction_id,
-                sa.func.coalesce(
-                    VehicleTrips.branch_route_id,
-                    VehicleTrips.trunk_route_id,
-                )
-                == sync_values.c.route_id,
-                VehicleTrips.static_version_key
-                == sync_values.c.static_version_key,
-                VehicleEvents.parent_station == sync_values.c.parent_station,
-            ),
-        )
-        .where(
-            VehicleEvents.service_date
-            == sa.func.any(
-                sa.func.array(
-                    sa.select(TempEventCompare.service_date)
-                    .distinct()
-                    .scalar_subquery()
-                )
-            ),
-        )
-        .subquery("rt_sync")
-    )
 
-    update_rt_sync = (
-        sa.update(VehicleEvents.__table__)
-        .values(
-            sync_stop_sequence=rt_sync.c.sync_stop_sequence,
+        # select the minimum stop_sequence value and minimum difference
+        # between a stop_sequence and stop_sequence "adjustment" for each branch-route
+        # these values will be used to normalize canonical stop_sequence values across a trunk
+        sync_adjust_vals = (
+            sa.select(
+                static_canon.c.direction_id,
+                static_canon.c.trunk_route_id,
+                sa.func.min(static_canon.c.stop_sequence).label("min_seq"),
+                sa.func.min(
+                    static_canon.c.stop_sequence - zero_seq_vals.c.seq_adjust
+                ).label("min_sync"),
+            )
+            .select_from(static_canon)
+            .join(
+                zero_seq_vals,
+                sa.and_(
+                    zero_seq_vals.c.direction_id == static_canon.c.direction_id,
+                    zero_seq_vals.c.route_id == static_canon.c.route_id,
+                ),
+            )
+            .group_by(
+                static_canon.c.direction_id,
+                static_canon.c.trunk_route_id,
+            )
+            .subquery("sync_adjust_vals")
         )
-        .where(
-            VehicleEvents.pm_event_id == rt_sync.c.pm_event_id,
-        )
-    )
 
-    process_logger = ProcessLogger("l1_events.update_sync_stop_sequence")
-    process_logger.log_start()
-    db_manager.execute(update_rt_sync)
-    process_logger.log_complete()
+        # create sync_stop_sequence
+        # canonical_stop_sequence - zero_parent_stop_sequence - minimum_sync_sequence_adjustment(for trunk) + minimum_canonical_stop_sequence(for trunk)
+        sync_values = (
+            sa.select(
+                static_canon.c.direction_id,
+                static_canon.c.route_id,
+                static_canon.c.parent_station,
+                static_canon.c.static_version_key,
+                (
+                    static_canon.c.stop_sequence
+                    - zero_seq_vals.c.seq_adjust
+                    - sync_adjust_vals.c.min_sync
+                    + sync_adjust_vals.c.min_seq
+                ).label("sync_stop_sequence"),
+            )
+            .select_from(static_canon)
+            .join(
+                zero_seq_vals,
+                sa.and_(
+                    zero_seq_vals.c.direction_id == static_canon.c.direction_id,
+                    zero_seq_vals.c.route_id == static_canon.c.route_id,
+                ),
+            )
+            .join(
+                sync_adjust_vals,
+                sa.and_(
+                    sync_adjust_vals.c.direction_id
+                    == static_canon.c.direction_id,
+                    sync_adjust_vals.c.trunk_route_id
+                    == static_canon.c.trunk_route_id,
+                ),
+            )
+            .subquery(("sync_values"))
+        )
+
+        rt_sync = (
+            sa.select(
+                VehicleEvents.pm_event_id,
+                sync_values.c.sync_stop_sequence,
+            )
+            .select_from(VehicleEvents)
+            .join(
+                VehicleTrips,
+                VehicleEvents.pm_trip_id == VehicleTrips.pm_trip_id,
+            )
+            .join(
+                sync_values,
+                sa.and_(
+                    VehicleTrips.direction_id == sync_values.c.direction_id,
+                    sa.func.coalesce(
+                        VehicleTrips.branch_route_id,
+                        VehicleTrips.trunk_route_id,
+                    )
+                    == sync_values.c.route_id,
+                    VehicleTrips.static_version_key
+                    == sync_values.c.static_version_key,
+                    VehicleEvents.parent_station
+                    == sync_values.c.parent_station,
+                ),
+            )
+            .where(
+                VehicleEvents.service_date == record["service_date"],
+            )
+            .subquery("rt_sync")
+        )
+
+        update_rt_sync = (
+            sa.update(VehicleEvents.__table__)
+            .values(
+                sync_stop_sequence=rt_sync.c.sync_stop_sequence,
+            )
+            .where(
+                VehicleEvents.pm_event_id == rt_sync.c.pm_event_id,
+            )
+        )
+
+        process_logger = ProcessLogger(
+            "l1_events.update_sync_stop_sequence",
+            service_date=record["service_date"],
+            static_version_key=record["static_version_key"],
+        )
+        process_logger.log_start()
+        db_manager.execute(update_rt_sync)
+        process_logger.log_complete()
 
 
 # pylint: disable=R0914
@@ -988,6 +1125,7 @@ def process_trips(db_manager: DatabaseManager) -> None:
 
     """
     update_static_version_key(db_manager)
+    update_branch_trunk_route_id(db_manager)
     update_trip_stop_counts(db_manager)
     update_prev_next_trip_stop(db_manager)
     update_static_trip_id_guess_exact(db_manager)
