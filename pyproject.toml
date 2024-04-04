@@ -87,6 +87,8 @@ disable = [
   "unsubscriptable-object",
   # Converter abstract base class only has one common function
   "too-few-public-methods",
+  # l1_rt_trips.py over 1000 lines
+  "too-many-lines",
 ]
 good-names = ["e", "i", "s"]
 max-line-length = 80
