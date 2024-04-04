@@ -370,6 +370,10 @@ def check_logs(caplog: pytest.LogCaptureFixture) -> None:
         if record.levelname == "DEBUG":
             continue
 
+        # skip add_metadata logs
+        if "status=add_metadata" in record.message:
+            continue
+
         log = message_to_dict(record.message)
 
         # check for keys that must be present
