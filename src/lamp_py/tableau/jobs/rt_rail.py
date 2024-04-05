@@ -101,7 +101,7 @@ class HyperRtRail(HyperJob):
             "   ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id, vt.start_time"
             ";"
         )
-        self.ds_batch_size = int(1024 * 1024 / 2)
+        self.ds_batch_size = 1024 * 256
         self.db_parquet_path = "/tmp/db_local.parquet"
 
     @property
