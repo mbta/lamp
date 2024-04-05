@@ -34,6 +34,13 @@ class HyperGTFS(HyperJob):
         self.create_query = table_query % ""
         self.update_query = table_query
         self.always_create_parquet = always_create_parquet
+        # batch_size of 1024 * 512 is a conservative estimate for all
+        # GTFS datasets
+        # memory should not excede ~4GB for any individual parquet operation
+        #
+        # this memory usage profile is based on the current schemas
+        # and should be revisited if any schema changes are made
+        self.ds_batch_size = 1024 * 512
 
     @property
     def parquet_schema(self) -> pyarrow.schema:
@@ -47,6 +54,7 @@ class HyperGTFS(HyperJob):
             select_query=sa.text(self.create_query),
             write_path=self.local_parquet_path,
             schema=self.parquet_schema,
+            batch_size=self.ds_batch_size,
         )
 
     def update_parquet(self, db_manager: DatabaseManager) -> bool:
@@ -83,6 +91,7 @@ class HyperGTFS(HyperJob):
             select_query=sa.text(update_query),
             write_path=db_parquet_path,
             schema=self.parquet_schema,
+            batch_size=self.ds_batch_size,
         )
 
         old_ds = pd.dataset(self.local_parquet_path)
@@ -92,7 +101,7 @@ class HyperGTFS(HyperJob):
         combine_batches = pd.dataset(
             [old_ds, new_ds],
             schema=self.parquet_schema,
-        ).to_batches(batch_size=1024 * 1024)
+        ).to_batches(batch_size=self.ds_batch_size)
 
         with pq.ParquetWriter(
             combine_parquet_path, schema=self.parquet_schema

@@ -2,9 +2,12 @@ import logging
 import os
 import time
 import uuid
+import shutil
 from typing import Any, Dict, Union, Optional
 
-MdValues = Optional[Union[str, int, float]]
+import psutil
+
+MdValues = Optional[Union[str, int, float, bool]]
 
 
 class ProcessLogger:
@@ -21,6 +24,9 @@ class ProcessLogger:
         "status",
         "duration",
         "error_type",
+        "free_disk_mb",
+        "free_mem_pct",
+        "print_log",
     ]
 
     def __init__(self, process_name: str, **metadata: MdValues) -> None:
@@ -42,6 +48,10 @@ class ProcessLogger:
 
     def _get_log_string(self) -> str:
         """create logging string for log write"""
+        _, _, free_disk_bytes = shutil.disk_usage("/")
+        used_mem_pct = psutil.virtual_memory().percent
+        self.default_data["free_disk_mb"] = int(free_disk_bytes / (1000 * 1000))
+        self.default_data["free_mem_pct"] = int(100 - used_mem_pct)
         logging_list = []
         # add default data to log output
         for key, value in self.default_data.items():
@@ -54,15 +64,23 @@ class ProcessLogger:
         return ", ".join(logging_list)
 
     def add_metadata(self, **metadata: MdValues) -> None:
-        """add metadata to the process logger"""
+        """
+        add metadata to the process logger
+
+        :param print_log: if True(default), print log after metadata is added
+        """
+        metadata.setdefault("print_log", True)
+        print_log = bool(metadata.get("print_log"))
         for key, value in metadata.items():
             # skip metadata key if protected as default_data key
             # maybe raise on this? instead of fail silently
             if key in ProcessLogger.protected_keys:
                 continue
             self.metadata[str(key)] = str(value)
-        self.default_data["status"] = "add_metadata"
-        logging.info(self._get_log_string())
+
+        if self.default_data.get("status") is not None and print_log:
+            self.default_data["status"] = "add_metadata"
+            logging.info(self._get_log_string())
 
     def log_start(self) -> None:
         """log the start of a proccess"""
