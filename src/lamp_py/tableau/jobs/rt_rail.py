@@ -101,6 +101,14 @@ class HyperRtRail(HyperJob):
             "   ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id, vt.start_time"
             ";"
         )
+        # based on testing, batch_size of 1024 * 256 should result in a maximum
+        # memory usage of ~9GB for this dataset.
+        #
+        # this memory usage profile is based on the current schema of this
+        # dataset and should be revisited if schema changes are made
+        #
+        # batch_size/row group size of input parquet files can also impact
+        # memory usage of batched ParquetWriter operations
         self.ds_batch_size = 1024 * 256
         self.db_parquet_path = "/tmp/db_local.parquet"
 
@@ -162,6 +170,7 @@ class HyperRtRail(HyperJob):
             select_query=sa.text(create_query),
             write_path=self.local_parquet_path,
             schema=self.parquet_schema,
+            batch_size=self.ds_batch_size,
         )
 
     # pylint: disable=R0914
@@ -190,6 +199,7 @@ class HyperRtRail(HyperJob):
             select_query=sa.text(update_query),
             write_path=self.db_parquet_path,
             schema=self.parquet_schema,
+            batch_size=self.ds_batch_size,
         )
 
         check_filter = pc.field("service_date") >= max_start_date
