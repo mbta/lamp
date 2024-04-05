@@ -7,7 +7,7 @@ from typing import Any, Dict, Union, Optional
 
 import psutil
 
-MdValues = Optional[Union[str, int, float]]
+MdValues = Optional[Union[str, int, float, bool]]
 
 
 class ProcessLogger:
@@ -26,6 +26,7 @@ class ProcessLogger:
         "error_type",
         "free_disk_mb",
         "free_mem_pct",
+        "print_log",
     ]
 
     def __init__(self, process_name: str, **metadata: MdValues) -> None:
@@ -63,7 +64,13 @@ class ProcessLogger:
         return ", ".join(logging_list)
 
     def add_metadata(self, **metadata: MdValues) -> None:
-        """add metadata to the process logger"""
+        """
+        add metadata to the process logger
+
+        :param print_log: if True(default), print log after metadata is added
+        """
+        metadata.setdefault("print_log", True)
+        print_log = bool(metadata.get("print_log"))
         for key, value in metadata.items():
             # skip metadata key if protected as default_data key
             # maybe raise on this? instead of fail silently
@@ -71,7 +78,7 @@ class ProcessLogger:
                 continue
             self.metadata[str(key)] = str(value)
 
-        if self.default_data.get("status") is not None:
+        if self.default_data.get("status") is not None and print_log:
             self.default_data["status"] = "add_metadata"
             logging.info(self._get_log_string())
 
