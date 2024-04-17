@@ -14,6 +14,7 @@ performance_manager = 'lamp_py.performance_manager.pipeline:start'
 bus_performance_manager = 'lamp_py.bus_performance_manager.pipeline:start'
 seed_metadata = 'lamp_py.postgres.seed_metadata:run'
 hyper_update = 'lamp_py.tableau.pipeline:start_hyper_updates'
+test_mssql = 'lamp_py.mssql.test_connect:start'
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -27,6 +28,7 @@ psutil = "^5.9.8"
 schedule = "^1.1.0"
 alembic = "^1.10.2"
 types-pytz = "^2024.1.0.20240203"
+pyodbc = "^5.1.0"
 
 [tool.poetry.group.tableau]
 optional = false

@@ -40,6 +40,13 @@ LAMP applications require permissions to access MBTA/CTD AWS resources.
 
 To get started with AWS, install the [AWS Command Line Interface](https://aws.amazon.com/cli/). Then, follow the instructions for [configuring the AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to associate a local machine with an AWS account.  Finally, associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
 
+## Microsoft SQL
+
+The LAMP ingestion application has a Microsoft SQL Server datasource. To query the Microsoft SQL Server, on Linux, two pre-requisites are required.
+
+1. Install the [Mirosoft ODBC 18 driver for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server).
+2. Configure `openssl` to allow TLS V1.0 connections.
+
 ## Environmental Variables
 
 Project environmental variables are stored in [.env](.env) and managed for command line usage with `direnv`.

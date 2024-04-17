@@ -38,6 +38,14 @@ services:
       - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
     command: ["poetry", "run", "performance_manager"]
 
+  test_mssql:
+    container_name: test_mssql
+    env_file: .env
+    build: .
+    working_dir: /lamp
+    network_mode: "host"
+    command: ["poetry", "run", "test_mssql"]
+
   bus_performance_manager:
     container_name: bus_performance_manager
     env_file: .env
