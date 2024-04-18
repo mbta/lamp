@@ -23,6 +23,7 @@ from lamp_py.publishing.performancedata import publish_performance_index
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
 from .l0_gtfs_static_load import process_static_tables
+from .alerts import process_alerts
 
 logging.getLogger().setLevel("INFO")
 
@@ -87,6 +88,7 @@ def main(args: argparse.Namespace) -> None:
             process_static_tables(rpm_db_manager, md_db_manager)
             process_gtfs_rt_files(rpm_db_manager, md_db_manager)
             write_flat_files(rpm_db_manager)
+            process_alerts(md_db_manager)
             start_parquet_updates(rpm_db_manager)
 
             process_logger.log_complete()
