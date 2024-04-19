@@ -110,6 +110,11 @@ class GtfsConverter(Converter):
 
         s3_prefix = table_filename.replace(".txt", "").upper()
 
+        # if the table has no rows in it, early exit. the write_parquet_file
+        # will throw if an empty table is passed in.
+        if table.num_rows == 0:
+            return
+
         visitor_func = None
         if s3_prefix == "FEED_INFO":
             visitor_func = self.send_metadata
