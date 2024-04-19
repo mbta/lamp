@@ -476,7 +476,11 @@ def write_parquet_file(
     partition_strings = []
     for col in partition_cols:
         unique_list = pc.unique(table.column(col)).to_pylist()
-        assert len(unique_list) == 1
+
+        assert (
+            len(unique_list) == 1
+        ), f"Table {s3_dir} column {col} had {len(unique_list)} unique elements"
+
         partition_strings.append(f"{col}={unique_list[0]}")
 
     table = table.drop(partition_cols)
