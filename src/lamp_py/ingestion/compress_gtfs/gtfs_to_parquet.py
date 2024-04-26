@@ -44,13 +44,9 @@ def frame_parquet_diffs(
     pq_filter = (pc.field("gtfs_active_date") <= filter_date) & (
         pc.field("gtfs_end_date") >= filter_date
     )
-    pq_frame = pl.from_arrow(
-        pq.ParquetDataset(pq_path, filters=pq_filter).read()
+    pq_frame = pl.read_parquet(
+        pq_path, use_pyarrow=True, pyarrow_options={"filters": pq_filter}
     )
-
-    # mypy type guard...
-    if isinstance(pq_frame, pl.Series):
-        pq_frame = pq_frame.to_frame()
 
     join_columns = tuple(gtfs_schema(gtfs_table_file).keys())
 
@@ -290,6 +286,9 @@ def compress_gtfs_schedule(schedule_details: ScheduleDetails) -> None:
 def gtfs_to_parquet() -> None:
     """
     run gtfs -> parquet schedule compression process locally and then sync with S3 bucket
+
+    maximum process memory usage for this operation peaked at 5440MB
+    while processing Feb-2018 to April-2024
     """
     gtfs_tmp_folder = "/tmp/compress-gtfs"
     logger = ProcessLogger(
