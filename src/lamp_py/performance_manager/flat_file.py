@@ -23,6 +23,7 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleTrips,
     StaticStopTimes,
     StaticStops,
+    StaticRoutes,
     TempEventCompare,
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
@@ -40,7 +41,7 @@ class S3Archive:
     )
     INDEX_FILENAME = "index.csv"
     VERSION_KEY = "rpm_version"
-    RPM_VERSION = "1.0.0"
+    RPM_VERSION = "1.1.0"
 
 
 def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
@@ -320,6 +321,7 @@ def write_daily_table(
             static_subquery.c.scheduled_headway_branch,
             static_subquery.c.scheduled_headway_trunk,
         )
+        .select_from(VehicleEvents)
         .join(VehicleTrips, VehicleEvents.pm_trip_id == VehicleTrips.pm_trip_id)
         .join(
             static_subquery,
@@ -330,8 +332,18 @@ def write_daily_table(
             ),
             isouter=True,
         )
+        .join(
+            StaticRoutes,
+            sa.and_(
+                VehicleTrips.route_id == StaticRoutes.route_id,
+                VehicleTrips.static_version_key
+                == StaticRoutes.static_version_key,
+            ),
+        )
         .where(
             VehicleEvents.service_date == service_date_int,
+            VehicleTrips.static_version_key == static_version_key,
+            StaticRoutes.route_type < 2,
             sa.or_(
                 VehicleEvents.vp_move_timestamp.is_not(None),
                 VehicleEvents.vp_stop_timestamp.is_not(None),

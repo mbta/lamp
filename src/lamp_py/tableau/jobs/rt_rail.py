@@ -21,7 +21,7 @@ class HyperRtRail(HyperJob):
             self,
             hyper_file_name="LAMP_ALL_RT_fields.hyper",
             remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet",
-            lamp_version="1.1.1",
+            lamp_version="1.1.2",
         )
         self.table_query = (
             "SELECT"
@@ -90,8 +90,14 @@ class HyperRtRail(HyperJob):
             " ON "
             "   prev_ve.stop_id = prev_ss.stop_id"
             "   AND vt.static_version_key = prev_ss.static_version_key"
+            " LEFT JOIN "
+            "   static_routes sr"
+            " ON "
+            "   vt.route_id = sr.route_id"
+            "   AND vt.static_version_key = sr.static_version_key"
             " WHERE "
-            "   ("
+            "   sr.route_type < 2"
+            "   AND ("
             "       ve.canonical_stop_sequence > 1"
             "       OR ve.canonical_stop_sequence IS NULL"
             "   )"
