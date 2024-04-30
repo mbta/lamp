@@ -248,6 +248,14 @@ def extract_alerts(
     alerts["severity"] = alerts["severity"].astype("int8")
     alerts["alert_lifecycle"] = alerts["alert_lifecycle"].astype("string")
     alerts["duration_certainty"] = alerts["duration_certainty"].astype("string")
+    alerts["created_timestamp"] = alerts["created_timestamp"].astype("Int64")
+    alerts["last_modified_timestamp"] = alerts[
+        "last_modified_timestamp"
+    ].astype("Int64")
+    alerts["last_push_notification_timestamp"] = alerts[
+        "last_push_notification_timestamp"
+    ].astype("Int64")
+    alerts["closed_timestamp"] = alerts["closed_timestamp"].astype("Int64")
 
     # perform an anti-join against existing alerts. merge with existing pairs
     # and keep only the records that are new.
@@ -320,6 +328,15 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
         alerts["active_period"].apply(extract_start_end).apply(pandas.Series)
     )
 
+    # convert these timestamps to Int64 to avoid floating point errors
+    alerts["active_period_start_timestamp"] = alerts[
+        "active_period_start_timestamp"
+    ].astype("Int64")
+    alerts["active_period_end_timestamp"] = alerts[
+        "active_period_end_timestamp"
+    ].astype("Int64")
+
+    # drop the active period list column
     alerts = alerts.drop(columns=["active_period"])
 
     # convert all of the timestamp columns to eastern standard time
