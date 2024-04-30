@@ -307,7 +307,7 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
         periods: Optional[List[Dict[str, int]]]
     ) -> Tuple[int | None, int | None]:
         """small lambda for extracting start and end timestamps"""
-        if periods is None:
+        if periods is None or len(periods) == 0:
             return None, None
         return periods[0].get("start"), periods[0].get("end")
 
@@ -335,9 +335,9 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
     for key in timestamp_columns:
         timestamp_key = f"{key}_timestamp"
         alerts[key] = (
-            pandas.to_datetime(alerts[timestamp_key], unit="s", utc=True)
+            pandas.to_datetime(alerts[timestamp_key], unit="s")
+            .dt.tz_localize("UTC", ambiguous="infer")
             .dt.tz_convert("America/New_York")
-            .dt.floor("s")
         )
 
     return alerts
@@ -364,7 +364,7 @@ def explode_alerts(alerts: pandas.DataFrame) -> pandas.DataFrame:
     # extract information from the informed entity
     for key in informed_entity_keys:
         alerts[f"informed_entity.{key}"] = alerts["informed_entity"].apply(
-            lambda x, k=key: x.get(k)
+            lambda x, k=key: None if x is None else x.get(k)
         )
 
     alerts = alerts.drop(columns=["informed_entity"])
@@ -372,7 +372,13 @@ def explode_alerts(alerts: pandas.DataFrame) -> pandas.DataFrame:
     # transform the activities field from a list to a pipe delimitated string
     alerts["informed_entity.activities"] = alerts[
         "informed_entity.activities"
-    ].apply(lambda x: "|".join(str(item) for item in x if item is not None))
+    ].apply(
+        lambda x: (
+            None
+            if x is None
+            else "|".join(str(item) for item in x if item is not None)
+        )
+    )
 
     # the commuter rail informed entity contains extra details that aren't
     # extracted in this transformation. those instances will appear as
@@ -436,23 +442,26 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
         try:
             # extract the data and transform it for publication
             alerts = extract_alerts(alert_files, existing_id_timestamp_pairs)
+
             process_logger.add_metadata(extracted_alerts=len(alerts))
+
+            if alerts.empty:
+                subprocess_logger.log_complete()
+                continue
+
             alerts = transform_translations(alerts)
             alerts = transform_timestamps(alerts)
             alerts = explode_alerts(alerts)
-            process_logger.add_metadata(explode_alerts=len(alerts))
+            subprocess_logger.add_metadata(explode_alerts=len(alerts))
 
-            if len(alerts) > 0:
-                # add the new alerts to the local temp file that will be published
-                parquet_handler.append_new_records(alerts)
+            # add the new alerts to the local temp file that will be published
+            parquet_handler.append_new_records(alerts)
 
-                # add new id timestamp pairs to existing for next pass
-                new_id_timestamp_pairs = alerts[
-                    ["id", "last_modified_timestamp"]
-                ]
-                existing_id_timestamp_pairs = pandas.concat(
-                    [existing_id_timestamp_pairs, new_id_timestamp_pairs]
-                )
+            # add new id timestamp pairs to existing for next pass
+            new_id_timestamp_pairs = alerts[["id", "last_modified_timestamp"]]
+            existing_id_timestamp_pairs = pandas.concat(
+                [existing_id_timestamp_pairs, new_id_timestamp_pairs]
+            )
 
             # update metadata for the files that were processed
             md_db_manager.execute(
