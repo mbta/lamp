@@ -185,7 +185,7 @@ class AlertParquetHandler:
 
 
 def extract_alerts(
-    alert_files: List[str], existing_id_timestamp_pairs: pandas.DataFrame = None
+    alert_files: List[str], existing_id_timestamp_pairs: pandas.DataFrame
 ) -> pandas.DataFrame:
     """Read alerts data from unprocessed files, remove duplicates, and set types"""
     columns = [
@@ -351,6 +351,7 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
 
     for key in timestamp_columns:
         timestamp_key = f"{key}_timestamp"
+
         alerts[key] = (
             pandas.to_datetime(alerts[timestamp_key], unit="s")
             .dt.tz_localize("UTC", ambiguous="infer")
@@ -380,7 +381,8 @@ def explode_alerts(alerts: pandas.DataFrame) -> pandas.DataFrame:
 
     # extract information from the informed entity
     for key in informed_entity_keys:
-        alerts[f"informed_entity.{key}"] = alerts["informed_entity"].apply(
+        full_key = f"informed_entity.{key}"
+        alerts[full_key] = alerts["informed_entity"].apply(
             lambda x, k=key: None if x is None else x.get(k)
         )
 
