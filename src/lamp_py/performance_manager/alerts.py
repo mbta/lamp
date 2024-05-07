@@ -1,5 +1,6 @@
 import os
 from typing import List, Dict, Tuple, Optional
+from datetime import datetime, timezone
 
 import pandas
 import pyarrow
@@ -17,6 +18,8 @@ from lamp_py.aws.s3 import (
 from lamp_py.postgres.metadata_schema import MetadataLog
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+from .gtfs_utils import BOSTON_TZ
 
 
 class AlertParquetHandler:
@@ -340,6 +343,22 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
     alerts = alerts.drop(columns=["active_period"])
 
     # convert all of the timestamp columns to eastern standard time
+    def unix_to_est(unix_time: Optional[int]) -> Optional[datetime]:
+        """
+        Utility for converting a unix timestamp into a datetime object.
+        Indexing errors occur when using pandas built in datetime manipulation
+        functions with NaN's, so filter them out with this function instead.
+        """
+        if unix_time is None or pandas.isna(unix_time):
+            return None
+
+        # Create a timezone-aware datetime object in UTC
+        utc_time = datetime.fromtimestamp(unix_time, tz=timezone.utc)
+
+        # Convert UTC time to Eastern Time
+        est_time = utc_time.astimezone(BOSTON_TZ)
+        return est_time
+
     timestamp_columns = [
         "created",
         "last_modified",
@@ -351,12 +370,7 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
 
     for key in timestamp_columns:
         timestamp_key = f"{key}_timestamp"
-
-        alerts[key] = (
-            pandas.to_datetime(alerts[timestamp_key], unit="s")
-            .dt.tz_localize("UTC", ambiguous="infer")
-            .dt.tz_convert("America/New_York")
-        )
+        alerts[key] = alerts[timestamp_key].apply(unix_to_est)
 
     return alerts
 

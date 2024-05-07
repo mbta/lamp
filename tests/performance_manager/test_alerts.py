@@ -188,7 +188,7 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
 
         non_null = alerts_processed[new_name].dropna()
         assert len(non_null) > 0
-        assert str(non_null.iloc[0].tz) == "America/New_York"
+        assert str(non_null.iloc[0].tz) == "EST5EDT"
 
     active_period_count = (
         alerts_raw["active_period"].dropna().apply(lambda x: len(x) > 0).sum()
@@ -209,7 +209,7 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
 
         non_null = alerts_processed[new_name].dropna()
         assert len(non_null) > 0
-        assert str(non_null.iloc[0].tz) == "America/New_York"
+        assert str(non_null.iloc[0].tz) == "EST5EDT"
 
 
 def test_transform_timestamps() -> None:
