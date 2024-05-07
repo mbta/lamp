@@ -98,6 +98,9 @@ def ingest_files(
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
+    if len(converters) == 0:
+        return
+
     with Pool(processes=len(converters)) as pool:
         pool.map_async(run_converter, converters.values())
         pool.close()

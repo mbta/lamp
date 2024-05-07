@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 import boto3
 import pandas
 import sqlalchemy as sa
+from sqlalchemy.sql.functions import now
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import sessionmaker
 import pyarrow
 import pyarrow.parquet as pq
@@ -581,8 +583,17 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
         if metadata_path is None:
             break
 
-        insert_statement = sa.insert(MetadataLog.__table__).values(
-            path=metadata_path
+        insert_statement = (
+            postgresql.insert(MetadataLog.__table__)
+            .values(path=metadata_path)
+            .on_conflict_do_update(
+                index_elements=[MetadataLog.path],
+                set_={
+                    "rail_pm_processed": sa.false(),
+                    "rail_pm_process_fail": sa.false(),
+                    "created_on": now(),
+                },
+            )
         )
         insert_logger = ProcessLogger("metadata_insert", filepath=metadata_path)
         insert_logger.log_start()

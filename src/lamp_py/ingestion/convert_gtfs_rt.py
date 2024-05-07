@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -10,8 +11,16 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import pyarrow
 from pyarrow import fs
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
+import pyarrow.dataset as pd
 
-from lamp_py.aws.s3 import move_s3_objects, write_parquet_file
+from lamp_py.aws.s3 import (
+    move_s3_objects,
+    file_list_from_s3,
+    download_file,
+    upload_file,
+)
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .config_rt_alerts import RtAlertsDetail
@@ -76,10 +85,8 @@ class GtfsRtConverter(Converter):
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 
-        # get the start of the current hour. any files written after this will
-        # not be ingested until the next go around.
-        now = datetime.now(tz=timezone.utc)
-        self.start_of_hour = now.replace(minute=0, second=0, microsecond=0)
+        self.pq_batch_size = 1024 * 256
+        self.tmp_folder = "/tmp/gtfs-rt-continuous"
 
         self.table_groups: Dict[datetime, TableData] = {}
 
@@ -99,18 +106,20 @@ class GtfsRtConverter(Converter):
         table_count = 0
         try:
             for table in self.process_files():
-                self.write_table(table)
+                if table.num_rows == 0:
+                    continue
+                self.continuous_pq_update(table)
                 self.move_s3_files()
 
-                # only count table if it contains data
-                if table.num_rows > 0:
-                    table_count += 1
+                table_count += 1
 
                 process_logger.add_metadata(table_count=table_count)
 
                 # limit number of tables produced on each event loop
                 if table_count >= max_tables_to_convert:
                     break
+
+            self.clean_local_folders()
 
         except Exception as exception:
             process_logger.log_failure(exception)
@@ -199,20 +208,8 @@ class GtfsRtConverter(Converter):
 
                 yield from self.yield_check(yield_threshold, process_logger)
 
-                # check if ready to end work because processing files past start_of_hour
-                # waiting for count of files > yield_threshold should allow for
-                # any work from previous hour to finish before exiting
-                if (
-                    result_dt >= self.start_of_hour
-                    and len(self.table_groups[timestamp_hr].files)
-                    > yield_threshold
-                ):
-                    break
-
-        # yield any remaining tables with next_hr_cnt > 0
-        # guaranteeing that the end of the hour was hit
-        # not sure if we would ever actually hit this
-        yield from self.yield_check(0, process_logger)
+        # yield any remaining tables
+        yield from self.yield_check(-1, process_logger)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
@@ -231,10 +228,6 @@ class GtfsRtConverter(Converter):
         instead, ensure that a sufficient number for files from the next hour
         have been processed.
 
-        additionally, do not yield any tables from the current hour, as we want
-        limit the number of parquet files generated (ideally one per hour) and
-        more data for the current hour will be coming in later.
-
         @yield_threshold - how many files from the next hour have to be
             processed before considering _this_ hour complete.
         @process_logger - a process logger for the conversion process. log a
@@ -244,10 +237,7 @@ class GtfsRtConverter(Converter):
             data over the corse of an hour.
         """
         for iter_ts in list(self.table_groups.keys()):
-            if (
-                self.table_groups[iter_ts].next_hr_cnt > yield_threshold
-                and iter_ts < self.start_of_hour
-            ):
+            if self.table_groups[iter_ts].next_hr_cnt > yield_threshold:
                 self.archive_files += self.table_groups[iter_ts].files
 
                 table = self.table_groups[iter_ts].table
@@ -353,38 +343,151 @@ class GtfsRtConverter(Converter):
             table,
         )
 
-    def write_table(self, table: pyarrow.table) -> None:
-        """write the table to our s3 bucket"""
-        # don't write if table has no data
-        if table.num_rows == 0:
-            return
+    def verify_table(self, table: pyarrow.Table) -> None:
+        """
+        verify structure of table
+        """
+        partition_cols = ["year", "month", "day", "hour"]
+        for col in partition_cols:
+            unique_list = pc.unique(table.column(col)).to_pylist()
 
+            assert (
+                len(unique_list) == 1
+            ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
+
+    def sync_with_s3(self, part_folder: str) -> str:
+        """
+        check and see if UUID path exists on s3
+        """
+
+        local_folder = os.path.join(
+            self.tmp_folder,
+            part_folder,
+        )
+        if os.path.exists(local_folder):
+            return os.path.join(local_folder, os.listdir(local_folder)[0])
+
+        os.makedirs(local_folder, exist_ok=True)
+        bucket = os.environ["SPRINGBOARD_BUCKET"]
+        s3_files = file_list_from_s3(
+            bucket,
+            file_prefix=f"{part_folder}/",
+        )
+        if len(s3_files) == 1:
+            s3_path = s3_files[0].replace("s3://", "")
+            local_path = s3_path.replace(bucket, self.tmp_folder)
+            download_file(s3_path, local_path)
+            return local_path
+
+        return ""
+
+    # pylint: disable=R0914
+    def continuous_pq_update(self, table: pyarrow.Table) -> None:
+        """
+        Continuous updating of local parquet files that are synced with S3
+        """
+        log = ProcessLogger("continuous_pq_update")
+        log.log_start()
         try:
-            s3_prefix = str(self.config_type)
+            self.verify_table(table)
 
-            sort_log = ProcessLogger(
-                "pyarrow_sort_by", table_rows=table.num_rows
+            year = pc.unique(table.column("year")).to_pylist()[0]
+            month = pc.unique(table.column("month")).to_pylist()[0]
+            day = pc.unique(table.column("day")).to_pylist()[0]
+            hour = pc.unique(table.column("hour")).to_pylist()[0]
+
+            part_folder = os.path.join(
+                DEFAULT_S3_PREFIX,
+                str(self.config_type),
+                f"year={year}",
+                f"month={month}",
+                f"day={day}",
+                f"hour={hour}",
             )
-            sort_log.log_start()
-            if self.detail.table_sort_order is not None:
-                table = table.sort_by(self.detail.table_sort_order)
-            sort_log.log_complete()
+            local_path = self.sync_with_s3(part_folder)
 
-            write_parquet_file(
-                table=table,
-                file_type=s3_prefix,
-                s3_dir=os.path.join(
-                    os.environ["SPRINGBOARD_BUCKET"],
-                    DEFAULT_S3_PREFIX,
-                    s3_prefix,
-                ),
-                partition_cols=["year", "month", "day", "hour"],
-                visitor_func=self.send_metadata,
+            log.add_metadata(part_folder=part_folder, local_path=local_path)
+
+            # no existing table file, write new file
+            if local_path == "":
+                local_path = os.path.join(
+                    self.tmp_folder,
+                    part_folder,
+                    f"{datetime(year, month, day, hour).isoformat()}.parquet",
+                )
+                pq.write_table(table, local_path)
+
+            # join existing table file with new table data
+            else:
+                new_table_path = os.path.join(
+                    self.tmp_folder,
+                    part_folder,
+                    "new_table.parquet",
+                )
+                pq.write_table(table, new_table_path)
+
+                join_table_path = os.path.join(
+                    self.tmp_folder,
+                    part_folder,
+                    "join_table.parquet",
+                )
+                join_ds = pd.dataset((local_path, new_table_path)).sort_by(
+                    self.detail.table_sort_order
+                )
+                with pq.ParquetWriter(
+                    join_table_path, schema=table.schema
+                ) as writer:
+                    for batch in join_ds.to_batches(
+                        batch_size=self.pq_batch_size
+                    ):
+                        writer.write_batch(batch)
+
+                os.replace(join_table_path, local_path)
+                os.remove(new_table_path)
+
+            upload_path = local_path.replace(
+                self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
             )
 
-        except Exception:
+            upload_file(local_path, upload_path)
+
+            self.send_metadata(upload_path)
+
+            log.log_complete()
+
+        except Exception as exception:
+            shutil.rmtree(
+                os.path.join(self.tmp_folder, part_folder), ignore_errors=True
+            )
             self.error_files += self.archive_files
             self.archive_files = []
+            log.log_failure(exception)
+
+    # pylint: enable=R0914
+
+    def clean_local_folders(self) -> None:
+        """
+        clean local temp folders
+        """
+        hours_to_keep = 2
+        root_folder = os.path.join(
+            self.tmp_folder,
+            DEFAULT_S3_PREFIX,
+            str(self.config_type),
+        )
+        paths = {}
+        for w_dir, _, files in os.walk(root_folder):
+            if len(files) == 0:
+                continue
+            paths[
+                datetime.strptime(
+                    w_dir, f"{root_folder}/year=%Y/month=%m/day=%d/hour=%H"
+                )
+            ] = w_dir
+
+        # remove all local hour folders except two most recent
+        for key in sorted(paths.keys())[:-hours_to_keep]:
+            shutil.rmtree(paths[key])
 
     def move_s3_files(self) -> None:
         """
