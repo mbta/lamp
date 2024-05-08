@@ -71,7 +71,7 @@ def test_transform_translations() -> None:
     alerts_processed = transform_translations(alerts_raw)
 
     for old_name in columns:
-        new_name = old_name.replace(".translation", "")
+        new_name = f"{old_name}.text"
 
         # check that column names have been updated as expected
         assert old_name not in alerts_processed.columns
@@ -169,8 +169,9 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
         "last_push_notification",
         "closed",
     ]
-    for new_name in timestamp_columns:
-        old_name = f"{new_name}_timestamp"
+    for base in timestamp_columns:
+        old_name = f"{base}_timestamp"
+        new_name = f"{base}_datetime"
 
         assert new_name in alerts_processed.columns
         assert old_name in alerts_processed.columns
@@ -179,7 +180,7 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
         datetime_count = alerts_processed[new_name].notna().sum()
         assert timestamp_count == datetime_count
 
-        if new_name in ["created", "last_modified"]:
+        if base in ["created", "last_modified"]:
             assert datetime_count == len(alerts_processed)
         else:
             assert (
@@ -194,8 +195,9 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
         alerts_raw["active_period"].dropna().apply(lambda x: len(x) > 0).sum()
     )
 
-    for new_name in ["active_period_start", "active_period_end"]:
-        old_name = f"{new_name}_timestamp"
+    for base in ["active_period.start", "active_period.end"]:
+        old_name = f"{base}_timestamp"
+        new_name = f"{base}_datetime"
 
         assert new_name in alerts_processed.columns
         assert old_name in alerts_processed.columns

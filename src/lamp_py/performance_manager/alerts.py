@@ -55,35 +55,41 @@ class AlertParquetHandler:
                 ("severity", pyarrow.int8()),
                 ("alert_lifecycle", pyarrow.string()),
                 ("duration_certainty", pyarrow.string()),
-                ("header_text", pyarrow.string()),
-                ("description_text", pyarrow.string()),
-                ("service_effect_text", pyarrow.string()),
-                ("timeframe_text", pyarrow.string()),
-                ("recurrence_text", pyarrow.string()),
-                ("created", pyarrow.timestamp("ms", tz="America/New_York")),
+                ("header_text.translation.text", pyarrow.string()),
+                ("description_text.translation.text", pyarrow.string()),
+                ("service_effect_text.translation.text", pyarrow.string()),
+                ("timeframe_text.translation.text", pyarrow.string()),
+                ("recurrence_text.translation.text", pyarrow.string()),
+                (
+                    "created_datetime",
+                    pyarrow.timestamp("ms", tz="America/New_York"),
+                ),
                 ("created_timestamp", pyarrow.uint64()),
                 (
-                    "last_modified",
+                    "last_modified_datetime",
                     pyarrow.timestamp("ms", tz="America/New_York"),
                 ),
                 ("last_modified_timestamp", pyarrow.uint64()),
                 (
-                    "last_push_notification",
+                    "last_push_notification_datetime",
                     pyarrow.timestamp("ms", tz="America/New_York"),
                 ),
                 ("last_push_notification_timestamp", pyarrow.uint64()),
-                ("closed", pyarrow.timestamp("ms", tz="America/New_York")),
+                (
+                    "closed_datetime",
+                    pyarrow.timestamp("ms", tz="America/New_York"),
+                ),
                 ("closed_timestamp", pyarrow.uint64()),
                 (
-                    "active_period_start",
+                    "active_period.start_datetime",
                     pyarrow.timestamp("ms", tz="America/New_York"),
                 ),
-                ("active_period_start_timestamp", pyarrow.uint64()),
+                ("active_period.start_timestamp", pyarrow.uint64()),
                 (
-                    "active_period_end",
+                    "active_period.end_datetime",
                     pyarrow.timestamp("ms", tz="America/New_York"),
                 ),
-                ("active_period_end_timestamp", pyarrow.uint64()),
+                ("active_period.end_timestamp", pyarrow.uint64()),
                 ("informed_entity.route_id", pyarrow.string()),
                 ("informed_entity.route_type", pyarrow.int8()),
                 ("informed_entity.direction_id", pyarrow.int8()),
@@ -300,7 +306,9 @@ def transform_translations(alerts: pandas.DataFrame) -> pandas.DataFrame:
     drop_columns = []
     for key in translation_columns:
         translation_key = f"{key}.translation"
-        alerts[key] = alerts[translation_key].apply(process_translation)
+        alerts[f"{translation_key}.text"] = alerts[translation_key].apply(
+            process_translation
+        )
         drop_columns.append(translation_key)
 
     alerts = alerts.drop(columns=drop_columns)
@@ -324,19 +332,19 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
 
     alerts[
         [
-            "active_period_start_timestamp",
-            "active_period_end_timestamp",
+            "active_period.start_timestamp",
+            "active_period.end_timestamp",
         ]
     ] = (
         alerts["active_period"].apply(extract_start_end).apply(pandas.Series)
     )
 
     # convert these timestamps to Int64 to avoid floating point errors
-    alerts["active_period_start_timestamp"] = alerts[
-        "active_period_start_timestamp"
+    alerts["active_period.start_timestamp"] = alerts[
+        "active_period.start_timestamp"
     ].astype("Int64")
-    alerts["active_period_end_timestamp"] = alerts[
-        "active_period_end_timestamp"
+    alerts["active_period.end_timestamp"] = alerts[
+        "active_period.end_timestamp"
     ].astype("Int64")
 
     # drop the active period list column
@@ -364,13 +372,14 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
         "last_modified",
         "last_push_notification",
         "closed",
-        "active_period_start",
-        "active_period_end",
+        "active_period.start",
+        "active_period.end",
     ]
 
     for key in timestamp_columns:
         timestamp_key = f"{key}_timestamp"
-        alerts[key] = alerts[timestamp_key].apply(unix_to_est)
+        datetime_key = f"{key}_datetime"
+        alerts[datetime_key] = alerts[timestamp_key].apply(unix_to_est)
 
     return alerts
 
