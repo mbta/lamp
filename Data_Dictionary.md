@@ -26,10 +26,10 @@ Each row represents a unique `trip_id`-`stop_id` pair for rail service.
 | vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
 | vehicle_consist | string | Pipe separated concatenation of `multi_carriage_details` labels in [CarridageDetails](https://gtfs.org/realtime/reference/#message-carriagedetails) | GTFS-RT
 | stop_id | string | equivalent to GTFS-RT `stop_id` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)| GTFS-RT |
-| parent_station | string | `stop_name` of the `parent_station` stop id from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt)  | GTFS |
+| parent_station | string | `stop_name` of the `parent_station` associated with the `stop_id` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt)  | GTFS |
 | stop_sequence | int16 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
-| move_timestamp | int64 | earliest "moving" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
-| stop_timestamp | int64 | earliest "stop" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) or last `arrival` timestamp from GTFS-RT [StopTimeUpdate](https://gtfs.org/realtime/reference/#message-stoptimeupdate) if VehiclePosition value is not available | GTFS-RT |
+| move_timestamp | int64 | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
+| stop_timestamp | int64 | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) or last `arrival` timestamp from GTFS-RT [StopTimeUpdate](https://gtfs.org/realtime/reference/#message-stoptimeupdate) if VehiclePosition value is not available | GTFS-RT |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
 | dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
 | headway_branch_seconds | int64 | seconds between consecutive vehicles departing `parent_station` on `branch_route_id` | LAMP Calculated |
@@ -70,12 +70,12 @@ Each row represents a unique `trip_id`-`stop_id` pair for rail service.
 | previous_sync_stop_sequence | int16 | `sync_stop_sequence` for previous stop on trip | Lamp Calculated |
 | stop_id | string | equivalent to GTFS-RT `stop_id` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)| GTFS-RT |
 | previous_stop_id | string | `stop_id`  for previous stop on trip| GTFS-RT |
-| parent_station | string | `stop_name` of the `parent_station` stop id from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt)  | GTFS |
+| parent_station | string | `stop_name` of the `parent_station` associated with the `stop_id` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt)  | GTFS |
 | previous_parent_station | string | `parent_station` for previous stop on trip| GTFS |
 | stop_name | string | equivalent to GTFS `stop_name` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt) for `stop_id` | GTFS
 | previous_stop_name | string | `stop_name` for previous stop on trip | GTFS
-| previous_stop_departure_datetime | datetime | earliest "moving" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) as an Eastern datetime | GTFS-RT
-| stop_arrival_datetime | datetime | earliest "stop" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) or last `arrival` timestamp from GTFS-RT [StopTimeUpdate](https://gtfs.org/realtime/reference/#message-stoptimeupdate) if VehiclePosition value is not available as an Eastern datetime | GTFS-RT
+| previous_stop_departure_datetime | datetime | earliest "IN_TRANSIT_TO" OR "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) as an Eastern datetime | GTFS-RT
+| stop_arrival_datetime | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) or last `arrival` timestamp from GTFS-RT [StopTimeUpdate](https://gtfs.org/realtime/reference/#message-stoptimeupdate) if VehiclePosition value is not available as an Eastern datetime | GTFS-RT
 | stop_departure_datetime | datetime | equivalent to `previous_stop_departure_datetime` for next stop on trip | GTFS-RT
 | previous_stop_departure_sec | int64 | `previous_stop_departure_datetime` as seconds after midnight | LAMP Calculated
 | stop_arrival_sec | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated
