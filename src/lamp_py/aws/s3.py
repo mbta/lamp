@@ -258,23 +258,41 @@ def file_list_from_s3_with_details(
 
     :return List[return_dict]
     """
-    s3_client = get_s3_client()
-    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=file_prefix)
-    file_list = []
+    process_logger = ProcessLogger(
+        "file_list_from_s3_with_details",
+        bucket_name=bucket_name,
+        file_prefix=file_prefix,
+    )
+    process_logger.log_start()
 
-    for obj in response.get("Contents", []):
-        if obj["Size"] == 0:
-            continue
+    try:
+        s3_client = get_s3_client()
+        paginator = s3_client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
 
-        file_list.append(
-            {
-                "s3_obj_path": os.path.join("s3://", bucket_name, obj["Key"]),
-                "size_bytes": obj["Size"],
-                "last_modified": obj["LastModified"],
-            }
-        )
+        filepaths = []
+        for page in pages:
+            if page["KeyCount"] == 0:
+                continue
+            for obj in page["Contents"]:
+                if obj["Size"] == 0:
+                    continue
+                filepaths.append(
+                    {
+                        "s3_obj_path": os.path.join(
+                            "s3://", bucket_name, obj["Key"]
+                        ),
+                        "size_bytes": obj["Size"],
+                        "last_modified": obj["LastModified"],
+                    }
+                )
 
-    return file_list
+        process_logger.add_metadata(list_size=len(filepaths))
+        process_logger.log_complete()
+        return filepaths
+    except Exception as exception:
+        process_logger.log_failure(exception)
+        return []
 
 
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
