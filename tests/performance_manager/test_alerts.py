@@ -11,7 +11,8 @@ from lamp_py.performance_manager.alerts import (
     extract_alerts,
     transform_translations,
     transform_timestamps,
-    explode_alerts,
+    explode_active_periods,
+    explode_informed_entity,
 )
 
 from ..test_resources import springboard_dir
@@ -124,17 +125,6 @@ def generate_sample_timestamps(start_ts: int, end_ts: int) -> pandas.DataFrame:
         else:
             record["closed_timestamp"] = None
 
-        periods = []
-        for __ in range(random.choice([0, 1, 2])):
-            start = random.randint(start_ts, end_ts)
-            end = start + random.randint(0, 3600 * 24 * 3)
-            entry = {"start": start, "end": end}
-            periods.append(entry)
-        record["active_period"] = periods
-
-        if not record["active_period"] and random.choice([True, False]):
-            record["active_period"] = None
-
         sample_data.append(record)
 
     # convert sample data to formatted dataframe
@@ -191,28 +181,6 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
         assert len(non_null) > 0
         assert str(non_null.iloc[0].tz) == "EST5EDT"
 
-    active_period_count = (
-        alerts_raw["active_period"].dropna().apply(lambda x: len(x) > 0).sum()
-    )
-
-    for base in ["active_period.start", "active_period.end"]:
-        old_name = f"{base}_timestamp"
-        new_name = f"{base}_datetime"
-
-        assert new_name in alerts_processed.columns
-        assert old_name in alerts_processed.columns
-
-        timestamp_count = alerts_processed[old_name].notna().sum()
-        datetime_count = alerts_processed[new_name].notna().sum()
-        assert timestamp_count == datetime_count
-        assert (
-            timestamp_count == active_period_count
-        ), f"{alerts_processed[old_name].head(10)}\n{alerts_raw['active_period'].head(10)}"
-
-        non_null = alerts_processed[new_name].dropna()
-        assert len(non_null) > 0
-        assert str(non_null.iloc[0].tz) == "EST5EDT"
-
 
 def test_transform_timestamps() -> None:
     """
@@ -237,9 +205,105 @@ def test_transform_timestamps() -> None:
     )
 
 
-def generate_sample_explosion(choices: Dict) -> Tuple[pandas.DataFrame, int]:
+def generate_sample_active_periods(
+    start_range: Tuple[datetime.datetime, datetime.datetime],
+    max_alert_duration_days: int,
+) -> Tuple[pandas.DataFrame, int]:
     """
-    generate sample data for testing explode_alerts transformation
+    Generate Sample Data for Active Period Explosion Test.
+    @return Sample Dataframe for processing and a count of Active Periods to expect.
+    """
+    range_start_ts = int(start_range[0].timestamp())
+    range_end_ts = int(start_range[0].timestamp())
+    max_end_seconds = 3600 * 24 * max_alert_duration_days
+
+    sample_data = []
+    exploded_count = 0
+
+    # generate sample data
+    for index in range(1000):
+        record: Dict[str, list[Dict[str, int | None]] | int | None] = {
+            "id": index
+        }
+        periods: List[Dict[str, int | None]] = []
+        for __ in range(random.randint(0, 15)):
+            exploded_count += 1
+            start: Optional[int] = random.randint(range_start_ts, range_end_ts)
+            end: Optional[int] = (
+                start + random.randint(3600, max_end_seconds) if start else None
+            )
+
+            if random.randint(1, 100) < 5:
+                start = None
+            elif random.randint(1, 100) < 5:
+                end = None
+            elif random.randint(1, 100) < 5:
+                start = None
+                end = None
+
+            entry: Dict[str, int | None] = {"start": start, "end": end}
+            periods.append(entry)
+
+        record["active_period"] = periods
+
+        if not record["active_period"] and random.choice([True, False]):
+            record["active_period"] = None
+
+        sample_data.append(record)
+
+    return pandas.DataFrame(sample_data), exploded_count
+
+
+def test_explode_active_period() -> None:
+    """
+    test that active periods can be exploded without losing information
+    """
+    start_dt = datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc)
+    end_dt = datetime.datetime(2023, 1, 2, tzinfo=datetime.timezone.utc)
+    max_duration_days = 2
+    max_end_dt = end_dt + datetime.timedelta(days=max_duration_days)
+
+    alerts_raw, active_period_count = generate_sample_active_periods(
+        start_range=(start_dt, end_dt),
+        max_alert_duration_days=max_duration_days,
+    )
+
+    alerts_processed = explode_active_periods(alerts_raw)
+    assert "active_period" not in alerts_processed.columns
+
+    nan_active_periods = (
+        alerts_raw["active_period"]
+        .apply(lambda x: 1 if x is None or len(x) == 0 else 0)
+        .sum()
+    )
+    total_record_count = nan_active_periods + active_period_count
+
+    assert len(alerts_processed) == total_record_count
+
+    for base in ["active_period.start", "active_period.end"]:
+        timestamp_key = f"{base}_timestamp"
+        datetime_key = f"{base}_datetime"
+
+        assert timestamp_key in alerts_processed.columns
+        assert datetime_key in alerts_processed.columns
+
+        timestamp_count = alerts_processed[timestamp_key].notna().sum()
+        datetime_count = alerts_processed[datetime_key].notna().sum()
+        assert timestamp_count == datetime_count
+
+        non_null = alerts_processed[datetime_key].dropna()
+        assert len(non_null) > 0
+        assert str(non_null.iloc[0].tz) == "EST5EDT"
+
+        assert non_null[non_null < start_dt].empty
+        assert non_null[non_null > max_end_dt].empty
+
+
+def generate_sample_informed_entity(
+    choices: Dict,
+) -> Tuple[pandas.DataFrame, int]:
+    """
+    generate sample data for testing explode_informed_entity transformation
     @return a tuple of the data and an expected rowcount post explosion
     """
     sample_data = []
@@ -280,7 +344,7 @@ def generate_sample_explosion(choices: Dict) -> Tuple[pandas.DataFrame, int]:
     return alerts_raw, informed_entity_count
 
 
-def test_explode_alerts() -> None:
+def test_explode_informed_entity() -> None:
     """
     test that exploding around the informed entity column works as expected
     """
@@ -308,8 +372,8 @@ def test_explode_alerts() -> None:
         "activities": ["BOARD", "PARK_CAR", "USING_ESCALATOR", "EXIT", "RIDE"],
     }
 
-    alerts_raw, informed_entity_count = generate_sample_explosion(choices)
-    alerts_processed = explode_alerts(alerts_raw)
+    alerts_raw, informed_entity_count = generate_sample_informed_entity(choices)
+    alerts_processed = explode_informed_entity(alerts_raw)
     assert len(alerts_processed) == informed_entity_count
 
     for column, options in choices.items():
@@ -358,7 +422,8 @@ def test_etl() -> None:
     )
     alerts = transform_translations(alerts)
     alerts = transform_timestamps(alerts)
-    alerts = explode_alerts(alerts)
+    alerts = explode_active_periods(alerts)
+    alerts = explode_informed_entity(alerts)
 
     # process it a second time with some of the id / lm timestamp pairs to filter against.
     existing = alerts[key_columns].drop_duplicates().head(5)
@@ -367,6 +432,7 @@ def test_etl() -> None:
     )
     alerts_2 = transform_translations(alerts_2)
     alerts_2 = transform_timestamps(alerts_2)
-    alerts_2 = explode_alerts(alerts_2)
+    alerts_2 = explode_active_periods(alerts_2)
+    alerts_2 = explode_informed_entity(alerts_2)
 
     assert len(alerts) > len(alerts_2)

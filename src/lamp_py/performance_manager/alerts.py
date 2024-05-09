@@ -316,19 +316,71 @@ def transform_translations(alerts: pandas.DataFrame) -> pandas.DataFrame:
     return alerts
 
 
+def unix_to_est(unix_time: Optional[int]) -> Optional[datetime]:
+    """
+    Utility for converting a unix timestamp into a datetime object.
+    Indexing errors occur when using pandas built in datetime manipulation
+    functions with NaN's, so filter them out with this function instead.
+    """
+    if unix_time is None or pandas.isna(unix_time):
+        return None
+
+    # Create a timezone-aware datetime object in UTC
+    utc_time = datetime.fromtimestamp(unix_time, tz=timezone.utc)
+
+    # Convert UTC time to Eastern Time
+    est_time = utc_time.astimezone(BOSTON_TZ)
+    return est_time
+
+
 def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
     """
-    Extract timestamps from the active period columns and transform all timestamps to easter standard time.
+    Transform all timestamps to easter standard time.
     """
+    timestamp_columns = [
+        "created",
+        "last_modified",
+        "last_push_notification",
+        "closed",
+    ]
 
+    # convert all of the timestamp columns to eastern standard time
+    for key in timestamp_columns:
+        timestamp_key = f"{key}_timestamp"
+        datetime_key = f"{key}_datetime"
+        alerts[datetime_key] = alerts[timestamp_key].apply(unix_to_est)
+
+    return alerts
+
+
+def explode_active_periods(alerts: pandas.DataFrame) -> pandas.DataFrame:
+    """
+    The active period column holds a list of dicts that map start and end keys
+    to integer timestamps. This list will be a single element for "rolling
+    alerts" that don't have a determined or estimated end time. Other alerts
+    may be active for multiple distinct periods and we want to create a record
+    for each.
+    * Explode the active period column
+    * Extract the start and end timestamps
+    * Convert the timestamps to datetimes
+    * Remove active period columns
+    """
     # pull out the active period timestamps from the dict in that column
+    alerts = alerts.explode("active_period")
+
     def extract_start_end(
-        periods: Optional[List[Dict[str, int]]]
+        period: Dict[str, int] | float | None
     ) -> Tuple[int | None, int | None]:
-        """small lambda for extracting start and end timestamps"""
-        if periods is None or len(periods) == 0:
-            return None, None
-        return periods[0].get("start"), periods[0].get("end")
+        """
+        small lambda for extracting start and end timestamps
+
+        Note that the period could be None or NaN based on source data and the
+        result of the explode function, resulting in the weird looking type
+        hint above.
+        """
+        if isinstance(period, dict):
+            return period.get("start"), period.get("end")
+        return None, None
 
     alerts[
         [
@@ -351,40 +403,15 @@ def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
     alerts = alerts.drop(columns=["active_period"])
 
     # convert all of the timestamp columns to eastern standard time
-    def unix_to_est(unix_time: Optional[int]) -> Optional[datetime]:
-        """
-        Utility for converting a unix timestamp into a datetime object.
-        Indexing errors occur when using pandas built in datetime manipulation
-        functions with NaN's, so filter them out with this function instead.
-        """
-        if unix_time is None or pandas.isna(unix_time):
-            return None
-
-        # Create a timezone-aware datetime object in UTC
-        utc_time = datetime.fromtimestamp(unix_time, tz=timezone.utc)
-
-        # Convert UTC time to Eastern Time
-        est_time = utc_time.astimezone(BOSTON_TZ)
-        return est_time
-
-    timestamp_columns = [
-        "created",
-        "last_modified",
-        "last_push_notification",
-        "closed",
-        "active_period.start",
-        "active_period.end",
-    ]
-
-    for key in timestamp_columns:
-        timestamp_key = f"{key}_timestamp"
-        datetime_key = f"{key}_datetime"
+    for base in ["start", "end"]:
+        timestamp_key = f"active_period.{base}_timestamp"
+        datetime_key = f"active_period.{base}_datetime"
         alerts[datetime_key] = alerts[timestamp_key].apply(unix_to_est)
 
     return alerts
 
 
-def explode_alerts(alerts: pandas.DataFrame) -> pandas.DataFrame:
+def explode_informed_entity(alerts: pandas.DataFrame) -> pandas.DataFrame:
     """
     the 'informed_entity' column is a list of dicts describing stops
     along routes in directions that are effected by the alert. explode each
@@ -493,7 +520,8 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
 
             alerts = transform_translations(alerts)
             alerts = transform_timestamps(alerts)
-            alerts = explode_alerts(alerts)
+            alerts = explode_active_periods(alerts)
+            alerts = explode_informed_entity(alerts)
             subprocess_logger.add_metadata(explode_alerts=len(alerts))
 
             # add the new alerts to the local temp file that will be published
