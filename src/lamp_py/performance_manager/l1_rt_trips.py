@@ -879,11 +879,12 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         )
 
         # create sync_stop_sequence
-        # canonical_stop_sequence - zero_parent_stop_sequence - minimum_sync_sequence_adjustment(for trunk) + minimum_canonical_stop_sequence(for trunk)
+        # sync_stop_sequence = canonical_stop_sequence - zero_parent_stop_sequence - minimum_sync_sequence_adjustment(for trunk) + minimum_canonical_stop_sequence(for trunk)
+        # one sync_stop_sequence value is created for each trunk_route_id, direction_id, parent_station, static_version_key pair
         sync_values = (
             sa.select(
                 static_canon.c.direction_id,
-                static_canon.c.route_id,
+                static_canon.c.trunk_route_id,
                 static_canon.c.parent_station,
                 static_canon.c.static_version_key,
                 (
@@ -893,6 +894,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                     + sync_adjust_vals.c.min_seq
                 ).label("sync_stop_sequence"),
             )
+            .distinct()
             .select_from(static_canon)
             .join(
                 zero_seq_vals,
@@ -927,11 +929,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 sync_values,
                 sa.and_(
                     VehicleTrips.direction_id == sync_values.c.direction_id,
-                    sa.func.coalesce(
-                        VehicleTrips.branch_route_id,
-                        VehicleTrips.trunk_route_id,
-                    )
-                    == sync_values.c.route_id,
+                    VehicleTrips.trunk_route_id == sync_values.c.trunk_route_id,
                     VehicleTrips.static_version_key
                     == sync_values.c.static_version_key,
                     VehicleEvents.parent_station
