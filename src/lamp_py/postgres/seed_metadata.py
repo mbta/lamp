@@ -61,33 +61,48 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
+def reset_rpm(parsed_args: argparse.Namespace) -> None:
+    """
+    reset values in the rail performance manager database if requested.
+    """
+    try:
+        logging.info("Resetting Rail Performance Manager DB")
+        rpm_db_manager = DatabaseManager(
+            db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER,
+            verbose=parsed_args.verbose,
+        )
+
+        if parsed_args.clear_static:
+            rpm_db_name = os.getenv(
+                "ALEMBIC_RPM_DB_NAME", "performance_manager_prod"
+            )
+            alembic_downgrade_to_base(rpm_db_name)
+            alembic_upgrade_to_head(rpm_db_name)
+        elif parsed_args.clear_rt:
+            rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
+            rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
+    except Exception as exception:
+        logging.exception(
+            "Unable to Reset Rail Performance Manager DB\n%s", exception
+        )
+
+
 def run() -> None:
     """Run The RDS Interaction Script"""
     parsed_args = parse_args(sys.argv[1:])
 
-    rpm_db_manager = DatabaseManager(
-        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER,
-        verbose=parsed_args.verbose,
-    )
+    reset_rpm(parsed_args)
 
     md_db_manager = DatabaseManager(
         db_index=DatabaseIndex.METADATA,
         verbose=parsed_args.verbose,
     )
 
-    rpm_db_name = os.getenv("ALEMBIC_RPM_DB_NAME", "performance_manager_prod")
-    md_db_name = os.getenv("ALEMBIC_MD_DB_NAME", "metadata_prod")
-
     if parsed_args.clear_static:
-        alembic_downgrade_to_base(rpm_db_name)
-        alembic_upgrade_to_head(rpm_db_name)
-
+        md_db_name = os.getenv("ALEMBIC_MD_DB_NAME", "metadata_prod")
         alembic_downgrade_to_base(md_db_name)
         alembic_upgrade_to_head(md_db_name)
     elif parsed_args.clear_rt:
-        rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
-        rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
-
         md_db_manager.execute(
             sa.update(MetadataLog.__table__)
             .values(
