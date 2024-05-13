@@ -5,6 +5,7 @@ Access instructions for all LAMP public data exports are available at [https://p
 LAMP currently produces the following sets of public data exports:
 - [On Time Performance Data (Subway)](#on-time-performance-data-subway)
 - [OPMI Tableau Exports](#opmi-tableau-exports)
+- [GTFS Realtime Alerts Archive](#gtfs-alerts-archive)
 
 # On Time Performance Data (Subway) 
 
@@ -212,3 +213,43 @@ LAMP calculated dataset containing planned `route_id` and `service_id` combinati
 | direction_id | int8 | `direction_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | static_version_key | int64 | key used to link GTFS static schedule versions between tables |
+
+
+# GTFS Alerts Archive
+
+Each row represents an update to an Realtime Alert, paired with unique Route, Stop, and Direction information. All timestamp fields are in POSIX time, the integer number of seconds since 1 January 1970 00:00:00 UTC. All datetimes in are Eastern Standard Time.
+
+| field name | type | description |
+| ---------- | ---- | ----------- |
+| id | int64 | Unique identifier for this Alert. Subsequent updates to it will have the same ID. |
+| cause | string | String from [Cause](https://github.com/google/transit/blob/master/gtfs-realtime/spec/en/reference.md#enum-cause) enum. Will be present if `cause_detail` is not null. |
+| cause_detail | string | Description of the cause of the alert that allows for agency-specific language; more specific than the Cause. If cause_detail is included, then `cause` must also be included. |
+| effect | string | String from [Effect](https://github.com/google/transit/blob/master/gtfs-realtime/spec/en/reference.md#enum-effect) enum. Will be present if `effect_detail` is not null.|
+| effect_detail | string | Description of the effect of the alert that allows for agency-specific language; more specific than the Effect. If effect_detail is included, then `effect` must also be included. |
+| severity_level | string | Severity of the alert. Values described in [SeverityLevel](https://github.com/google/transit/blob/master/gtfs-realtime/spec/en/reference.md#enum-severitylevel) enum.|
+| severity | int8 | Integer representation of Severity |
+| alert_lifecycle | string | Whether the alert is in effect now, will be in the future, or has been for a while. One of NEW, UPCOMING, ONGOING, ONGOING_UPCOMING. |
+| duration_certainty | string | Whether the alert has a KNOWN, UNKNOWN, or ESTIMATED end time. |
+| header_text.translation.text | string | Header for the alert. Short plain-text string describing the alert. |
+| description_text.translation.text | string | Description for the alert. This longer description should add to the information of the header. |
+| service_effect_text.translation.text | string | Brief summary of effect and affected service. |
+| timeframe_text.translation.text | string | Human readable summary of when service will be disrupted.Human readable summary of when service will be disrupted. |
+| recurrence_text.translation.text | string | Human readable summary of how active_period values are repeating (ex: “daily”, “weekdays”). |
+| created_datetime | datetime | Time this alert was created. |
+| created_timestamp | uint64 | Time this alert was created. |
+| last_modified_datetime | datetime | Time this alert was last modified. This is updated when the alert is modified in any way after creation. |
+| last_modified_timestamp | uint64 | Time this alert was last modified. This is updated when the alert is modified in any way after creation. |
+| last_push_notification_datetime | datetime | Time this alert was last _meaningfully_ modified. Addition of the field or a change in value indicates that a notification should be sent to riders. |
+| last_push_notification_timestamp | uint64 | Time this alert was last _meaningfully_ modified. Addition of the field or a change in value indicates that a notification should be sent to riders. |
+| closed_datetime | datetime | Time this alert was closed. |
+| closed_timestamp | uint64 | Time this alert was closed. |
+| active_period.start_datetime | datetime | Start time when this alert is in effect. If null, the alert is in effect from when this alert's `created_datetime` |
+| active_period.start_timestamp | uint64 |  Start time when this alert is in effect. If null, the alert is in effect from when this alert's `created_timestamp` |
+| active_period.end_datetime | datetime | End time when this alert is in effect. If null, the alert is in effect until an alert update with a matching `id` has a `closed_datetime` |
+| active_period.end_timestamp | uint64 | End time when this alert is in effect. If null, the alert is in effect until an alert update with a matching `id` has a `closed_datetime` |
+| informed_entity.route_id | string | The route_id from the GTFS that this alert effects. |
+| informed_entity.route_type | int8 | The route_type from GTFS that this alert effects|
+| informed_entity.direction_id | int8 | The direction_id from GTFS feeds [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), used to select all trips in one direction for a route, specified by `route_id`. If provided, `route_id` must also be provided.
+| informed_entity.stop_id | string | The stop_id from the GTFS feed that this selector refers to. |
+| informed_entity.facility_id | string | Facility abbreviation that contains the `stop_id`. |
+| informed_entity.activities | string | A `\|` delimitated string of activities, defined in the [Activity](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enum-activity) enum that are impacted by this alert at this location.|
