@@ -343,45 +343,88 @@ class GtfsRtConverter(Converter):
             table,
         )
 
-    def verify_table(self, table: pyarrow.Table) -> None:
+    def partition_dt(self, table: pyarrow.Table) -> datetime:
         """
-        verify structure of table
+        verify partition structure of pyarrow Table
+
+        :param table: pyarrow Table to verify
+
+        :return: datetime of table partition
         """
-        partition_cols = ["year", "month", "day", "hour"]
-        for col in partition_cols:
+        partitions = {
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "hour": 0,
+        }
+        for col in partitions:
             unique_list = pc.unique(table.column(col)).to_pylist()
 
             assert (
                 len(unique_list) == 1
             ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
+            partitions[col] = unique_list[0]
 
-    def sync_with_s3(self, part_folder: str) -> str:
-        """
-        check and see if UUID path exists on s3
-        """
-
-        local_folder = os.path.join(
-            self.tmp_folder,
-            part_folder,
+        return datetime(
+            year=partitions["year"],
+            month=partitions["month"],
+            day=partitions["day"],
+            hour=partitions["hour"],
         )
-        if os.path.exists(local_folder):
-            return os.path.join(local_folder, os.listdir(local_folder)[0])
 
+    def sync_with_s3(self, local_path: str) -> bool:
+        """
+        Sync local_path with S3 object
+
+        :param local_path: local tmp path file to sync
+
+        :return bool: True if local_path is available, else False
+        """
+        if os.path.exists(local_path):
+            return True
+
+        local_folder = local_path.replace(os.path.basename(local_path), "")
         os.makedirs(local_folder, exist_ok=True)
-        bucket = os.environ["SPRINGBOARD_BUCKET"]
+
         s3_files = file_list_from_s3(
-            bucket,
-            file_prefix=f"{part_folder}/",
+            os.environ["SPRINGBOARD_BUCKET"],
+            file_prefix=local_path.replace(f"{self.tmp_folder}/", ""),
         )
         if len(s3_files) == 1:
             s3_path = s3_files[0].replace("s3://", "")
-            local_path = s3_path.replace(bucket, self.tmp_folder)
             download_file(s3_path, local_path)
-            return local_path
+            return True
 
-        return ""
+        return False
 
-    # pylint: disable=R0914
+    def merge_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+        """
+        merge pyarrow Table with existing local_path parquet file
+
+        :param table: pyarrow Table
+        :param local_path: path to local parquet file
+        """
+        local_folder = local_path.replace(os.path.basename(local_path), "")
+        new_table_path = os.path.join(
+            local_folder,
+            "new_table.parquet",
+        )
+        pq.write_table(table, new_table_path)
+
+        join_table_path = os.path.join(
+            local_folder,
+            "join_table.parquet",
+        )
+        join_ds = pd.dataset((local_path, new_table_path)).sort_by(
+            self.detail.table_sort_order
+        )
+        with pq.ParquetWriter(join_table_path, schema=table.schema) as writer:
+            for batch in join_ds.to_batches(batch_size=self.pq_batch_size):
+                writer.write_batch(batch)
+
+        os.replace(join_table_path, local_path)
+        os.remove(new_table_path)
+
     def continuous_pq_update(self, table: pyarrow.Table) -> None:
         """
         Continuous updating of local parquet files that are synced with S3
@@ -389,68 +432,36 @@ class GtfsRtConverter(Converter):
         log = ProcessLogger("continuous_pq_update")
         log.log_start()
         try:
-            self.verify_table(table)
-
-            year = pc.unique(table.column("year")).to_pylist()[0]
-            month = pc.unique(table.column("month")).to_pylist()[0]
-            day = pc.unique(table.column("day")).to_pylist()[0]
-            hour = pc.unique(table.column("hour")).to_pylist()[0]
+            partition_dt = self.partition_dt(table)
 
             part_folder = os.path.join(
                 DEFAULT_S3_PREFIX,
                 str(self.config_type),
-                f"year={year}",
-                f"month={month}",
-                f"day={day}",
-                f"hour={hour}",
+                f"year={partition_dt.year}",
+                f"month={partition_dt.month}",
+                f"day={partition_dt.day}",
+                f"hour={partition_dt.hour}",
             )
-            local_path = self.sync_with_s3(part_folder)
+            local_path = os.path.join(
+                self.tmp_folder,
+                part_folder,
+                f"{partition_dt.isoformat()}.parquet",
+            )
 
             log.add_metadata(part_folder=part_folder, local_path=local_path)
 
             # no existing table file, write new file
-            if local_path == "":
-                local_path = os.path.join(
-                    self.tmp_folder,
-                    part_folder,
-                    f"{datetime(year, month, day, hour).isoformat()}.parquet",
-                )
+            if self.sync_with_s3(local_path) is False:
                 pq.write_table(table, local_path)
 
             # join existing table file with new table data
             else:
-                new_table_path = os.path.join(
-                    self.tmp_folder,
-                    part_folder,
-                    "new_table.parquet",
-                )
-                pq.write_table(table, new_table_path)
-
-                join_table_path = os.path.join(
-                    self.tmp_folder,
-                    part_folder,
-                    "join_table.parquet",
-                )
-                join_ds = pd.dataset((local_path, new_table_path)).sort_by(
-                    self.detail.table_sort_order
-                )
-                with pq.ParquetWriter(
-                    join_table_path, schema=table.schema
-                ) as writer:
-                    for batch in join_ds.to_batches(
-                        batch_size=self.pq_batch_size
-                    ):
-                        writer.write_batch(batch)
-
-                os.replace(join_table_path, local_path)
-                os.remove(new_table_path)
+                self.merge_local_pq(table, local_path)
 
             upload_path = local_path.replace(
                 self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
             )
-
             upload_file(local_path, upload_path)
-
             self.send_metadata(upload_path)
 
             log.log_complete()
@@ -462,8 +473,6 @@ class GtfsRtConverter(Converter):
             self.error_files += self.archive_files
             self.archive_files = []
             log.log_failure(exception)
-
-    # pylint: enable=R0914
 
     def clean_local_folders(self) -> None:
         """
