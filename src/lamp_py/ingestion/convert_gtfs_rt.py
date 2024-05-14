@@ -434,21 +434,18 @@ class GtfsRtConverter(Converter):
         try:
             partition_dt = self.partition_dt(table)
 
-            part_folder = os.path.join(
+            local_path = os.path.join(
+                self.tmp_folder,
                 DEFAULT_S3_PREFIX,
                 str(self.config_type),
                 f"year={partition_dt.year}",
                 f"month={partition_dt.month}",
                 f"day={partition_dt.day}",
                 f"hour={partition_dt.hour}",
-            )
-            local_path = os.path.join(
-                self.tmp_folder,
-                part_folder,
                 f"{partition_dt.isoformat()}.parquet",
             )
 
-            log.add_metadata(part_folder=part_folder, local_path=local_path)
+            log.add_metadata(local_path=local_path)
 
             # no existing table file, write new file
             if self.sync_with_s3(local_path) is False:
@@ -468,7 +465,12 @@ class GtfsRtConverter(Converter):
 
         except Exception as exception:
             shutil.rmtree(
-                os.path.join(self.tmp_folder, part_folder), ignore_errors=True
+                os.path.join(
+                    self.tmp_folder,
+                    DEFAULT_S3_PREFIX,
+                    str(self.config_type),
+                ),
+                ignore_errors=True,
             )
             self.error_files += self.archive_files
             self.archive_files = []
