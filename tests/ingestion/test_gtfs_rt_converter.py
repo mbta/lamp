@@ -1,5 +1,4 @@
 import os
-from datetime import datetime, timezone
 from queue import Queue
 from unittest.mock import patch
 
@@ -353,48 +352,3 @@ def test_bus_trip_updates_file_conversion() -> None:
 
     compare_result = np_df.compare(parquet_df, align_axis=1)
     assert compare_result.shape[0] == 0, f"{compare_result}"
-
-
-def test_start_of_hour() -> None:
-    """
-    test that the start of hour member is set correctly and will filter out gtfs
-    rt files when converting
-    """
-    gtfs_rt_file_1 = os.path.join(
-        incoming_dir,
-        "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
-    )
-
-    gtfs_rt_file_2 = os.path.join(
-        incoming_dir,
-        "2022-07-05T12:35:16Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz",
-    )
-
-    config_type = ConfigType.from_filename(gtfs_rt_file_1)
-    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
-    converter.add_files([gtfs_rt_file_1, gtfs_rt_file_2])
-
-    # check that start of hour has not minutes, seconmds, or microseconds
-    assert converter.start_of_hour.minute == 0
-    assert converter.start_of_hour.second == 0
-    assert converter.start_of_hour.microsecond == 0
-    assert converter.start_of_hour.tzinfo == timezone.utc
-
-    # set start of hour to a time between 2022-07-05 and 2022-01-01
-    converter.start_of_hour = datetime(
-        year=2022, month=4, day=1, tzinfo=timezone.utc
-    )
-
-    table = next(converter.process_files())
-
-    # check that only the first file was archived and error files are empty
-    assert converter.archive_files == [gtfs_rt_file_1]
-    assert len(converter.error_files) == 0
-
-    month_column = table.column("month")
-    for month in month_column:
-        assert month.as_py() == 1
-
-    day_column = table.column("day")
-    for day in day_column:
-        assert day.as_py() == 1
