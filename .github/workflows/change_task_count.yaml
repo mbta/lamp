@@ -19,6 +19,7 @@ on:
         options:
           - ingestion
           - rail-performance-manager
+          - bus-performance-manager
 
 jobs:
   set_count:
