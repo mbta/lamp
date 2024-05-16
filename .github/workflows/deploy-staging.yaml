@@ -20,4 +20,5 @@ jobs:
       deploy-ingestion: true
       deploy-rail-pm: true
       deploy-bus-pm: true
+      deploy-tm-ingestion: true
     secrets: inherit

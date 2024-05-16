@@ -27,6 +27,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy-tm-ingestion:
+        description: Should the TransitMaster Ingestion Application be Deployed
+        required: false
+        default: false
+        type: boolean
       deploy-tableau-publisher:
         description: Should the Tableau Publisher Application be Deployed
         required: false
@@ -91,6 +96,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
           ecs-service: lamp-bus-performance-manager-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy TransitMaster Ingestion Application
+        id: deploy-tm-ingestion
+        if: ${{ inputs.deploy-tm-ingestion && inputs.environment != 'dev' }}
+        uses: mbta/actions/deploy-scheduled-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-tm-ingestion-${{ inputs.environment }}
+          ecs-task-definition: lamp-tm-ingestion-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
