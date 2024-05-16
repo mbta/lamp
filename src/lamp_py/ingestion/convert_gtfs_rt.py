@@ -445,6 +445,8 @@ class GtfsRtConverter(Converter):
                 f"{partition_dt.isoformat()}.parquet",
             )
 
+            table = table.drop_columns(["year", "month", "day", "hour"])
+
             log.add_metadata(local_path=local_path)
 
             # no existing table file, write new file
