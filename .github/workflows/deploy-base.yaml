@@ -68,21 +68,23 @@ jobs:
       - name: Deploy Ingestion Application
         id: deploy-ingestion
         if: ${{ inputs.deploy-ingestion }}
-        uses: mbta/actions/deploy-ecs@v2
+        uses: mbta/actions/deploy-ecs@feat-deploy-ecs-allow-zero-desired
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
           ecs-service: lamp-ingestion-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+          allow-zero-desired: true
       - name: Deploy Rail Performance Manager Application
         id: deploy-rail-performance-manager
         if: ${{ inputs.deploy-rail-pm }}
-        uses: mbta/actions/deploy-ecs@v2
+        uses: mbta/actions/deploy-ecs@feat-deploy-ecs-allow-zero-desired
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
           ecs-service: lamp-rail-performance-manager-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+          allow-zero-desired: true
       - name: Deploy Bus Performance Manager Application
         id: deploy-bus-performance-manager
         if: ${{ inputs.deploy-bus-pm }}
