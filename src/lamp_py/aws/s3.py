@@ -582,11 +582,21 @@ def read_parquet(
     """
     read parquet file or files from s3 and return it as a pandas dataframe
     """
-    return (
-        _get_pyarrow_dataset(filename, filters)
-        .to_table(columns=columns)
-        .to_pandas(self_destruct=True)
-    )
+    retry_attempts = 2
+    for retry_attempt in range(retry_attempts + 1):
+        try:
+            df = (
+                _get_pyarrow_dataset(filename, filters)
+                .to_table(columns=columns)
+                .to_pandas(self_destruct=True)
+            )
+            break
+        except Exception as exception:
+            if retry_attempt == retry_attempts:
+                raise exception
+            time.sleep(1)
+
+    return df
 
 
 def read_parquet_chunks(

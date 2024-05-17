@@ -1,5 +1,4 @@
 from typing import List, Union, Dict, Tuple
-import time
 
 import numpy
 import pandas
@@ -72,21 +71,11 @@ def get_vp_dataframe(
         "vehicle.multi_carriage_details": "multi_carriage_details",
     }
 
-    retry_attempts = 2
-    for retry_attempt in range(retry_attempts + 1):
-        try:
-            process_logger.add_metadata(retry_attempts=retry_attempt)
-            result = read_parquet(
-                to_load,
-                columns=vehicle_position_cols,
-                filters=vehicle_position_filters,
-            )
-            break
-        except Exception as exception:
-            if retry_attempt == retry_attempts:
-                process_logger.log_failure(exception)
-                raise exception
-            time.sleep(1)
+    result = read_parquet(
+        to_load,
+        columns=vehicle_position_cols,
+        filters=vehicle_position_filters,
+    )
 
     result = result.rename(columns=rename_mapper)
 
