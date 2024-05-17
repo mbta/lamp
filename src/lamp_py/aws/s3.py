@@ -12,17 +12,15 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Sequence,
-    Tuple,
     Union,
     cast,
 )
 
 import boto3
 import pandas
-import pyarrow
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
+import pyarrow.dataset as pd
 from pyarrow import Table, fs
 from pyarrow.util import guid
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -555,14 +553,13 @@ def get_datetime_from_partition_path(path: str) -> datetime.datetime:
     return return_date
 
 
-def _get_pyarrow_table(
+def _get_pyarrow_dataset(
     filename: Union[str, List[str]],
-    filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
-) -> pyarrow.Table:
+    filters: Optional[pd.Expression] = None,
+) -> pd.Dataset:
     """
-    internal function to get pyarrow table from parquet file(s)
+    internal function to get pyarrow dataset from parquet file(s)
     """
-
     active_fs = fs.S3FileSystem()
 
     if isinstance(filename, list):
@@ -570,33 +567,33 @@ def _get_pyarrow_table(
     else:
         to_load = [filename.replace("s3://", "")]
 
-    # using `read_pandas` because `read` with "columns" parameter results in
-    # much slower file downloads for some reason...
-    return pq.ParquetDataset(
-        to_load, filesystem=active_fs, filters=filters
-    ).read_pandas()
+    ds = pd.dataset(to_load, filesystem=active_fs)
+    if filters is not None:
+        ds = ds.filter(filters)
+
+    return ds
 
 
 def read_parquet(
     filename: Union[str, List[str]],
-    columns: Union[List[str], slice] = slice(None),
-    filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
+    columns: Optional[List[str]] = None,
+    filters: Optional[pd.Expression] = None,
 ) -> pandas.core.frame.DataFrame:
     """
     read parquet file or files from s3 and return it as a pandas dataframe
     """
     return (
-        _get_pyarrow_table(filename, filters)
+        _get_pyarrow_dataset(filename, filters)
+        .to_table(columns=columns)
         .to_pandas(self_destruct=True)
-        .loc[:, columns]
     )
 
 
 def read_parquet_chunks(
     filename: Union[str, List[str]],
     max_rows: int = 100_000,
-    columns: Union[List[str], slice] = slice(None),
-    filters: Optional[Union[Sequence[Tuple], Sequence[List[Tuple]]]] = None,
+    columns: Optional[List[str]] = None,
+    filters: Optional[pd.Expression] = None,
 ) -> Iterator[pandas.core.frame.DataFrame]:
     """
     read parquet file or files from s3 IN CHUNKS
@@ -605,16 +602,8 @@ def read_parquet_chunks(
     chunk size attempts to be close to max_rows parameter, but may sometimes
     overshoot because of chunk layout of pyarrow table
     """
-    yield_dataframe = pandas.DataFrame()
-    for batch in _get_pyarrow_table(filename, filters).to_batches(
-        max_chunksize=None
+    for batch in _get_pyarrow_dataset(filename, filters).to_batches(
+        columns=columns,
+        batch_size=max_rows,
     ):
-        yield_dataframe = pandas.concat(
-            [yield_dataframe, batch.to_pandas().loc[:, columns]]
-        )
-        if yield_dataframe.shape[0] >= max_rows:
-            yield yield_dataframe
-            yield_dataframe = pandas.DataFrame()
-
-    if yield_dataframe.shape[0] > 0:
-        yield yield_dataframe
+        yield batch.to_pandas()

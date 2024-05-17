@@ -13,6 +13,7 @@ from typing import (
 )
 
 import pandas
+import pyarrow
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
@@ -511,7 +512,7 @@ def test_bad_empty_static_table() -> None:
     static_tables = get_table_objects()
     test_table = {"stop_times": static_tables["stop_times"]}
 
-    with pytest.raises(KeyError):
+    with pytest.raises(pyarrow.ArrowInvalid):
         load_parquet_files(test_table, "/tmp/FEED_INFO/timestamp=0000000000")
 
 

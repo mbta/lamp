@@ -1,7 +1,9 @@
 from typing import List, Union, Dict, Tuple
+import time
 
 import numpy
 import pandas
+import pyarrow.compute as pc
 from lamp_py.aws.s3 import read_parquet
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -42,17 +44,17 @@ def get_vp_dataframe(
         "vehicle.multi_carriage_details",
     ]
 
-    vehicle_position_filters = [
-        ("vehicle.current_status", "!=", "None"),
-        ("vehicle.current_stop_sequence", ">=", 0),
-        ("vehicle.stop_id", "!=", "None"),
-        ("vehicle.timestamp", ">", 0),
-        ("vehicle.trip.direction_id", "in", (0, 1)),
-        ("vehicle.trip.route_id", "!=", "None"),
-        ("vehicle.vehicle.id", "!=", "None"),
-        ("vehicle.trip.route_id", "in", route_ids),
-        ("vehicle.trip.trip_id", "!=", "None"),
-    ]
+    vehicle_position_filters = (
+        (pc.field("vehicle.current_status").is_valid())
+        & (pc.field("vehicle.current_stop_sequence") >= 0)
+        & (pc.field("vehicle.stop_id").is_valid())
+        & (pc.field("vehicle.timestamp") > 0)
+        & (pc.field("vehicle.trip.direction_id").isin((0, 1)))
+        & (pc.field("vehicle.trip.route_id").is_valid())
+        & (pc.field("vehicle.vehicle.id").is_valid())
+        & (pc.field("vehicle.trip.route_id").isin(route_ids))
+        & (pc.field("vehicle.trip.trip_id").is_valid())
+    )
 
     rename_mapper = {
         "vehicle.current_status": "current_status",
@@ -70,9 +72,21 @@ def get_vp_dataframe(
         "vehicle.multi_carriage_details": "multi_carriage_details",
     }
 
-    result = read_parquet(
-        to_load, columns=vehicle_position_cols, filters=vehicle_position_filters
-    )
+    retry_attempts = 2
+    for retry_attempt in range(retry_attempts + 1):
+        try:
+            process_logger.add_metadata(retry_attempts=retry_attempt)
+            result = read_parquet(
+                to_load,
+                columns=vehicle_position_cols,
+                filters=vehicle_position_filters,
+            )
+            break
+        except Exception as exception:
+            if retry_attempt == retry_attempts:
+                process_logger.log_failure(exception)
+                raise exception
+            time.sleep(1)
 
     result = result.rename(columns=rename_mapper)
 

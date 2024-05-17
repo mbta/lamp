@@ -1,7 +1,9 @@
 from typing import Iterator, List, Union
+import time
 
 import numpy
 import pandas
+import pyarrow.compute as pc
 from lamp_py.aws.s3 import read_parquet_chunks
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -35,19 +37,19 @@ def get_tu_dataframe_chunks(
         "trip_update.vehicle.id",
         "trip_update.trip.trip_id",
     ]
-    trip_update_filters = [
-        ("trip_update.trip.direction_id", "in", (0, 1)),
-        ("trip_update.trip.trip_id", "!=", "None"),
-        ("trip_update.vehicle.id", "!=", "None"),
-        ("trip_update.trip.route_id", "in", route_ids),
-        ("trip_update.stop_time_update.arrival.time", ">", 0),
-    ]
+    trip_update_filters = (
+        (pc.field("trip_update.trip.direction_id").isin((0, 1)))
+        & (pc.field("trip_update.trip.trip_id").is_valid())
+        & (pc.field("trip_update.vehicle.id").is_valid())
+        & (pc.field("trip_update.trip.route_id").isin(route_ids))
+        & (pc.field("trip_update.stop_time_update.arrival.time") > 0)
+    )
 
     # 100_000 batch size should result in ~5-6 GB of memory use per batch
     # of trip update records
     return read_parquet_chunks(
         to_load,
-        max_rows=250_000,
+        max_rows=1_000_000,
         columns=trip_update_columns,
         filters=trip_update_filters,
     )
@@ -57,10 +59,8 @@ def get_and_unwrap_tu_dataframe(
     paths: Union[str, List[str]], route_ids: List[str]
 ) -> pandas.DataFrame:
     """
-    unwrap and explode trip updates records from parquet files
-    parquet files contain stop_time_update field that is saved as list of dicts
-    stop_time_update must have fields extracted and flattened to create
-    predicted trip update stop events
+    get trip updates records from parquet files
+    to create predicted trip update stop events
     """
     process_logger = ProcessLogger("tu.get_and_unwrap_dataframe")
     process_logger.log_start()
@@ -79,56 +79,67 @@ def get_and_unwrap_tu_dataframe(
         "trip_update.trip.trip_id": "trip_id",
     }
 
-    # get_tu_dataframe_chunks set to pull ~100_000 trip update records
-    # per batch, this should result in ~5-6 GB of memory use per batch
-    # after batch goes through explod_stop_time_update vectorize operation,
-    # resulting Series has negligible memory use
-    for batch_events in get_tu_dataframe_chunks(paths, route_ids):
-        # rename columns from trip update parquet schema
-        batch_events = batch_events.rename(columns=rename_mapper)
-        # use feed_timestamp if timestamp value is null
-        batch_events["timestamp"] = batch_events["timestamp"].where(
-            batch_events["timestamp"].notna(),
-            batch_events["feed_timestamp"],
-        )
-        batch_events = batch_events.drop(columns=["feed_timestamp"])
+    retry_attempts = 2
+    for retry_attempt in range(retry_attempts + 1):
+        try:
+            process_logger.add_metadata(retry_attempts=retry_attempt)
+            for batch_events in get_tu_dataframe_chunks(paths, route_ids):
+                # rename columns from trip update parquet schema
+                batch_events = batch_events.rename(columns=rename_mapper)
+                # use feed_timestamp if timestamp value is null
+                batch_events["timestamp"] = batch_events["timestamp"].where(
+                    batch_events["timestamp"].notna(),
+                    batch_events["feed_timestamp"],
+                )
+                batch_events = batch_events.drop(columns=["feed_timestamp"])
 
-        # store start_date as int64 and rename to service_date
-        batch_events.rename(
-            columns={"start_date": "service_date"}, inplace=True
-        )
-        batch_events["service_date"] = pandas.to_numeric(
-            batch_events["service_date"]
-        ).astype("Int64")
+                # store start_date as int64 and rename to service_date
+                batch_events.rename(
+                    columns={"start_date": "service_date"}, inplace=True
+                )
+                batch_events["service_date"] = pandas.to_numeric(
+                    batch_events["service_date"]
+                ).astype("Int64")
 
-        # store direction_id as bool
-        batch_events["direction_id"] = pandas.to_numeric(
-            batch_events["direction_id"]
-        ).astype(numpy.bool_)
+                # store direction_id as bool
+                batch_events["direction_id"] = pandas.to_numeric(
+                    batch_events["direction_id"]
+                ).astype(numpy.bool_)
 
-        # store start_time as seconds from start of day int64
-        batch_events["start_time"] = (
-            batch_events["start_time"]
-            .apply(start_time_to_seconds)
-            .astype("Int64")
-        )
+                # store start_time as seconds from start of day int64
+                batch_events["start_time"] = (
+                    batch_events["start_time"]
+                    .apply(start_time_to_seconds)
+                    .astype("Int64")
+                )
 
-        batch_events["tu_stop_timestamp"] = pandas.to_numeric(
-            batch_events["tu_stop_timestamp"]
-        ).astype("Int64")
+                batch_events["tu_stop_timestamp"] = pandas.to_numeric(
+                    batch_events["tu_stop_timestamp"]
+                ).astype("Int64")
 
-        # filter out stop event predictions that are too far into the future
-        # and are unlikely to be used as a final stop event prediction
-        # (2 minutes) or predictions that go into the past (negative values)
-        batch_events = batch_events[
-            (batch_events["tu_stop_timestamp"] - batch_events["timestamp"] >= 0)
-            & (
-                batch_events["tu_stop_timestamp"] - batch_events["timestamp"]
-                < 120
-            )
-        ]
+                # filter out stop event predictions that are too far into the future
+                # and are unlikely to be used as a final stop event prediction
+                # (2 minutes) or predictions that go into the past (negative values)
+                batch_events = batch_events[
+                    (
+                        batch_events["tu_stop_timestamp"]
+                        - batch_events["timestamp"]
+                        >= 0
+                    )
+                    & (
+                        batch_events["tu_stop_timestamp"]
+                        - batch_events["timestamp"]
+                        < 120
+                    )
+                ]
 
-        trip_updates = pandas.concat([trip_updates, batch_events])
+                trip_updates = pandas.concat([trip_updates, batch_events])
+            break
+        except Exception as exception:
+            if retry_attempt == retry_attempts:
+                process_logger.log_failure(exception)
+                raise exception
+            time.sleep(1)
 
     process_logger.add_metadata(row_count=trip_updates.shape[0])
     process_logger.log_complete()
