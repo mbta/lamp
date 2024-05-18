@@ -5,6 +5,7 @@ from typing import List, Optional, Dict
 
 import numpy
 import pandas
+import pyarrow
 import sqlalchemy as sa
 from lamp_py.aws.ecs import check_for_sigterm
 from lamp_py.aws.s3 import file_list_from_s3, read_parquet
@@ -312,7 +313,7 @@ def load_parquet_files(
                 paths_to_load, columns=table.column_info.columns_to_pull
             )
             assert table.data_table.shape[0] > 0
-        except KeyError as exception:
+        except pyarrow.ArrowInvalid as exception:
             if table.allow_empty_dataframe is False:
                 raise exception
 
