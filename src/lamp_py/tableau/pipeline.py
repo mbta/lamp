@@ -16,6 +16,7 @@ from lamp_py.tableau.jobs.gtfs_rail import (
     HyperStaticStopTimes,
     HyperStaticTrips,
 )
+from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
 
@@ -31,6 +32,7 @@ def create_hyper_jobs() -> List[HyperJob]:
         HyperStaticStops(),
         HyperStaticStopTimes(),
         HyperStaticTrips(),
+        HyperRtAlerts(),
     ]
 
 
