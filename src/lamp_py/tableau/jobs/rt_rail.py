@@ -7,17 +7,17 @@ import pyarrow.compute as pc
 import pyarrow.dataset as pd
 import sqlalchemy as sa
 
-from lamp_py.tableau.hyper import HyperJob
+from lamp_py.tableau.hyper import RdsHyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class HyperRtRail(HyperJob):
-    """HyperJob for LAMP RT Rail data"""
+class HyperRtRail(RdsHyperJob):
+    """RdsHyperJob for LAMP RT Rail data"""
 
     def __init__(self) -> None:
-        HyperJob.__init__(
+        RdsHyperJob.__init__(
             self,
             hyper_file_name="LAMP_ALL_RT_fields.hyper",
             remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet",
@@ -121,7 +121,6 @@ class HyperRtRail(HyperJob):
         self.ds_batch_size = 1024 * 256
         self.db_parquet_path = "/tmp/db_local.parquet"
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -178,7 +177,7 @@ class HyperRtRail(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(create_query),
             write_path=self.local_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.parquet_schema(),
             batch_size=self.ds_batch_size,
         )
 
@@ -207,7 +206,7 @@ class HyperRtRail(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
             write_path=self.db_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.parquet_schema(),
             batch_size=self.ds_batch_size,
         )
 
@@ -234,7 +233,7 @@ class HyperRtRail(HyperJob):
         old_batch_bytes = 0
 
         with pq.ParquetWriter(
-            filter_path, schema=self.parquet_schema
+            filter_path, schema=self.parquet_schema()
         ) as writer:
             for batch in old_batches:
                 old_batch_count += 1
@@ -257,7 +256,7 @@ class HyperRtRail(HyperJob):
         combine_parquet_path = "/tmp/combine.parquet"
         combine_batches = pd.dataset(
             joined_dataset,
-            schema=self.parquet_schema,
+            schema=self.parquet_schema(),
         ).to_batches(batch_size=self.ds_batch_size)
 
         combine_batch_count = 0
@@ -265,7 +264,7 @@ class HyperRtRail(HyperJob):
         combine_batch_bytes = 0
 
         with pq.ParquetWriter(
-            combine_parquet_path, schema=self.parquet_schema
+            combine_parquet_path, schema=self.parquet_schema()
         ) as writer:
             for batch in combine_batches:
                 combine_batch_count += 1

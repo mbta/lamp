@@ -22,20 +22,28 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import BOSTON_TZ
 
 
+class AlertsS3Info:
+    """S3 Constant info for Alerts Parquet File"""
+
+    bucket_name: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
+    s3_path: str = os.path.join(
+        bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
+    )
+    version_key: str = "version"
+    file_version: str = "1.0.0"
+
+
 class AlertParquetHandler:
     """
     This class handles all of the interactions with alert data thats stored as a parquet file on s3.
     """
 
     def __init__(self) -> None:
-        bucket_name: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
-        self.s3_path: str = os.path.join(
-            bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
-        )
+        self.s3_path: str = AlertsS3Info.s3_path
 
         self.local_path: str = os.path.join("/tmp", "alerts.parquet")
-        self.version_key: str = "version"
-        self.file_version: str = "1.0.0"
+        self.version_key: str = AlertsS3Info.version_key
+        self.file_version: str = AlertsS3Info.file_version
 
         self.local_exists: bool = self.download_data()
 

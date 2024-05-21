@@ -3,8 +3,9 @@ from typing import List
 
 from lamp_py.runtime_utils.env_validation import validate_environment
 
-from lamp_py.tableau.hyper import HyperJob
+from lamp_py.tableau.hyper import RdsHyperJob, ParquetHyperJob
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.performance_manager.alerts import AlertsS3Info
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.tableau.jobs.gtfs_rail import (
     HyperServiceIdByRoute,
@@ -19,8 +20,8 @@ from lamp_py.tableau.jobs.gtfs_rail import (
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
 
-def create_hyper_jobs() -> List[HyperJob]:
-    """Create Hyper Jobs to Run"""
+def rds_hyper_jobs() -> List[RdsHyperJob]:
+    """Create Hyper Jobs that Publish from RDS"""
     return [
         HyperRtRail(),
         HyperServiceIdByRoute(),
@@ -31,6 +32,18 @@ def create_hyper_jobs() -> List[HyperJob]:
         HyperStaticStops(),
         HyperStaticStopTimes(),
         HyperStaticTrips(),
+    ]
+
+
+def parquet_hyper_jobs() -> List[ParquetHyperJob]:
+    """Create Hyper Jobs that Publish from Parquet Files"""
+    return [
+        # Alerts Hyper Job
+        ParquetHyperJob(
+            hyper_file_name="LAMP_ALERTS.hyper",
+            remote_parquet_path=AlertsS3Info.s3_path,
+            lamp_version=AlertsS3Info.file_version,
+        )
     ]
 
 
@@ -56,12 +69,13 @@ def start_hyper_updates() -> None:
     # make sure only one publisher runs at a time
     check_for_parallel_tasks()
 
-    for job in create_hyper_jobs():
+    # rds and parquet jobs all get published
+    hyper_jobs = rds_hyper_jobs() + parquet_hyper_jobs()
+    for job in hyper_jobs:
         job.run_hyper()
 
 
 def start_parquet_updates(db_manager: DatabaseManager) -> None:
     """Run all Parquet Update jobs"""
-
-    for job in create_hyper_jobs():
+    for job in rds_hyper_jobs():
         job.run_parquet(db_manager)

@@ -5,12 +5,12 @@ import pyarrow.parquet as pq
 import pyarrow.dataset as pd
 import sqlalchemy as sa
 
-from lamp_py.tableau.hyper import HyperJob
+from lamp_py.tableau.hyper import RdsHyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 
 
-class HyperGTFS(HyperJob):
+class HyperGTFS(RdsHyperJob):
     """
     Base Class for GTFS Hyper Jobs
 
@@ -24,7 +24,7 @@ class HyperGTFS(HyperJob):
         table_query: str,
         always_create_parquet: bool = False,
     ) -> None:
-        HyperJob.__init__(
+        RdsHyperJob.__init__(
             self,
             hyper_file_name=f"LAMP_{gtfs_table_name}.hyper",
             remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_{gtfs_table_name}.parquet",
@@ -42,7 +42,6 @@ class HyperGTFS(HyperJob):
         # and should be revisited if any schema changes are made
         self.ds_batch_size = 1024 * 512
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         """Define GTFS Table Schema"""
 
@@ -53,7 +52,7 @@ class HyperGTFS(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
             write_path=self.local_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.parquet_schema(),
             batch_size=self.ds_batch_size,
         )
 
@@ -90,7 +89,7 @@ class HyperGTFS(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
             write_path=db_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.parquet_schema(),
             batch_size=self.ds_batch_size,
         )
 
@@ -100,11 +99,11 @@ class HyperGTFS(HyperJob):
         combine_parquet_path = "/tmp/combine.parquet"
         combine_batches = pd.dataset(
             [old_ds, new_ds],
-            schema=self.parquet_schema,
+            schema=self.parquet_schema(),
         ).to_batches(batch_size=self.ds_batch_size)
 
         with pq.ParquetWriter(
-            combine_parquet_path, schema=self.parquet_schema
+            combine_parquet_path, schema=self.parquet_schema()
         ) as writer:
             for batch in combine_batches:
                 writer.write_batch(batch)
@@ -136,7 +135,6 @@ class HyperServiceIdByRoute(HyperGTFS):
             always_create_parquet=True,
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -173,7 +171,6 @@ class HyperStaticTrips(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -213,7 +210,6 @@ class HyperStaticStops(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -256,7 +252,6 @@ class HyperStaticCalendar(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -298,7 +293,6 @@ class HyperStaticCalendarDates(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -339,7 +333,6 @@ class HyperStaticRoutes(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -379,7 +372,6 @@ class HyperStaticFeedInfo(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -418,7 +410,6 @@ class HyperStaticStopTimes(HyperGTFS):
             ),
         )
 
-    @property
     def parquet_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [

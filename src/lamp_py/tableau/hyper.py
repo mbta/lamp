@@ -59,25 +59,10 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 "s3://", ""
             )
 
-    @property
     @abstractmethod
     def parquet_schema(self) -> pyarrow.schema:
         """
         Schema for Job parquet file
-        """
-
-    @abstractmethod
-    def create_parquet(self, db_manager: DatabaseManager) -> None:
-        """
-        Business logic to create new Job parquet file
-        """
-
-    @abstractmethod
-    def update_parquet(self, db_manager: DatabaseManager) -> bool:
-        """
-        Business logic to update existing Job parquet file
-
-        :return: True if local parquet file was updated, else False
         """
 
     def convert_parquet_dtype(self, dtype: pyarrow.DataType) -> SqlType:
@@ -115,31 +100,6 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         return SqlType.text()
 
-    def max_stats_of_parquet(self) -> Dict[str, str]:
-        """
-        Create dictionary of maximum value for each column of locally saved
-        parquet file
-
-        :return Dict[column_name: max_column_value]
-        """
-        # get row_groups from parquet metadata (list of dicts)
-        row_groups = pq.read_metadata(self.local_parquet_path).to_dict()[
-            "row_groups"
-        ]
-
-        # explode columns element from all row  groups into flat list
-        parquet_column_stats = list(
-            chain.from_iterable(
-                [row_group["columns"] for row_group in row_groups]
-            )
-        )
-
-        return {
-            col["path_in_schema"]: col["statistics"].get("max")
-            for col in parquet_column_stats
-            if col["statistics"]
-        }
-
     def remote_version_match(self) -> bool:
         """
         Compare "lamp_version" of remote parquet file to expected.
@@ -166,7 +126,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 TableDefinition.Column(
                     col.name, self.convert_parquet_dtype(col.type)
                 )
-                for col in self.parquet_schema
+                for col in self.parquet_schema()
             ],
         )
 
@@ -276,6 +236,91 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 if retry_count == max_retries:
                     process_log.log_failure(exception=exception)
 
+
+class ParquetHyperJob(HyperJob):  # pylint: disable=R0902
+    """
+    Publish a remote Parquet file to Tableau as a HyperFile
+    """
+
+    def __init__(
+        self,
+        hyper_file_name: str,
+        remote_parquet_path: str,
+        lamp_version: str,
+    ) -> None:
+        HyperJob.__init__(
+            self,
+            hyper_file_name=hyper_file_name,
+            remote_parquet_path=remote_parquet_path,
+            lamp_version=lamp_version,
+        )
+
+    def parquet_schema(self) -> pyarrow.schema:
+        active_fs = fs.S3FileSystem()
+        dataset = pq.ParquetDataset(
+            self.remote_parquet_path, filesystem=active_fs
+        )
+        return dataset.schema
+
+
+class RdsHyperJob(HyperJob):  # pylint: disable=R0902
+    """
+    Publish a dataset from an RDS to a remote Parquet file and to Tableau as a
+    HyperFile
+    """
+
+    def __init__(
+        self,
+        hyper_file_name: str,
+        remote_parquet_path: str,
+        lamp_version: str,
+    ) -> None:
+        HyperJob.__init__(
+            self,
+            hyper_file_name=hyper_file_name,
+            remote_parquet_path=remote_parquet_path,
+            lamp_version=lamp_version,
+        )
+
+    @abstractmethod
+    def create_parquet(self, db_manager: DatabaseManager) -> None:
+        """
+        Business logic to create new Job parquet file
+        """
+
+    @abstractmethod
+    def update_parquet(self, db_manager: DatabaseManager) -> bool:
+        """
+        Business logic to update existing Job parquet file
+
+        :return: True if local parquet file was updated, else False
+        """
+
+    def max_stats_of_parquet(self) -> Dict[str, str]:
+        """
+        Create dictionary of maximum value for each column of locally saved
+        parquet file
+
+        :return Dict[column_name: max_column_value]
+        """
+        # get row_groups from parquet metadata (list of dicts)
+        row_groups = pq.read_metadata(self.local_parquet_path).to_dict()[
+            "row_groups"
+        ]
+
+        # explode columns element from all row  groups into flat list
+        parquet_column_stats = list(
+            chain.from_iterable(
+                [row_group["columns"] for row_group in row_groups]
+            )
+        )
+
+        return {
+            col["path_in_schema"]: col["statistics"].get("max")
+            for col in parquet_column_stats
+            if col["statistics"]
+        }
+
     def run_parquet(self, db_manager: DatabaseManager) -> None:
         """
         Remote parquet Create / Update runner
@@ -302,7 +347,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     self.remote_parquet_path,
                     filesystem=self.remote_fs,
                 )
-                remote_schema_match = self.parquet_schema.equals(remote_schema)
+                remote_schema_match = self.parquet_schema().equals(
+                    remote_schema
+                )
                 remote_version_match = self.remote_version_match()
 
             if remote_schema_match is False or remote_version_match is False:
