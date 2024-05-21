@@ -14,7 +14,7 @@ class HyperRtAlerts(HyperJob):
         HyperJob.__init__(
             self,
             hyper_file_name="LAMP_ALERTS.hyper",
-            remote_parquet_path=self.alert_pq_handler.s3_path,
+            remote_parquet_path=f"s3://{self.alert_pq_handler.s3_path}",
             lamp_version=self.alert_pq_handler.file_version,
         )
 
