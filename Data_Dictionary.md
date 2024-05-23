@@ -3,10 +3,10 @@
 Access instructions for all LAMP public data exports are available at [https://performancedata.mbta.com](https://performancedata.mbta.com). 
 
 LAMP currently produces the following sets of public data exports:
-- [On Time Performance Data (Subway)](#on-time-performance-data-subway)
+- [Subway Performance Data](#subway-performance-data)
 - [OPMI Tableau Exports](#opmi-tableau-exports)
 
-# On Time Performance Data (Subway) 
+# Subway Performance Data
 
 Each row represents a unique `trip_id`-`stop_id` pair for rail service.
 
