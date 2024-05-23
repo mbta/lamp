@@ -22,82 +22,88 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import BOSTON_TZ
 
 
+class AlertsS3Info:
+    """S3 Constant info for Alerts Parquet File"""
+
+    bucket_name: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
+    s3_path: str = os.path.join(
+        bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
+    )
+    version_key: str = "version"
+    file_version: str = "1.0.0"
+
+    parquet_schema: pyarrow.schema = pyarrow.schema(
+        [
+            ("id", pyarrow.int64()),
+            ("cause", pyarrow.string()),
+            ("cause_detail", pyarrow.string()),
+            ("effect", pyarrow.string()),
+            ("effect_detail", pyarrow.string()),
+            ("severity_level", pyarrow.string()),
+            ("severity", pyarrow.int8()),
+            ("alert_lifecycle", pyarrow.string()),
+            ("duration_certainty", pyarrow.string()),
+            ("header_text.translation.text", pyarrow.string()),
+            ("description_text.translation.text", pyarrow.string()),
+            ("service_effect_text.translation.text", pyarrow.string()),
+            ("timeframe_text.translation.text", pyarrow.string()),
+            ("recurrence_text.translation.text", pyarrow.string()),
+            (
+                "created_datetime",
+                pyarrow.timestamp("ms", tz="America/New_York"),
+            ),
+            ("created_timestamp", pyarrow.uint64()),
+            (
+                "last_modified_datetime",
+                pyarrow.timestamp("ms", tz="America/New_York"),
+            ),
+            ("last_modified_timestamp", pyarrow.uint64()),
+            (
+                "last_push_notification_datetime",
+                pyarrow.timestamp("ms", tz="America/New_York"),
+            ),
+            ("last_push_notification_timestamp", pyarrow.uint64()),
+            (
+                "closed_datetime",
+                pyarrow.timestamp("ms", tz="America/New_York"),
+            ),
+            ("closed_timestamp", pyarrow.uint64()),
+            (
+                "active_period.start_datetime",
+                pyarrow.timestamp("ms", tz="America/New_York"),
+            ),
+            ("active_period.start_timestamp", pyarrow.uint64()),
+            (
+                "active_period.end_datetime",
+                pyarrow.timestamp("ms", tz="America/New_York"),
+            ),
+            ("active_period.end_timestamp", pyarrow.uint64()),
+            ("informed_entity.route_id", pyarrow.string()),
+            ("informed_entity.route_type", pyarrow.int8()),
+            ("informed_entity.direction_id", pyarrow.int8()),
+            ("informed_entity.stop_id", pyarrow.string()),
+            ("informed_entity.facility_id", pyarrow.string()),
+            ("informed_entity.activities", pyarrow.string()),
+        ]
+    )
+
+
 class AlertParquetHandler:
     """
     This class handles all of the interactions with alert data thats stored as a parquet file on s3.
     """
 
     def __init__(self) -> None:
-        bucket_name: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
-        self.s3_path: str = os.path.join(
-            bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
-        )
+        self.s3_path: str = AlertsS3Info.s3_path
 
         self.local_path: str = os.path.join("/tmp", "alerts.parquet")
-        self.version_key: str = "version"
-        self.file_version: str = "1.0.0"
+        self.version_key: str = AlertsS3Info.version_key
+        self.file_version: str = AlertsS3Info.file_version
+        self.parquet_schema: pyarrow.Schema = AlertsS3Info.parquet_schema
 
         self.local_exists: bool = self.download_data()
 
         self.new_data: bool = False
-
-    @property
-    def parquet_schema(self) -> pyarrow.schema:
-        """the parquet schema for aggregated alerts files"""
-        return pyarrow.schema(
-            [
-                ("id", pyarrow.int64()),
-                ("cause", pyarrow.string()),
-                ("cause_detail", pyarrow.string()),
-                ("effect", pyarrow.string()),
-                ("effect_detail", pyarrow.string()),
-                ("severity_level", pyarrow.string()),
-                ("severity", pyarrow.int8()),
-                ("alert_lifecycle", pyarrow.string()),
-                ("duration_certainty", pyarrow.string()),
-                ("header_text.translation.text", pyarrow.string()),
-                ("description_text.translation.text", pyarrow.string()),
-                ("service_effect_text.translation.text", pyarrow.string()),
-                ("timeframe_text.translation.text", pyarrow.string()),
-                ("recurrence_text.translation.text", pyarrow.string()),
-                (
-                    "created_datetime",
-                    pyarrow.timestamp("ms", tz="America/New_York"),
-                ),
-                ("created_timestamp", pyarrow.uint64()),
-                (
-                    "last_modified_datetime",
-                    pyarrow.timestamp("ms", tz="America/New_York"),
-                ),
-                ("last_modified_timestamp", pyarrow.uint64()),
-                (
-                    "last_push_notification_datetime",
-                    pyarrow.timestamp("ms", tz="America/New_York"),
-                ),
-                ("last_push_notification_timestamp", pyarrow.uint64()),
-                (
-                    "closed_datetime",
-                    pyarrow.timestamp("ms", tz="America/New_York"),
-                ),
-                ("closed_timestamp", pyarrow.uint64()),
-                (
-                    "active_period.start_datetime",
-                    pyarrow.timestamp("ms", tz="America/New_York"),
-                ),
-                ("active_period.start_timestamp", pyarrow.uint64()),
-                (
-                    "active_period.end_datetime",
-                    pyarrow.timestamp("ms", tz="America/New_York"),
-                ),
-                ("active_period.end_timestamp", pyarrow.uint64()),
-                ("informed_entity.route_id", pyarrow.string()),
-                ("informed_entity.route_type", pyarrow.int8()),
-                ("informed_entity.direction_id", pyarrow.int8()),
-                ("informed_entity.stop_id", pyarrow.string()),
-                ("informed_entity.facility_id", pyarrow.string()),
-                ("informed_entity.activities", pyarrow.string()),
-            ]
-        )
 
     def existing_id_timestamp_pairs(self) -> pandas.DataFrame:
         """
