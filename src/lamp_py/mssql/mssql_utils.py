@@ -44,14 +44,15 @@ def get_local_engine(echo: bool = False) -> sa.future.engine.Engine:
             host=db_host,
             port=db_port,
             database=db_name,
-            query={
-                "driver": "ODBC Driver 18 for SQL Server",
-                "TrustServerCertificate": "yes",
-            },
         )
 
         engine = sa.create_engine(
             connection,
+            connect_args={
+                "driver": "ODBC Driver 18 for SQL Server",
+                "TrustServerCertificate": "yes",
+                "Encrypt": "no",
+            },
             echo=echo,
         )
 
