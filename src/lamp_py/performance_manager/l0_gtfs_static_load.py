@@ -310,7 +310,7 @@ def load_parquet_files(
         )
         try:
             table.data_table = read_parquet(
-                paths_to_load, columns=table.column_info.columns_to_pull
+                paths_to_load[:1], columns=table.column_info.columns_to_pull
             )
             assert table.data_table.shape[0] > 0
         except pyarrow.ArrowInvalid as exception:
