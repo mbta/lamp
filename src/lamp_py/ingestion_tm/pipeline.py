@@ -23,6 +23,8 @@ def start() -> None:
             "TM_DB_HOST",
             "TM_DB_NAME",
             "TM_DB_USER",
+            "ECS_CLUSTER",
+            "ECS_TASK_GROUP",
         ],
         private_variables=[
             "TM_DB_PASSWORD",
