@@ -217,7 +217,9 @@ LAMP calculated dataset containing planned `route_id` and `service_id` combinati
 
 ## LAMP_RT_ALERTS
 
-The GTFS Realtime Alerts feed is archived here. Each alert contains a list of possibly many active periods and another list of arrays describing stops along routes in directions that are impacted by the alert. Both lists are exploded in this dataset. Each record represents an updated to an alert impacting a stop along a route in a direction with for a given active period.
+The MBTA GTFS Realtime [Alerts](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md) feed is archived in this dataset. 
+
+Each row of this dataset represents an entry from the [`informed_entity`](https://gtfs.org/realtime/reference/#message-entityselector) and [`active_period`](https://gtfs.org/realtime/reference/#message-timerange) fields of the Alert message being exploded.
 
 In generating this dataset, translation string fields contain only the English translation. All timestamp fields are in POSIX Time, the integer number of seconds since 1 January 1970 00:00:00 UTC. These are converted to datetimes in are Eastern Standard Time for user convenience.
 
