@@ -2,9 +2,8 @@
 
 import logging
 import os
-import signal
 
-from lamp_py.aws.ecs import handle_ecs_sigterm
+from lamp_py.aws.ecs import check_for_parallel_tasks
 from lamp_py.runtime_utils.env_validation import validate_environment
 
 from lamp_py.ingestion_tm.ingest import ingest_tables
@@ -15,9 +14,6 @@ DESCRIPTION = """Entry Point For TM Ingestion Scripts"""
 
 def start() -> None:
     """configure and start the transitmaster ingestion process"""
-    # setup handling shutdown commands
-    signal.signal(signal.SIGTERM, handle_ecs_sigterm)
-
     # configure the environment
     os.environ["SERVICE_NAME"] = "ingestion_tm"
 
@@ -32,6 +28,8 @@ def start() -> None:
             "TM_DB_PASSWORD",
         ],
     )
+
+    check_for_parallel_tasks()
 
     # run the main method
     ingest_tables()
