@@ -3,64 +3,55 @@
 import logging
 import os
 import signal
-from queue import Queue
-from typing import Optional
 
 import time
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.aws.s3 import file_list_from_s3
+from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .ingest import ingest_files
-from .utils import DEFAULT_S3_PREFIX
+from lamp_py.ingestion.ingest_delta import ingest_s3_files
+from lamp_py.ingestion.glides import ingest_glides_events
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
-
-
-def ingest(metadata_queue: Queue[Optional[str]]) -> None:
-    """
-    get all of the filepaths currently in the incoming bucket, sort them into
-    batches of similar gtfs files, convert each batch into tables, write the
-    tables to parquet files in the springboard bucket, add the parquet
-    filepaths to the metadata table as unprocessed, and move gtfs files to the
-    archive bucket (or error bucket in the event of an error)
-    """
-    process_logger = ProcessLogger("ingest_all")
-    process_logger.log_start()
-
-    files = file_list_from_s3(
-        bucket_name=os.environ["INCOMING_BUCKET"],
-        file_prefix=DEFAULT_S3_PREFIX,
-    )
-
-    ingest_files(files, metadata_queue)
-
-    process_logger.log_complete()
 
 
 def main() -> None:
     """
     run the ingestion pipeline
 
-    * setup metadata queue metadata writer proccess
+    * setup metadata queue metadata writer process
+    * setup a glides kinesis reader
     * on a loop
         * check to see if the pipeline should be terminated
         * ingest files from incoming s3 bucket
+        * ingest glides events from kinesis
     """
     # start rds writer process
     # this will create only one rds engine while app is running
     metadata_queue, rds_process = start_rds_writer_process()
 
+    # connect to the glides kinesis stream
+    glides_reader = KinesisReader(stream_name="ctd-glides-prod")
+
     # run the event loop every five minutes
     while True:
+        process_logger = ProcessLogger(process_name="main")
+        process_logger.log_start()
+
         check_for_sigterm(metadata_queue, rds_process)
-        ingest(metadata_queue=metadata_queue)
+        ingest_s3_files(metadata_queue=metadata_queue)
+        ingest_glides_events(
+            kinesis_reader=glides_reader, metadata_queue=metadata_queue
+        )
         check_for_sigterm(metadata_queue, rds_process)
+
+        process_logger.log_complete()
+
         time.sleep(5)
 
 

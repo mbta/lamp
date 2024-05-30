@@ -3,7 +3,8 @@ from abc import abstractmethod
 from typing import Optional, List, Tuple
 
 import pyarrow
-import pyarrow.compute as pc
+
+from lamp_py.ingestion.utils import flatten_schema
 
 
 class GTFSRTDetail(ABC):
@@ -14,40 +15,9 @@ class GTFSRTDetail(ABC):
     defined.
     """
 
-    def flatten_schema(self, table: pyarrow.table) -> pyarrow.table:
-        """flatten pyarrow table if struct column type exists"""
-        for field in table.schema:
-            if str(field.type).startswith("struct"):
-                return self.flatten_schema(table.flatten())
-        return table
-
-    def explode_table_column(
-        self, table: pyarrow.table, column: str
-    ) -> pyarrow.table:
-        """explode list-like column of pyarrow table by creating rows for each list value"""
-        other_columns = list(table.schema.names)
-        other_columns.remove(column)
-        indices = pc.list_parent_indices(table[column])
-        return pyarrow.concat_tables(
-            [
-                table.select(other_columns)
-                .take(indices)
-                .append_column(
-                    pyarrow.field(
-                        column, table.schema.field(column).type.value_type
-                    ),
-                    pc.list_flatten(table[column]),
-                ),
-                table.filter(
-                    pc.list_value_length(table[column]).is_null()
-                ).select(other_columns),
-            ],
-            promote=True,
-        )
-
     def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
         """modify table schema before write to parquet"""
-        return self.flatten_schema(table)
+        return flatten_schema(table)
 
     @property
     @abstractmethod

@@ -3,7 +3,8 @@ from multiprocessing import Pool
 from queue import Queue
 from typing import Dict, List, Optional
 
-from lamp_py.aws.s3 import move_s3_objects
+from lamp_py.aws.s3 import move_s3_objects, file_list_from_s3
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .convert_gtfs import GtfsConverter
 from .convert_gtfs_rt import GtfsRtConverter
@@ -33,13 +34,22 @@ def run_converter(converter: Converter) -> None:
     converter.convert()
 
 
-def ingest_files(
-    files: List[str], metadata_queue: Queue[Optional[str]]
-) -> None:
+def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     """
-    sort the incoming file list by type and create a converter for each type.
-    each converter will ingest and convert its files in its own thread.
+    get all of the filepaths currently in the incoming bucket, sort them into
+    batches of similar gtfs files, convert each batch into tables, write the
+    tables to parquet files in the springboard bucket, add the parquet
+    filepaths to the metadata table as unprocessed, and move gtfs files to the
+    archive bucket (or error bucket in the event of an error)
     """
+    process_logger = ProcessLogger(process_name="ingest_s3_files")
+    process_logger.log_start()
+
+    files = file_list_from_s3(
+        bucket_name=os.environ["INCOMING_BUCKET"],
+        file_prefix=DEFAULT_S3_PREFIX,
+    )
+
     grouped_files = group_sort_file_list(files)
 
     # initialize with an error / no impl converter, the rest will be added in as
@@ -92,3 +102,5 @@ def ingest_files(
         pool.map_async(run_converter, converters.values())
         pool.close()
         pool.join()
+
+    process_logger.log_complete()

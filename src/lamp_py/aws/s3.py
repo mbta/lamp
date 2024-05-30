@@ -24,6 +24,7 @@ import pyarrow.dataset as pd
 from botocore.exceptions import ClientError
 from pyarrow import Table, fs
 from pyarrow.util import guid
+
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -106,6 +107,14 @@ def download_file(object_path: str, file_name: str) -> bool:
         download_log.log_complete()
 
         return True
+
+    except ClientError as client_error:
+        if client_error.response["Error"]["Code"] == "404":
+            download_log.add_metadata(file_not_found=True)
+        else:
+            download_log.log_failure(exception=client_error)
+
+        return False
 
     except Exception as exception:
         download_log.log_failure(exception=exception)

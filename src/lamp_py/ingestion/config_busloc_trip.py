@@ -1,12 +1,13 @@
 from typing import List, Tuple
 import pyarrow
 
-from .gtfs_rt_detail import GTFSRTDetail
-from .gtfs_rt_structs import (
+from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
+from lamp_py.ingestion.gtfs_rt_structs import (
     trip_descriptor,
     vehicle_descriptor,
     stop_time_event,
 )
+from lamp_py.ingestion.utils import explode_table_column, flatten_schema
 
 
 class RtBusTripDetail(GTFSRTDetail):
@@ -17,9 +18,9 @@ class RtBusTripDetail(GTFSRTDetail):
 
     def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
         """modify table schema before write to parquet"""
-        return self.flatten_schema(
-            self.explode_table_column(
-                self.flatten_schema(table), "trip_update.stop_time_update"
+        return flatten_schema(
+            explode_table_column(
+                flatten_schema(table), "trip_update.stop_time_update"
             )
         )
 
