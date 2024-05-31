@@ -26,7 +26,7 @@ class AlertsS3Info:
     """S3 Constant info for Alerts Parquet File"""
 
     bucket_name: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
-    s3_path: str = os.path.join(
+    s3_path: str = "s3://" + os.path.join(
         bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
     )
     version_key: str = "version"
