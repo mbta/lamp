@@ -53,6 +53,7 @@ The following LAMP data exports are used by [OPMI](https://www.massdottracker.co
 - [LAMP_static_stop_times](#lamp_static_stop_times)
 - [LAMP_static_stops](#lamp_static_stops)
 - [LAMP_static_trips](#lamp_static_trips)
+- [LAMP_RT_ALERTS](#lamp_rt_alerts)
 
 ## LAMP_ALL_RT_fields
 
@@ -212,3 +213,47 @@ LAMP calculated dataset containing planned `route_id` and `service_id` combinati
 | direction_id | int8 | `direction_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | static_version_key | int64 | key used to link GTFS static schedule versions between tables |
+
+
+## LAMP_RT_ALERTS
+
+The MBTA GTFS Realtime [Alerts](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md) feed is archived in this dataset. 
+
+Each row of this dataset represents an entry from the [`informed_entity`](https://gtfs.org/realtime/reference/#message-entityselector) and [`active_period`](https://gtfs.org/realtime/reference/#message-timerange) fields of the Alert message being exploded.
+
+In generating this dataset, translation string fields contain only the English translation. All timestamp fields are in POSIX Time, the integer number of seconds since 1 January 1970 00:00:00 UTC. These are converted to datetimes in are Eastern Standard Time for user convenience.
+
+| field name | type | description |
+| ---------- | ---- | ----------- |
+| id | int64 | Unique identifier for this Alert. Subsequent updates to it will have the same ID. |
+| cause | string | Equivalent to `cause` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
+| cause_detail | string | Equivalent to `cause_detail` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
+| effect | string | Equivalent to `effect` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
+| effect_detail | string | Equivalent to `effect_detail` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
+| severity_level | string | Equivalent to `severity_level` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
+| severity | int8 | Integer representation of Severity. Equivalent to `serverty` in MBTA GTFS-RT Alert Message |
+| alert_lifecycle | string | Whether the alert is in effect now, will be in the future, or has been for a while. One of NEW, UPCOMING, ONGOING, ONGOING_UPCOMING. Equivalent to `alert_lifecycle` in MBTA GTFS-RT Alert Message.|
+| duration_certainty | string | Whether the alert has a KNOWN, UNKNOWN, or ESTIMATED end time. Equivalent to `duration_certainty` in MBTA GTFS-RT Alert Message|
+| header_text.translation.text | string | Equivalent to `header_text[n][text]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message where `n` is the index of the English Translation.
+| description_text.translation.text | string | Equivalent to `description_text[n][text]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message where `n` is the index of the English Translation.
+| service_effect_text.translation.text | string | Brief summary of effect and affected service. Equivalent to `service_effect_text[n][text]` in MBTA GTFS-RT Alert Message where `n` is the index of the English Translation.
+| timeframe_text.translation.text | string | Human readable summary of when service will be disrupted. Equivalent to `timeframe_text[n][text]` in MBTA GTFS-RT Alert Message where `n` is the index of the English Translation.
+| recurrence_text.translation.text | string | Human readable summary of how active_period values are repeating (ex: “daily”, “weekdays”). Equivalent to `recurrence_text[n][text]` in MBTA GTFS-RT Alert Message where `n` is the index of the English Translation.
+| created_datetime | datetime | Time this alert was created as EST Datetime. Equivalent to `created_timestamp` in MBTA GTFS-RT Alert Message.
+| created_timestamp | uint64 | Time this alert was created as POSIX Timestamp. Equivalent to `created_timestamp` in MBTA GTFS-RT Alert Message.
+| last_modified_datetime | datetime | Time this alert was last modified as EST Datetime. This is updated when the alert is modified in any way after creation. Equivalent to `last_modified_timestamp` in MBTA GTFS-RT Alert Message.
+| last_modified_timestamp | uint64 | Time this alert was last modified as POSIX Timestamp. This is updated when the alert is modified in any way after creation. Equivalent to `last_modified_timestamp` in MBTA GTFS-RT Alert Message.
+| last_push_notification_datetime | datetime | Time this alert was last _meaningfully_ modified as EST Datetime. Addition of the field or a change in value indicates that a notification should be sent to riders. Equivalent to `last_push_notification_timestamp` in MBTA GTFS-RT Alert Message.
+| last_push_notification_timestamp | uint64 | Time this alert was last _meaningfully_ modified as POSIX Timestamp. Addition of the field or a change in value indicates that a notification should be sent to riders. Equivalent to `last_push_notification_timestamp` in MBTA GTFS-RT Alert Message.
+| closed_datetime | datetime | Time this alert was closed as EST Datetime. Equivalent to `closed_timestamp` in MBTA GTFS-RT Alert Message.
+| closed_timestamp | uint64 | Time this alert was closed as POSIX Timestamp. Equivalent to `closed_timestamp` in MBTA GTFS-RT Alert Message.
+| active_period.start_datetime | datetime | Equivalent to `active_period[n][start]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as EST Datetime. A record is produced for every index `n`.
+| active_period.start_timestamp | uint64 | Equivalent to `active_period[n][start]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as POSIX Timestamp. A record is produced for every index `n`.
+| active_period.end_datetime | datetime | Equivalent to `active_period[n][end]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as EST Datetime. A record is produced for every index `n`.
+| active_period.end_timestamp | uint64 | Equivalent to `active_period[n][end]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as POSIX Timestamp. A record is produced for every index `n`.
+| informed_entity.route_id | string | Equivalent to `informed_entity[n][route_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`.
+| informed_entity.route_type | int8 | Equivalent to `informed_entity[n][route_type]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`.
+| informed_entity.direction_id | int8 | Equivalent to `informed_entity[n][direction_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`. 
+| informed_entity.stop_id | string | Equivalent to `informed_entity[n][stop_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`. 
+| informed_entity.facility_id | string | Equivalent to `informed_entity[n][faciliy_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`. 
+| informed_entity.activities | string | Equivalent to `informed_entity[n][activities]` as a `\|` delimitated string. All potential values are defined in the [Activity](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enum-activity) enum.
