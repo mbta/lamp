@@ -1,19 +1,43 @@
 import os
 import zipfile
 from datetime import datetime
-from typing import IO, Union
+from typing import List
 
 from pyarrow import csv
+import polars as pl
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import (
-    get_zip_buffer,
-    move_s3_objects,
     write_parquet_file,
+    file_list_from_s3,
 )
-
+from lamp_py.ingestion.utils import (
+    ordered_schedule_frame,
+    file_as_bytes_buf,
+)
 from .converter import Converter
 from .utils import DEFAULT_S3_PREFIX
+
+
+def gtfs_files_to_convert() -> List[str]:
+    """
+    create list of GTFS url paths for GtfsConverter
+    """
+    mbta_schedule_feed = ordered_schedule_frame()
+
+    last_s3_pq = sorted(
+        file_list_from_s3(os.getenv("SPRINGBOARD_BUCKET"), "lamp/FEED_INFO/"),
+        reverse=True,
+    )[:1]
+    if len(last_s3_pq) > 0:
+        last_s3_df = pl.read_parquet(last_s3_pq[0])
+
+        mbta_schedule_feed = mbta_schedule_feed.filter(
+            pl.col("feed_start_date") >= last_s3_df.item(0, "feed_start_date"),
+            pl.col("feed_version") != last_s3_df.item(0, "feed_version"),
+        )
+
+    return mbta_schedule_feed.get_column("archive_url").to_list()
 
 
 class GtfsConverter(Converter):
@@ -22,34 +46,17 @@ class GtfsConverter(Converter):
     """
 
     def convert(self) -> None:
-        archive_files = []
-        error_files = []
-
-        for file in self.files:
+        for file in gtfs_files_to_convert():
             process_logger = ProcessLogger(
                 "parquet_table_creator", table_type="gtfs", filename=file
             )
             process_logger.log_start()
             try:
                 self.process_schedule(file)
-                archive_files.append(file)
                 process_logger.log_complete()
 
             except Exception as exception:
-                error_files.append(file)
                 process_logger.log_failure(exception)
-
-        if len(error_files) > 0:
-            move_s3_objects(
-                error_files,
-                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
-            )
-
-        if len(archive_files) > 0:
-            move_s3_objects(
-                archive_files,
-                os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
-            )
 
     def process_schedule(self, filename: str) -> None:
         """
@@ -59,11 +66,7 @@ class GtfsConverter(Converter):
         be found at http://gtfs.org/schedule/
         """
         # s3 objects are read directly from s3 as a stream of bytes
-        filelike_input: Union[str, IO[bytes]] = filename
-
-        if filename.startswith("s3://"):
-            file_to_load = str(filename).replace("s3://", "")
-            filelike_input = get_zip_buffer(file_to_load)
+        filelike_input = file_as_bytes_buf(filename)
 
         # open up the static schedule and iterate over each of its "tables"
         with zipfile.ZipFile(filelike_input) as gtfs_zip:

@@ -26,18 +26,6 @@ class NoImplConverter(Converter):
         )
 
 
-def get_converter(
-    config_type: ConfigType, metadata_queue: Queue[Optional[str]]
-) -> Converter:
-    """
-    get the correct converter for this config type. it may raise an exception if
-    the gtfs_rt file type does not have an implemented detail
-    """
-    if config_type.is_gtfs():
-        return GtfsConverter(config_type, metadata_queue)
-    return GtfsRtConverter(config_type, metadata_queue)
-
-
 def run_converter(converter: Converter) -> None:
     """
     Run converters in subprocess
@@ -67,7 +55,7 @@ def ingest_files(
         try:
             config_type = ConfigType.from_filename(file_group[0])
             if config_type not in converters:
-                converters[config_type] = get_converter(
+                converters[config_type] = GtfsRtConverter(
                     config_type, metadata_queue
                 )
             converters[config_type].add_files(file_group)
@@ -76,9 +64,8 @@ def ingest_files(
 
     # GTFS Static Schedule must be processed first for performance manager to
     # work as expected
-    if ConfigType.SCHEDULE in converters:
-        converters[ConfigType.SCHEDULE].convert()
-        del converters[ConfigType.SCHEDULE]
+    gtfs_converter = GtfsConverter(ConfigType.SCHEDULE, metadata_queue)
+    gtfs_converter.convert()
 
     converters[ConfigType.ERROR] = NoImplConverter(
         ConfigType.ERROR, metadata_queue

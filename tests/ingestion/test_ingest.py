@@ -8,8 +8,6 @@ import pytest
 
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.error import NoImplException
-from lamp_py.ingestion.ingest import get_converter
-from lamp_py.ingestion.convert_gtfs import GtfsConverter
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
 
@@ -27,18 +25,18 @@ def test_each_config_type() -> None:
         ConfigType.RT_VEHICLE_POSITIONS: GtfsRtConverter,
         ConfigType.BUS_TRIP_UPDATES: GtfsRtConverter,
         ConfigType.BUS_VEHICLE_POSITIONS: GtfsRtConverter,
-        ConfigType.SCHEDULE: GtfsConverter,
     }
     for config_type, converter_type in config_type_map.items():
-        converter = get_converter(config_type, Queue())
+        converter = GtfsRtConverter(config_type, Queue())
         assert isinstance(converter, converter_type)
 
     bad_config_types = [
         ConfigType.VEHICLE_COUNT,
         ConfigType.LIGHT_RAIL,
         ConfigType.ERROR,
+        ConfigType.SCHEDULE,
     ]
 
     for config_type in bad_config_types:
         with pytest.raises(NoImplException):
-            converter = get_converter(config_type, Queue())
+            converter = GtfsRtConverter(config_type, Queue())
