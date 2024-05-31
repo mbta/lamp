@@ -25,10 +25,10 @@ def gtfs_files_to_convert() -> List[str]:
     """
     mbta_schedule_feed = ordered_schedule_frame()
 
-    last_s3_pq = sorted(
-        file_list_from_s3(os.getenv("SPRINGBOARD_BUCKET"), "lamp/FEED_INFO/"),
-        reverse=True,
-    )[:1]
+    last_s3_pq = file_list_from_s3(
+        bucket_name=os.getenv("SPRINGBOARD_BUCKET"),
+        file_prefix="lamp/FEED_INFO/",
+    )[-1:]
     if len(last_s3_pq) > 0:
         last_s3_df = pl.read_parquet(last_s3_pq[0])
 
@@ -46,27 +46,27 @@ class GtfsConverter(Converter):
     """
 
     def convert(self) -> None:
-        for file in gtfs_files_to_convert():
+        for url in gtfs_files_to_convert():
             process_logger = ProcessLogger(
-                "parquet_table_creator", table_type="gtfs", filename=file
+                "parquet_table_creator", table_type="gtfs", url=url
             )
             process_logger.log_start()
             try:
-                self.process_schedule(file)
+                self.process_schedule(url)
                 process_logger.log_complete()
 
             except Exception as exception:
                 process_logger.log_failure(exception)
 
-    def process_schedule(self, filename: str) -> None:
+    def process_schedule(self, url: str) -> None:
         """
         convert a schedule gtfs zip file into tables. the zip file is
         essentially a small database with each contained file (outside of feed
         info) acting as its own table. info on the gtfs scheduling standard can
         be found at http://gtfs.org/schedule/
         """
-        # s3 objects are read directly from s3 as a stream of bytes
-        filelike_input = file_as_bytes_buf(filename)
+        # schedule objects are read directly from url as a stream of bytes
+        filelike_input = file_as_bytes_buf(url)
 
         # open up the static schedule and iterate over each of its "tables"
         with zipfile.ZipFile(filelike_input) as gtfs_zip:
