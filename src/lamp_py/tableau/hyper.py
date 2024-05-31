@@ -111,6 +111,8 @@ class HyperJob(ABC):  # pylint: disable=R0902
             return SqlType.date()
 
         if dtype.startswith("timestamp"):
+            if "tz" in dtype:
+                return SqlType.timestamp_tz()
             return SqlType.timestamp()
 
         return SqlType.text()
