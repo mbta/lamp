@@ -52,7 +52,7 @@ def start_hyper_updates() -> None:
         HyperStaticStops(),
         HyperStaticStopTimes(),
         HyperStaticTrips(),
-        HyperRtAlerts(),
+        # HyperRtAlerts(),
     ]
 
     for job in hyper_jobs:
