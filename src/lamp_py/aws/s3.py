@@ -181,6 +181,21 @@ def object_metadata(obj: str) -> Dict[str, str]:
         raise error
 
 
+def version_check(obj: str, version: str) -> bool:
+    """
+    compare an s3 file's lamp version to a given version
+
+    :return True if remote and expected version match, else False
+    """
+    try:
+        remote_version = object_metadata(obj).get("lamp_version", "")
+
+        return remote_version == version
+
+    except Exception:
+        return False
+
+
 def get_zip_buffer(filename: str) -> IO[bytes]:
     """
     Get a buffer for a zip file from s3 so that it can be read by zipfile

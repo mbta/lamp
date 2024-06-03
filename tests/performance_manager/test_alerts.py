@@ -14,6 +14,7 @@ from lamp_py.performance_manager.alerts import (
     explode_active_periods,
     explode_informed_entity,
 )
+from lamp_py.performance_manager.gtfs_utils import BOSTON_TZ
 
 from ..test_resources import springboard_dir
 
@@ -179,7 +180,6 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
 
         non_null = alerts_processed[new_name].dropna()
         assert len(non_null) > 0
-        assert str(non_null.iloc[0].tz) == "EST5EDT"
 
 
 def test_transform_timestamps() -> None:
@@ -258,10 +258,9 @@ def test_explode_active_period() -> None:
     """
     test that active periods can be exploded without losing information
     """
-    start_dt = datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc)
-    end_dt = datetime.datetime(2023, 1, 2, tzinfo=datetime.timezone.utc)
+    start_dt = datetime.datetime(2023, 1, 1, tzinfo=BOSTON_TZ)
+    end_dt = datetime.datetime(2023, 1, 2, tzinfo=BOSTON_TZ)
     max_duration_days = 2
-    max_end_dt = end_dt + datetime.timedelta(days=max_duration_days)
 
     alerts_raw, active_period_count = generate_sample_active_periods(
         start_range=(start_dt, end_dt),
@@ -280,6 +279,11 @@ def test_explode_active_period() -> None:
 
     assert len(alerts_processed) == total_record_count
 
+    # drop the tz info, since all times should in the dataframe won't have them.
+    start_dt = start_dt.replace(tzinfo=None)
+    end_dt = end_dt.replace(tzinfo=None)
+    max_end_dt = end_dt + datetime.timedelta(days=max_duration_days)
+
     for base in ["active_period.start", "active_period.end"]:
         timestamp_key = f"{base}_timestamp"
         datetime_key = f"{base}_datetime"
@@ -293,7 +297,6 @@ def test_explode_active_period() -> None:
 
         non_null = alerts_processed[datetime_key].dropna()
         assert len(non_null) > 0
-        assert str(non_null.iloc[0].tz) == "EST5EDT"
 
         assert non_null[non_null < start_dt].empty
         assert non_null[non_null > max_end_dt].empty
