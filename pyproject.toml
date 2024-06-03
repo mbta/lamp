@@ -29,7 +29,7 @@ schedule = "^1.1.0"
 alembic = "^1.10.2"
 types-pytz = "^2024.1.0.20240203"
 pyodbc = "^5.1.0"
-polars = "^0.20.26"
+polars = "^0.20.31"
 
 [tool.poetry.group.tableau]
 optional = false
