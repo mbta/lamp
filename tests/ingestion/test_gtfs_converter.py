@@ -1,6 +1,6 @@
 import os
 from queue import Queue
-from typing import Callable, Iterator, Optional, List, Dict
+from typing import Callable, Iterator, Optional, List, Dict, Tuple
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -359,9 +359,9 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         mock_write_parquet_file,
     )
 
-    def mock_gtfs_files_to_convert() -> List[str]:
+    def mock_gtfs_files_to_convert() -> List[Tuple[str, int]]:
         """provide list of gtfs paths to convert"""
-        return [os.path.join(incoming_dir, "MBTA_GTFS.zip")]
+        return [(os.path.join(incoming_dir, "MBTA_GTFS.zip"), 1655517536)]
 
     monkeypatch.setattr(
         "lamp_py.ingestion.convert_gtfs.gtfs_files_to_convert",
