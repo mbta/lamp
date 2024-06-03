@@ -1,7 +1,9 @@
 import os
 import zipfile
-from datetime import datetime
-from typing import List
+from typing import (
+    List,
+    Tuple,
+)
 
 from pyarrow import csv
 import polars as pl
@@ -19,9 +21,11 @@ from .converter import Converter
 from .utils import DEFAULT_S3_PREFIX
 
 
-def gtfs_files_to_convert() -> List[str]:
+def gtfs_files_to_convert() -> List[Tuple[str, int]]:
     """
-    create list of GTFS url paths for GtfsConverter
+    create list of Tuple[GTFS url, version_key] for GtfsConverter
+
+    version_key is based on published_dt
     """
     mbta_schedule_feed = ordered_schedule_frame()
 
@@ -37,7 +41,17 @@ def gtfs_files_to_convert() -> List[str]:
             pl.col("feed_version") != last_s3_df.item(0, "feed_version"),
         )
 
-    return mbta_schedule_feed.get_column("archive_url").to_list()
+    # add version_key column
+    mbta_schedule_feed = mbta_schedule_feed.with_columns(
+        pl.col("published_dt")
+        .dt.timestamp("ms")
+        .floordiv(1000)
+        .alias("version_key")
+    )
+
+    return mbta_schedule_feed.select(["archive_url", "version_key"]).rows(
+        named=False
+    )
 
 
 class GtfsConverter(Converter):
@@ -46,19 +60,22 @@ class GtfsConverter(Converter):
     """
 
     def convert(self) -> None:
-        for url in gtfs_files_to_convert():
+        for url, version_key in gtfs_files_to_convert():
             process_logger = ProcessLogger(
-                "parquet_table_creator", table_type="gtfs", url=url
+                "parquet_table_creator",
+                table_type="gtfs",
+                url=url,
+                version_key=version_key,
             )
             process_logger.log_start()
             try:
-                self.process_schedule(url)
+                self.process_schedule(url, version_key)
                 process_logger.log_complete()
 
             except Exception as exception:
                 process_logger.log_failure(exception)
 
-    def process_schedule(self, url: str) -> None:
+    def process_schedule(self, url: str, version_key: int) -> None:
         """
         convert a schedule gtfs zip file into tables. the zip file is
         essentially a small database with each contained file (outside of feed
@@ -70,14 +87,6 @@ class GtfsConverter(Converter):
 
         # open up the static schedule and iterate over each of its "tables"
         with zipfile.ZipFile(filelike_input) as gtfs_zip:
-            # get the time the feed info file was last modified.
-            # ZipInfo.date_time returns a tuple that can be unpacked to create
-            # a datetime which is used to create a posix integer timetstamp.
-            # this timestamp is used as a version key to link all of the
-            # schedule data together.
-            written_time = gtfs_zip.getinfo("feed_info.txt").date_time
-            version_key = int(datetime(*written_time).timestamp())
-
             for gtfs_filename in gtfs_zip.namelist():
                 # performance manager kicks off its processing of the static
                 # schedule when the feed info file is added to the metadata
