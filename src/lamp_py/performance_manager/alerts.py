@@ -77,7 +77,7 @@ class AlertParquetHandler:
     This class handles all of the interactions with alert data thats stored as a parquet file on s3.
     """
 
-    def __init__(self, update_historical: bool) -> None:
+    def __init__(self, update_alerts: bool) -> None:
         self.s3_path: str = AlertsS3Info.s3_path
 
         self.local_path: str = os.path.join("/tmp", "alerts.parquet")
@@ -86,8 +86,8 @@ class AlertParquetHandler:
         # flag used to upload if new data is appended to the parquet file.
         self.new_data: bool = False
 
-        # don't download the archival file if things are being regenerated
-        if update_historical:
+        # only download the remote file if its being updated.
+        if update_alerts:
             download_file(object_path=self.s3_path, file_name=self.local_path)
 
     def existing_id_timestamp_pairs(self) -> pandas.DataFrame:
@@ -125,14 +125,15 @@ class AlertParquetHandler:
             process_logger.log_complete()
             return
 
-        new_dataset = pd.dataset(alerts_table)
-
-        joined_ds = new_dataset
         if os.path.exists(self.local_path):
-            joined_ds = pd.dataset([pd.dataset(self.local_path), new_dataset])
+            joined_ds = pd.dataset(
+                [pd.dataset(self.local_path), pd.dataset(alerts_table)]
+            )
+        else:
+            joined_ds = pd.dataset(alerts_table)
 
         process_logger.add_metadata(
-            new_records=new_dataset.count_rows(),
+            new_records=alerts_table.num_rows,
             total_records=joined_ds.count_rows(),
         )
 
@@ -140,10 +141,19 @@ class AlertParquetHandler:
         new_path = os.path.join("/tmp", "new_alerts.parquet")
         row_group_count = 0
 
-        now = datetime.now(tz=BOSTON_TZ)
-        start = datetime(2028, 1, 1, tzinfo=BOSTON_TZ)
-
         partition_key = "last_modified_timestamp"
+        partition_key_arr = joined_ds.to_table(columns=[partition_key]).column(
+            partition_key
+        )
+
+        # the start is the start of the month containing the minimum timestamp
+        start = pc.min(partition_key_arr).as_py()
+        start_dt = datetime.fromtimestamp(start)
+        start = datetime(start_dt.year, start_dt.month, 1)
+
+        # "now" is the maximum timestamp in the dataset
+        now = pc.max(partition_key_arr).as_py()
+        now = datetime.fromtimestamp(now)
 
         with pq.ParquetWriter(new_path, schema=self.parquet_schema) as writer:
             while start < now:
@@ -163,6 +173,14 @@ class AlertParquetHandler:
                     writer.write_table(table)
 
                 start = end
+
+            table = joined_ds.filter(
+                (pc.field(partition_key).is_null())
+            ).to_table()
+
+            if table.num_rows > 0:
+                row_group_count += 1
+                writer.write_table(table)
 
         os.replace(new_path, self.local_path)
         self.new_data = True
@@ -506,7 +524,7 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
         return
 
     # create a handler object that will download, append, and upload data
-    parquet_handler = AlertParquetHandler(update_historical=version_match)
+    parquet_handler = AlertParquetHandler(update_alerts=version_match)
     existing_id_timestamp_pairs = parquet_handler.existing_id_timestamp_pairs()
 
     # process up to 24 hours at a time

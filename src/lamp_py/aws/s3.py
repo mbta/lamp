@@ -21,6 +21,7 @@ import pandas
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+from botocore.exceptions import ClientError
 from pyarrow import Table, fs
 from pyarrow.util import guid
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -185,15 +186,18 @@ def version_check(obj: str, version: str) -> bool:
     """
     compare an s3 file's lamp version to a given version
 
-    :return True if remote and expected version match, else False
+    :return True if remote and expected version match, return False if the file
+            doesn't exist of or if the versions do not match.
     """
     try:
         remote_version = object_metadata(obj).get("lamp_version", "")
 
         return remote_version == version
 
-    except Exception:
-        return False
+    except ClientError as error:
+        if error.response["Error"]["Code"] == "404":
+            return False
+        raise
 
 
 def get_zip_buffer(filename: str) -> IO[bytes]:
