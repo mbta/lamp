@@ -6,13 +6,15 @@ import pandas
 import pyarrow
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
+import pyarrow.compute as pc
 import sqlalchemy as sa
+from dateutil.relativedelta import relativedelta
 
 from lamp_py.aws.s3 import (
     download_file,
     read_parquet,
     upload_file,
-    object_metadata,
+    version_check,
 )
 
 from lamp_py.postgres.metadata_schema import MetadataLog
@@ -29,8 +31,8 @@ class AlertsS3Info:
     s3_path: str = "s3://" + os.path.join(
         bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
     )
-    version_key: str = "version"
-    file_version: str = "1.0.0"
+    version_key: str = "lamp_version"
+    file_version: str = "1.1.0"
 
     parquet_schema: pyarrow.schema = pyarrow.schema(
         [
@@ -48,36 +50,18 @@ class AlertsS3Info:
             ("service_effect_text.translation.text", pyarrow.string()),
             ("timeframe_text.translation.text", pyarrow.string()),
             ("recurrence_text.translation.text", pyarrow.string()),
-            (
-                "created_datetime",
-                pyarrow.timestamp("ms", tz="America/New_York"),
-            ),
-            ("created_timestamp", pyarrow.uint64()),
-            (
-                "last_modified_datetime",
-                pyarrow.timestamp("ms", tz="America/New_York"),
-            ),
-            ("last_modified_timestamp", pyarrow.uint64()),
-            (
-                "last_push_notification_datetime",
-                pyarrow.timestamp("ms", tz="America/New_York"),
-            ),
-            ("last_push_notification_timestamp", pyarrow.uint64()),
-            (
-                "closed_datetime",
-                pyarrow.timestamp("ms", tz="America/New_York"),
-            ),
-            ("closed_timestamp", pyarrow.uint64()),
-            (
-                "active_period.start_datetime",
-                pyarrow.timestamp("ms", tz="America/New_York"),
-            ),
-            ("active_period.start_timestamp", pyarrow.uint64()),
-            (
-                "active_period.end_datetime",
-                pyarrow.timestamp("ms", tz="America/New_York"),
-            ),
-            ("active_period.end_timestamp", pyarrow.uint64()),
+            ("created_datetime", pyarrow.timestamp("us")),
+            ("created_timestamp", pyarrow.int64()),
+            ("last_modified_datetime", pyarrow.timestamp("us")),
+            ("last_modified_timestamp", pyarrow.int64()),
+            ("last_push_notification_datetime", pyarrow.timestamp("us")),
+            ("last_push_notification_timestamp", pyarrow.int64()),
+            ("closed_datetime", pyarrow.timestamp("us")),
+            ("closed_timestamp", pyarrow.int64()),
+            ("active_period.start_datetime", pyarrow.timestamp("us")),
+            ("active_period.start_timestamp", pyarrow.int64()),
+            ("active_period.end_datetime", pyarrow.timestamp("us")),
+            ("active_period.end_timestamp", pyarrow.int64()),
             ("informed_entity.route_id", pyarrow.string()),
             ("informed_entity.route_type", pyarrow.int8()),
             ("informed_entity.direction_id", pyarrow.int8()),
@@ -93,17 +77,18 @@ class AlertParquetHandler:
     This class handles all of the interactions with alert data thats stored as a parquet file on s3.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, update_alerts: bool) -> None:
         self.s3_path: str = AlertsS3Info.s3_path
 
         self.local_path: str = os.path.join("/tmp", "alerts.parquet")
-        self.version_key: str = AlertsS3Info.version_key
-        self.file_version: str = AlertsS3Info.file_version
         self.parquet_schema: pyarrow.Schema = AlertsS3Info.parquet_schema
 
-        self.local_exists: bool = self.download_data()
-
+        # flag used to upload if new data is appended to the parquet file.
         self.new_data: bool = False
+
+        # only download the remote file if its being updated.
+        if update_alerts:
+            download_file(object_path=self.s3_path, file_name=self.local_path)
 
     def existing_id_timestamp_pairs(self) -> pandas.DataFrame:
         """
@@ -112,7 +97,8 @@ class AlertParquetHandler:
         already been processed.
         """
         columns = ["id", "last_modified_timestamp"]
-        if self.local_exists:
+
+        if os.path.exists(self.local_path):
             existing_alerts = pq.read_table(
                 self.local_path, columns=columns
             ).to_pandas()
@@ -125,67 +111,82 @@ class AlertParquetHandler:
         """
         append alerts to the end of the local parquet file using batches to keep memory usage lower
         """
-        self.new_data = True
+        process_logger = ProcessLogger(
+            process_name="append_new_alerts_records",
+        )
+        process_logger.log_start()
+
         alerts = alerts.reset_index(drop=True)
         alerts_table = pyarrow.Table.from_pandas(
             alerts, schema=self.parquet_schema
         )
 
-        # if there is no local file, write the alerts to the local file and exit
-        if not self.local_exists:
-            with pq.ParquetWriter(
-                self.local_path, schema=self.parquet_schema
-            ) as writer:
-                writer.write_table(alerts_table)
-
-            self.local_exists = True
+        if alerts_table.num_rows == 0:
+            process_logger.log_complete()
             return
+
+        if os.path.exists(self.local_path):
+            joined_ds = pd.dataset(
+                [pd.dataset(self.local_path), pd.dataset(alerts_table)]
+            )
+        else:
+            joined_ds = pd.dataset(alerts_table)
+
+        process_logger.add_metadata(
+            new_records=alerts_table.num_rows,
+            total_records=joined_ds.count_rows(),
+        )
 
         # write new alerts to a new file and then join them with the local file in batches
         new_path = os.path.join("/tmp", "new_alerts.parquet")
-        joined_path = os.path.join("/tmp", "joined_alerts.parquet")
+        row_group_count = 0
+
+        partition_key = "last_modified_timestamp"
+        partition_key_arr = joined_ds.to_table(columns=[partition_key]).column(
+            partition_key
+        )
+
+        # the start is the start of the month containing the minimum timestamp
+        start = pc.min(partition_key_arr).as_py()
+        start_dt = datetime.fromtimestamp(start)
+        start = datetime(start_dt.year, start_dt.month, 1)
+
+        # "now" is the maximum timestamp in the dataset
+        now = pc.max(partition_key_arr).as_py()
+        now = datetime.fromtimestamp(now)
 
         with pq.ParquetWriter(new_path, schema=self.parquet_schema) as writer:
-            writer.write_table(alerts_table)
+            while start < now:
+                end = start + relativedelta(months=1)
+                if end < now:
+                    table = joined_ds.filter(
+                        (pc.field(partition_key) >= start.timestamp())
+                        & (pc.field(partition_key) < end.timestamp())
+                    ).to_table()
+                else:
+                    table = joined_ds.filter(
+                        (pc.field(partition_key) >= start.timestamp())
+                    ).to_table()
 
-        joined_batches = pd.dataset(
-            [
-                pd.dataset(self.local_path),
-                pd.dataset(new_path),
-            ]
-        ).to_batches()
+                if table.num_rows > 0:
+                    row_group_count += 1
+                    writer.write_table(table)
 
-        with pq.ParquetWriter(
-            joined_path, schema=self.parquet_schema
-        ) as writer:
-            for batch in joined_batches:
-                writer.write_batch(batch)
+                start = end
 
-        # the joined file becomes the local file and we can delete the new and
-        # joined files
-        os.replace(joined_path, self.local_path)
-        os.remove(new_path)
+            table = joined_ds.filter(
+                (pc.field(partition_key).is_null())
+            ).to_table()
 
-    def download_data(self) -> bool:
-        """
-        download the s3 parquet file to a temp location if the versions match.
-        return True if the file was downloaded successfully, False otherwise.
-        """
-        try:
-            lamp_version = object_metadata(self.s3_path).get(
-                self.version_key, ""
-            )
+            if table.num_rows > 0:
+                row_group_count += 1
+                writer.write_table(table)
 
-            if lamp_version != self.file_version:
-                return False
+        os.replace(new_path, self.local_path)
+        self.new_data = True
 
-            return download_file(
-                object_path=self.s3_path,
-                file_name=self.local_path,
-            )
-
-        except Exception:
-            return False
+        process_logger.add_metadata(row_group_count=row_group_count)
+        process_logger.log_complete()
 
     def upload_data(self) -> None:
         """
@@ -195,7 +196,11 @@ class AlertParquetHandler:
             upload_file(
                 file_name=self.local_path,
                 object_path=self.s3_path,
-                extra_args={"Metadata": {self.version_key: self.file_version}},
+                extra_args={
+                    "Metadata": {
+                        AlertsS3Info.version_key: AlertsS3Info.file_version
+                    }
+                },
             )
 
 
@@ -331,12 +336,16 @@ def unix_to_est(unix_time: Optional[int]) -> Optional[datetime]:
     if unix_time is None or pandas.isna(unix_time):
         return None
 
-    # Create a timezone-aware datetime object in UTC
-    utc_time = datetime.fromtimestamp(unix_time, tz=timezone.utc)
+    # Create a datetime object from the Unix timestamp
+    dt_utc = datetime.fromtimestamp(unix_time, tz=timezone.utc)
 
-    # Convert UTC time to Eastern Time
-    est_time = utc_time.astimezone(BOSTON_TZ)
-    return est_time
+    # Convert to Eastern Time (ET) with DST consideration
+    dt_est = dt_utc.astimezone(BOSTON_TZ)
+
+    # Remove the timezone information
+    dt_est_naive = dt_est.replace(tzinfo=None)
+
+    return dt_est_naive
 
 
 def transform_timestamps(alerts: pandas.DataFrame) -> pandas.DataFrame:
@@ -463,8 +472,8 @@ def explode_informed_entity(alerts: pandas.DataFrame) -> pandas.DataFrame:
     return alerts
 
 
-def get_unprocessed_alert_files(
-    md_db_manager: DatabaseManager,
+def get_alert_files(
+    md_db_manager: DatabaseManager, unprocessed_only: bool
 ) -> List[Dict[str, str]]:
     """
     Get unprocessed RT Alert Files from the MetadataLog table.
@@ -475,10 +484,15 @@ def get_unprocessed_alert_files(
         ...
     ]
     """
-    read_md = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
-        (MetadataLog.rail_pm_processed == sa.false())
-        & (MetadataLog.path.contains("RT_ALERTS"))
-    )
+    if unprocessed_only:
+        read_md = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
+            (MetadataLog.rail_pm_processed == sa.false())
+            & (MetadataLog.path.contains("RT_ALERTS"))
+        )
+    else:
+        read_md = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
+            (MetadataLog.path.contains("RT_ALERTS"))
+        )
 
     return md_db_manager.select_as_list(read_md)
 
@@ -489,22 +503,35 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
     """
     process_logger = ProcessLogger("process_alerts")
     process_logger.log_start()
-    unprocessed_records = get_unprocessed_alert_files(md_db_manager)
+
+    version_match = version_check(
+        obj=AlertsS3Info.s3_path, version=AlertsS3Info.file_version
+    )
+
+    metadata_records = get_alert_files(
+        md_db_manager=md_db_manager,
+        unprocessed_only=version_match,
+    )
+
+    process_logger.add_metadata(
+        version_match=version_match,
+        alert_file_count=len(metadata_records),
+    )
 
     # if there are no new alerts files, exit
-    if len(unprocessed_records) == 0:
+    if len(metadata_records) == 0:
         process_logger.log_complete()
         return
 
     # create a handler object that will download, append, and upload data
-    parquet_handler = AlertParquetHandler()
+    parquet_handler = AlertParquetHandler(update_alerts=version_match)
     existing_id_timestamp_pairs = parquet_handler.existing_id_timestamp_pairs()
 
     # process up to 24 hours at a time
     chunk_size = 24
-    for i in range(0, len(unprocessed_records), chunk_size):
+    for i in range(0, len(metadata_records), chunk_size):
         # get a months worth of files
-        chunk = unprocessed_records[i : i + chunk_size]
+        chunk = metadata_records[i : i + chunk_size]
 
         pk_ids = [record["pk_id"] for record in chunk]
         alert_files = [record["path"] for record in chunk]
@@ -518,8 +545,6 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
             # extract the data and transform it for publication
             alerts = extract_alerts(alert_files, existing_id_timestamp_pairs)
 
-            process_logger.add_metadata(extracted_alerts=len(alerts))
-
             if alerts.empty:
                 subprocess_logger.log_complete()
                 continue
@@ -528,6 +553,7 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
             alerts = transform_timestamps(alerts)
             alerts = explode_active_periods(alerts)
             alerts = explode_informed_entity(alerts)
+
             subprocess_logger.add_metadata(explode_alerts=len(alerts))
 
             # add the new alerts to the local temp file that will be published
