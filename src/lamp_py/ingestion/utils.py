@@ -131,7 +131,9 @@ def ordered_schedule_frame() -> pl.DataFrame:
     # Accept-Encoding header required to avoid cloudfront cache-hit
     req = request.Request(archive_url, headers={"Accept-Encoding": "gzip"})
     with request.urlopen(req) as res:
-        feed = pl.read_csv(res.read(), columns=feed_columns, dtypes=feed_dtypes)
+        feed = pl.read_csv(
+            res.read(), columns=feed_columns, schema_overrides=feed_dtypes
+        )
 
     feed = (
         feed.with_columns(
