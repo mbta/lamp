@@ -127,10 +127,11 @@ class AlertParquetHandler:
 
         if os.path.exists(self.local_path):
             joined_ds = pd.dataset(
-                [pd.dataset(self.local_path), pd.dataset(alerts_table)]
+                [pd.dataset(self.local_path), pd.dataset(alerts_table)],
+                schema=self.parquet_schema,
             )
         else:
-            joined_ds = pd.dataset(alerts_table)
+            joined_ds = pd.dataset(alerts_table, schema=self.parquet_schema)
 
         process_logger.add_metadata(
             new_records=alerts_table.num_rows,
@@ -160,12 +161,12 @@ class AlertParquetHandler:
                 end = start + relativedelta(months=1)
                 if end < now:
                     table = joined_ds.filter(
-                        (pc.field(partition_key) >= start.timestamp())
-                        & (pc.field(partition_key) < end.timestamp())
+                        (pc.field(partition_key) >= int(start.timestamp()))
+                        & (pc.field(partition_key) < int(end.timestamp()))
                     ).to_table()
                 else:
                     table = joined_ds.filter(
-                        (pc.field(partition_key) >= start.timestamp())
+                        (pc.field(partition_key) >= int(start.timestamp()))
                     ).to_table()
 
                 if table.num_rows > 0:
