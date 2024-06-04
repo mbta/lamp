@@ -132,7 +132,7 @@ class ScheduleDetails:
                 frame = pl.read_csv(
                     f.read(),
                     columns=columns_to_pull,
-                    dtypes=dtypes_to_pull,
+                    schema_overrides=dtypes_to_pull,
                     has_header=True,
                 )
 
