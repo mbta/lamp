@@ -586,7 +586,9 @@ def _get_pyarrow_dataset(
     else:
         to_load = [filename.replace("s3://", "")]
 
-    ds = pd.dataset(to_load, filesystem=active_fs)
+    # using hive partitioning as a default appears to have no negative effects
+    # on non-hive partitioned files/paths
+    ds = pd.dataset(to_load, filesystem=active_fs, partitioning="hive")
     if filters is not None:
         ds = ds.filter(filters)
 
