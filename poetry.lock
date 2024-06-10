@@ -2229,19 +2229,20 @@ cffi = ">=1.12.2,<1.14.3 || >1.14.3,<2"
 
 [[package]]
 name = "tableauserverclient"
-version = "0.30"
+version = "0.31"
 description = "A Python module for working with the Tableau Server REST API."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "tableauserverclient-0.30-py3-none-any.whl", hash = "sha256:d4140f2474134d06b7fa6c31deb1a9be8d2583736209cc307ebfb2a2c6d6a866"},
-    {file = "tableauserverclient-0.30.tar.gz", hash = "sha256:30813a57ce312c46e0993c2f3fa8d00b41fffe00673133b5b28c0bd4720c6e94"},
+    {file = "tableauserverclient-0.31-py3-none-any.whl", hash = "sha256:7b66c83cc3f159d311e527953cb74223d4ba0ce07de5085da3a6fbb85675e166"},
+    {file = "tableauserverclient-0.31.tar.gz", hash = "sha256:7b4d3ffb254a83b7461aadceb3ea16bbf17dde3e5ef5d9f0599c4ac26faca2a3"},
 ]
 
 [package.dependencies]
 defusedxml = ">=0.7.1"
 packaging = ">=23.1"
 requests = ">=2.31"
+typing-extensions = ">=4.0.1"
 urllib3 = "2.0.7"
 
 [package.extras]
@@ -2393,4 +2394,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "968793927bf48e2d9855ad726117ca41926852398bf65326f1da56ed6ec9d371"
+content-hash = "39f45cd6b58210af08cd3041ca9b13ad4babdceaf689575048f0a9007320db90"
