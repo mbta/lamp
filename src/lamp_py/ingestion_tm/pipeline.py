@@ -23,6 +23,8 @@ def start() -> None:
             "TM_DB_HOST",
             "TM_DB_NAME",
             "TM_DB_USER",
+            "TM_DB_PASSWORD",
+            "TM_DB_PORT",
             "ECS_CLUSTER",
             "ECS_TASK_GROUP",
         ],

@@ -24,14 +24,14 @@ def get_local_engine(echo: bool = False) -> sa.future.engine.Engine:
         db_host = os.environ.get("TM_DB_HOST")
         db_name = os.environ.get("TM_DB_NAME")
         db_user = os.environ.get("TM_DB_USER")
-        db_password = os.environ.get("TM_DB_PASSWORD", None)
-        db_port = 1433
+        db_password = os.environ.get("TM_DB_PASSWORD")
+        db_port = int(os.environ.get("TM_DB_PORT", 0))
 
         assert db_host is not None
         assert db_name is not None
-        assert db_port is not None
         assert db_user is not None
         assert db_password is not None
+        assert db_port != 0
 
         process_logger.add_metadata(
             host=db_host, database_name=db_name, user=db_user, port=db_port
