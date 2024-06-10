@@ -142,7 +142,7 @@ class AlertParquetHandler:
         new_path = os.path.join("/tmp", "new_alerts.parquet")
         row_group_count = 0
 
-        partition_key = "last_modified_timestamp"
+        partition_key = "active_period.start_timestamp"
         partition_key_arr = joined_ds.to_table(columns=[partition_key]).column(
             partition_key
         )
