@@ -8,6 +8,9 @@ from io import BytesIO
 
 import polars as pl
 
+import pyarrow
+import pyarrow.compute as pc
+
 DEFAULT_S3_PREFIX = "lamp"
 
 
@@ -177,3 +180,34 @@ def file_as_bytes_buf(file: str) -> BytesIO:
 
     with open(file, "rb") as f:
         return BytesIO(f.read())
+
+
+def flatten_schema(table: pyarrow.table) -> pyarrow.table:
+    """flatten pyarrow table if struct column type exists"""
+    for field in table.schema:
+        if str(field.type).startswith("struct"):
+            return flatten_schema(table.flatten())
+    return table
+
+
+def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
+    """explode list-like column of pyarrow table by creating rows for each list value"""
+    other_columns = list(table.schema.names)
+    other_columns.remove(column)
+    indices = pc.list_parent_indices(table[column])
+    return pyarrow.concat_tables(
+        [
+            table.select(other_columns)
+            .take(indices)
+            .append_column(
+                pyarrow.field(
+                    column, table.schema.field(column).type.value_type
+                ),
+                pc.list_flatten(table[column]),
+            ),
+            table.filter(pc.list_value_length(table[column]).is_null()).select(
+                other_columns
+            ),
+        ],
+        promote=True,
+    )
