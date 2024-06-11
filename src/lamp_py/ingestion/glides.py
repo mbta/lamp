@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from queue import Queue
 
 from abc import ABC, abstractmethod
@@ -94,8 +94,8 @@ class GlidesConverter(ABC):
             total_records=joined_ds.count_rows(),
         )
 
-        now = datetime.now(tz=timezone.utc)
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        now = datetime.now()
+        start = datetime(2024, 1, 1)
 
         new_path = os.path.join(self.tmp_dir, f"new_{self.base_filename}")
         row_group_count = 0
@@ -162,7 +162,7 @@ class EditorChanges(GlidesConverter):
                 ),
                 ("id", pyarrow.string()),
                 ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms", tz="UTC")),
+                ("time", pyarrow.timestamp("ms")),
                 ("source", pyarrow.string()),
                 ("specversion", pyarrow.string()),
                 ("dataschema", pyarrow.string()),
@@ -217,7 +217,7 @@ class OperatorSignIns(GlidesConverter):
                                     [("badgeNumber", pyarrow.string())]
                                 ),
                             ),
-                            ("signed_in_at", pyarrow.timestamp("ms", tz="UTC")),
+                            ("signed_in_at", pyarrow.timestamp("ms")),
                             (
                                 "signature",
                                 pyarrow.struct(
@@ -232,7 +232,7 @@ class OperatorSignIns(GlidesConverter):
                 ),
                 ("id", pyarrow.string()),
                 ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms", tz="UTC")),
+                ("time", pyarrow.timestamp("ms")),
                 ("source", pyarrow.string()),
                 ("specversion", pyarrow.string()),
                 ("dataschema", pyarrow.string()),
@@ -315,7 +315,7 @@ class TripUpdates(GlidesConverter):
                 ),
                 ("id", pyarrow.string()),
                 ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms", tz="UTC")),
+                ("time", pyarrow.timestamp("ms")),
                 ("source", pyarrow.string()),
                 ("specversion", pyarrow.string()),
                 ("dataschema", pyarrow.string()),

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 import json
 
 import boto3
@@ -18,9 +18,9 @@ class KinesisReader:
         """
         self.stream_name = stream_name
         self.kinesis_client = boto3.client("kinesis")
-        self.shard_id = None
-        self.shard_iterator = None
-        self.last_sequence_number = None
+        self.shard_id: Optional[str] = None
+        self.shard_iterator: Optional[str] = None
+        self.last_sequence_number: Optional[str] = None
 
     def update_shard_id(self) -> None:
         """
@@ -72,10 +72,7 @@ class KinesisReader:
             )
         else:
             # get the iterator after the last sequence number if we have one
-            # NOTE: for some reason mypy thinks this is unreachable, but its not
-            process_logger.add_metadata(  # type: ignore[unreachable]
-                iterator_type="after_sequence_number"
-            )
+            process_logger.add_metadata(iterator_type="after_sequence_number")
 
             shard_iterator_response = self.kinesis_client.get_shard_iterator(
                 StreamName=self.stream_name,
