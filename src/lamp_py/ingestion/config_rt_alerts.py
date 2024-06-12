@@ -15,6 +15,10 @@ class RtAlertsDetail(GTFSRTDetail):
     """
 
     @property
+    def partition_column(self) -> str:
+        return "alert.cause"
+
+    @property
     def import_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -127,6 +131,5 @@ class RtAlertsDetail(GTFSRTDetail):
         return [
             ("alert.severity", "ascending"),
             ("alert.effect", "ascending"),
-            ("alert.cause", "ascending"),
             ("feed_timestamp", "ascending"),
         ]

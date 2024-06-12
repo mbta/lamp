@@ -2,13 +2,27 @@ import json
 import logging
 import os
 import shutil
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import (
+    dataclass,
+    field,
+)
+from datetime import (
+    datetime,
+    timezone,
+)
 from queue import Queue
 from threading import current_thread
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import (
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+)
 
+import polars as pl
 import pyarrow
 from pyarrow import fs
 import pyarrow.compute as pc
@@ -23,15 +37,20 @@ from lamp_py.aws.s3 import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .config_rt_alerts import RtAlertsDetail
-from .config_busloc_trip import RtBusTripDetail
-from .config_busloc_vehicle import RtBusVehicleDetail
-from .config_rt_trip import RtTripDetail
-from .config_rt_vehicle import RtVehicleDetail
-from .converter import ConfigType, Converter
-from .error import NoImplException
-from .gtfs_rt_detail import GTFSRTDetail
-from .utils import DEFAULT_S3_PREFIX
+from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
+from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
+from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
+from lamp_py.ingestion.config_rt_trip import RtTripDetail
+from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
+from lamp_py.ingestion.converter import ConfigType, Converter
+from lamp_py.ingestion.error import NoImplException
+from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
+from lamp_py.ingestion.utils import (
+    DEFAULT_S3_PREFIX,
+    GTFS_RT_HASH_COL,
+    hash_gtfs_rt_table,
+    hash_gtfs_rt_parquet,
+)
 
 
 @dataclass
@@ -41,14 +60,10 @@ class TableData:
 
     tables: list of pyarrow tables that will joined together for final table yield
     files: list of files that make up tables
-    next_hr_cnt: keeps track of how many files in the next hour have been
-                 processed, when this hits a certain threshold the table
-                 can be yielded
     """
 
-    table: Optional[pyarrow.table] = None
+    table: Optional[pyarrow.Table] = None
     files: List[str] = field(default_factory=list)
-    next_hr_cnt: int = 0
 
 
 class GtfsRtConverter(Converter):
@@ -85,16 +100,15 @@ class GtfsRtConverter(Converter):
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 
-        self.pq_batch_size = 1024 * 256
         self.tmp_folder = "/tmp/gtfs-rt-continuous"
 
-        self.table_groups: Dict[datetime, TableData] = {}
+        self.data_parts: Dict[datetime, TableData] = {}
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
 
     def convert(self) -> None:
-        max_tables_to_convert = 6
+        max_tables_to_convert = 50
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -108,6 +122,7 @@ class GtfsRtConverter(Converter):
             for table in self.process_files():
                 if table.num_rows == 0:
                     continue
+
                 self.continuous_pq_update(table)
                 self.move_s3_files()
 
@@ -147,10 +162,6 @@ class GtfsRtConverter(Converter):
         """
         max_workers = 4
 
-        # this is the number of files created in an hour after the processing
-        # hour that will trigger a table to be yielding for writing
-        yield_threshold = max(10, max_workers * 3)
-
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
             config_type=str(self.config_type),
@@ -160,7 +171,7 @@ class GtfsRtConverter(Converter):
         with ThreadPoolExecutor(
             max_workers=max_workers, initializer=self.thread_init
         ) as pool:
-            for result_dt, result_filename, result_table in pool.map(
+            for result_dt, result_filename, rt_data in pool.map(
                 self.gz_to_pyarrow, self.files
             ):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
@@ -174,78 +185,55 @@ class GtfsRtConverter(Converter):
                     )
                     continue
 
-                # create key for self.table_groups dictionary
-                timestamp_hr = result_dt.replace(
-                    minute=0, second=0, microsecond=0
-                )
+                # create key for self.data_parts dictionary
+                dt_part = result_dt.replace(minute=0, second=0, microsecond=0)
 
                 # create new self.table_groups entry for key if it doesn't exist
-                if timestamp_hr not in self.table_groups:
-                    self.table_groups[timestamp_hr] = TableData()
+                if dt_part not in self.data_parts:
+                    self.data_parts[dt_part] = TableData()
 
-                # process results into self.table_groups
-                for iter_ts, table_group in self.table_groups.items():
-                    # add result to matching timestamp_hr key
-                    if iter_ts == timestamp_hr:
-                        table_group.files.append(result_filename)
-                        if table_group.table is None:
-                            table_group.table = self.detail.transform_for_write(
-                                result_table
-                            )
-                        else:
-                            table_group.table = pyarrow.concat_tables(
-                                [
-                                    table_group.table,
-                                    self.detail.transform_for_write(
-                                        result_table
-                                    ),
-                                ]
-                            )
-                        table_group.next_hr_cnt = 0
-                    # increment next_hr_cnt if key is before timestamp_hr
-                    elif timestamp_hr > iter_ts:
-                        table_group.next_hr_cnt += 1
+                self.data_parts[dt_part].files.append(result_filename)
 
-                yield from self.yield_check(yield_threshold, process_logger)
+                if self.data_parts[dt_part].table is None:
+                    self.data_parts[dt_part].table = (
+                        self.detail.transform_for_write(rt_data)
+                    )
+                else:
+                    self.data_parts[dt_part].table = pyarrow.concat_tables(
+                        [
+                            self.data_parts[dt_part].table,
+                            self.detail.transform_for_write(rt_data),
+                        ]
+                    )
+
+                yield from self.yield_check(process_logger)
 
         # yield any remaining tables
-        yield from self.yield_check(-1, process_logger)
+        yield from self.yield_check(process_logger, min_rows=0)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
     def yield_check(
-        self, yield_threshold: int, process_logger: ProcessLogger
+        self, process_logger: ProcessLogger, min_rows: int = 1_000_000
     ) -> Iterable[pyarrow.table]:
         """
-        yield all tables in the table_groups map that have been sufficiently
+        yield all tables in the data_parts map that have been sufficiently
         processed.
 
-        gtfs realtime files are processed chronologically in a thread pool and
-        table groups are collections of gtfs realtime tables that are from the
-        same hour. if they were being processed in series we could yield a
-        table as soon as a realtime file from the next hour was processed.
-        instead, ensure that a sufficient number for files from the next hour
-        have been processed.
-
-        @yield_threshold - how many files from the next hour have to be
-            processed before considering _this_ hour complete.
+        @min_rows - how many rows the table must have to be yielded
         @process_logger - a process logger for the conversion process. log a
             completion and reset before a file is yielded.
 
-        @yield pyarrow.table - a concatenated table of all the gtfs realtime
-            data over the corse of an hour.
+        @yield pyarrow.table - a concatenated table of gtfs realtime data.
         """
-        for iter_ts in list(self.table_groups.keys()):
-            if self.table_groups[iter_ts].next_hr_cnt > yield_threshold:
-                self.archive_files += self.table_groups[iter_ts].files
-
-                table = self.table_groups[iter_ts].table
-
-                assert table is not None
+        for iter_ts in list(self.data_parts.keys()):
+            table = self.data_parts[iter_ts].table
+            if table is not None and table.num_rows > min_rows:
+                self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
-                    file_count=len(self.table_groups[iter_ts].files),
+                    file_count=len(self.data_parts[iter_ts].files),
                     number_of_rows=table.num_rows,
                 )
                 process_logger.log_complete()
@@ -254,7 +242,7 @@ class GtfsRtConverter(Converter):
                 process_logger.log_start()
 
                 yield table
-                del self.table_groups[iter_ts]
+                del self.data_parts[iter_ts]
 
     def gz_to_pyarrow(
         self, filename: str
@@ -397,33 +385,76 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def merge_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
-        local_folder = local_path.replace(os.path.basename(local_path), "")
-        new_table_path = os.path.join(
-            local_folder,
-            "new_table.parquet",
-        )
-        pq.write_table(table, new_table_path)
+        part_col = self.detail.partition_column
+        table = hash_gtfs_rt_table(table)
+        out_ds = pd.dataset(table)
 
-        join_table_path = os.path.join(
-            local_folder,
-            "join_table.parquet",
-        )
-        join_ds = pd.dataset((local_path, new_table_path)).sort_by(
-            self.detail.table_sort_order
-        )
-        with pq.ParquetWriter(join_table_path, schema=table.schema) as writer:
-            for batch in join_ds.to_batches(batch_size=self.pq_batch_size):
-                writer.write_batch(batch)
+        if self.sync_with_s3(local_path) is True:
+            hash_gtfs_rt_parquet(local_path)
+            out_ds = pd.dataset(
+                [
+                    pd.dataset(table),
+                    pd.dataset(local_path),
+                ]
+            )
 
-        os.replace(join_table_path, local_path)
-        os.remove(new_table_path)
+        partitions = pc.unique(
+            out_ds.to_table(columns=[part_col]).column(part_col)
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_pq = os.path.join(temp_dir, "temp.parquet")
+            with pq.ParquetWriter(tmp_pq, schema=out_ds.schema) as writer:
+                for part in partitions:
+                    part_filter = pc.field(part_col) == part
+                    table = pl.from_arrow(out_ds.to_table(filter=part_filter))
+                    writer.write_table(
+                        table.sort(
+                            by=["feed_timestamp"],
+                        )
+                        .unique(subset=GTFS_RT_HASH_COL, keep="first")
+                        .to_arrow()
+                        .cast(out_ds.schema)
+                    )
+
+            os.replace(tmp_pq, local_path)
+
+    def upload_local_pq(self, local_path: str) -> None:
+        """
+        upload local parquet file to S3
+        """
+        part_col = self.detail.partition_column
+        upload_path = local_path.replace(
+            self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
+        )
+        ds = pd.dataset(local_path)
+        write_columns = ds.schema.names
+        write_columns.remove(GTFS_RT_HASH_COL)
+        write_schema = ds.schema.remove(
+            ds.schema.get_field_index(GTFS_RT_HASH_COL)
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_pq = os.path.join(temp_dir, "temp.parquet")
+            with pq.ParquetWriter(tmp_pq, schema=write_schema) as writer:
+                for part in pc.unique(
+                    ds.to_table(columns=[part_col]).column(part_col)
+                ):
+                    writer.write_table(
+                        ds.to_table(
+                            columns=write_columns,
+                            filter=(pc.field(part_col) == part),
+                        ).sort_by(self.detail.table_sort_order)
+                    )
+            upload_file(tmp_pq, upload_path)
+
+        self.send_metadata(upload_path)
 
     def continuous_pq_update(self, table: pyarrow.Table) -> None:
         """
@@ -449,19 +480,9 @@ class GtfsRtConverter(Converter):
 
             log.add_metadata(local_path=local_path)
 
-            # no existing table file, write new file
-            if self.sync_with_s3(local_path) is False:
-                pq.write_table(table, local_path)
+            self.write_local_pq(table, local_path)
 
-            # join existing table file with new table data
-            else:
-                self.merge_local_pq(table, local_path)
-
-            upload_path = local_path.replace(
-                self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
-            )
-            upload_file(local_path, upload_path)
-            self.send_metadata(upload_path)
+            self.upload_local_pq(local_path)
 
             log.log_complete()
 

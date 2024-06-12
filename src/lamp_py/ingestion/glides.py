@@ -368,17 +368,17 @@ def ingest_glides_events(
     """
     ingest glides records from the kinesis stream and add them to parquet files
     """
-    process_logger = ProcessLogger(process_name="ingest_glides_events")
-    process_logger.log_start()
+    logger = ProcessLogger(process_name="ingest_glides_events")
+    logger.log_start()
 
-    converters = [
-        EditorChanges(),
-        OperatorSignIns(),
-        TripUpdates(),
-    ]
+    try:
+        converters = [
+            EditorChanges(),
+            OperatorSignIns(),
+            TripUpdates(),
+        ]
 
-    for record in kinesis_reader.get_records():
-        try:
+        for record in kinesis_reader.get_records():
             # format this so it can be used to partition parquet files
             record["time"] = datetime.fromisoformat(
                 record["time"].replace("Z", "+00:00")
@@ -395,11 +395,12 @@ def ingest_glides_events(
 
             if not converter_found:
                 raise KeyError(f"No distinguishing key in {data_keys}")
-        except Exception as e:
-            process_logger.log_failure(e)
 
-    for converter in converters:
-        converter.append_records()
-        metadata_queue.put(converter.remote_path)
+        for converter in converters:
+            converter.append_records()
+            metadata_queue.put(converter.remote_path)
 
-    process_logger.log_complete()
+        logger.log_complete()
+
+    except Exception as exception:
+        logger.log_failure(exception)
