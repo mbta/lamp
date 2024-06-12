@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 import os
 from datetime import datetime
+import tempfile
 from queue import Queue
 
 from abc import ABC, abstractmethod
@@ -97,29 +98,31 @@ class GlidesConverter(ABC):
         now = datetime.now()
         start = datetime(2024, 1, 1)
 
-        new_path = os.path.join(self.tmp_dir, f"new_{self.base_filename}")
-        row_group_count = 0
-        with pq.ParquetWriter(new_path, schema=joined_ds.schema) as writer:
-            while start < now:
-                end = start + relativedelta(months=1)
-                if end < now:
-                    table = joined_ds.filter(
-                        (pc.field("time") >= start) & (pc.field("time") < end)
-                    ).to_table()
-                else:
-                    table = joined_ds.filter(
-                        (pc.field("time") >= start)
-                    ).to_table()
+        with tempfile.TemporaryDirectory() as tmp_dir:
 
-                if table.num_rows > 0:
-                    row_group_count += 1
-                    writer.write_table(table)
+            new_path = os.path.join(tmp_dir, self.base_filename)
+            row_group_count = 0
+            with pq.ParquetWriter(new_path, schema=joined_ds.schema) as writer:
+                while start < now:
+                    end = start + relativedelta(months=1)
+                    if end < now:
+                        table = joined_ds.filter(
+                            (pc.field("time") >= start)
+                            & (pc.field("time") < end)
+                        ).to_table()
+                    else:
+                        table = joined_ds.filter(
+                            (pc.field("time") >= start)
+                        ).to_table()
 
-                start = end
+                    if table.num_rows > 0:
+                        row_group_count += 1
+                        writer.write_table(table)
 
-        process_logger.add_metadata(row_group_count=row_group_count)
+                    start = end
 
-        os.replace(new_path, self.local_path)
+            os.replace(new_path, self.local_path)
+            process_logger.add_metadata(row_group_count=row_group_count)
 
         upload_file(file_name=self.local_path, object_path=self.remote_path)
 
@@ -217,7 +220,7 @@ class OperatorSignIns(GlidesConverter):
                                     [("badgeNumber", pyarrow.string())]
                                 ),
                             ),
-                            ("signed_in_at", pyarrow.timestamp("ms")),
+                            ("signedInAt", pyarrow.timestamp("ms")),
                             (
                                 "signature",
                                 pyarrow.struct(
@@ -244,6 +247,11 @@ class OperatorSignIns(GlidesConverter):
         return "operator"
 
     def convert_records(self) -> pd.Dataset:
+        for record in self.records:
+            record["data"]["signedInAt"] = datetime.fromisoformat(
+                record["data"]["signedInAt"].replace("Z", "+00:00")
+            )
+
         process_logger = ProcessLogger(
             process_name="convert_records", type=self.type
         )
@@ -371,35 +379,36 @@ def ingest_glides_events(
     process_logger = ProcessLogger(process_name="ingest_glides_events")
     process_logger.log_start()
 
-    converters = [
-        EditorChanges(),
-        OperatorSignIns(),
-        TripUpdates(),
-    ]
+    try:
+        converters = [
+            EditorChanges(),
+            OperatorSignIns(),
+            TripUpdates(),
+        ]
 
-    for record in kinesis_reader.get_records():
-        try:
-            # format this so it can be used to partition parquet files
-            record["time"] = datetime.fromisoformat(
-                record["time"].replace("Z", "+00:00")
-            )
+        for record in kinesis_reader.get_records():
+            try:
+                # format this so it can be used to partition parquet files
+                record["time"] = datetime.fromisoformat(
+                    record["time"].replace("Z", "+00:00")
+                )
 
-            data_keys = record["data"].keys()
+                data_keys = record["data"].keys()
 
-            converter_found = False
-            for converter in converters:
-                if converter.unique_key in data_keys:
-                    converter.records.append(record)
-                    converter_found = True
-                    break
+                for converter in converters:
+                    if converter.unique_key in data_keys:
+                        converter.records.append(record)
+                        break
+                else:
+                    raise KeyError(f"No distinguishing key in {data_keys}")
+            except Exception as e:
+                process_logger.log_failure(e)
 
-            if not converter_found:
-                raise KeyError(f"No distinguishing key in {data_keys}")
-        except Exception as e:
-            process_logger.log_failure(e)
+        for converter in converters:
+            converter.append_records()
+            metadata_queue.put(converter.remote_path)
 
-    for converter in converters:
-        converter.append_records()
-        metadata_queue.put(converter.remote_path)
+    except Exception as e:
+        process_logger.log_failure(e)
 
     process_logger.log_complete()

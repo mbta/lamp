@@ -95,36 +95,42 @@ class KinesisReader:
         )
         process_logger.log_start()
 
-        if self.shard_iterator is None:
-            self.update_shard_iterator()
-
         all_records = []
-        shard_count = 0
 
-        while True:
-            try:
-                response = self.kinesis_client.get_records(
-                    ShardIterator=self.shard_iterator
-                )
-                shard_count += 1
-                self.shard_iterator = response["NextShardIterator"]
-                records = response["Records"]
+        try:
 
-                for record in records:
-                    self.last_sequence_number = record["SequenceNumber"]
-                    all_records.append(json.loads(record["Data"]))
-
-                if response["MillisBehindLatest"] == 0:
-                    break
-
-            # thrown if the shard iterator has expired. catch it and regenerate
-            # a new shard iterator.
-            except self.kinesis_client.exceptions.ExpiredIteratorException:
+            if self.shard_iterator is None:
                 self.update_shard_iterator()
 
-        process_logger.add_metadata(
-            record_count=len(all_records), shard_count=shard_count
-        )
+            shard_count = 0
+
+            while True:
+                try:
+                    response = self.kinesis_client.get_records(
+                        ShardIterator=self.shard_iterator
+                    )
+                    shard_count += 1
+                    self.shard_iterator = response["NextShardIterator"]
+                    records = response["Records"]
+
+                    for record in records:
+                        self.last_sequence_number = record["SequenceNumber"]
+                        all_records.append(json.loads(record["Data"]))
+
+                    if response["MillisBehindLatest"] == 0:
+                        break
+
+                # thrown if the shard iterator has expired. catch it and regenerate
+                # a new shard iterator.
+                except self.kinesis_client.exceptions.ExpiredIteratorException:
+                    self.update_shard_iterator()
+
+            process_logger.add_metadata(
+                record_count=len(all_records), shard_count=shard_count
+            )
+        except Exception as e:
+            process_logger.log_failure(e)
+
         process_logger.log_complete()
 
         return all_records
