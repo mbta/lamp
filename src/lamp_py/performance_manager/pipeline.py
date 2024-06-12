@@ -3,7 +3,6 @@
 import argparse
 import logging
 import os
-import gc
 import sched
 import sys
 import time
@@ -74,32 +73,43 @@ def main(args: argparse.Namespace) -> None:
     )
 
     # schedule object that will control the "event loop"
-    scheduler = sched.scheduler(time.time, time.sleep)
+    scheduler = sched.scheduler(time.monotonic, time.sleep)
 
-    # function to call each time on the event loop, rescheduling the loop at the
-    # end of each iteration
-    def iteration() -> None:
-        """function to invoke on a scheduled routine"""
+    def fast_iter() -> None:
+        """function to invoke a fast scheduled routine"""
         check_for_sigterm()
-        process_logger = ProcessLogger("event_loop")
+        process_logger = ProcessLogger("fast_event_loop")
         process_logger.log_start()
-
         try:
             process_static_tables(rpm_db_manager, md_db_manager)
             process_gtfs_rt_files(rpm_db_manager, md_db_manager)
             write_flat_files(rpm_db_manager)
             process_alerts(md_db_manager)
+
+            process_logger.log_complete()
+        except Exception as exception:
+            process_logger.log_failure(exception)
+        finally:
+            scheduler.enter(int(args.interval), 2, fast_iter)
+
+    def slow_iter() -> None:
+        """function to invoke a slow scheduled routine"""
+        check_for_sigterm()
+        process_logger = ProcessLogger("slow_event_loop")
+        process_logger.log_start()
+        try:
             start_parquet_updates(rpm_db_manager)
 
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            gc.collect()
-            scheduler.enter(int(args.interval), 1, iteration)
+            # re-schedule every 30 minutes
+            scheduler.enter(60 * 30, 1, slow_iter)
 
     # schedule the initial loop and start the scheduler
-    scheduler.enter(0, 1, iteration)
+    scheduler.enter(0, 1, fast_iter)
+    scheduler.enter(0, 2, slow_iter)
     scheduler.run()
 
 
