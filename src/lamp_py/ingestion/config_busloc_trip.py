@@ -25,6 +25,10 @@ class RtBusTripDetail(GTFSRTDetail):
         )
 
     @property
+    def partition_column(self) -> str:
+        return "trip_update.trip.route_id"
+
+    @property
     def import_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -81,10 +85,7 @@ class RtBusTripDetail(GTFSRTDetail):
     @property
     def table_sort_order(self) -> List[Tuple[str, str]]:
         return [
-            ("trip_update.trip.start_date", "ascending"),
             ("trip_update.trip.route_pattern_id", "ascending"),
-            ("trip_update.trip.route_id", "ascending"),
             ("trip_update.trip.direction_id", "ascending"),
             ("trip_update.vehicle.id", "ascending"),
-            ("feed_timestamp", "ascending"),
         ]
