@@ -440,17 +440,16 @@ class GtfsRtConverter(Converter):
         write_schema = ds.schema.remove(
             ds.schema.get_field_index(GTFS_RT_HASH_COL)
         )
+        part_cols = pc.unique(ds.to_table(columns=[part_col]).column(part_col))
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_pq = os.path.join(temp_dir, "temp.parquet")
             with pq.ParquetWriter(tmp_pq, schema=write_schema) as writer:
-                for part in pc.unique(
-                    ds.to_table(columns=[part_col]).column(part_col)
-                ):
+                for part in part_cols:
+                    pq_filter = pc.field(part_col) == part
                     writer.write_table(
-                        ds.to_table(
-                            columns=write_columns,
-                            filter=(pc.field(part_col) == part),
-                        ).sort_by(self.detail.table_sort_order)
+                        ds.to_table(columns=write_columns, filter=pq_filter)
+                        .cast(write_schema)
+                        .sort_by(self.detail.table_sort_order)
                     )
             upload_file(tmp_pq, upload_path)
 

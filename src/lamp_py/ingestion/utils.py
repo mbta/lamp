@@ -215,7 +215,7 @@ def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
                 other_columns
             ),
         ],
-        promote=True,
+        promote_options="default",
     )
 
 
@@ -226,55 +226,63 @@ def hash_gtfs_rt_row(row: Any) -> Tuple[bytes]:
 
 def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     """
-    add lamp_records_hash column to pyarrow table, if not already present
+    add GTFS_RT_HASH_COL column to pyarrow table, if not already present
     """
-    table_columns = table.column_names
-    if GTFS_RT_HASH_COL in table_columns:
+    hash_columns = table.column_names
+    if GTFS_RT_HASH_COL in hash_columns:
         return table
 
-    table_columns.remove("feed_timestamp")
-    table_columns = sorted(table_columns)
+    hash_columns.remove("feed_timestamp")
+    hash_columns = sorted(hash_columns)
+
+    hash_schema = table.schema.append(
+        pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary())
+    )
 
     table = pl.from_arrow(table)
 
-    return table.with_columns(
-        table.select(table_columns)
-        .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
-        .to_series(0)
-        .alias(GTFS_RT_HASH_COL)
-    ).to_arrow()
+    return (
+        table.with_columns(
+            table.select(hash_columns)
+            .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
+            .to_series(0)
+            .alias(GTFS_RT_HASH_COL)
+        )
+        .to_arrow()
+        .cast(hash_schema)
+    )
 
 
 def hash_gtfs_rt_parquet(path: str) -> None:
     """
-    add lamp_records_hash to local parquet file, if not already present
+    add GTFS_RT_HASH_COL to local parquet file, if not already present
     """
     ds = pd.dataset(path)
-    ds_columns = ds.schema.names
-    if GTFS_RT_HASH_COL in ds_columns:
+    hash_columns = ds.schema.names
+    if GTFS_RT_HASH_COL in hash_columns:
         return
 
-    ds_columns.remove("feed_timestamp")
-    ds_columns = sorted(ds_columns)
+    hash_columns.remove("feed_timestamp")
+    hash_columns = sorted(hash_columns)
 
-    new_schema = ds.schema.append(
+    hash_schema = ds.schema.append(
         pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary())
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
-        with pq.ParquetWriter(tmp_pq, schema=new_schema) as writer:
+        with pq.ParquetWriter(tmp_pq, schema=hash_schema) as writer:
             for batch in ds.to_batches(batch_size=1024 * 1024):
                 batch = pl.from_arrow(batch)
                 batch = (
                     batch.with_columns(
-                        batch.select(ds_columns)
+                        batch.select(hash_columns)
                         .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
                         .to_series(0)
                         .alias(GTFS_RT_HASH_COL)
                     )
                     .to_arrow()
-                    .cast(new_schema)
+                    .cast(hash_schema)
                 )
                 writer.write_table(batch)
 
