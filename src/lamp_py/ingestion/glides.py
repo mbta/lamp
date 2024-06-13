@@ -220,7 +220,8 @@ class OperatorSignIns(GlidesConverter):
                                     [("badgeNumber", pyarrow.string())]
                                 ),
                             ),
-                            ("signedInAt", pyarrow.timestamp("ms")),
+                            # a timestamp but it needs reformatting for pyarrow
+                            ("signedInAt", pyarrow.string()),
                             (
                                 "signature",
                                 pyarrow.struct(
@@ -247,11 +248,6 @@ class OperatorSignIns(GlidesConverter):
         return "operator"
 
     def convert_records(self) -> pd.Dataset:
-        for record in self.records:
-            record["data"]["signedInAt"] = datetime.fromisoformat(
-                record["data"]["signedInAt"].replace("Z", "+00:00")
-            )
-
         process_logger = ProcessLogger(
             process_name="convert_records", type=self.type
         )
