@@ -48,4 +48,10 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
 # Copy src directory to run against and build lamp py
 COPY src src
 COPY alembic.ini alembic.ini
+
+# Add Version information as an argument, it is provided by GHA and left to the
+# default for local development.
+ARG VERSION="v0.0.0-unknown"
+RUN echo "VERSION = '${VERSION}'" > src/lamp_py/__version__.py
+
 RUN poetry install --no-dev --no-interaction --no-ansi -v

@@ -63,13 +63,21 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
+      - name: Extract version information
+        id: generate-version
+        run: |
+          git fetch --tags
+          VERSION=$(git tag --list "v[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | head -n 1)
+          SHA=$(git rev-parse --short HEAD)
+          FULL_VERSION="${VERSION}-${SHA}"
+          echo "version=${FULL_VERSION}" >> $GITHUB_ENV
       - name: Build and Push Docker Image
         id: build-push
         uses: mbta/actions/build-push-ecr@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           docker-repo: ${{ secrets.DOCKER_REPO }}
-          dockerfile-path: .
+          docker-additional-args: --build-arg VERSION=${{ env.version }}
       - name: Deploy Ingestion Application
         id: deploy-ingestion
         if: ${{ inputs.deploy-ingestion }}

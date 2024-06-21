@@ -1,7 +1,8 @@
 import os
 from typing import Iterable, List, Optional
 
-from .process_logger import ProcessLogger
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.__version__ import VERSION
 
 
 def validate_environment(
@@ -19,6 +20,8 @@ def validate_environment(
 
     if private_variables is None:
         private_variables = []
+
+    metadata = {"lamp_version": VERSION}
 
     # every pipeline needs a service name for logging
     required_variables.append("SERVICE_NAME")
@@ -45,7 +48,7 @@ def validate_environment(
         # do not log private variables
         if key in private_variables:
             value = "**********"
-        process_logger.add_metadata(**{key: value})
+            metadata[key] = value
 
     # for optional variables, access ones that exist and add them to logs.
     if optional_variables:
@@ -55,7 +58,9 @@ def validate_environment(
                 # do not log private variables
                 if key in private_variables:
                     value = "**********"
-                process_logger.add_metadata(**{key: value})
+                metadata[key] = value
+
+    process_logger.add_metadata(**metadata)
 
     # if required variables are missing, log a failure and throw.
     if missing_required:
