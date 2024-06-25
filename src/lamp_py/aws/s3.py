@@ -566,7 +566,9 @@ def get_datetime_from_partition_path(path: str) -> datetime.datetime:
         year = int(re.findall(r"year=(\d{4})", path)[0])
         month = int(re.findall(r"month=(\d{1,2})", path)[0])
         day = int(re.findall(r"day=(\d{1,2})", path)[0])
-        hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
+        hour = 0
+        if "hour=" in path:
+            hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
         return_date = datetime.datetime(
             year=year,
             month=month,

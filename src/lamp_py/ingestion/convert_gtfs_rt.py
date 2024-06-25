@@ -108,7 +108,7 @@ class GtfsRtConverter(Converter):
         self.archive_files: List[str] = []
 
     def convert(self) -> None:
-        max_tables_to_convert = 50
+        max_tables_to_convert = 15
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -156,7 +156,7 @@ class GtfsRtConverter(Converter):
         """
         iterate through all of the files to be converted
 
-        only yield a new table when the timestamps cross over an hour.
+        only yield a new table when table size crosses over min_rows of yield_check
         """
         max_workers = 4
 
@@ -184,7 +184,11 @@ class GtfsRtConverter(Converter):
                     continue
 
                 # create key for self.data_parts dictionary
-                dt_part = result_dt.replace(minute=0, second=0, microsecond=0)
+                dt_part = datetime(
+                    year=result_dt.year,
+                    month=result_dt.month,
+                    day=result_dt.day,
+                )
 
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
@@ -213,7 +217,7 @@ class GtfsRtConverter(Converter):
         process_logger.log_complete()
 
     def yield_check(
-        self, process_logger: ProcessLogger, min_rows: int = 1_000_000
+        self, process_logger: ProcessLogger, min_rows: int = 5_000_000
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -305,12 +309,6 @@ class GtfsRtConverter(Converter):
                 ),
             )
             table = table.append_column(
-                "hour",
-                pyarrow.array(
-                    [timestamp.hour] * table.num_rows, pyarrow.uint8()
-                ),
-            )
-            table = table.append_column(
                 "feed_timestamp",
                 pyarrow.array(
                     [feed_timestamp] * table.num_rows, pyarrow.uint64()
@@ -341,7 +339,6 @@ class GtfsRtConverter(Converter):
             "year": 0,
             "month": 0,
             "day": 0,
-            "hour": 0,
         }
         for col in partitions:
             unique_list = pc.unique(table.column(col)).to_pylist()
@@ -355,7 +352,6 @@ class GtfsRtConverter(Converter):
             year=partitions["year"],
             month=partitions["month"],
             day=partitions["day"],
-            hour=partitions["hour"],
         )
 
     def sync_with_s3(self, local_path: str) -> bool:
@@ -383,14 +379,15 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+    def make_hash_dataset(
+        self, table: pyarrow.Table, local_path: str
+    ) -> pyarrow.dataset:
         """
-        merge pyarrow Table with existing local_path parquet file
+        create dataset, with hash column, that will be written to parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
-        part_col = self.detail.partition_column
         table = hash_gtfs_rt_table(table)
         out_ds = pd.dataset(table)
 
@@ -403,55 +400,90 @@ class GtfsRtConverter(Converter):
                 ]
             )
 
-        partitions = pc.unique(
-            out_ds.to_table(columns=[part_col]).column(part_col)
+        return out_ds
+
+    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+        """
+        merge pyarrow Table with existing local_path parquet file
+
+        :param table: pyarrow Table
+        :param local_path: path to local parquet file
+        """
+        logger = ProcessLogger(
+            "write_local_pq", local_path=local_path, table_rows=table.num_rows
+        )
+        logger.log_start()
+
+        out_ds = self.make_hash_dataset(table, local_path)
+
+        unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (
+            60 * 45
+        )
+
+        no_hash_schema = out_ds.schema.remove(
+            out_ds.schema.get_field_index(GTFS_RT_HASH_COL)
         )
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            tmp_pq = os.path.join(temp_dir, "temp.parquet")
-            with pq.ParquetWriter(tmp_pq, schema=out_ds.schema) as writer:
-                for part in partitions:
-                    part_filter = pc.field(part_col) == part
-                    table = pl.from_arrow(out_ds.to_table(filter=part_filter))
-                    writer.write_table(
-                        table.sort(
-                            by=["feed_timestamp"],
+            hash_pq_path = os.path.join(temp_dir, "hash.parquet")
+            upload_path = os.path.join(temp_dir, "upload.parquet")
+            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema)
+            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
+
+            partitions = pc.unique(
+                out_ds.to_table(columns=[self.detail.partition_column]).column(
+                    self.detail.partition_column
+                )
+            )
+            for part in partitions:
+                write_table = pyarrow.concat_tables(
+                    [
+                        pl.DataFrame(
+                            out_ds.to_table(
+                                filter=(
+                                    (
+                                        pc.field(self.detail.partition_column)
+                                        == part
+                                    )
+                                    & (
+                                        pc.field("feed_timestamp")
+                                        >= unique_ts_min
+                                    )
+                                )
+                            )
                         )
+                        .sort(by=["feed_timestamp"])
                         .unique(subset=GTFS_RT_HASH_COL, keep="first")
                         .to_arrow()
-                        .cast(out_ds.schema)
-                    )
+                        .cast(out_ds.schema),
+                        out_ds.to_table(
+                            filter=(
+                                (pc.field(self.detail.partition_column) == part)
+                                & (pc.field("feed_timestamp") < unique_ts_min)
+                            )
+                        ),
+                    ]
+                ).sort_by(self.detail.table_sort_order)
 
-            os.replace(tmp_pq, local_path)
+                hash_writer.write_table(write_table)
 
-    def upload_local_pq(self, local_path: str) -> None:
-        """
-        upload local parquet file to S3
-        """
-        part_col = self.detail.partition_column
-        upload_path = local_path.replace(
-            self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
-        )
-        ds = pd.dataset(local_path)
-        write_columns = ds.schema.names
-        write_columns.remove(GTFS_RT_HASH_COL)
-        write_schema = ds.schema.remove(
-            ds.schema.get_field_index(GTFS_RT_HASH_COL)
-        )
-        part_cols = pc.unique(ds.to_table(columns=[part_col]).column(part_col))
-        with tempfile.TemporaryDirectory() as temp_dir:
-            tmp_pq = os.path.join(temp_dir, "temp.parquet")
-            with pq.ParquetWriter(tmp_pq, schema=write_schema) as writer:
-                for part in part_cols:
-                    pq_filter = pc.field(part_col) == part
-                    writer.write_table(
-                        ds.to_table(columns=write_columns, filter=pq_filter)
-                        .cast(write_schema)
-                        .sort_by(self.detail.table_sort_order)
-                    )
-            upload_file(tmp_pq, upload_path)
+                # drop GTFS_RT_HASH_COL column for S3 upload
+                upload_writer.write_table(
+                    write_table.drop_columns(GTFS_RT_HASH_COL)
+                )
 
-        self.send_metadata(upload_path)
+            hash_writer.close()
+            upload_writer.close()
+
+            os.replace(hash_pq_path, local_path)
+            upload_file(
+                upload_path,
+                local_path.replace(
+                    self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
+                ),
+            )
+
+        logger.log_complete()
 
     def continuous_pq_update(self, table: pyarrow.Table) -> None:
         """
@@ -469,17 +501,14 @@ class GtfsRtConverter(Converter):
                 f"year={partition_dt.year}",
                 f"month={partition_dt.month}",
                 f"day={partition_dt.day}",
-                f"hour={partition_dt.hour}",
                 f"{partition_dt.isoformat()}.parquet",
             )
 
-            table = table.drop_columns(["year", "month", "day", "hour"])
+            table = table.drop_columns(["year", "month", "day"])
 
             log.add_metadata(local_path=local_path)
 
             self.write_local_pq(table, local_path)
-
-            self.upload_local_pq(local_path)
 
             log.log_complete()
 
@@ -492,7 +521,7 @@ class GtfsRtConverter(Converter):
                 ),
                 ignore_errors=True,
             )
-            self.error_files += self.archive_files
+            # self.error_files += self.archive_files
             self.archive_files = []
             log.log_failure(exception)
 
@@ -500,7 +529,7 @@ class GtfsRtConverter(Converter):
         """
         clean local temp folders
         """
-        hours_to_keep = 2
+        days_to_keep = 2
         root_folder = os.path.join(
             self.tmp_folder,
             DEFAULT_S3_PREFIX,
@@ -512,12 +541,12 @@ class GtfsRtConverter(Converter):
                 continue
             paths[
                 datetime.strptime(
-                    w_dir, f"{root_folder}/year=%Y/month=%m/day=%d/hour=%H"
+                    w_dir, f"{root_folder}/year=%Y/month=%m/day=%d"
                 )
             ] = w_dir
 
-        # remove all local hour folders except two most recent
-        for key in sorted(paths.keys())[:-hours_to_keep]:
+        # remove all local day folders except two most recent
+        for key in sorted(paths.keys())[:-days_to_keep]:
             shutil.rmtree(paths[key])
 
     def move_s3_files(self) -> None:
