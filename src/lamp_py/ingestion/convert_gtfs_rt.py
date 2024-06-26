@@ -124,22 +124,20 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
-                self.move_s3_files()
-
                 table_count += 1
-
                 process_logger.add_metadata(table_count=table_count)
 
                 # limit number of tables produced on each event loop
                 if table_count >= max_tables_to_convert:
                     break
 
-            self.clean_local_folders()
-
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
+        finally:
+            self.clean_local_folders()
+            self.move_s3_files()
 
     def thread_init(self) -> None:
         """
