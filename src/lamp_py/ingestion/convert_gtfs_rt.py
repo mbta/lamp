@@ -505,6 +505,7 @@ class GtfsRtConverter(Converter):
             log.add_metadata(local_path=local_path)
 
             self.write_local_pq(table, local_path)
+            self.send_metadata(local_path)
 
             log.log_complete()
 
