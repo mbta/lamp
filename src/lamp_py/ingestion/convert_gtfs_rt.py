@@ -126,7 +126,6 @@ class GtfsRtConverter(Converter):
                 self.continuous_pq_update(table)
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
-
                 # limit number of tables produced on each event loop
                 if table_count >= max_tables_to_convert:
                     break
@@ -136,8 +135,8 @@ class GtfsRtConverter(Converter):
         else:
             process_logger.log_complete()
         finally:
-            self.clean_local_folders()
             self.move_s3_files()
+            self.clean_local_folders()
 
     def thread_init(self) -> None:
         """
@@ -193,10 +192,6 @@ class GtfsRtConverter(Converter):
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
-
-                self.data_parts[dt_part].files.append(result_filename)
-
-                if self.data_parts[dt_part].table is None:
                     self.data_parts[dt_part].table = (
                         self.detail.transform_for_write(rt_data)
                     )
@@ -208,10 +203,12 @@ class GtfsRtConverter(Converter):
                         ]
                     )
 
+                self.data_parts[dt_part].files.append(result_filename)
+
                 yield from self.yield_check(process_logger)
 
         # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=0)
+        yield from self.yield_check(process_logger, min_rows=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
@@ -391,7 +388,7 @@ class GtfsRtConverter(Converter):
         table = hash_gtfs_rt_table(table)
         out_ds = pd.dataset(table)
 
-        if self.sync_with_s3(local_path) is True:
+        if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
             out_ds = pd.dataset(
                 [
@@ -402,6 +399,8 @@ class GtfsRtConverter(Converter):
 
         return out_ds
 
+    # pylint: disable=R0914
+    # pylint too many local variables (more than 15)
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
@@ -436,33 +435,28 @@ class GtfsRtConverter(Converter):
                 )
             )
             for part in partitions:
-                write_table = pyarrow.concat_tables(
-                    [
-                        pl.DataFrame(
-                            out_ds.to_table(
-                                filter=(
-                                    (
-                                        pc.field(self.detail.partition_column)
-                                        == part
-                                    )
-                                    & (
-                                        pc.field("feed_timestamp")
-                                        >= unique_ts_min
-                                    )
-                                )
-                            )
-                        )
-                        .sort(by=["feed_timestamp"])
-                        .unique(subset=GTFS_RT_HASH_COL, keep="first")
-                        .to_arrow()
-                        .cast(out_ds.schema),
+                unique_table = (
+                    pl.DataFrame(
                         out_ds.to_table(
                             filter=(
                                 (pc.field(self.detail.partition_column) == part)
-                                & (pc.field("feed_timestamp") < unique_ts_min)
+                                & (pc.field("feed_timestamp") >= unique_ts_min)
                             )
-                        ),
-                    ]
+                        )
+                    )
+                    .sort(by=["feed_timestamp"])
+                    .unique(subset=GTFS_RT_HASH_COL, keep="first")
+                    .to_arrow()
+                    .cast(out_ds.schema)
+                )
+                ds_table = out_ds.to_table(
+                    filter=(
+                        (pc.field(self.detail.partition_column) == part)
+                        & (pc.field("feed_timestamp") < unique_ts_min)
+                    )
+                )
+                write_table = pyarrow.concat_tables(
+                    [unique_table, ds_table]
                 ).sort_by(self.detail.table_sort_order)
 
                 hash_writer.write_table(write_table)
@@ -484,6 +478,8 @@ class GtfsRtConverter(Converter):
             )
 
         logger.log_complete()
+
+    # pylint: enable=R0914
 
     def continuous_pq_update(self, table: pyarrow.Table) -> None:
         """
@@ -521,7 +517,7 @@ class GtfsRtConverter(Converter):
                 ),
                 ignore_errors=True,
             )
-            # self.error_files += self.archive_files
+            self.error_files += self.archive_files
             self.archive_files = []
             log.log_failure(exception)
 
