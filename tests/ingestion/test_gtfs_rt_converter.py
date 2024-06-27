@@ -75,7 +75,7 @@ def test_empty_files() -> None:
         assert table.to_pandas().shape == (
             0,
             len(converter.detail.import_schema)
-            + 5,  # add 5 for header timestamp columns
+            + 4,  # add 4 for header timestamp columns
         )
 
         one_blank_file = os.path.join(incoming_dir, "one_blank_record.json.gz")
@@ -84,7 +84,7 @@ def test_empty_files() -> None:
         assert table.to_pandas().shape == (
             1,
             len(converter.detail.import_schema)
-            + 5,  # add 5 for header timestamp columns
+            + 4,  # add 4 for header timestamp columns
         )
 
 
@@ -93,6 +93,7 @@ def drop_list_columns(table: pandas.DataFrame) -> pandas.DataFrame:
     drop any columns with list objects to perform dataframe compare
     """
     list_columns = (
+        "hour",
         "consist",
         "translation",
         "informed_entity",
@@ -133,8 +134,8 @@ def test_vehicle_positions_file_conversion() -> None:
     # 426 records in 'entity' for 2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz
     assert table.num_rows == 426
     assert (
-        table.num_columns == len(converter.detail.import_schema) + 5
-    )  # add 5 for header timestamp columns
+        table.num_columns == len(converter.detail.import_schema) + 4
+    )  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -196,8 +197,8 @@ def test_rt_alert_file_conversion() -> None:
     # 144 records in 'entity' for 2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz
     assert table.num_rows == 144
     assert (
-        table.num_columns == len(converter.detail.import_schema) + 5
-    )  # add 5 for header timestamp columns
+        table.num_columns == len(converter.detail.import_schema) + 4
+    )  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -239,8 +240,8 @@ def test_rt_trip_file_conversion() -> None:
     # 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
     assert table.num_rows == 79
     assert (
-        table.num_columns == len(converter.detail.import_schema) + 5
-    )  # add 5 for header timestamp columns
+        table.num_columns == len(converter.detail.import_schema) + 4
+    )  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -301,8 +302,8 @@ def test_bus_vehicle_positions_file_conversion() -> None:
     # 844 records in 'entity' for 2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
     assert table.num_rows == 844
     assert (
-        table.num_columns == len(converter.detail.import_schema) + 5
-    )  # add 5 for header timestamp columns
+        table.num_columns == len(converter.detail.import_schema) + 4
+    )  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -341,8 +342,8 @@ def test_bus_trip_updates_file_conversion() -> None:
     # 157 records in 'entity' for 2022-06-28T10_03_18Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz
     assert table.num_rows == 157
     assert (
-        table.num_columns == len(converter.detail.import_schema) + 5
-    )  # add 5 for header timestamp columns
+        table.num_columns == len(converter.detail.import_schema) + 4
+    )  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
