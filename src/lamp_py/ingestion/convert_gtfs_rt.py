@@ -505,6 +505,11 @@ class GtfsRtConverter(Converter):
             log.add_metadata(local_path=local_path)
 
             self.write_local_pq(table, local_path)
+            self.send_metadata(
+                local_path.replace(
+                    self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
+                )
+            )
 
             log.log_complete()
 
