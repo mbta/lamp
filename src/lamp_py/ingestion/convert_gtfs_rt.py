@@ -190,6 +190,7 @@ class GtfsRtConverter(Converter):
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
 
+                self.archive_files.append(result_filename)
                 self.data_parts[dt_part].files.append(result_filename)
 
                 if self.data_parts[dt_part].table is None:
@@ -228,8 +229,6 @@ class GtfsRtConverter(Converter):
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
             if table is not None and table.num_rows > min_rows:
-                self.archive_files += self.data_parts[iter_ts].files
-
                 process_logger.add_metadata(
                     file_count=len(self.data_parts[iter_ts].files),
                     number_of_rows=table.num_rows,
