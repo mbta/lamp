@@ -168,9 +168,6 @@ def ordered_schedule_frame() -> pl.DataFrame:
         )
     )
 
-    # fix_me: filter for malformed archive schedules
-    feed = feed.filter(feed["feed_start_date"] > 20180200)
-
     return feed
 
 
