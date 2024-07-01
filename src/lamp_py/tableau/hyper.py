@@ -42,7 +42,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
         hyper_file_name: str,
         remote_parquet_path: str,
         lamp_version: str,
-        project_name: str = "LAMP API",
+        project_name: str = os.getenv("TABLEAU_PROJECT", ""),
     ) -> None:
         self.hyper_file_name = hyper_file_name
         self.hyper_table_name = hyper_file_name.replace(".hyper", "")
