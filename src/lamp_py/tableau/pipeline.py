@@ -30,6 +30,7 @@ def start_hyper_updates() -> None:
             "TABLEAU_USER",
             "TABLEAU_PASSWORD",
             "TABLEAU_SERVER",
+            "TABLEAU_PROJECT",
             "PUBLIC_ARCHIVE_BUCKET",
             "ECS_CLUSTER",
             "ECS_TASK_GROUP",
