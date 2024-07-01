@@ -226,34 +226,37 @@ In generating this dataset, translation string fields contain only the English t
 | field name | type | description |
 | ---------- | ---- | ----------- |
 | id | int64 | Unique identifier for this Alert. Subsequent updates to it will have the same ID. |
-| cause | string | Equivalent to `cause` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
-| cause_detail | string | Equivalent to `cause_detail` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
-| effect | string | Equivalent to `effect` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
-| effect_detail | string | Equivalent to `effect_detail` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
-| severity_level | string | Equivalent to `severity_level` in GTFS-RT [Alert](https://gtfs.org/realtime/reference/#message-alert) message.
-| severity | int8 | Integer representation of Severity. Equivalent to `serverty` in MBTA GTFS-RT Alert Message |
-| alert_lifecycle | string | Whether the alert is in effect now, will be in the future, or has been for a while. One of NEW, UPCOMING, ONGOING, ONGOING_UPCOMING. Equivalent to `alert_lifecycle` in MBTA GTFS-RT Alert Message.|
-| duration_certainty | string | Whether the alert has a KNOWN, UNKNOWN, or ESTIMATED end time. Equivalent to `duration_certainty` in MBTA GTFS-RT Alert Message|
-| header_text.translation.text | string | Equivalent to `header_text[n][text]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message where `n` is the index of the English Translation.
-| description_text.translation.text | string | Equivalent to `description_text[n][text]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message where `n` is the index of the English Translation.
-| service_effect_text.translation.text | string | Brief summary of effect and affected service. Equivalent to `service_effect_text[n][text]` in MBTA GTFS-RT Alert Message where `n` is the index of the English Translation.
-| timeframe_text.translation.text | string | Human readable summary of when service will be disrupted. Equivalent to `timeframe_text[n][text]` in MBTA GTFS-RT Alert Message where `n` is the index of the English Translation.
-| recurrence_text.translation.text | string | Human readable summary of how active_period values are repeating (ex: “daily”, “weekdays”). Equivalent to `recurrence_text[n][text]` in MBTA GTFS-RT Alert Message where `n` is the index of the English Translation.
-| created_datetime | datetime | Time this alert was created as EST Datetime. Equivalent to `created_timestamp` in MBTA GTFS-RT Alert Message.
-| created_timestamp | uint64 | Time this alert was created as POSIX Timestamp. Equivalent to `created_timestamp` in MBTA GTFS-RT Alert Message.
-| last_modified_datetime | datetime | Time this alert was last modified as EST Datetime. This is updated when the alert is modified in any way after creation. Equivalent to `last_modified_timestamp` in MBTA GTFS-RT Alert Message.
-| last_modified_timestamp | uint64 | Time this alert was last modified as POSIX Timestamp. This is updated when the alert is modified in any way after creation. Equivalent to `last_modified_timestamp` in MBTA GTFS-RT Alert Message.
-| last_push_notification_datetime | datetime | Time this alert was last _meaningfully_ modified as EST Datetime. Addition of the field or a change in value indicates that a notification should be sent to riders. Equivalent to `last_push_notification_timestamp` in MBTA GTFS-RT Alert Message.
-| last_push_notification_timestamp | uint64 | Time this alert was last _meaningfully_ modified as POSIX Timestamp. Addition of the field or a change in value indicates that a notification should be sent to riders. Equivalent to `last_push_notification_timestamp` in MBTA GTFS-RT Alert Message.
-| closed_datetime | datetime | Time this alert was closed as EST Datetime. Equivalent to `closed_timestamp` in MBTA GTFS-RT Alert Message.
-| closed_timestamp | uint64 | Time this alert was closed as POSIX Timestamp. Equivalent to `closed_timestamp` in MBTA GTFS-RT Alert Message.
-| active_period.start_datetime | datetime | Equivalent to `active_period[n][start]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as EST Datetime. A record is produced for every index `n`.
-| active_period.start_timestamp | uint64 | Equivalent to `active_period[n][start]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as POSIX Timestamp. A record is produced for every index `n`.
-| active_period.end_datetime | datetime | Equivalent to `active_period[n][end]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as EST Datetime. A record is produced for every index `n`.
-| active_period.end_timestamp | uint64 | Equivalent to `active_period[n][end]` in [Alert](https://gtfs.org/realtime/reference/#message-alert) message as POSIX Timestamp. A record is produced for every index `n`.
-| informed_entity.route_id | string | Equivalent to `informed_entity[n][route_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`.
-| informed_entity.route_type | int8 | Equivalent to `informed_entity[n][route_type]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`.
-| informed_entity.direction_id | int8 | Equivalent to `informed_entity[n][direction_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`. 
-| informed_entity.stop_id | string | Equivalent to `informed_entity[n][stop_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`. 
-| informed_entity.facility_id | string | Equivalent to `informed_entity[n][faciliy_id]` in [Alert](https://gtfs.org/realtime/reference/#message-alert). A record is produced for every index `n`. 
+| cause | string | Equivalent to `cause` in GTFS-RT [Alert][gtfs-rt-alert] message.
+| cause_detail | string | Equivalent to `cause_detail` in GTFS-RT [Alert][gtfs-rt-alert] message.
+| effect | string | Equivalent to `effect` in GTFS-RT [Alert][gtfs-rt-alert] message.
+| effect_detail | string | Equivalent to `effect_detail` in GTFS-RT [Alert][gtfs-rt-alert] message.
+| severity_level | string | Equivalent to `severity_level` in GTFS-RT [Alert][gtfs-rt-alert] message.
+| severity | int8 | Equivalent to `Alert-severity` in [MBTA Enhance GTFS-RT Message][mbta-enhanced]. |
+| alert_lifecycle | string | Equivalent to `Alert-alert_lifecycle` in [MBTA Enhance GTFS-RT Message][mbta-enhanced]. |
+| duration_certainty | string | Equivalent to `Alert-duration_certainty` in [MBTA Enhance GTFS-RT Message][mbta-enhanced]. |
+| header_text.translation.text | string | Equivalent to `header_text[n][text]` in [Alert][gtfs-rt-alert] message where `n` is the index of the English Translation.
+| description_text.translation.text | string | Equivalent to `description_text[n][text]` in [Alert][gtfs-rt-alert] message where `n` is the index of the English Translation.
+| service_effect_text.translation.text | string | Equivalent to `Alert-service_effect_text[n][text]` in [MBTA Enhance GTFS-RT Message][mbta-enhanced] where `n` is the index of the English Translation.
+| timeframe_text.translation.text | string | Equivalent to `Alert-timeframe_text[n][text]` in [MBTA Enhance GTFS-RT Message][mbta-enhanced] where `n` is the index of the English Translation.
+| recurrence_text.translation.text | string | Equivalent to `Alert-recurrence_text[n][text]` in [MBTA Enhance GTFS-RT Message][mbta-enhanced] where `n` is the index of the English Translation.
+| created_timestamp | uint64 | Equivalent to `Alert-created_timestamp` in [MBTA Enhance GTFS-RT Message][mbta-enhanced].
+| created_datetime | datetime | `created_timestamp` as EST Datetime.
+| last_modified_timestamp | uint64 | Equivalent to `Alert-last_modified_timestamp` in [MBTA Enhance GTFS-RT Message][mbta-enhanced].
+| last_modified_datetime | datetime | `last_modified_timestamp` as EST Datetime.
+| last_push_notification_timestamp | uint64 | Equivalent to `Alert-last_push_notification_timestamp` in [MBTA Enhance GTFS-RT Message][mbta-enhanced].
+| last_push_notification_datetime | datetime | `last_push_notification_timestamp` as EST Datetime.
+| closed_timestamp | uint64 | Equivalent to `Alert-closed_timestamp` in [MBTA Enhance GTFS-RT Message][mbta-enhanced].
+| closed_datetime | datetime | `closed_timestamp` as EST Datetime.
+| active_period.start_datetime | datetime | Equivalent to `active_period[n][start]` in [Alert][gtfs-rt-alert] message as EST Datetime. A record is produced for every index `n`.
+| active_period.start_timestamp | uint64 | Equivalent to `active_period[n][start]` in [Alert][gtfs-rt-alert] message as POSIX Timestamp. A record is produced for every index `n`.
+| active_period.end_datetime | datetime | Equivalent to `active_period[n][end]` in [Alert][gtfs-rt-alert] message as EST Datetime. A record is produced for every index `n`.
+| active_period.end_timestamp | uint64 | Equivalent to `active_period[n][end]` in [Alert][gtfs-rt-alert] message as POSIX Timestamp. A record is produced for every index `n`.
+| informed_entity.route_id | string | Equivalent to `informed_entity[n][route_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
+| informed_entity.route_type | int8 | Equivalent to `informed_entity[n][route_type]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
+| informed_entity.direction_id | int8 | Equivalent to `informed_entity[n][direction_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
+| informed_entity.stop_id | string | Equivalent to `informed_entity[n][stop_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
+| informed_entity.facility_id | string | Equivalent to `informed_entity[n][faciliy_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
 | informed_entity.activities | string | Equivalent to `informed_entity[n][activities]` as a `\|` delimitated string. All potential values are defined in the [Activity](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enum-activity) enum.
+
+[gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
+[mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields
