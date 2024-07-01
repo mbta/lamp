@@ -229,6 +229,8 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
             s3_files = file_list_from_s3(bucket, prefix)
             if len(s3_files) > 1:
                 for obj_path in s3_files:
+                    if not obj_path.endswith(".parquet"):
+                        continue
                     local_path = obj_path.replace(f"s3://{bucket}", "/tmp")
                     download_file(obj_path, local_path)
             else:

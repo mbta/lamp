@@ -5,6 +5,7 @@ import pyarrow
 import pyarrow.dataset as pd
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.ingestion.utils import gzip_file
 
 
 def sqlite_type(pq_type: str) -> str:
@@ -59,24 +60,22 @@ def pq_folder_to_sqlite(year_path: str) -> None:
             if ".parquet" not in file:
                 continue
             logger.add_metadata(current_file=file)
+
+            ds = pd.dataset(os.path.join(year_path, file))
+
             table = file.replace(".parquet", "")
-            file_path = os.path.join(year_path, file)
-
-            ds = pd.dataset(file_path)
-
             columns = [f":{col}" for col in ds.schema.names]
+            insert_query = f"INSERT INTO {table} VALUES({','.join(columns)});"
 
             conn = sqlite3.connect(db_path)
             with conn:
                 conn.execute(sqlite_table_query(table, ds.schema))
             with conn:
-                insert_query = (
-                    f"INSERT INTO {table} VALUES({','.join(columns)});"
-                )
                 for batch in ds.to_batches(batch_size=250_000):
                     conn.executemany(insert_query, batch.to_pylist())
-
             conn.close()
+
+        gzip_file(db_path)
 
         logger.log_complete()
     except Exception as exception:

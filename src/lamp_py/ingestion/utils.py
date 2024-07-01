@@ -1,5 +1,7 @@
 import os
 import re
+import gzip
+import shutil
 import pathlib
 import datetime
 import zoneinfo
@@ -15,6 +17,8 @@ import pyarrow.dataset as pd
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import polars as pl
+
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 DEFAULT_S3_PREFIX = "lamp"
 GTFS_RT_HASH_COL = "lamp_record_hash"
@@ -284,3 +288,24 @@ def hash_gtfs_rt_parquet(path: str) -> None:
                 writer.write_table(batch)
 
         os.replace(tmp_pq, path)
+
+
+def gzip_file(path: str, keep_original: bool = False) -> None:
+    """
+    gzip local file
+
+    :param path: local file path
+    :param keep_original: keep original non-gzip file = False
+    """
+    logger = ProcessLogger(
+        "gzip_file", path=path, remove_original=keep_original
+    )
+    logger.log_start()
+    with open(path, "rb") as f_in:
+        with gzip.open(f"{path}.gz", "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+    if not keep_original:
+        os.remove(path)
+
+    logger.log_complete()
