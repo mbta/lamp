@@ -65,6 +65,7 @@ def start() -> None:
             "ARCHIVE_BUCKET",
             "ERROR_BUCKET",
             "INCOMING_BUCKET",
+            "PUBLIC_ARCHIVE_BUCKET",
             "SPRINGBOARD_BUCKET",
             "ALEMBIC_MD_DB_NAME",
         ],
