@@ -40,7 +40,6 @@ def sqlite_table_query(table_name: str, schema: pyarrow.Schema) -> str:
             {','.join(field_list)}
         );
     """
-    logger.add_metadata(query=query)
     logger.log_complete()
     return query
 
