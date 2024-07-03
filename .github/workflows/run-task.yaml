@@ -1,0 +1,49 @@
+name: Run Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options:
+          - staging
+          - prod
+      task:
+        description: Task
+        type: choice
+        options:
+          - Tableau Publisher
+          - Transit Master Ingestion
+
+jobs:
+  run_task:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Set environment variables
+        run: |
+          echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          if [ "${{ github.event.inputs.task }}" == "Tableau Publisher" ]; then
+            echo "TASK_DEFINITION=lamp-tableau-publisher-${{ github.event.inputs.environment }}" \
+              >> $GITHUB_ENV
+          elif [ "${{ github.event.inputs.task }}" == "Transit Master Ingestion" ]; then
+            echo "TASK_DEFINITION=lamp-tm-ingestion-${{ github.event.inputs.environment }}" \
+              >> $GITHUB_ENV
+          fi
+      - name: Run Task
+        run: |
+          aws ecs run-task \
+            --cluster lamp \
+            --task-definition ${{ env.TASK_DEFINITION }} \
+            --launch-type FARGATE \
+            --count 1
