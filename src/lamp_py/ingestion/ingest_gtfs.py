@@ -27,6 +27,7 @@ from lamp_py.ingestion.utils import (
     DEFAULT_S3_PREFIX,
     group_sort_file_list,
 )
+from lamp_py.ingestion.compress_gtfs.gtfs_to_parquet import gtfs_to_parquet
 
 
 class NoImplConverter(Converter):
@@ -138,5 +139,6 @@ def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
 
     static schedule files should be ingested first
     """
+    gtfs_to_parquet()
     ingest_gtfs_archive(metadata_queue)
     ingest_s3_files(metadata_queue)

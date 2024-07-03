@@ -1,21 +1,24 @@
 import os
 import tempfile
 import datetime
+from unittest import mock
 
 import pyarrow.compute as pc
 import pyarrow.dataset as pd
 import polars as pl
 
 from lamp_py.ingestion.compress_gtfs.schedule_details import (
-    schedules_to_compress,
     ScheduleDetails,
+    schedules_to_compress,
 )
 from lamp_py.ingestion.compress_gtfs.gtfs_to_parquet import (
     compress_gtfs_schedule,
 )
 from lamp_py.ingestion.compress_gtfs.gtfs_schema_map import gtfs_schema_list
+from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
 
 
+# pylint: disable=R0914
 def test_gtfs_to_parquet_compression() -> None:
     """
     test gtfs -> parquet compression pipeline
@@ -23,7 +26,12 @@ def test_gtfs_to_parquet_compression() -> None:
     will test compression of 3 randomly selected schedules from the past year
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        feed = schedules_to_compress(temp_dir)
+        with mock.patch(
+            "lamp_py.ingestion.compress_gtfs.schedule_details.file_list_from_s3"
+        ) as patch_s3:
+            patch_s3.return_value = []
+            feed = schedules_to_compress(temp_dir)
+            patch_s3.assert_called()
 
         year_ago = datetime.datetime.now() - datetime.timedelta(weeks=52)
 
@@ -44,6 +52,12 @@ def test_gtfs_to_parquet_compression() -> None:
                 temp_dir,
             )
             compress_gtfs_schedule(schedule_details)
+
+        # verify sqlite db creation and gzip for 1 year
+        year = feed["published_dt"].dt.strftime("%Y").unique()[0]
+        year_path = os.path.join(temp_dir, year)
+        pq_folder_to_sqlite(year_path)
+        assert os.path.exists(os.path.join(year_path, "GTFS_ARCHIVE.db.gz"))
 
         # check parquet file exports
         for schedule in feed.rows(named=True):
@@ -99,3 +113,6 @@ def test_gtfs_to_parquet_compression() -> None:
                 assert (
                     pq_end_count == zip_count
                 ), f"{schedule_url=} {gtfs_file=} {active_start_date=} {active_end_date=}"
+
+
+# pylint: enable=R0914

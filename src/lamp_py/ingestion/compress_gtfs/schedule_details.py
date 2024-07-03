@@ -16,9 +16,15 @@ from lamp_py.ingestion.utils import (
     ordered_schedule_frame,
     file_as_bytes_buf,
 )
+from lamp_py.ingestion.compress_gtfs.gtfs_schema_map import gtfs_schema
+from lamp_py.aws.s3 import (
+    file_list_from_s3,
+    download_file,
+)
 
-
-from .gtfs_schema_map import gtfs_schema
+GTFS_PATH = os.path.join(
+    str(os.getenv("PUBLIC_ARCHIVE_BUCKET")), "lamp/gtfs_archive"
+)
 
 
 # pylint: disable=R0902
@@ -218,15 +224,41 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
 
         pq_fi_path = os.path.join(tmp_folder, year, "feed_info.parquet")
         if not os.path.exists(pq_fi_path):
-            # check for file in s3_path...
-            continue
+            bucket, prefix = GTFS_PATH.split("/", 1)
+            prefix = os.path.join(prefix, year)
+            s3_files = file_list_from_s3(bucket, prefix)
+            if len(s3_files) > 1:
+                for obj_path in s3_files:
+                    if not obj_path.endswith(".parquet"):
+                        continue
+                    local_path = obj_path.replace(f"s3://{bucket}", "/tmp")
+                    download_file(obj_path, local_path)
+            else:
+                continue
 
         pq_fi_frame = pl.read_parquet(pq_fi_path)
 
-        # anti join against records for 'year' to find records not already in feed_info.parquet
-        feed = feed.filter(pl.col("published_date") > int(f"{year}0000")).join(
-            pq_fi_frame.select("feed_version"), on="feed_version", how="anti"
-        )
+        if int(year) <= 2018:
+            # different filter operation used for less than year 2018 because some
+            # schedules in this date range do not have matching "feed_version"
+            # values between `feed_info` file in schedule and "archived_feeds.txt" file
+            feed = feed.filter(
+                (pl.col("published_date") > int(f"{year}0000"))
+                & (
+                    pl.col("feed_start_date")
+                    > pq_fi_frame.get_column("feed_start_date").max()
+                )
+            )
+        else:
+            # anti join against records for 'year' to find records not already in feed_info.parquet
+            feed = feed.filter(
+                pl.col("published_date") > int(f"{year}0000")
+            ).join(
+                pq_fi_frame.select("feed_version"),
+                on="feed_version",
+                how="anti",
+                coalesce=True,
+            )
 
         break
 

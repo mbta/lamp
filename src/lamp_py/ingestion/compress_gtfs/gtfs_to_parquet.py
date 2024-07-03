@@ -10,10 +10,17 @@ import pyarrow.dataset as pd
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from .gtfs_schema_map import gtfs_schema_list
-from .gtfs_schema_map import gtfs_schema
-from .schedule_details import ScheduleDetails
-from .schedule_details import schedules_to_compress
+from lamp_py.ingestion.compress_gtfs.gtfs_schema_map import (
+    gtfs_schema_list,
+    gtfs_schema,
+)
+from lamp_py.ingestion.compress_gtfs.schedule_details import (
+    ScheduleDetails,
+    schedules_to_compress,
+    GTFS_PATH,
+)
+from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
+from lamp_py.aws.s3 import upload_file
 
 
 def frame_parquet_diffs(
@@ -57,6 +64,7 @@ def frame_parquet_diffs(
         how="anti",
         on=join_columns,
         join_nulls=True,
+        coalesce=True,
     ).drop("from_zip")
 
     # left join to create frame of old and same records
@@ -65,6 +73,7 @@ def frame_parquet_diffs(
         how="left",
         on=join_columns,
         join_nulls=True,
+        coalesce=True,
     )
     same_records = pq_frame.filter(pl.col("from_zip").eq(True)).drop("from_zip")
     old_records = pq_frame.filter(pl.col("from_zip").is_null()).drop("from_zip")
@@ -73,51 +82,46 @@ def frame_parquet_diffs(
 
 
 def merge_frame_with_parquet(
-    merge_frame: pl.DataFrame, export_path: str, filter_date: int
+    merge_df: pl.DataFrame, export_path: str, filter_date: int
 ) -> None:
     """
-    merge merge_frame with existing parqut file (export_path) and over-write with results
+    merge merge_df with existing parqut file (export_path) and over-write with results
 
     all parquet read/write operations are done in batches to constrain memory usage
 
-    :param merge_frame: records to merge into export_path parquet file
-    :param export_path: existing parquet file to merge with merge_frame
+    :param merge_df: records to merge into export_path parquet file
+    :param export_path: existing parquet file to merge with merge_df
     :param filter_date: value for exclusive filter on parquet files as YYYYMMDD (ie. service_date)
     """
     batch_size = 1024 * 256
-    if merge_frame.shape[0] == 0:
+    if merge_df.shape[0] == 0:
         # No records to merge with parquet file
         return
 
     # sort stop_times and trips frames to reduce file size
     if "/stop_times.parquet" in export_path:
-        merge_frame = merge_frame.sort(by=["stop_id", "trip_id"])
+        merge_df = merge_df.sort(by=["stop_id", "trip_id"])
     if "/trips.parquet" in export_path:
-        merge_frame = merge_frame.sort(by=["route_id", "service_id"])
+        merge_df = merge_df.sort(by=["route_id", "service_id"])
 
-    pq_schema = merge_frame.to_arrow().schema
+    merge_df = merge_df.to_arrow()
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        new_pq_path = os.path.join(temp_dir, "new.parquet")
-        filter_pq_path = os.path.join(temp_dir, "filter.parquet")
-
-        merge_frame.write_parquet(
-            new_pq_path, use_pyarrow=True, statistics=True
-        )
+        tmp_path = os.path.join(temp_dir, "filter.parquet")
 
         # create filtered parquet file, excluding records from merge_frame
         pq_filter = (pc.field("gtfs_active_date") > filter_date) | (
             pc.field("gtfs_end_date") < filter_date
         )
         filter_ds = pd.dataset(export_path).filter(pq_filter)
-        with pq.ParquetWriter(filter_pq_path, schema=pq_schema) as writer:
+        with pq.ParquetWriter(tmp_path, schema=merge_df.schema) as writer:
             for batch in filter_ds.to_batches(batch_size=batch_size):
                 writer.write_batch(batch)
 
         # over-write export_path file with merged dataset
-        combined_ds = pd.dataset((filter_pq_path, new_pq_path))
-        with pq.ParquetWriter(export_path, schema=pq_schema) as writer:
-            for batch in combined_ds.to_batches(batch_size=batch_size):
+        export_ds = pd.dataset((pd.dataset(tmp_path), pd.dataset(merge_df)))
+        with pq.ParquetWriter(export_path, schema=merge_df.schema) as writer:
+            for batch in export_ds.to_batches(batch_size=batch_size):
                 writer.write_batch(batch)
 
 
@@ -290,7 +294,9 @@ def gtfs_to_parquet() -> None:
     maximum process memory usage for this operation peaked at 5440MB
     while processing Feb-2018 to April-2024
     """
-    gtfs_tmp_folder = "/tmp/compress-gtfs"
+    gtfs_tmp_folder = GTFS_PATH.replace(
+        os.getenv("PUBLIC_ARCHIVE_BUCKET"), "/tmp"
+    )
     logger = ProcessLogger(
         "compress_gtfs_schedules", gtfs_tmp_folder=gtfs_tmp_folder
     )
@@ -313,8 +319,10 @@ def gtfs_to_parquet() -> None:
     # send updates to S3 bucket...
     for year in set(feed["published_dt"].dt.strftime("%Y").unique()):
         year_path = os.path.join(gtfs_tmp_folder, year)
-        for _ in os.listdir(year_path):
-            # upload file to S3
-            continue
+        pq_folder_to_sqlite(year_path)
+        for file in os.listdir(year_path):
+            local_path = os.path.join(year_path, file)
+            upload_path = os.path.join(GTFS_PATH, year, file)
+            upload_file(local_path, upload_path)
 
     logger.log_complete()
