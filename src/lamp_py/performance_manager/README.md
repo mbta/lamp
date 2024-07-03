@@ -226,14 +226,11 @@ travel_time_seconds = t_move - t_stop
 Any `travel_time_seconds` calculated as a negative value is not saved. 
 
 ### Dwell Times 
-Dwell times represent the amount of time a vehicle spent waiting at a station. A dwell time is not calculated for the last stop of a trip. The dwell time for the first stop of a trip is the duration since the previous vehicle trip stopped moving (including station turnaround time).
+Dwell times represent the amount of time a vehicle spent waiting at a station. A dwell time is not calculated for the first or last stop of a trip.
 
 Dwell times are saved as `dwell_time_seconds` in the [vehicle_events](#vehicle_events) table:
 
 ```sh
-# for first stop of trip
-t_dwell_start = coalesce(vp_stop_timestamp, tu_stop_timestamp) # for previous stop of vehicle
-# for NOT first stop of trip
 t_dwell_start = coalesce(vp_stop_timestamp, tu_stop_timestamp) # for current stop of vehicle
 
 t_station_depart = vp_move_timestamp # for next vehicle move event i.e. current station departure
