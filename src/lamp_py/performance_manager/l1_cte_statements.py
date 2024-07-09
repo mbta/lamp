@@ -231,16 +231,6 @@ def trips_for_metrics_subquery(
                 static_trips_sub.c.static_trip_last_stop,
                 rt_trips_sub.c.rt_trip_last_stop_flag,
             ).label("last_stop_flag"),
-            sa.func.coalesce(
-                static_trips_sub.c.static_trip_stop_rank,
-                rt_trips_sub.c.rt_trip_stop_rank,
-            ).label("stop_rank"),
-            sa.func.lead(rt_trips_sub.c.vp_move_timestamp)
-            .over(
-                partition_by=rt_trips_sub.c.vehicle_id,
-                order_by=rt_trips_sub.c.vp_move_timestamp,
-            )
-            .label("next_station_move"),
         )
         .distinct(
             rt_trips_sub.c.service_date,

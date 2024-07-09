@@ -74,43 +74,19 @@ def update_metrics_columns(
             trips_for_metrics.c.pm_trip_id,
             trips_for_metrics.c.service_date,
             trips_for_metrics.c.parent_station,
-            sa.case(
-                (
-                    sa.and_(
-                        trips_for_metrics.c.last_stop_flag == sa.false(),
-                        trips_for_metrics.c.first_stop_flag == sa.false(),
-                    ),
-                    sa.func.lead(
-                        trips_for_metrics.c.move_timestamp,
-                    ).over(
-                        partition_by=trips_for_metrics.c.vehicle_id,
-                        order_by=trips_for_metrics.c.sort_timestamp,
-                    )
-                    - trips_for_metrics.c.stop_timestamp,
-                ),
-                (
-                    trips_for_metrics.c.first_stop_flag == sa.true(),
-                    sa.func.lead(
-                        trips_for_metrics.c.move_timestamp,
-                    ).over(
-                        partition_by=trips_for_metrics.c.vehicle_id,
-                        order_by=trips_for_metrics.c.sort_timestamp,
-                    )
-                    - sa.func.lag(
-                        trips_for_metrics.c.stop_timestamp,
-                    ).over(
-                        partition_by=trips_for_metrics.c.vehicle_id,
-                        order_by=trips_for_metrics.c.sort_timestamp,
-                    ),
-                ),
-                else_=sa.literal(None),
+            (
+                sa.func.lead(
+                    trips_for_metrics.c.move_timestamp,
+                ).over(
+                    partition_by=trips_for_metrics.c.pm_trip_id,
+                    order_by=trips_for_metrics.c.sort_timestamp,
+                )
+                - trips_for_metrics.c.stop_timestamp
             ).label("dwell_time_seconds"),
         )
         .where(
-            sa.or_(
-                trips_for_metrics.c.stop_count > 1,
-                trips_for_metrics.c.first_stop_flag == sa.false(),
-            ),
+            trips_for_metrics.c.first_stop_flag == sa.false(),
+            trips_for_metrics.c.stop_count > 1,
         )
         .subquery(name="t_dwell_times")
     )
