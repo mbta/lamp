@@ -51,3 +51,12 @@ def alembic_downgrade_to_base(db_name: str) -> None:
     alembic_cfg = get_alembic_config(db_name)
 
     command.downgrade(alembic_cfg, revision="base")
+
+def alembic_stamp(db_name: str, stamp: str) -> None:
+    """
+    change the alembic version table without running any migration
+    """
+    # load alembic configuation for db_name
+    alembic_cfg = get_alembic_config(db_name)
+
+    command.stamp(alembic_cfg, stamp)
