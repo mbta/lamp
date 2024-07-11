@@ -27,7 +27,7 @@ on:
         default: false
         type: boolean
       deploy-tableau-publisher:
-        description: Deploy Tableau Publisher (only run on Prod)
+        description: Deploy Tableau Publisher (not run on Dev)
         default: false
         type: boolean
 

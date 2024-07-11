@@ -120,7 +120,7 @@ jobs:
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
-        if: ${{ inputs.deploy-tableau-publisher && inputs.environment == 'prod' }}
+        if: ${{ inputs.deploy-tableau-publisher && inputs.environment != 'dev' }}
         uses: mbta/actions/deploy-scheduled-ecs@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
