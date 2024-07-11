@@ -45,10 +45,11 @@ def validate_environment(
         value = os.environ.get(key, None)
         if value is None:
             missing_required.append(key)
+
         # do not log private variables
         if key in private_variables:
             value = "**********"
-            metadata[key] = value
+        metadata[key] = value
 
     # for optional variables, access ones that exist and add them to logs.
     if optional_variables:
