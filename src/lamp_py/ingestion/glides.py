@@ -1,10 +1,11 @@
 from typing import Dict, List, Optional
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import tempfile
 from queue import Queue
 
 from abc import ABC, abstractmethod
+import polars as pl
 import pyarrow
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
@@ -31,8 +32,8 @@ class GlidesConverter(ABC):
 
     glides_location = pyarrow.struct(
         [
-            ("gtfsID", pyarrow.string()),
-            ("todsID", pyarrow.string()),
+            ("gtfsId", pyarrow.string()),
+            ("todsId", pyarrow.string()),
         ]
     )
 
@@ -88,7 +89,7 @@ class GlidesConverter(ABC):
 
         joined_ds = new_dataset
         if os.path.exists(self.local_path):
-            joined_ds = pd.dataset([pd.dataset(self.local_path), new_dataset])
+            joined_ds = pd.dataset([new_dataset, pd.dataset(self.local_path)])
 
         process_logger.add_metadata(
             new_records=new_dataset.count_rows(),
@@ -98,6 +99,8 @@ class GlidesConverter(ABC):
         now = datetime.now()
         start = datetime(2024, 1, 1)
 
+        unique_ts_min = now - timedelta(hours=36)
+
         with tempfile.TemporaryDirectory() as tmp_dir:
 
             new_path = os.path.join(tmp_dir, self.base_filename)
@@ -106,18 +109,48 @@ class GlidesConverter(ABC):
                 while start < now:
                     end = start + relativedelta(months=1)
                     if end < now:
-                        table = joined_ds.filter(
+                        unique_table = (
+                            pl.DataFrame(
+                                joined_ds.filter(
+                                    (pc.field("time") >= start)
+                                    & (pc.field("time") < end)
+                                    & (pc.field("time") >= unique_ts_min)
+                                ).to_table()
+                            )
+                            .unique(keep="first")
+                            .to_arrow()
+                        )
+
+                        ds_table = joined_ds.filter(
                             (pc.field("time") >= start)
                             & (pc.field("time") < end)
+                            & (pc.field("time") < unique_ts_min)
                         ).to_table()
                     else:
-                        table = joined_ds.filter(
+                        unique_table = (
+                            pl.DataFrame(
+                                joined_ds.filter(
+                                    (pc.field("time") >= start)
+                                    & (pc.field("time") >= unique_ts_min)
+                                ).to_table()
+                            )
+                            .unique(keep="first")
+                            .to_arrow()
+                        )
+
+                        ds_table = joined_ds.filter(
                             (pc.field("time") >= start)
+                            & (pc.field("time") < unique_ts_min)
                         ).to_table()
 
-                    if table.num_rows > 0:
+                    write_table = pyarrow.concat_tables(
+                        [unique_table, ds_table]
+                    ).sort_by("time")
+
+                    if write_table.num_rows() > 0:
+
                         row_group_count += 1
-                        writer.write_table(table)
+                        writer.write_table(write_table)
 
                     start = end
 
