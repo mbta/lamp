@@ -53,7 +53,7 @@ def upgrade() -> None:
         ]
         renamed = old.rename_columns(new_names)
 
-        # unique the file based on the 'id' column, sort by 'time'
+        # unique the records
         new = pl.DataFrame(renamed).unique().sort(by=["time"]).to_arrow()
 
         pq.write_table(new, new_local_path)

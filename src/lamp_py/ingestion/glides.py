@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import tempfile
 from queue import Queue
 
@@ -99,8 +99,6 @@ class GlidesConverter(ABC):
         now = datetime.now()
         start = datetime(2024, 1, 1)
 
-        unique_ts_min = now - timedelta(hours=36)
-
         with tempfile.TemporaryDirectory() as tmp_dir:
 
             new_path = os.path.join(tmp_dir, self.base_filename)
@@ -114,43 +112,28 @@ class GlidesConverter(ABC):
                                 joined_ds.filter(
                                     (pc.field("time") >= start)
                                     & (pc.field("time") < end)
-                                    & (pc.field("time") >= unique_ts_min)
                                 ).to_table()
                             )
                             .unique(keep="first")
                             .to_arrow()
+                            .sort_by("time")
                         )
-
-                        ds_table = joined_ds.filter(
-                            (pc.field("time") >= start)
-                            & (pc.field("time") < end)
-                            & (pc.field("time") < unique_ts_min)
-                        ).to_table()
                     else:
                         unique_table = (
                             pl.DataFrame(
                                 joined_ds.filter(
                                     (pc.field("time") >= start)
-                                    & (pc.field("time") >= unique_ts_min)
                                 ).to_table()
                             )
                             .unique(keep="first")
                             .to_arrow()
+                            .sort_by("time")
                         )
 
-                        ds_table = joined_ds.filter(
-                            (pc.field("time") >= start)
-                            & (pc.field("time") < unique_ts_min)
-                        ).to_table()
-
-                    write_table = pyarrow.concat_tables(
-                        [unique_table, ds_table]
-                    ).sort_by("time")
-
-                    if write_table.num_rows() > 0:
+                    if unique_table.num_rows() > 0:
 
                         row_group_count += 1
-                        writer.write_table(write_table)
+                        writer.write_table(unique_table)
 
                     start = end
 
@@ -185,6 +168,8 @@ class EditorChanges(GlidesConverter):
             ]
         )
 
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
         return pyarrow.schema(
             [
                 (
@@ -240,6 +225,8 @@ class OperatorSignIns(GlidesConverter):
 
     @property
     def event_schema(self) -> pyarrow.schema:
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
         return pyarrow.schema(
             [
                 (
@@ -339,6 +326,8 @@ class TripUpdates(GlidesConverter):
             ]
         )
 
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
         return pyarrow.schema(
             [
                 (

@@ -1,8 +1,8 @@
 """update_glides_location_column_names
 
-Revision ID: 9f43845e3bb0
-Revises: cce8dfee767a
-Create Date: 2024-07-10 16:58:26.685155
+Revision ID: 26db393ea854
+Revises: 07903947aabe
+Create Date: 2024-07-09 12:12:04.325358
 
 Details
 * upgrade -> for each glides parquet file:
@@ -21,8 +21,8 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import download_file, upload_file
 
 # revision identifiers, used by Alembic.
-revision = "9f43845e3bb0"
-down_revision = "cce8dfee767a"
+revision = "26db393ea854"
+down_revision = "07903947aabe"
 branch_labels = None
 depends_on = None
 
@@ -53,7 +53,7 @@ def upgrade() -> None:
         ]
         renamed = old.rename_columns(new_names)
 
-        # unique the file based on the 'id' column, sort by 'time'
+        # unique the records
         new = pl.DataFrame(renamed).unique().sort(by=["time"]).to_arrow()
 
         pq.write_table(new, new_local_path)
