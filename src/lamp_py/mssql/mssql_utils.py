@@ -120,8 +120,6 @@ class MSSQLManager:
         with self.session.begin() as cursor:
             return [row._asdict() for row in cursor.execute(select_query)]
 
-    # pylint: disable=R0801
-    # Similar lines in 2 files
     def write_to_parquet(
         self,
         select_query: sa.sql.selectable.Select,
@@ -161,14 +159,26 @@ class MSSQLManager:
             stream_results=True,
             max_row_buffer=batch_size,
         )
-        with self.session.begin() as cursor:
-            with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
-                for part in cursor.execute(part_stmt).partitions(batch_size):
-                    pq_writer.write_batch(
-                        pyarrow.RecordBatch.from_pylist(
-                            [row._asdict() for row in part], schema=schema
-                        )
-                    )
+        max_retries = 3
+        for retry_attempts in range(max_retries + 1):
+            process_logger.add_metadata(retry_attempts=retry_attempts)
+            try:
+                with self.session.begin() as cursor:
+                    with pq.ParquetWriter(
+                        write_path, schema=schema
+                    ) as pq_writer:
+                        for part in cursor.execute(part_stmt).partitions(
+                            batch_size
+                        ):
+                            pq_writer.write_batch(
+                                pyarrow.RecordBatch.from_pylist(
+                                    [row._asdict() for row in part],
+                                    schema=schema,
+                                )
+                            )
 
-        process_logger.log_complete()
-        # pylint: enable=R0801
+                process_logger.log_complete()
+
+            except Exception as exception:
+                if retry_attempts == max_retries:
+                    process_logger.log_failure(exception)
