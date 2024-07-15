@@ -5,6 +5,7 @@ import tempfile
 from queue import Queue
 
 from abc import ABC, abstractmethod
+import polars as pl
 import pyarrow
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
@@ -31,8 +32,8 @@ class GlidesConverter(ABC):
 
     glides_location = pyarrow.struct(
         [
-            ("gtfsID", pyarrow.string()),
-            ("todsID", pyarrow.string()),
+            ("gtfsId", pyarrow.string()),
+            ("todsId", pyarrow.string()),
         ]
     )
 
@@ -88,7 +89,7 @@ class GlidesConverter(ABC):
 
         joined_ds = new_dataset
         if os.path.exists(self.local_path):
-            joined_ds = pd.dataset([pd.dataset(self.local_path), new_dataset])
+            joined_ds = pd.dataset([new_dataset, pd.dataset(self.local_path)])
 
         process_logger.add_metadata(
             new_records=new_dataset.count_rows(),
@@ -106,18 +107,33 @@ class GlidesConverter(ABC):
                 while start < now:
                     end = start + relativedelta(months=1)
                     if end < now:
-                        table = joined_ds.filter(
-                            (pc.field("time") >= start)
-                            & (pc.field("time") < end)
-                        ).to_table()
+                        unique_table = (
+                            pl.DataFrame(
+                                joined_ds.filter(
+                                    (pc.field("time") >= start)
+                                    & (pc.field("time") < end)
+                                ).to_table()
+                            )
+                            .unique(keep="first")
+                            .to_arrow()
+                            .sort_by("time")
+                        )
                     else:
-                        table = joined_ds.filter(
-                            (pc.field("time") >= start)
-                        ).to_table()
+                        unique_table = (
+                            pl.DataFrame(
+                                joined_ds.filter(
+                                    (pc.field("time") >= start)
+                                ).to_table()
+                            )
+                            .unique(keep="first")
+                            .to_arrow()
+                            .sort_by("time")
+                        )
 
-                    if table.num_rows > 0:
+                    if unique_table.num_rows() > 0:
+
                         row_group_count += 1
-                        writer.write_table(table)
+                        writer.write_table(unique_table)
 
                     start = end
 
@@ -152,6 +168,8 @@ class EditorChanges(GlidesConverter):
             ]
         )
 
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
         return pyarrow.schema(
             [
                 (
@@ -207,6 +225,8 @@ class OperatorSignIns(GlidesConverter):
 
     @property
     def event_schema(self) -> pyarrow.schema:
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
         return pyarrow.schema(
             [
                 (
@@ -306,6 +326,8 @@ class TripUpdates(GlidesConverter):
             ]
         )
 
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
         return pyarrow.schema(
             [
                 (
