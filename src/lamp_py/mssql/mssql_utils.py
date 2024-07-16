@@ -178,6 +178,7 @@ class MSSQLManager:
                             )
 
                 process_logger.log_complete()
+                break
 
             except Exception as exception:
                 if retry_attempts == max_retries:
