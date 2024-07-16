@@ -8,7 +8,7 @@ import signal
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
-from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
+from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head, alembic_stamp
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -73,7 +73,9 @@ def start() -> None:
     )
 
     # run metadata rds migrations
+    alembic_stamp(db_name=os.environ["ALEMBIC_MD_DB_NAME"], stamp='07903947aabe')
     alembic_upgrade_to_head(db_name=os.environ["ALEMBIC_MD_DB_NAME"])
+    alembic_stamp(db_name=os.environ["ALEMBIC_MD_DB_NAME"], stamp='07903947aabe')
 
     # run the main method
     main()
