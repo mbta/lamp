@@ -107,30 +107,27 @@ class GlidesConverter(ABC):
                 while start < now:
                     end = start + relativedelta(months=1)
                     if end < now:
-                        unique_table = (
-                            pl.DataFrame(
-                                joined_ds.filter(
-                                    (pc.field("time") >= start)
-                                    & (pc.field("time") < end)
-                                ).to_table()
-                            )
-                            .unique(keep="first")
-                            .to_arrow()
-                            .sort_by("time")
-                        )
-                    else:
-                        unique_table = (
-                            pl.DataFrame(
-                                joined_ds.filter(
-                                    (pc.field("time") >= start)
-                                ).to_table()
-                            )
-                            .unique(keep="first")
-                            .to_arrow()
-                            .sort_by("time")
+                        row_group = pl.DataFrame(
+                            joined_ds.filter(
+                                (pc.field("time") >= start)
+                                & (pc.field("time") < end)
+                            ).to_table()
                         )
 
-                    if unique_table.num_rows() > 0:
+                    else:
+                        row_group = pl.DataFrame(
+                            joined_ds.filter(
+                                (pc.field("time") >= start)
+                            ).to_table()
+                        )
+
+                    if not row_group.is_empty():
+                        unique_table = (
+                            row_group.unique(keep="first")
+                            .sort(by=["time"])
+                            .to_arrow()
+                            .cast(new_dataset.schema)
+                        )
 
                         row_group_count += 1
                         writer.write_table(unique_table)

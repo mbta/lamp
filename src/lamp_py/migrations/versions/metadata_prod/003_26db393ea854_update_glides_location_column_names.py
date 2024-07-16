@@ -16,7 +16,9 @@ Details
 import os
 import tempfile
 import polars as pl
+import pyarrow as pa
 import pyarrow.parquet as pq
+from typing import List
 
 from lamp_py.aws.s3 import download_file, upload_file
 
@@ -43,21 +45,36 @@ def upgrade() -> None:
         if not file_exists:
             return
 
-        old = pq.read_table(old_local_path)
-        old_names = old.column_names
+        old_table = pq.read_table(old_local_path)
 
-        # rename columns containing gtfsID and todsID to use Id instead
-        new_names = [
-            n.replace("gtfsID", "gtfsId").replace("todsID", "todsId")
-            for n in old_names
-        ]
-        renamed = old.rename_columns(new_names)
+        # build the new schema by converting names and keeping types
+        fields: List[pa.Field] = []
+        for column in old_table.schema:
+            if "gtfsID" in column.name:
+                new_name = column.name.replace("gtfsID", "gtfsId")
+                new_field = pa.field(new_name, column.type)
+                fields.append(new_field)
+            elif "todsID" in column.name:
+                new_name = column.name.replace("todsID", "todsId")
+                new_field = pa.field(new_name, column.type)
+                fields.append(new_field)
+            else:
+                fields.append(column)
 
+        schema = pa.schema(fields)
+
+        # rename columns to match new schema
         # unique the records
-        new = pl.DataFrame(renamed).unique().sort(by=["time"]).to_arrow()
+        # cast to new schema (polars converts things)
+        new_table = (
+            pl.DataFrame(old_table.rename_columns(schema.names))
+            .unique()
+            .sort(by=["time"])
+            .to_arrow()
+            .cast(schema)
+        )
 
-        pq.write_table(new, new_local_path)
-
+        pq.write_table(new_table, new_local_path)
         upload_file(new_local_path, remote_path)
 
     files_to_update = [
