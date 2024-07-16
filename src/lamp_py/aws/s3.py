@@ -1,8 +1,8 @@
-import datetime
 import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from io import BytesIO
 from threading import current_thread
 from typing import (
@@ -279,7 +279,7 @@ def file_list_from_s3_with_details(
     return_dict = {
         "s3_obj_path": "str: object path as s3://bucket-name/object-key",
         "size_bytes": "int: size of object in bytes",
-        "last_modified": "datetime.datetime: object creation date",
+        "last_modified": "datetime: object creation date",
     }
 
     :return List[return_dict]
@@ -319,6 +319,60 @@ def file_list_from_s3_with_details(
     except Exception as exception:
         process_logger.log_failure(exception)
         return []
+
+
+def file_list_after(
+    bucket_name: str, file_prefix: str, cutoff: datetime
+) -> List[str]:
+    """
+    List all of the files in a bucket matching a prefix that were modified
+    after a cutoff datetime.
+    """
+    s3_client = get_s3_client()
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
+
+    filepaths = []
+    for page in pages:
+        if page["KeyCount"] == 0:
+            continue
+        for obj in page["Contents"]:
+            if obj["Size"] == 0:
+                continue
+
+            if obj["LastModified"] >= cutoff:
+                filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+    return filepaths
+
+
+def get_last_modified_object(
+    bucket_name: str, file_prefix: str, version: Optional[str] = None
+) -> Optional[Dict]:
+    """
+    For a given bucket, find the last modified object that matches a prefix.
+    If a version is passed, only return the object if the versions of files
+    matching this prefix match.
+    """
+    objects = file_list_from_s3_with_details(
+        bucket_name=bucket_name, file_prefix=file_prefix
+    )
+
+    # if there are no objects, return early.
+    if len(objects) == 0:
+        return None
+
+    # start with the first object
+    newest_object = objects[0]
+
+    # if the first version fails that version check, return early
+    if version and not version_check(newest_object["s3_obj_path"], version):
+        return None
+
+    for obj in objects:
+        if obj["last_modified"] > newest_object["last_modified"]:
+            newest_object = obj
+
+    return newest_object
 
 
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
@@ -557,7 +611,7 @@ def write_parquet_file(
 # pylint: enable=R0913
 
 
-def get_datetime_from_partition_path(path: str) -> datetime.datetime:
+def get_datetime_from_partition_path(path: str) -> datetime:
     """
     process and return datetime from partitioned s3 path
     """
@@ -569,17 +623,17 @@ def get_datetime_from_partition_path(path: str) -> datetime.datetime:
         hour = 0
         if "hour=" in path:
             hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
-        return_date = datetime.datetime(
+        return_date = datetime(
             year=year,
             month=month,
             day=day,
             hour=hour,
-            tzinfo=datetime.timezone.utc,
+            tzinfo=timezone.utc,
         )
     except IndexError as _:
         # handle gtfs static paths
         timestamp = float(re.findall(r"timestamp=(\d{10})", path)[0])
-        return_date = datetime.datetime.fromtimestamp(timestamp)
+        return_date = datetime.fromtimestamp(timestamp)
     return return_date
 
 
