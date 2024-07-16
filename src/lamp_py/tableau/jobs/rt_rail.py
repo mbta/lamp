@@ -255,7 +255,7 @@ class HyperRtRail(HyperJob):
         max_start_date -= datetime.timedelta(days=1)
 
         update_query = self.table_query % (
-            f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",
+            f" AND ve.service_date >= {max_start_date.strftime('%Y%m%d')} ",
         )
 
         db_manager.write_to_parquet(
