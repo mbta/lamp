@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import Any, Dict, List, Union
 
 import pyodbc
@@ -183,3 +184,5 @@ class MSSQLManager:
             except Exception as exception:
                 if retry_attempts == max_retries:
                     process_logger.log_failure(exception)
+                else:
+                    logging.exception(exception)
