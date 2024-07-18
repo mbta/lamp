@@ -35,13 +35,73 @@
     <hr>
 
     <h2>
+        Compressed GTFS Archive
+    </h2>
+    <p>
+        The MBTA publishes an implementation of the <a href="https://gtfs.org/schedule/reference/">General Transit Feed Specification (GTFS)</a> to communicate planned system service.
+    </p>
+    <p>
+        <a href="https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md">View MBTA GTFS documentation</a>
+    </p>
+    <p>
+        The LAMP team has created a compressed archive containing all MBTA GTFS schedules that have been issued, since 2009.
+    </p>
+    <h3>
+        How To Use LAMP GTFS Archive (Parquet):
+    </h3>
+    <p>
+        For each year and GTFS <a href="https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#gtfs-files">File</a>/<a href="https://gtfs.org/schedule/reference/#field-definitions">Field Definition</a> combination a parquet file exists, e.g. (for feed_info.txt): <i>https://performancedata.mbta.com/lamp/gtfs_archive/<u>YYYY</u>/feed_info.parquet</i>
+    </p>
+    <p>
+        Addtionally, each parquet file contains two integer columns, added by LAMP, (<i><b>gtfs_active_date, gtfs_end_date</b></i>). These two columns are used to filter the parquet file for the GTFS records that were applicable on a single service date.
+    </p>
+    <p>
+        To find the <i>feed_info.txt</i> records that were applicable on December 25, 2022, query <i>https://performancedata.mbta.com/lamp/gtfs_archive/2022/feed_info.parquet</i>, with (gtfs_active_date >= 20221225 AND gtfs_end_date <= 20221225) to retrieve:
+    </p>
+    <div><table border="1"><thead><tr><th>feed_publisher_name</th><th>feed_lang</th><th>feed_version</th><th>feed_start_date</th><th>feed_publisher_url</th><th>feed_id</th><th>feed_end_date</th><th>feed_contact_email</th><th>gtfs_active_date</th><th>gtfs_end_date</th></tr><tr><td>str</td><td>str</td><td>str</td><td>i64</td><td>str</td><td>str</td><td>i64</td><td>str</td><td>i32</td><td>i32</td></tr></thead><tbody><tr><td>MBTA</td><td>EN</td><td>Winter 2023, 2022-12-22T20:50:07+00:00, version D</td><td>20221215</td><td>http://www.mbta.com</td><td>null</td><td>20221221</td><td>developer@mbta.com</td><td>20221223</td><td>20221229</td></tr></tbody></table></div>
+
+    <h3>
+        How To Use LAMP GTFS Archive (SQLite):
+    </h3>
+    <p>
+        For each year, The LAMP team has also created an SQLite file that mirrors the parquet files discussed above.
+    </p>
+    <p>
+        Because of their size, the SQLite files are gzipped. with the following URL construction: Replace [YYYY] with the YEAR of the requested service date.
+    </p>
+    <ul>
+        <li>
+            <i>https://performancedata.mbta.com/lamp/gtfs_archive/<u>YYYY</u>/GTFS_ARCHIVE.db.gz</i>
+        </li>
+    </ul>
+    <p>
+        Every GTFS <a href="https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#gtfs-files">File</a>/<a href="https://gtfs.org/schedule/reference/#field-definitions">Field Definition</a>, available as a parquet file, has an equivalent table in the SQLite file that should be filtered using the integer columns (<i><b>gtfs_active_date, gtfs_end_date</b></i>) to get records applicable to a single service date.
+    </p>
+    <h3>
+        Notes about GTFS Archive:
+    </h3>
+    <p>
+        GTFS records are considered to be applicable on the day after the publish date found in the <i>feed_version</i> column of the <b>feed_info</b> table.
+    </p>
+    <p>
+        The most recently published GTFS schedule is considered "active" by the (<i><b>gtfs_active_date, gtfs_end_date</b></i>) columns for one year past the schedule publish date. Meaning the most recent parquet files can be queried for future service dates.
+    </p>
+    <p>
+        Not all current GTFS <a href="https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#gtfs-files">File</a>/<a href="https://gtfs.org/schedule/reference/#field-definitions">Field Definition</a> files are available for every year. For example, timeframes.txt was introduced in 2023, so timeframes.parquet does not exist for any partition years before 2023. 
+    </p>
+    <p>
+    
+    </p>
+    <hr>
+
+    <h2>
         Subway Performance Data
     </h2>
     <p>
         Performance Data for the MBTA Subway system partitioned by service date.
     </p>
     <p>
-        URL Construction: Replace [YYYY-MM-DD] with the YEAR, MONTH and DAY of the requested service date:
+        URL Construction: Replace [YYYY-MM-DD] with the YEAR, MONTH and DAY of the requested service date.
     </p>
     <ul>
         <li>
