@@ -1,10 +1,11 @@
-import re
 from datetime import timedelta, date
-from typing import List, Tuple, Dict
+from typing import Optional
+import re
+
+import polars as pl
 
 from lamp_py.aws.s3 import (
-    file_list_after,
-    file_list_from_s3,
+    file_list_from_s3_with_details,
     get_datetime_from_partition_path,
     get_last_modified_object,
 )
@@ -12,122 +13,154 @@ from lamp_py.aws.s3 import (
 from lamp_py.runtime_utils.remote_files import RemoteFileLocations
 
 
-class BusInputFiles:
+def get_new_event_files() -> pl.DataFrame:
     """
-    small dataclass to keep track of vp files and tm files for a given service
-    date
-    """
-
-    def __init__(self, service_date: date):
-        self.service_date: date = service_date
-        self.vp_files: List[str] = []
-        self.tm_files: List[str] = []
-
-
-def get_new_event_files() -> Tuple[List[str], List[str]]:
-    """
-    get new realtime files from the vehicle position and transit master s3
-    locations that have been populated since the last time vehicle events were
+    Generate a dataframe that contains a record for every service date to be
     processed.
+    * Collect all of the potential input filepaths, their last modified
+        timestamp, and potential service dates.
+    * Get the last modified timestamp for the output filepaths.
+    * Generate a list of all service dates where the input files have been
+        modified since the last output file write.
+    * For each service date, generate a list of input files associated with
+        that service date.
+
+    @return pl.DataFrame -
+        'service_date': datetime.date
+        'gtfs_rt': list[str] - s3 filepaths for vehicle position files
+        'transit_master': list[str] - s3 filepath for tm files
     """
+
+    def get_service_date_from_tm_filename(tm_filename: str) -> Optional[date]:
+        """pull the service date from a transit master filename"""
+        try:
+            # files are formatted "1YYYYMMDD.parquet"
+            service_date_int = re.findall(r"(\d{8}).parquet", tm_filename)[0]
+            year = int(service_date_int[:4])
+            month = int(service_date_int[4:6])
+            day = int(service_date_int[6:])
+
+            return date(year=year, month=month, day=day)
+        except IndexError:
+            # the tm files may have a lamp version file that will throw when
+            # pulling out a match from the regular expression. ask for
+            # forgiveness and assert that it was this file that caused the
+            # error.
+            assert "lamp_version" in tm_filename
+            return None
+
+    # pull all of the vehicle position files from s3 along with their last
+    # modified datetime. convert to a dataframe and generate a service date
+    # from the partition paths. add a source column for later merging.
+    vp_objects = file_list_from_s3_with_details(
+        bucket_name=RemoteFileLocations.vehicle_positions.bucket_name,
+        file_prefix=RemoteFileLocations.vehicle_positions.file_prefix,
+    )
+    vp_df = pl.DataFrame(vp_objects).with_columns(
+        [
+            pl.col("s3_obj_path")
+            .apply(lambda x: get_datetime_from_partition_path(x).date())
+            .alias("service_date"),
+            pl.lit("gtfs_rt").alias("source"),
+        ]
+    )
+
+    # the partition paths record the UTC time that the vehicle positions were
+    # recorded. further, a service date will have trips with events that occur
+    # on the following calendar date. generate two new dataframes from the
+    # vehicle position dataframe.
+    #
+    # the first has records for all objects that will have potentially have
+    # data from the service date one day before the calendar date. this
+    # includes hourly partitioned files where the hour is leq 8 and all daily
+    # partitioned files.
+    #
+    # the second has records for all objects that will potentially have data
+    # from the service date matching the calendar date. this is all files other
+    # than hourly partitioned files where the hour is leq 2.
+    #
+    # after generating these dataframes, concat them to create the new vehicle
+    # positions dataframe containing all file / service date pairs.
+
+    # contain data from the previous service date
+    vp_shifted = vp_df.filter(
+        pl.col("s3_obj_path").str.contains("hour=0")
+        | pl.col("s3_obj_path").str.contains("hour=1")
+        | pl.col("s3_obj_path").str.contains("hour=2")
+        | pl.col("s3_obj_path").str.contains("hour=3")
+        | pl.col("s3_obj_path").str.contains("hour=4")
+        | pl.col("s3_obj_path").str.contains("hour=5")
+        | pl.col("s3_obj_path").str.contains("hour=6")
+        | pl.col("s3_obj_path").str.contains("hour=7")
+        | pl.col("s3_obj_path").str.contains("hour=8")
+        | ~pl.col("s3_obj_path").str.contains("hour")
+    ).with_columns(
+        [(pl.col("service_date") - timedelta(days=1)).alias("service_date")]
+    )
+
+    # these files contain data from the current service day
+    vp_unshifted = vp_df.filter(
+        ~pl.col("s3_obj_path").str.contains("hour=0")
+        & ~pl.col("s3_obj_path").str.contains("hour=1")
+        & ~pl.col("s3_obj_path").str.contains("hour=2")
+    )
+
+    # merge the shifted and unshifted dataframes
+    vp_df = pl.concat([vp_unshifted, vp_shifted])
+
+    # pull all of the transit master files from s3 along with their last
+    # modified datetime. convert to a dataframe and generate a service date
+    # from the filename. add a source column for later merging.
+    tm_objects = file_list_from_s3_with_details(
+        bucket_name=RemoteFileLocations.tm_stop_crossing.bucket_name,
+        file_prefix=RemoteFileLocations.tm_stop_crossing.file_prefix,
+    )
+    tm_df = pl.DataFrame(tm_objects).with_columns(
+        [
+            pl.col("s3_obj_path")
+            .apply(get_service_date_from_tm_filename)
+            .alias("service_date"),
+            pl.lit("transit_master").alias("source"),
+        ]
+    )
+
+    # a merged dataframe of all files to operate on
+    all_files = pl.concat([vp_df, tm_df])
+
+    # get the last modified object in the output file s3 location
     latest_event_file = get_last_modified_object(
         bucket_name=RemoteFileLocations.bus_events.bucket_name,
         file_prefix=RemoteFileLocations.bus_events.file_prefix,
         version="1.0",
     )
 
+    # create a new column 'is_new' boolean indicating if a file has been
+    # updated since the last output file was written.
     if latest_event_file:
         cutoff = latest_event_file["last_modified"] - timedelta(hours=1)
-        vp_files = file_list_after(
-            bucket_name=RemoteFileLocations.vehicle_positions.bucket_name,
-            file_prefix=RemoteFileLocations.vehicle_positions.file_prefix,
-            cutoff=cutoff,
+        all_files = all_files.with_columns(
+            [(pl.col("last_modified") >= cutoff).alias("is_new")]
         )
-
-        tm_files = file_list_after(
-            bucket_name=RemoteFileLocations.tm_stop_crossing.bucket_name,
-            file_prefix=RemoteFileLocations.tm_stop_crossing.file_prefix,
-            cutoff=cutoff,
-        )
-
     else:
-        vp_files = file_list_from_s3(
-            bucket_name=RemoteFileLocations.vehicle_positions.bucket_name,
-            file_prefix=RemoteFileLocations.vehicle_positions.file_prefix,
+        all_files = all_files.with_columns([pl.lit(True).alias("is_new")])
+
+    # a list of service dates associated with recently modified files
+    new_service_dates = (
+        all_files.filter(pl.col("is_new")).select("service_date").unique()
+    )
+
+    # filter all files to only files associated with new service dates
+    # aggregate records by source and pivot on service date.
+    #
+    # each record of the new dataframe will have a list of gtfs_rt and tm input
+    # files.
+    grouped_files = (
+        all_files.filter(
+            pl.col("service_date").is_in(new_service_dates["service_date"])
         )
+        .groupby(["service_date", "source"])
+        .agg([pl.col("s3_obj_path").alias("file_list")])
+        .pivot(values="file_list", index="service_date", columns="source")
+    )
 
-        tm_files = file_list_from_s3(
-            bucket_name=RemoteFileLocations.tm_stop_crossing.bucket_name,
-            file_prefix=RemoteFileLocations.tm_stop_crossing.file_prefix,
-        )
-
-    return vp_files, tm_files
-
-
-def files_per_service_date(
-    vp_files: List[str], tm_files: List[str]
-) -> Dict[date, BusInputFiles]:
-    """
-    take a list of input files and bucket them based on the service date they
-    cover.
-    """
-
-    service_dates: Dict[date, BusInputFiles] = {}
-
-    def add_vp_file(service_date: date, vp_file: str) -> None:
-        """helper to add vp file to service dates"""
-        if service_date not in service_dates:
-            service_dates[service_date] = BusInputFiles(
-                service_date=service_date
-            )
-
-        service_dates[service_date].vp_files.append(vp_file)
-
-    def add_tm_file(service_date: date, tm_file: str) -> None:
-        """helper to add tm file to service dates"""
-        if service_date not in service_dates:
-            service_dates[service_date] = BusInputFiles(
-                service_date=service_date
-            )
-
-        service_dates[service_date].tm_files.append(tm_file)
-
-    # parse vp filepaths to infer service dates from the partition paths
-    for vp_file in vp_files:
-        file_datetime = get_datetime_from_partition_path(vp_file)
-
-        # if the partition is hourly (for older files), consider the hour of
-        # the file to determine the service date from the file datetime
-        if "hour" in vp_file:
-            if file_datetime.hour < 6:
-                yesterday = (file_datetime - timedelta(days=1)).date()
-                add_vp_file(yesterday, vp_file)
-            if file_datetime.hour > 3:
-                add_vp_file(file_datetime.date(), vp_file)
-        # if the partition is daily (for newer files), there will be data for
-        # the service date in the partition path and for data in the previous
-        # service date.
-        else:
-            yesterday = (file_datetime - timedelta(days=1)).date()
-            add_vp_file(yesterday, vp_file)
-            add_vp_file(file_datetime.date(), vp_file)
-
-    # parse the tm files to get the service date from the filename
-    for tm_file in tm_files:
-        try:
-            # files are formatted "1YYYYMMDD.parquet"
-            service_date_int = re.findall(r"(\d{8}).parquet", tm_file)[0]
-            year = int(service_date_int[:4])
-            month = int(service_date_int[4:6])
-            day = int(service_date_int[6:])
-
-            service_date = date(year=year, month=month, day=day)
-            add_tm_file(service_date, tm_file)
-        except IndexError:
-            # the tm files may have a lamp version file that will throw when
-            # pulling out a match from the regular expression. ask for
-            # forgiveness and assert that it was this file that caused the
-            # error.
-            assert "lamp_version" in tm_file
-
-    return service_dates
+    return grouped_files

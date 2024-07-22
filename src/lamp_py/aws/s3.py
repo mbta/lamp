@@ -321,58 +321,35 @@ def file_list_from_s3_with_details(
         return []
 
 
-def file_list_after(
-    bucket_name: str, file_prefix: str, cutoff: datetime
-) -> List[str]:
-    """
-    List all of the files in a bucket matching a prefix that were modified
-    after a cutoff datetime.
-    """
-    s3_client = get_s3_client()
-    paginator = s3_client.get_paginator("list_objects_v2")
-    pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
-
-    filepaths = []
-    for page in pages:
-        if page["KeyCount"] == 0:
-            continue
-        for obj in page["Contents"]:
-            if obj["Size"] == 0:
-                continue
-
-            if obj["LastModified"] >= cutoff:
-                filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
-    return filepaths
-
-
 def get_last_modified_object(
     bucket_name: str, file_prefix: str, version: Optional[str] = None
 ) -> Optional[Dict]:
     """
-    For a given bucket, find the last modified object that matches a prefix.
-    If a version is passed, only return the object if the versions of files
-    matching this prefix match.
+    For a given bucket, find the last modified object that matches a prefix. If
+    a version is passed, only return the newest object matching this version.
     """
-    objects = file_list_from_s3_with_details(
+    files = file_list_from_s3_with_details(
         bucket_name=bucket_name, file_prefix=file_prefix
     )
 
-    # if there are no objects, return early.
-    if len(objects) == 0:
+    # sort the objects by last modified
+    files.sort(key=lambda o: o["last_modified"], reverse=True)
+
+    # if there are no objects, return None
+    if len(files) == 0:
         return None
 
-    # start with the first object
-    newest_object = objects[0]
+    # if there is no version, the return the first object
+    if version is None:
+        return files[0]
 
-    # if the first version fails that version check, return early
-    if version and not version_check(newest_object["s3_obj_path"], version):
-        return None
+    # if there is a version, return the first object that matches the version
+    for file in files:
+        if version_check(file["s3_obj_path"], version):
+            return file
 
-    for obj in objects:
-        if obj["last_modified"] > newest_object["last_modified"]:
-            newest_object = obj
-
-    return newest_object
+    # if we were unable to match an object, return None
+    return None
 
 
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:

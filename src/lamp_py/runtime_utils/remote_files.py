@@ -28,7 +28,7 @@ class RemoteFileLocations:
     )
 
     # files ingested from tranist master
-    tm_prefix = file_prefix = os.path.join("lamp", "TM")
+    tm_prefix = os.path.join("lamp", "TM")
     tm_stop_crossing = S3Location(
         bucket_name=springboard_bucket,
         file_prefix=os.path.join(tm_prefix, "STOP_CROSSING"),
