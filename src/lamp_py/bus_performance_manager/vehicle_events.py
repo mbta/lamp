@@ -1,5 +1,5 @@
 from datetime import timedelta, date
-from typing import Optional
+from typing import Optional, Dict, List
 import re
 
 import polars as pl
@@ -13,7 +13,7 @@ from lamp_py.aws.s3 import (
 from lamp_py.runtime_utils.remote_files import RemoteFileLocations
 
 
-def get_new_event_files() -> pl.DataFrame:
+def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     """
     Generate a dataframe that contains a record for every service date to be
     processed.
@@ -31,10 +31,9 @@ def get_new_event_files() -> pl.DataFrame:
         'transit_master': list[str] - s3 filepath for tm files
     """
 
-    def get_service_date_from_tm_filename(tm_filename: str) -> Optional[date]:
-        """pull the service date from a transit master filename"""
+    def get_service_date_from_filename(tm_filename: str) -> Optional[date]:
+        """pull the service date from a filename formatted '1YYYYMMDD.parquet'"""
         try:
-            # files are formatted "1YYYYMMDD.parquet"
             service_date_int = re.findall(r"(\d{8}).parquet", tm_filename)[0]
             year = int(service_date_int[:4])
             month = int(service_date_int[4:6])
@@ -57,12 +56,10 @@ def get_new_event_files() -> pl.DataFrame:
         file_prefix=RemoteFileLocations.vehicle_positions.file_prefix,
     )
     vp_df = pl.DataFrame(vp_objects).with_columns(
-        [
-            pl.col("s3_obj_path")
-            .apply(lambda x: get_datetime_from_partition_path(x).date())
-            .alias("service_date"),
-            pl.lit("gtfs_rt").alias("source"),
-        ]
+        pl.col("s3_obj_path")
+        .apply(lambda x: get_datetime_from_partition_path(x).date())
+        .alias("service_date"),
+        pl.lit("gtfs_rt").alias("source"),
     )
 
     # the partition paths record the UTC time that the vehicle positions were
@@ -95,7 +92,7 @@ def get_new_event_files() -> pl.DataFrame:
         | pl.col("s3_obj_path").str.contains("hour=8")
         | ~pl.col("s3_obj_path").str.contains("hour")
     ).with_columns(
-        [(pl.col("service_date") - timedelta(days=1)).alias("service_date")]
+        (pl.col("service_date") - timedelta(days=1)).alias("service_date")
     )
 
     # these files contain data from the current service day
@@ -116,12 +113,10 @@ def get_new_event_files() -> pl.DataFrame:
         file_prefix=RemoteFileLocations.tm_stop_crossing.file_prefix,
     )
     tm_df = pl.DataFrame(tm_objects).with_columns(
-        [
-            pl.col("s3_obj_path")
-            .apply(get_service_date_from_tm_filename)
-            .alias("service_date"),
-            pl.lit("transit_master").alias("source"),
-        ]
+        pl.col("s3_obj_path")
+        .apply(get_service_date_from_filename)
+        .alias("service_date"),
+        pl.lit("transit_master").alias("source"),
     )
 
     # a merged dataframe of all files to operate on
@@ -134,20 +129,16 @@ def get_new_event_files() -> pl.DataFrame:
         version="1.0",
     )
 
-    # create a new column 'is_new' boolean indicating if a file has been
-    # updated since the last output file was written.
+    # if there is a event file, pull the service date from it and filter
+    # all_files to only contain objects with service dates on or after this
+    # date.
     if latest_event_file:
-        cutoff = latest_event_file["last_modified"] - timedelta(hours=1)
-        all_files = all_files.with_columns(
-            [(pl.col("last_modified") >= cutoff).alias("is_new")]
+        latest_service_date = get_service_date_from_filename(
+            latest_event_file["s3_obj_path"]
         )
-    else:
-        all_files = all_files.with_columns([pl.lit(True).alias("is_new")])
-
-    # a list of service dates associated with recently modified files
-    new_service_dates = (
-        all_files.filter(pl.col("is_new")).select("service_date").unique()
-    )
+        all_files = all_files.filter(
+            pl.col("service_date") >= latest_service_date
+        )
 
     # filter all files to only files associated with new service dates
     # aggregate records by source and pivot on service date.
@@ -155,12 +146,9 @@ def get_new_event_files() -> pl.DataFrame:
     # each record of the new dataframe will have a list of gtfs_rt and tm input
     # files.
     grouped_files = (
-        all_files.filter(
-            pl.col("service_date").is_in(new_service_dates["service_date"])
-        )
-        .groupby(["service_date", "source"])
+        all_files.groupby(["service_date", "source"])
         .agg([pl.col("s3_obj_path").alias("file_list")])
         .pivot(values="file_list", index="service_date", columns="source")
     )
 
-    return grouped_files
+    return grouped_files.to_dicts()
