@@ -44,7 +44,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
         lamp_version: str,
         project_name: str = os.getenv("TABLEAU_PROJECT", ""),
     ) -> None:
+        environment = os.getenv("ECS_TASK_GROUP", "-").split("-")[-1]
+        if environment != "prod":
+            hyper_file_name = (
+                f"{hyper_file_name.replace('.hyper','')}_{environment}.hyper"
+            )
         self.hyper_file_name = hyper_file_name
+
         self.hyper_table_name = hyper_file_name.replace(".hyper", "")
         self.remote_parquet_path = remote_parquet_path
         self.lamp_version = lamp_version
