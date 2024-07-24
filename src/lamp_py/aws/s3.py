@@ -1,8 +1,8 @@
-import datetime
 import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from io import BytesIO
 from threading import current_thread
 from typing import (
@@ -279,7 +279,7 @@ def file_list_from_s3_with_details(
     return_dict = {
         "s3_obj_path": "str: object path as s3://bucket-name/object-key",
         "size_bytes": "int: size of object in bytes",
-        "last_modified": "datetime.datetime: object creation date",
+        "last_modified": "datetime: object creation date",
     }
 
     :return List[return_dict]
@@ -319,6 +319,37 @@ def file_list_from_s3_with_details(
     except Exception as exception:
         process_logger.log_failure(exception)
         return []
+
+
+def get_last_modified_object(
+    bucket_name: str, file_prefix: str, version: Optional[str] = None
+) -> Optional[Dict]:
+    """
+    For a given bucket, find the last modified object that matches a prefix. If
+    a version is passed, only return the newest object matching this version.
+    """
+    files = file_list_from_s3_with_details(
+        bucket_name=bucket_name, file_prefix=file_prefix
+    )
+
+    # sort the objects by last modified
+    files.sort(key=lambda o: o["last_modified"], reverse=True)
+
+    # if there are no objects, return None
+    if len(files) == 0:
+        return None
+
+    # if there is no version, the return the first object
+    if version is None:
+        return files[0]
+
+    # if there is a version, return the first object that matches the version
+    for file in files:
+        if version_check(file["s3_obj_path"], version):
+            return file
+
+    # if we were unable to match an object, return None
+    return None
 
 
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
@@ -557,7 +588,7 @@ def write_parquet_file(
 # pylint: enable=R0913
 
 
-def get_datetime_from_partition_path(path: str) -> datetime.datetime:
+def get_datetime_from_partition_path(path: str) -> datetime:
     """
     process and return datetime from partitioned s3 path
     """
@@ -569,17 +600,17 @@ def get_datetime_from_partition_path(path: str) -> datetime.datetime:
         hour = 0
         if "hour=" in path:
             hour = int(re.findall(r"hour=(\d{1,2})", path)[0])
-        return_date = datetime.datetime(
+        return_date = datetime(
             year=year,
             month=month,
             day=day,
             hour=hour,
-            tzinfo=datetime.timezone.utc,
+            tzinfo=timezone.utc,
         )
     except IndexError as _:
         # handle gtfs static paths
         timestamp = float(re.findall(r"timestamp=(\d{10})", path)[0])
-        return_date = datetime.datetime.fromtimestamp(timestamp)
+        return_date = datetime.fromtimestamp(timestamp)
     return return_date
 
 
