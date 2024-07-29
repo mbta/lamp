@@ -7,6 +7,7 @@ from lamp_py.ingestion_tm.jobs.whole_table import (
     TMMainRoute,
     TMMainTrip,
     TMMainVehicle,
+    TMMainsScheduledWaiver,
 )
 from lamp_py.ingestion_tm.jobs.parition_table import TMDailyLogStopCrossing
 
@@ -22,6 +23,7 @@ def ingest_tables() -> None:
         TMMainRoute(),
         TMMainTrip(),
         TMMainVehicle(),
+        TMMainsScheduledWaiver(),
         TMDailyLogStopCrossing(),
     ]
 

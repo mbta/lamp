@@ -216,3 +216,32 @@ class TMMainVehicle(TMWholeTable):
                 ("RADIO_DEVICE_ID", pyarrow.string()),
             ]
         )
+
+
+class TMMainsScheduledWaiver(TMWholeTable):
+    """Export SCHEDULED_WAIVER table from TMMain"""
+
+    def __init__(self) -> None:
+        TMWholeTable.__init__(
+            self,
+            pq_file_name="TMMAIN_SCHEDULED_WAIVER.parquet",
+            tm_table="TMMain.dbo.SCHEDULED_WAIVER",
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("SCHEDULED_WAIVER_ID", pyarrow.int64()),
+                ("WAIVER_DESCRIPTION", pyarrow.string()),
+                ("ROUTE_ABBR", pyarrow.string()),
+                ("ROUTE_DIRECTION_ID", pyarrow.int64()),
+                ("START_TIME", pyarrow.int64()),
+                ("END_TIME", pyarrow.int64()),
+                ("ACTIVATION_DATE", pyarrow.timestamp("ms")),
+                ("MISSED_ALLOWED_FLAG", pyarrow.bool_()),
+                ("DEACTIVATION_DATE", pyarrow.timestamp("ms")),
+                ("EARLY_ALLOWED_FLAG", pyarrow.bool_()),
+                ("LATE_ALLOWED_FLAG", pyarrow.bool_()),
+            ]
+        )
