@@ -12,7 +12,6 @@ from lamp_py.aws.s3 import (
 
 from lamp_py.runtime_utils.remote_files import (
     RemoteFileLocations,
-    get_gtfs_parquet_file,
 )
 
 
@@ -155,4 +154,3 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     )
 
     return grouped_files.to_dicts()
-

@@ -15,6 +15,12 @@ from _pytest.monkeypatch import MonkeyPatch
 from pyarrow import fs
 import pyarrow.dataset as pd
 
+from .test_resources import (
+    LocalS3Location,
+    LocalFileLocaions,
+    get_local_gtfs_parquet_files,
+)
+
 
 @pytest.fixture(autouse=True, name="get_pyarrow_dataset_patch")
 def fixture_get_pyarrow_dataset_patch(
@@ -49,6 +55,33 @@ def fixture_get_pyarrow_dataset_patch(
 
     monkeypatch.setattr(
         "lamp_py.aws.s3._get_pyarrow_dataset", mock__get_pyarrow_dataset
+    )
+
+    yield
+
+
+@pytest.fixture(autouse=True, name="remote_file_locations_patch")
+def fixture_remote_file_locations_patch(
+    monkeypatch: MonkeyPatch,
+) -> Iterator[None]:
+    """
+    We define S3 Filepaths in the RemoteFileLocations class in remote_files.py
+    that can be used in our different applications. When testing on github, we
+    don't have access to s3, so tests need to be run against local files. Use
+    monkeypatch to redefine how these utilities work.
+    """
+    monkeypatch.setattr(
+        "lamp_py.runtime_utils.remote_files.S3Location", LocalS3Location
+    )
+
+    monkeypatch.setattr(
+        "lamp_py.runtime_utils.remote_files.RemoteFileLocations",
+        LocalFileLocaions,
+    )
+
+    monkeypatch.setattr(
+        "lamp_py.runtime_utils.remote_files.get_gtfs_parquet_file",
+        get_local_gtfs_parquet_files,
     )
 
     yield
