@@ -3,7 +3,10 @@ from typing import List
 
 import polars as pl
 
-from lamp_py.bus_performance_manager.gtfs_utils import bus_routes_for_service_date
+from lamp_py.bus_performance_manager.gtfs_utils import (
+    bus_routes_for_service_date,
+)
+
 
 def generate_gtfs_rt_events(
     service_date: date, gtfs_rt_files: List[str]
@@ -18,7 +21,7 @@ def generate_gtfs_rt_events(
     # * scan all of the gtfs realtime files
     # * only pull out bus records and records for the service date with current status fields
     # * rename / convert columns as appropriate
-    # * convert 
+    # * convert
     # * sort by vehicle id and timestamp
     # * keep only the first record for a given trip / stop / status
     vehicle_positions = (
@@ -30,59 +33,77 @@ def generate_gtfs_rt_events(
                 == service_date.strftime("%Y%m%d")
             )
             & pl.col("vehicle.current_status").is_not_null()
+            & pl.col("vehicle.stop_id").is_not_null()
+            & pl.col("vehicle.trip.trip_id").is_not_null()
+            & pl.col("vehicle.vehicle.id").is_not_null()
+            & pl.col("vehicle.timestamp").is_not_null()
         )
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
             pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
             pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
-            pl.col("vehicle.trip.direction_id").cast(pl.Int8).alias("direction_id"),
-            pl.col("vehicle.trip.start_time").cast(pl.String).alias("start_time"),
-            pl.col("vehicle.trip.start_date").cast(pl.String).alias("service_date"),
+            pl.col("vehicle.current_stop_sequence").cast(pl.String).alias("stop_sequence"),
+            pl.col("vehicle.trip.direction_id")
+            .cast(pl.Int8)
+            .alias("direction_id"),
+            pl.col("vehicle.trip.start_time")
+            .cast(pl.String)
+            .alias("start_time"),
+            pl.col("vehicle.trip.start_date")
+            .cast(pl.String)
+            .alias("service_date"),
             pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
-            pl.col("vehicle.current_status").cast(pl.String).alias('current_status'),
+            pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
+            pl.col("vehicle.current_status")
+            .cast(pl.String)
+            .alias("current_status"),
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         .with_columns(
-            pl.when(pl.col("current_status") == "INCOMING_AT").then(pl.lit("STOPPED_AT")).otherwise(pl.col("current_status")).cast(pl.String).alias("current_status"),
+            pl.when(pl.col("current_status") == "INCOMING_AT")
+            .then(pl.lit("IN_TRANSIT_TO"))
+            .otherwise(pl.col("current_status"))
+            .cast(pl.String)
+            .alias("current_status"),
         )
         .sort(["vehicle_id", "vehicle_timestamp"])
-        .unique(
-            subset=[
-                "route_id",
-                "trip_id",
-                "stop_id",
-                "direction_id",
-                "vehicle_id",
-                "current_status",
-            ],
-            keep="first",
-        )
         .collect()
     )
 
-    # using the vehicle positions dataframe, create a dataframe for each event
-    # by pivoting and mapping the current status onto arrivals and departures.
-    # initially, they map to arrival times and traveling towards times. shift
-    # the traveling towards datetime over trip id to get the departure time.
-    vehicle_events = (
-        vehicle_positions.pivot(
+    if vehicle_positions.is_empty():
+        # if there are now elements, adjust the columns to match the return
+        # dataframe schema.
+        vehicle_events = vehicle_positions.with_columns(
+            pl.lit(None).cast(pl.Datetime).alias("arrival_gtfs"),
+            pl.lit(None).cast(pl.Datetime).alias("travel_towards_gtfs"),
+        ).drop("current_status", "vehicle_timestamp")
+
+    else:
+        # using the vehicle positions dataframe, create a dataframe for each
+        # event by pivoting and mapping the current status onto arrivals and
+        # departures. initially, they map to arrival times and traveling
+        # towards times. shift the traveling towards datetime over trip id to
+        # get the departure time.
+        vehicle_events = vehicle_positions.pivot(
             values="vehicle_timestamp",
+            aggregate_function="min",
             index=[
                 "route_id",
+                "direction_id",
                 "trip_id",
                 "stop_id",
+                "stop_sequence",
                 "start_time",
                 "service_date",
                 "vehicle_id",
+                "vehicle_label"
             ],
             columns="current_status",
-        )
-        .rename(
+        ).rename(
             {
                 "STOPPED_AT": "arrival_gtfs",
                 "IN_TRANSIT_TO": "travel_towards_gtfs",
             }
         )
-    )
 
     return vehicle_events

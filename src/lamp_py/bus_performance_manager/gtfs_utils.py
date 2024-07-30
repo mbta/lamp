@@ -19,8 +19,8 @@ def bus_routes_for_service_date(service_date: date) -> List[str]:
         pl.scan_parquet(routes_file)
         .select(["route_id", "route_type", "gtfs_active_date", "gtfs_end_date"])
         .filter(
-            (pl.col("gtfs_active_date") < target_date)
-            & (pl.col("gtfs_end_date") > target_date)
+            (pl.col("gtfs_active_date") <= target_date)
+            & (pl.col("gtfs_end_date") >= target_date)
             & (pl.col("route_type") == 3)
         )
         .collect()
