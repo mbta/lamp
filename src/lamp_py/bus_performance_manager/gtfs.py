@@ -407,6 +407,8 @@ def gtfs_events_for_date(service_date: int) -> pl.DataFrame:
         plan_route_direction_headway_seconds -> Int64
         plan_direction_destination_headway_seconds -> Int64
     """
+    sync_gtfs_files(service_date)
+
     stop_events = stop_events_for_date(service_date)
 
     stop_events = stop_event_metrics(stop_events)
