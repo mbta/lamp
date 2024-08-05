@@ -50,29 +50,34 @@ def test_gtfs_events_for_date(s3_patch: mock.MagicMock) -> None:
         schema=bus_events.schema,
     ).sort(by=["trip_id", "stop_sequence"])
     # CSV trips
-    expected_trips = expected_bus_events.select(
-        "trip_id", "direction_id"
-    ).unique()
+    expected_trips = expected_bus_events.select("trip_id").unique()
 
     # Filter and sort pipeline events for CSV trips
     bus_events = bus_events.join(
-        expected_trips, on=["trip_id", "direction_id"], how="inner"
+        expected_trips, on="trip_id", how="inner"
     ).sort(by=["trip_id", "stop_sequence"])
 
     # Compare pipeline values to CSV values by column
     column_exceptions = []
     for column in expected_bus_events.columns:
-        try:
-            pl_test.assert_series_equal(
-                bus_events.get_column(column),
-                expected_bus_events.get_column(column),
-            )
-        except Exception as exception:
-            logging.error(
-                "Process values in %s column do not match bus_test_gtfs.csv",
-                column,
-            )
-            column_exceptions.append(exception)
+        for trip_id in expected_bus_events.get_column("trip_id").unique():
+            try:
+                pl_test.assert_series_equal(
+                    bus_events.filter(
+                        (pl.col("trip_id") == trip_id)
+                    ).get_column(column),
+                    expected_bus_events.filter(
+                        (pl.col("trip_id") == trip_id)
+                    ).get_column(column),
+                )
+            except Exception as exception:
+                logging.error(
+                    "Process values (column=%s - trip_id=%s) do not match bus_test_gtfs.csv",
+                    column,
+                    trip_id,
+                )
+                logging.exception(exception)
+                column_exceptions.append(exception)
 
     # will only raise one column exception, but error logging will print all columns with issues
     if column_exceptions:

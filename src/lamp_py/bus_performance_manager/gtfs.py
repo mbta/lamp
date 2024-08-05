@@ -267,7 +267,7 @@ def stop_events_for_date(service_date: int) -> pl.DataFrame:
         stop_name -> String
         parent_station -> String
         static_stop_count -> UInt32
-        canon_stop_sequence -> UInt32
+        # canon_stop_sequence -> UInt32
         arrival_seconds -> Int64
         departure_seconds -> Int64
     """
@@ -291,7 +291,8 @@ def stop_events_for_date(service_date: int) -> pl.DataFrame:
         "parent_station",
     )
 
-    canon_stop_sequences = canonical_stop_sequence(service_date)
+    # canonical stop sequence logic currently under review
+    # canon_stop_sequences = canonical_stop_sequence(service_date)
 
     return (
         stop_times.join(
@@ -309,11 +310,11 @@ def stop_events_for_date(service_date: int) -> pl.DataFrame:
             on="trip_id",
             how="left",
         )
-        .join(
-            canon_stop_sequences,
-            on=["route_id", "direction_id", "stop_id"],
-            how="left",
-        )
+        # .join(
+        #     canon_stop_sequences,
+        #     on=["route_pattern_id", "stop_id"],
+        #     how="left",
+        # )
         .with_columns(
             pl.col("arrival_time")
             .map_elements(start_time_to_seconds, return_dtype=pl.Int64)
@@ -400,7 +401,7 @@ def gtfs_events_for_date(service_date: int) -> pl.DataFrame:
         stop_name -> String
         parent_station -> String
         static_stop_count -> UInt32
-        canon_stop_sequence -> UInt32
+        # canon_stop_sequence -> UInt32
         arrival_seconds -> Int64
         departure_seconds -> Int64
         plan_travel_time_seconds -> Int64
