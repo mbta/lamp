@@ -8,7 +8,7 @@ import polars.testing as pl_test
 
 from lamp_py.bus_performance_manager.gtfs import gtfs_events_for_date
 
-current_dir = test_files_dir = os.path.join(os.path.dirname(__file__))
+current_dir = os.path.join(os.path.dirname(__file__))
 
 SERVICE_DATE = 20240801
 
