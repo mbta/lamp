@@ -130,7 +130,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             "vehicle_id",
             "vehicle_label",
         ],
-        columns="current_status",
+        on="current_status",
     )
 
     for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
