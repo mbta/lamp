@@ -2,6 +2,7 @@ import os
 import logging
 from unittest import mock
 from urllib import request
+from datetime import date
 
 import polars as pl
 import polars.testing as pl_test
@@ -10,7 +11,7 @@ from lamp_py.bus_performance_manager.gtfs import gtfs_events_for_date
 
 current_dir = os.path.join(os.path.dirname(__file__))
 
-SERVICE_DATE = 20240801
+SERVICE_DATE = date(2024, 8, 1)
 
 mock_file_list = [
     "https://performancedata.mbta.com/lamp/gtfs_archive/2024/calendar.parquet",

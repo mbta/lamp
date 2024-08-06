@@ -1,15 +1,16 @@
 import os
 import shutil
-from datetime import datetime
+from datetime import date
 
 import polars as pl
 
 from lamp_py.runtime_utils.remote_files import RemoteFileLocations
 from lamp_py.aws.s3 import file_list_from_s3, download_file
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-def sync_gtfs_files(service_date: int) -> None:
+def sync_gtfs_files(service_date: date) -> None:
     """
     sync local tmp folder with parquet schedule data for service_date from S3
 
@@ -17,11 +18,12 @@ def sync_gtfs_files(service_date: int) -> None:
 
     the /tmp/gtfs_archive/ folder will only contain one service date at a time
 
-    :param service_date: service date of requested GTFS data 20240101 = Jan 1, 2024
+    :param service_date: service date of requested GTFS data
     """
-    gtfs_year = int(str(service_date)[:4])
+    gtfs_year = service_date.year
+    service_date_str = service_date.strftime("%Y%m%d")
     gtfs_archive_folder = os.path.join("/tmp", "gtfs_archive")
-    gtfs_date_folder = os.path.join(gtfs_archive_folder, str(service_date))
+    gtfs_date_folder = os.path.join(gtfs_archive_folder, service_date_str)
 
     # local files already exist
     if (
@@ -67,27 +69,29 @@ def sync_gtfs_files(service_date: int) -> None:
             )
 
 
-def gtfs_from_parquet(file: str, service_date: int) -> pl.DataFrame:
+def gtfs_from_parquet(file: str, service_date: date) -> pl.DataFrame:
     """
     Get GTFS data from specified file and service date
 
     This will read from local gtfs_archive location "tmp/gtfs_archive/YYYYMMDD/..."
 
     :param file: gtfs file to acces (i.e. "feed_info")
-    :param service_date: service date of requested GTFS data 20240101 = Jan 1, 2024
+    :param service_date: service date of requested GTFS data
     """
     gtfs_archive_folder = os.path.join("/tmp", "gtfs_archive")
+    service_date_str = service_date.strftime("%Y%m%d")
+    service_date_int = int(service_date_str)
 
     if not file.endswith(".parquet"):
         file = f"{file}.parquet"
 
-    gtfs_file = os.path.join(gtfs_archive_folder, str(service_date), file)
+    gtfs_file = os.path.join(gtfs_archive_folder, service_date_str, file)
 
     gtfs_df = (
         pl.read_parquet(gtfs_file)
         .filter(
-            (pl.col("gtfs_active_date") <= service_date)
-            & (pl.col("gtfs_end_date") >= service_date)
+            (pl.col("gtfs_active_date") <= service_date_int)
+            & (pl.col("gtfs_end_date") >= service_date_int)
         )
         .drop(["gtfs_active_date", "gtfs_end_date"])
     )
@@ -95,32 +99,33 @@ def gtfs_from_parquet(file: str, service_date: int) -> pl.DataFrame:
     return gtfs_df
 
 
-def service_ids_for_date(service_date: int) -> pl.DataFrame:
+def service_ids_for_date(service_date: date) -> pl.DataFrame:
     """
     Retrieve service_id values applicable to service_date
 
-    :param service_date: service date of requested GTFS data 20240101 = Jan 1, 2024
+    :param service_date: service date of requested GTFS data
 
     :return dataframe:
         service_id -> String
     """
-    service_date_dt = datetime.strptime(str(service_date), "%Y%m%d").date()
-    day_of_week = service_date_dt.strftime("%A").lower()
+    day_of_week = service_date.strftime("%A").lower()
+    service_date_str = service_date.strftime("%Y%m%d")
+    service_date_int = int(service_date_str)
 
     calendar = gtfs_from_parquet("calendar", service_date)
     service_ids = calendar.filter(
         pl.col(day_of_week)
         == True
-        & (pl.col("start_date") <= service_date)
-        & (pl.col("end_date") >= service_date)
+        & (pl.col("start_date") <= service_date_int)
+        & (pl.col("end_date") >= service_date_int)
     ).select("service_id")
 
     calendar_dates = gtfs_from_parquet("calendar_dates", service_date)
     exclude_ids = calendar_dates.filter(
-        (pl.col("date") == service_date) & (pl.col("exception_type") == 2)
+        (pl.col("date") == service_date_int) & (pl.col("exception_type") == 2)
     ).select("service_id")
     include_ids = calendar_dates.filter(
-        (pl.col("date") == service_date) & (pl.col("exception_type") == 1)
+        (pl.col("date") == service_date_int) & (pl.col("exception_type") == 1)
     ).select("service_id")
 
     service_ids = service_ids.join(
@@ -132,9 +137,11 @@ def service_ids_for_date(service_date: int) -> pl.DataFrame:
     return pl.concat([service_ids, include_ids])
 
 
-def trips_for_date(service_date: int) -> pl.DataFrame:
+def trips_for_date(service_date: date) -> pl.DataFrame:
     """
     all trip related GTFS data for a service_date
+
+    :param service_date: service date of requested GTFS data
 
     :return dataframe:
         trip_id -> String
@@ -196,11 +203,11 @@ def trips_for_date(service_date: int) -> pl.DataFrame:
     )
 
 
-def canonical_stop_sequence(service_date: int) -> pl.DataFrame:
+def canonical_stop_sequence(service_date: date) -> pl.DataFrame:
     """
     Create canonical stop sequence values for specified service date
 
-    :param service_date: service date of requested GTFS data 20240101 = Jan 1, 2024
+    :param service_date: service date of requested GTFS data
 
     :return dataframe:
         route_id -> String
@@ -244,11 +251,11 @@ def canonical_stop_sequence(service_date: int) -> pl.DataFrame:
     )
 
 
-def stop_events_for_date(service_date: int) -> pl.DataFrame:
+def stop_events_for_date(service_date: date) -> pl.DataFrame:
     """
     all stop event related GTFS data for a service_date
 
-    :param service_date: service date of requested GTFS data 20240101 = Jan 1, 2024
+    :param service_date: service date of requested GTFS data
 
     :return dataframe:
         trip_id -> String
@@ -380,7 +387,7 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     return stop_events
 
 
-def gtfs_events_for_date(service_date: int) -> pl.DataFrame:
+def gtfs_events_for_date(service_date: date) -> pl.DataFrame:
     """
     Create data frame of all GTFS data needed by Bus PM app for a service_date
 
@@ -408,10 +415,15 @@ def gtfs_events_for_date(service_date: int) -> pl.DataFrame:
         plan_route_direction_headway_seconds -> Int64
         plan_direction_destination_headway_seconds -> Int64
     """
+    logger = ProcessLogger("gtfs_events_for_date", service_date=service_date)
+    logger.log_start()
+
     sync_gtfs_files(service_date)
 
     stop_events = stop_events_for_date(service_date)
 
     stop_events = stop_event_metrics(stop_events)
+
+    logger.log_complete()
 
     return stop_events
