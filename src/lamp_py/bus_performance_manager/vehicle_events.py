@@ -59,7 +59,7 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     )
     vp_df = pl.DataFrame(vp_objects).with_columns(
         pl.col("s3_obj_path")
-        .apply(lambda x: get_datetime_from_partition_path(x).date())
+        .map_elements(lambda x: get_datetime_from_partition_path(x).date())
         .alias("service_date"),
         pl.lit("gtfs_rt").alias("source"),
     )
@@ -116,7 +116,7 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     )
     tm_df = pl.DataFrame(tm_objects).with_columns(
         pl.col("s3_obj_path")
-        .apply(get_service_date_from_filename)
+        .map_elements(get_service_date_from_filename)
         .alias("service_date"),
         pl.lit("transit_master").alias("source"),
     )
@@ -148,9 +148,9 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     # each record of the new dataframe will have a list of gtfs_rt and tm input
     # files.
     grouped_files = (
-        all_files.groupby(["service_date", "source"])
+        all_files.group_by(["service_date", "source"])
         .agg([pl.col("s3_obj_path").alias("file_list")])
-        .pivot(values="file_list", index="service_date", columns="source")
+        .pivot(values="file_list", index="service_date", on="source")
     )
 
     return grouped_files.to_dicts()

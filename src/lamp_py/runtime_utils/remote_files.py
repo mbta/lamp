@@ -60,6 +60,12 @@ class RemoteFileLocations:
         file_prefix=os.path.join("lamp", "bus_vehicle_events"),
     )
 
+    # Compressed GTFS Static Schedule files
+    compressed_gtfs = S3Location(
+        bucket_name=public_bucket,
+        file_prefix=os.path.join("lamp", "gtfs_archive"),
+    )
+
 
 def get_gtfs_parquet_file(year: int, filename: str) -> S3Location:
     """

@@ -1,5 +1,6 @@
 import datetime
 from typing import Optional, List, Union
+from functools import lru_cache
 
 import numpy
 import pandas
@@ -23,6 +24,7 @@ from lamp_py.aws.s3 import get_datetime_from_partition_path
 BOSTON_TZ = pytz.timezone("EST5EDT")
 
 
+@lru_cache
 def start_time_to_seconds(
     time: Optional[str],
 ) -> Optional[int]:
