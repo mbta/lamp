@@ -85,7 +85,10 @@ def test_files() -> List[str]:
         for file in files:
             if "DS_Store" in file:
                 continue
-            paths.append(os.path.join(root, file))
+            path = os.path.join(root, file)
+            if "year=2024" in path:
+                continue
+            paths.append(path)
 
     paths.sort()
     return paths

@@ -10,7 +10,9 @@ from lamp_py.aws.s3 import (
     get_last_modified_object,
 )
 
-from lamp_py.runtime_utils.remote_files import RemoteFileLocations
+from lamp_py.runtime_utils.remote_files import (
+    RemoteFileLocations,
+)
 
 
 def get_new_event_files() -> List[Dict[str, date | List[str]]]:

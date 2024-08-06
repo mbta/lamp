@@ -11,6 +11,10 @@ class S3Location:
     bucket_name: str
     file_prefix: str
 
+    def get_s3_path(self) -> str:
+        """generate the full s3 url that can be used to describe the location"""
+        return f"s3://{self.bucket_name}/{self.file_prefix}"
+
 
 class RemoteFileLocations:
     """
@@ -54,4 +58,16 @@ class RemoteFileLocations:
     bus_events = S3Location(
         bucket_name=public_bucket,
         file_prefix=os.path.join("lamp", "bus_vehicle_events"),
+    )
+
+
+def get_gtfs_parquet_file(year: int, filename: str) -> S3Location:
+    """
+    generate an S3Location instance for a gtfs schedule parquet file for a
+    given type in a given year.
+    """
+    file_object = os.path.join("lamp", "gtfs_archive", str(year), filename)
+
+    return S3Location(
+        bucket_name=RemoteFileLocations.public_bucket, file_prefix=file_object
     )
