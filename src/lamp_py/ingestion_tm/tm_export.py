@@ -1,4 +1,3 @@
-import os
 from abc import ABC
 from abc import abstractmethod
 
@@ -11,11 +10,6 @@ class TMExport(ABC):
     """
     Abstract Base Class for TM Export jobs
     """
-
-    def __init__(
-        self,
-    ) -> None:
-        self.export_bucket = os.getenv("SPRINGBOARD_BUCKET")
 
     @property
     @abstractmethod

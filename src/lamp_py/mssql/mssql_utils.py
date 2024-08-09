@@ -186,3 +186,4 @@ class MSSQLManager:
                     process_logger.log_failure(exception)
                 else:
                     logging.exception(exception)
+                    raise exception
