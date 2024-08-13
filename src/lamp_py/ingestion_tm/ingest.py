@@ -11,11 +11,11 @@ from lamp_py.ingestion_tm.jobs.whole_table import (
     TMMainOperator,
     TMMainRun,
     TMMainWorkPiece,
+    TMDailyLogDailySchedAdhereWaiver,
 )
 from lamp_py.ingestion_tm.jobs.parition_table import (
     TMDailyLogStopCrossing,
     TMDailyLogDailyWorkPiece,
-    TMDailyLogDailySchedAdhereWaiver,
 )
 
 

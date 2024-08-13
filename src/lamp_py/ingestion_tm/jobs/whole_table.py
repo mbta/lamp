@@ -330,3 +330,36 @@ class TMMainWorkPiece(TMWholeTable):
                 ("AGENCY_ID", pyarrow.int64()),
             ]
         )
+
+
+class TMDailyLogDailySchedAdhereWaiver(TMWholeTable):
+    """Export SCHED_ADHERE_WAIVER table from TMDailyLog"""
+
+    def __init__(self) -> None:
+        TMWholeTable.__init__(
+            self,
+            s3_location=RemoteFileLocations.tm_daily_sched_adherence_waiver_file,
+            tm_table="TMDailyLog.dbo.SCHED_ADHERE_WAIVER",
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("WAIVER_ID", pyarrow.int64()),
+                ("CALENDAR_ID", pyarrow.int64()),
+                ("EARLY_ALLOWED_FLAG", pyarrow.int8()),
+                ("LATE_ALLOWED_FLAG", pyarrow.int8()),
+                ("CREATE_BY_DISPATCH_ID", pyarrow.int64()),
+                ("CREATE_DATETIME", pyarrow.timestamp("ms")),
+                ("ENDED_BY_DISPATCH_ID", pyarrow.int64()),
+                ("ENDED_DATE_TIME", pyarrow.timestamp("ms")),
+                ("REMARK", pyarrow.string()),
+                ("UPDATE_TIMESTAMP", pyarrow.timestamp("ms")),
+                ("MISSED_ALLOWED_FLAG", pyarrow.int8()),
+                ("NO_REVENUE_FLAG", pyarrow.bool_()),
+                ("WAIVER_TIMEOUT", pyarrow.int64()),
+                ("SCHEDULED_WAIVER_ID", pyarrow.int64()),
+                ("SERVICE_NOTICE_CAUSE_ID", pyarrow.int64()),
+            ]
+        )

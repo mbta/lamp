@@ -41,9 +41,11 @@ class RemoteFileLocations:
         bucket_name=springboard_bucket,
         file_prefix=os.path.join(tm_prefix, "DAILY_WORK_PIECE"),
     )
-    tm_daily_sched_adherence_waiver = S3Location(
+    tm_daily_sched_adherence_waiver_file = S3Location(
         bucket_name=springboard_bucket,
-        file_prefix=os.path.join(tm_prefix, "DAILY_SCHED_ADHERE_WAIVER"),
+        file_prefix=os.path.join(
+            tm_prefix, "DAILY_SCHED_ADHERE_WAIVER.parquet"
+        ),
     )
     tm_geo_node_file = S3Location(
         bucket_name=springboard_bucket,
