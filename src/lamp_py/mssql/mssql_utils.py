@@ -184,5 +184,5 @@ class MSSQLManager:
             except Exception as exception:
                 if retry_attempts == max_retries:
                     process_logger.log_failure(exception)
-                else:
-                    logging.exception(exception)
+                    raise exception
+                logging.exception(exception)

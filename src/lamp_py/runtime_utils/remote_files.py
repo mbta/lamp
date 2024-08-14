@@ -37,6 +37,16 @@ class RemoteFileLocations:
         bucket_name=springboard_bucket,
         file_prefix=os.path.join(tm_prefix, "STOP_CROSSING"),
     )
+    tm_daily_work_piece = S3Location(
+        bucket_name=springboard_bucket,
+        file_prefix=os.path.join(tm_prefix, "DAILY_WORK_PIECE"),
+    )
+    tm_daily_sched_adherence_waiver_file = S3Location(
+        bucket_name=springboard_bucket,
+        file_prefix=os.path.join(
+            tm_prefix, "DAILY_SCHED_ADHERE_WAIVER.parquet"
+        ),
+    )
     tm_geo_node_file = S3Location(
         bucket_name=springboard_bucket,
         file_prefix=os.path.join(tm_prefix, "TMMAIN_GEO_NODE.parquet"),
@@ -52,6 +62,22 @@ class RemoteFileLocations:
     tm_vehicle_file = S3Location(
         bucket_name=springboard_bucket,
         file_prefix=os.path.join(tm_prefix, "TMMAIN_VEHICLE.parquet"),
+    )
+    tm_operator_file = S3Location(
+        bucket_name=springboard_bucket,
+        file_prefix=os.path.join(tm_prefix, "TMMAIN_OPERATOR.parquet"),
+    )
+    tm_run_file = S3Location(
+        bucket_name=springboard_bucket,
+        file_prefix=os.path.join(tm_prefix, "TMMAIN_RUN.parquet"),
+    )
+    tm_block_file = S3Location(
+        bucket_name=springboard_bucket,
+        file_prefix=os.path.join(tm_prefix, "TMMAIN_BLOCK.parquet"),
+    )
+    tm_work_piece_file = S3Location(
+        bucket_name=springboard_bucket,
+        file_prefix=os.path.join(tm_prefix, "TMMAIN_WORK_PIECE.parquet"),
     )
 
     # output of public bus events published by LAMP

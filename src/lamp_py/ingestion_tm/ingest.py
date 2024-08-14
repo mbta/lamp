@@ -7,8 +7,35 @@ from lamp_py.ingestion_tm.jobs.whole_table import (
     TMMainRoute,
     TMMainTrip,
     TMMainVehicle,
+    TMMainBlock,
+    TMMainOperator,
+    TMMainRun,
+    TMMainWorkPiece,
+    TMDailyLogDailySchedAdhereWaiver,
 )
-from lamp_py.ingestion_tm.jobs.parition_table import TMDailyLogStopCrossing
+from lamp_py.ingestion_tm.jobs.parition_table import (
+    TMDailyLogStopCrossing,
+    TMDailyLogDailyWorkPiece,
+)
+
+
+def get_ingestion_jobs() -> List[TMExport]:
+    """
+    get a list of all ingestion jobs that
+    """
+    return [
+        TMMainGeoNode(),
+        TMMainRoute(),
+        TMMainTrip(),
+        TMMainVehicle(),
+        TMMainBlock(),
+        TMMainOperator(),
+        TMMainRun(),
+        TMMainWorkPiece(),
+        TMDailyLogStopCrossing(),
+        TMDailyLogDailyWorkPiece(),
+        TMDailyLogDailySchedAdhereWaiver(),
+    ]
 
 
 def ingest_tables() -> None:
@@ -16,14 +43,7 @@ def ingest_tables() -> None:
     ingest tables from transmaster database
     """
     tm_db = MSSQLManager(verbose=True)
-
-    jobs: List[TMExport] = [
-        TMMainGeoNode(),
-        TMMainRoute(),
-        TMMainTrip(),
-        TMMainVehicle(),
-        TMDailyLogStopCrossing(),
-    ]
+    jobs: List[TMExport] = get_ingestion_jobs()
 
     for job in jobs:
         job.run_export(tm_db)
