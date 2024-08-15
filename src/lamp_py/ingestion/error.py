@@ -27,6 +27,12 @@ class NoImplException(GTFSIngestException):
     """
 
 
+class IgnoreIngestion(GTFSIngestException):
+    """
+    General Error for files GTFS Ingestion should ignore
+    """
+
+
 class AWSException(GTFSIngestException):
     """
     General Error for raising with any AWS errors encountered.
