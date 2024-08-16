@@ -4,12 +4,14 @@ from dataclasses import dataclass
 import pyarrow
 from pyarrow import csv, parquet
 
-from lamp_py.runtime_utils.remote_files import GTFSArchive
+from lamp_py.runtime_utils.remote_files import (
+    GTFSArchive,
+    S3_SPRINGBOARD,
+    S3_PUBLIC,
+    S3_INCOMING,
+)
 
 test_files_dir = os.path.join(os.path.dirname(__file__), "test_files")
-
-incoming_dir = os.path.join(test_files_dir, "INCOMING")
-springboard_dir = os.path.join(test_files_dir, "SPRINGBOARD")
 
 
 def csv_to_vp_parquet(csv_filepath: str, parquet_filepath: str) -> None:
@@ -40,6 +42,10 @@ def csv_to_vp_parquet(csv_filepath: str, parquet_filepath: str) -> None:
     parquet.write_table(table, parquet_filepath)
 
 
+incoming_dir = os.path.join(test_files_dir, S3_INCOMING)
+springboard_dir = os.path.join(test_files_dir, S3_SPRINGBOARD)
+
+
 @dataclass
 class LocalS3Location:
     """replace an s3 location wrapper class so it can be used in testing"""
@@ -54,11 +60,11 @@ class LocalS3Location:
 
 
 rt_vehicle_positions = LocalS3Location(
-    bucket="SPRINGBOARD",
+    bucket=S3_SPRINGBOARD,
     prefix="RT_VEHICLE_POSITIONS",
 )
 
 compressed_gtfs = GTFSArchive(
-    bucket="PUBLIC_ARCHIVE",
+    bucket=S3_PUBLIC,
     prefix="lamp/gtfs_archive",
 )

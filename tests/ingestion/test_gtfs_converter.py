@@ -304,14 +304,6 @@ def all_table_attributes() -> Dict:
     }
 
 
-@pytest.fixture(name="_set_env_vars")
-def fixture_set_env_vars() -> None:
-    """setup bucket names for this test"""
-    os.environ["SPRINGBOARD_BUCKET"] = "springboard"
-    os.environ["ERROR_BUCKET"] = "error"
-    os.environ["ARCHIVE_BUCKET"] = "archive"
-
-
 @pytest.fixture(name="_s3_patch")
 def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     """
@@ -379,9 +371,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     assert tables_written[-1] == "feed_info"
 
 
-def test_schedule_conversion(
-    _set_env_vars: Callable[..., None], _s3_patch: Callable[..., None]
-) -> None:
+def test_schedule_conversion(_s3_patch: Callable[..., None]) -> None:
     """
     test that a schedule zip file can be processed correctly, checking for files
     table names, table column names, and table lengths
@@ -402,6 +392,6 @@ def test_schedule_conversion(
     while not metadata_queue.empty():
         s3_path = metadata_queue.get(block=False)
 
-        assert "springboard" in s3_path
+        assert "SPRINGBOARD" in s3_path
         assert "FEED_INFO" in s3_path
         assert "written.parquet" in s3_path
