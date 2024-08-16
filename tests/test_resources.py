@@ -5,9 +5,7 @@ import pyarrow
 from pyarrow import csv, parquet
 
 from lamp_py.runtime_utils.remote_files import (
-    GTFSArchive,
     S3_SPRINGBOARD,
-    S3_PUBLIC,
     S3_INCOMING,
 )
 
