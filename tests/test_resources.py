@@ -63,8 +63,3 @@ rt_vehicle_positions = LocalS3Location(
     bucket=S3_SPRINGBOARD,
     prefix="RT_VEHICLE_POSITIONS",
 )
-
-compressed_gtfs = GTFSArchive(
-    bucket=S3_PUBLIC,
-    prefix="lamp/gtfs_archive",
-)

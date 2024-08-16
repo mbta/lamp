@@ -15,10 +15,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from pyarrow import fs
 import pyarrow.dataset as pd
 
-from .test_resources import (
-    LocalS3Location,
-    compressed_gtfs,
-)
+from .test_resources import LocalS3Location
 
 
 @pytest.fixture(autouse=True, name="get_pyarrow_dataset_patch")
@@ -71,11 +68,6 @@ def fixture_remote_file_locations_patch(
     """
     monkeypatch.setattr(
         "lamp_py.runtime_utils.remote_files.S3Location", LocalS3Location
-    )
-
-    monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.gtfs_utils.compressed_gtfs",
-        compressed_gtfs,
     )
 
     yield
