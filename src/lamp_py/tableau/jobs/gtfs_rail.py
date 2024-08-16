@@ -8,6 +8,10 @@ import sqlalchemy as sa
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.remote_files import (
+    LAMP,
+    S3_PUBLIC,
+)
 
 
 class HyperGTFS(HyperJob):
@@ -27,7 +31,7 @@ class HyperGTFS(HyperJob):
         HyperJob.__init__(
             self,
             hyper_file_name=f"LAMP_{gtfs_table_name}.hyper",
-            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_{gtfs_table_name}.parquet",
+            remote_parquet_path=f"s3://{S3_PUBLIC}/{LAMP}/tableau/rail/LAMP_{gtfs_table_name}.parquet",
             lamp_version="1.0.0",
         )
         self.gtfs_table_name = gtfs_table_name

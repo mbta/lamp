@@ -23,10 +23,8 @@ from lamp_py.ingestion.error import (
     ConfigTypeFromFilenameException,
     NoImplException,
 )
-from lamp_py.ingestion.utils import (
-    DEFAULT_S3_PREFIX,
-    group_sort_file_list,
-)
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING
+from lamp_py.ingestion.utils import group_sort_file_list
 from lamp_py.ingestion.compress_gtfs.gtfs_to_parquet import gtfs_to_parquet
 
 
@@ -40,7 +38,7 @@ class NoImplConverter(Converter):
     def convert(self) -> None:
         move_s3_objects(
             self.files,
-            os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+            os.path.join(S3_ERROR, LAMP),
         )
 
 
@@ -77,8 +75,8 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
 
     try:
         files = file_list_from_s3(
-            bucket_name=os.environ["INCOMING_BUCKET"],
-            file_prefix=DEFAULT_S3_PREFIX,
+            bucket_name=S3_INCOMING,
+            file_prefix=LAMP,
         )
 
         grouped_files = group_sort_file_list(files)

@@ -17,8 +17,11 @@ from lamp_py.ingestion.utils import (
     ordered_schedule_frame,
     file_as_bytes_buf,
 )
+from lamp_py.runtime_utils.remote_files import (
+    S3_SPRINGBOARD,
+    LAMP,
+)
 from .converter import Converter
-from .utils import DEFAULT_S3_PREFIX
 
 
 def gtfs_files_to_convert() -> List[Tuple[str, int]]:
@@ -30,8 +33,8 @@ def gtfs_files_to_convert() -> List[Tuple[str, int]]:
     mbta_schedule_feed = ordered_schedule_frame()
 
     last_s3_pq = file_list_from_s3(
-        bucket_name=os.getenv("SPRINGBOARD_BUCKET"),
-        file_prefix="lamp/FEED_INFO/",
+        bucket_name=S3_SPRINGBOARD,
+        file_prefix=f"{LAMP}/FEED_INFO/",
     )[-1:]
     if len(last_s3_pq) > 0:
         last_s3_df = pl.read_parquet(last_s3_pq[0])
@@ -135,8 +138,8 @@ class GtfsConverter(Converter):
             table=table,
             file_type=s3_prefix,
             s3_dir=os.path.join(
-                os.environ["SPRINGBOARD_BUCKET"],
-                DEFAULT_S3_PREFIX,
+                S3_SPRINGBOARD,
+                LAMP,
                 s3_prefix,
             ),
             partition_cols=["timestamp"],

@@ -11,7 +11,9 @@ from lamp_py.aws.s3 import (
 )
 
 from lamp_py.runtime_utils.remote_files import (
-    RemoteFileLocations,
+    rt_vehicle_positions,
+    tm_stop_crossing,
+    bus_events,
 )
 
 
@@ -54,8 +56,8 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     # modified datetime. convert to a dataframe and generate a service date
     # from the partition paths. add a source column for later merging.
     vp_objects = file_list_from_s3_with_details(
-        bucket_name=RemoteFileLocations.vehicle_positions.bucket_name,
-        file_prefix=RemoteFileLocations.vehicle_positions.file_prefix,
+        bucket_name=rt_vehicle_positions.bucket,
+        file_prefix=rt_vehicle_positions.prefix,
     )
     vp_df = pl.DataFrame(vp_objects).with_columns(
         pl.col("s3_obj_path")
@@ -111,8 +113,8 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     # modified datetime. convert to a dataframe and generate a service date
     # from the filename. add a source column for later merging.
     tm_objects = file_list_from_s3_with_details(
-        bucket_name=RemoteFileLocations.tm_stop_crossing.bucket_name,
-        file_prefix=RemoteFileLocations.tm_stop_crossing.file_prefix,
+        bucket_name=tm_stop_crossing.bucket,
+        file_prefix=tm_stop_crossing.prefix,
     )
     tm_df = pl.DataFrame(tm_objects).with_columns(
         pl.col("s3_obj_path")
@@ -126,8 +128,8 @@ def get_new_event_files() -> List[Dict[str, date | List[str]]]:
 
     # get the last modified object in the output file s3 location
     latest_event_file = get_last_modified_object(
-        bucket_name=RemoteFileLocations.bus_events.bucket_name,
-        file_prefix=RemoteFileLocations.bus_events.file_prefix,
+        bucket_name=bus_events.bucket,
+        file_prefix=bus_events.prefix,
         version="1.0",
     )
 

@@ -16,6 +16,10 @@ from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_schema
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import (
+    LAMP,
+    S3_SPRINGBOARD,
+)
 
 
 class GlidesConverter(ABC):
@@ -51,7 +55,9 @@ class GlidesConverter(ABC):
         self.base_filename = base_filename
         self.type = self.base_filename.replace(".parquet", "")
         self.local_path = os.path.join(self.tmp_dir, self.base_filename)
-        self.remote_path = f"s3://{os.environ['SPRINGBOARD_BUCKET']}/lamp/GLIDES/{base_filename}"
+        self.remote_path = (
+            f"s3://{S3_SPRINGBOARD}/{LAMP}/GLIDES/{base_filename}"
+        )
 
         self.records: List[Dict] = []
 

@@ -12,7 +12,11 @@ import sqlalchemy as sa
 from lamp_py.ingestion_tm.tm_export import TMExport
 from lamp_py.mssql.mssql_utils import MSSQLManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import RemoteFileLocations, S3Location
+from lamp_py.runtime_utils.remote_files import (
+    S3Location,
+    tm_stop_crossing,
+    tm_daily_work_piece,
+)
 
 from lamp_py.aws.s3 import (
     file_list_from_s3,
@@ -35,7 +39,7 @@ class TMDailyTable(TMExport):
         self.lamp_version = lamp_version
         self.version_key = "lamp_version"
         self.s3_version_path = os.path.join(
-            self.s3_location.get_s3_path(),
+            self.s3_location.s3_uri,
             self.version_key,
         )
 
@@ -77,7 +81,7 @@ class TMDailyTable(TMExport):
         :return [120240101, 120240102]
         """
         s3_files = file_list_from_s3(
-            self.s3_location.bucket_name, self.s3_location.file_prefix
+            self.s3_location.bucket, self.s3_location.prefix
         )
 
         def date_match(s: str) -> Optional[int]:
@@ -102,8 +106,8 @@ class TMDailyTable(TMExport):
         tm_dates = self.dates_from_tm(tm_db)
 
         version_file = file_list_from_s3(
-            self.s3_location.bucket_name,
-            os.path.join(self.s3_location.file_prefix, self.version_key),
+            self.s3_location.bucket,
+            os.path.join(self.s3_location.prefix, self.version_key),
         )
         if len(version_file) == 1:
             s3_version = object_metadata(self.s3_version_path).get(
@@ -143,7 +147,7 @@ class TMDailyTable(TMExport):
                 )
 
                 s3_export_path = os.path.join(
-                    self.s3_location.get_s3_path(),
+                    self.s3_location.s3_uri,
                     f"{date}.parquet",
                 )
 
@@ -173,7 +177,7 @@ class TMDailyLogStopCrossing(TMDailyTable):
     def __init__(self) -> None:
         TMDailyTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_stop_crossing,
+            s3_location=tm_stop_crossing,
             tm_table="TMDailyLog.dbo.STOP_CROSSING",
             lamp_version="0.0.1",
         )
@@ -218,7 +222,7 @@ class TMDailyLogDailyWorkPiece(TMDailyTable):
     def __init__(self) -> None:
         TMDailyTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_daily_work_piece,
+            s3_location=tm_daily_work_piece,
             tm_table="TMDailyLog.dbo.DAILY_WORK_PIECE",
             lamp_version="0.0.1",
         )

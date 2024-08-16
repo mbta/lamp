@@ -46,10 +46,15 @@ from lamp_py.ingestion.converter import ConfigType, Converter
 from lamp_py.ingestion.error import NoImplException
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
 from lamp_py.ingestion.utils import (
-    DEFAULT_S3_PREFIX,
     GTFS_RT_HASH_COL,
     hash_gtfs_rt_table,
     hash_gtfs_rt_parquet,
+)
+from lamp_py.runtime_utils.remote_files import (
+    LAMP,
+    S3_SPRINGBOARD,
+    S3_ERROR,
+    S3_ARCHIVE,
 )
 
 
@@ -366,7 +371,7 @@ class GtfsRtConverter(Converter):
         os.makedirs(local_folder, exist_ok=True)
 
         s3_files = file_list_from_s3(
-            os.environ["SPRINGBOARD_BUCKET"],
+            S3_SPRINGBOARD,
             file_prefix=local_path.replace(f"{self.tmp_folder}/", ""),
         )
         if len(s3_files) == 1:
@@ -472,9 +477,7 @@ class GtfsRtConverter(Converter):
             os.replace(hash_pq_path, local_path)
             upload_file(
                 upload_path,
-                local_path.replace(
-                    self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
-                ),
+                local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
 
         logger.log_complete()
@@ -492,7 +495,7 @@ class GtfsRtConverter(Converter):
 
             local_path = os.path.join(
                 self.tmp_folder,
-                DEFAULT_S3_PREFIX,
+                LAMP,
                 str(self.config_type),
                 f"year={partition_dt.year}",
                 f"month={partition_dt.month}",
@@ -506,9 +509,7 @@ class GtfsRtConverter(Converter):
 
             self.write_local_pq(table, local_path)
             self.send_metadata(
-                local_path.replace(
-                    self.tmp_folder, os.environ["SPRINGBOARD_BUCKET"]
-                )
+                local_path.replace(self.tmp_folder, S3_SPRINGBOARD)
             )
 
             log.log_complete()
@@ -517,7 +518,7 @@ class GtfsRtConverter(Converter):
             shutil.rmtree(
                 os.path.join(
                     self.tmp_folder,
-                    DEFAULT_S3_PREFIX,
+                    LAMP,
                     str(self.config_type),
                 ),
                 ignore_errors=True,
@@ -533,7 +534,7 @@ class GtfsRtConverter(Converter):
         days_to_keep = 2
         root_folder = os.path.join(
             self.tmp_folder,
-            DEFAULT_S3_PREFIX,
+            LAMP,
             str(self.config_type),
         )
         paths = {}
@@ -557,11 +558,11 @@ class GtfsRtConverter(Converter):
         if len(self.error_files) > 0:
             self.error_files = move_s3_objects(
                 self.error_files,
-                os.path.join(os.environ["ERROR_BUCKET"], DEFAULT_S3_PREFIX),
+                os.path.join(S3_ERROR, LAMP),
             )
 
         if len(self.archive_files) > 0:
             self.archive_files = move_s3_objects(
                 self.archive_files,
-                os.path.join(os.environ["ARCHIVE_BUCKET"], DEFAULT_S3_PREFIX),
+                os.path.join(S3_ARCHIVE, LAMP),
             )

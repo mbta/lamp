@@ -17,8 +17,7 @@ import pyarrow.dataset as pd
 
 from .test_resources import (
     LocalS3Location,
-    LocalFileLocaions,
-    get_local_gtfs_parquet_files,
+    compressed_gtfs,
 )
 
 
@@ -75,13 +74,8 @@ def fixture_remote_file_locations_patch(
     )
 
     monkeypatch.setattr(
-        "lamp_py.runtime_utils.remote_files.RemoteFileLocations",
-        LocalFileLocaions,
-    )
-
-    monkeypatch.setattr(
-        "lamp_py.runtime_utils.remote_files.get_gtfs_parquet_file",
-        get_local_gtfs_parquet_files,
+        "lamp_py.bus_performance_manager.gtfs_utils.compressed_gtfs",
+        compressed_gtfs,
     )
 
     yield

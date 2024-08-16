@@ -20,7 +20,6 @@ import polars as pl
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-DEFAULT_S3_PREFIX = "lamp"
 GTFS_RT_HASH_COL = "lamp_record_hash"
 
 

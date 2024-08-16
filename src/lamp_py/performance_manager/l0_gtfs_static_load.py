@@ -1,4 +1,3 @@
-import os
 import pathlib
 from dataclasses import dataclass
 from typing import List, Optional, Dict
@@ -27,6 +26,7 @@ from lamp_py.postgres.postgres_utils import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.infinite_wait import infinite_wait
+from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD
 
 from .gtfs_utils import start_time_to_seconds
 
@@ -291,10 +291,9 @@ def get_static_parquet_paths(table_type: str, feed_info_path: str) -> List[str]:
     """
     get static table parquet files from FEED_INFO path
     """
-    springboard_bucket = os.environ["SPRINGBOARD_BUCKET"]
     static_prefix = feed_info_path.replace("FEED_INFO", table_type)
-    static_prefix = static_prefix.replace(f"{springboard_bucket}/", "")
-    return file_list_from_s3(springboard_bucket, static_prefix)
+    static_prefix = static_prefix.replace(f"{S3_SPRINGBOARD}/", "")
+    return file_list_from_s3(S3_SPRINGBOARD, static_prefix)
 
 
 def load_parquet_files(
