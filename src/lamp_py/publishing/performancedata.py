@@ -11,7 +11,7 @@ def publish_performance_index() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     index_file = "index.html"
 
-    if S3_PUBLIC == "":
+    if "unset" in S3_PUBLIC:
         return
 
     local_index_path = os.path.join(here, index_file)

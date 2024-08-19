@@ -3,15 +3,16 @@ from dataclasses import dataclass
 from typing import Union
 
 # bucket constants
-S3_SPRINGBOARD: str = os.environ.get("SPRINGBOARD_BUCKET", "")
-S3_PUBLIC: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
-S3_INCOMING: str = os.environ.get("INCOMING_BUCKET", "")
-S3_ARCHIVE: str = os.environ.get("ARCHIVE_BUCKET", "")
-S3_ERROR: str = os.environ.get("ERROR_BUCKET", "")
+S3_SPRINGBOARD: str = os.environ.get("SPRINGBOARD_BUCKET", "unset_SPRINGBOARD")
+S3_PUBLIC: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "unset_PUBLIC")
+S3_INCOMING: str = os.environ.get("INCOMING_BUCKET", "unset_INCOMING")
+S3_ARCHIVE: str = os.environ.get("ARCHIVE_BUCKET", "unset_ARCHIVE")
+S3_ERROR: str = os.environ.get("ERROR_BUCKET", "unset_ERROR")
 
 # prefix constants
 LAMP = "lamp"
 TM = os.path.join(LAMP, "TM")
+TABLEAU = os.path.join(LAMP, "tableau")
 
 
 @dataclass
@@ -101,10 +102,17 @@ tm_work_piece_file = S3Location(
     prefix=os.path.join(TM, "TMMAIN_WORK_PIECE.parquet"),
 )
 
-# bus events published by LAMP
+# published by LAMP
 bus_events = S3Location(
     bucket=S3_PUBLIC,
     prefix=os.path.join(LAMP, "bus_vehicle_events"),
+)
+public_alerts_file = S3Location(
+    bucket=S3_PUBLIC,
+    prefix=os.path.join(TABLEAU, "alerts", "LAMP_RT_ALERTS.parquet"),
+)
+tableau_rail = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "rail")
 )
 
 
