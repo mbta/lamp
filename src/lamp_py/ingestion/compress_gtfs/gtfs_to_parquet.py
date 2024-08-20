@@ -20,10 +20,7 @@ from lamp_py.ingestion.compress_gtfs.schedule_details import (
 )
 from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
 from lamp_py.aws.s3 import upload_file
-from lamp_py.runtime_utils.remote_files import (
-    S3_PUBLIC,
-    compressed_gtfs,
-)
+from lamp_py.runtime_utils.remote_files import compressed_gtfs
 
 
 def frame_parquet_diffs(
@@ -297,7 +294,7 @@ def gtfs_to_parquet() -> None:
     maximum process memory usage for this operation peaked at 5440MB
     while processing Feb-2018 to April-2024
     """
-    gtfs_tmp_folder = compressed_gtfs.s3_uri.replace(S3_PUBLIC, "/tmp")
+    gtfs_tmp_folder = os.path.join("/tmp", compressed_gtfs.prefix)
     logger = ProcessLogger(
         "compress_gtfs_schedules", gtfs_tmp_folder=gtfs_tmp_folder
     )
