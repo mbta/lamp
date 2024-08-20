@@ -20,6 +20,7 @@ from lamp_py.aws.s3 import (
 from lamp_py.postgres.metadata_schema import MetadataLog
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import public_alerts_file
 
 from .gtfs_utils import BOSTON_TZ
 
@@ -27,10 +28,7 @@ from .gtfs_utils import BOSTON_TZ
 class AlertsS3Info:
     """S3 Constant info for Alerts Parquet File"""
 
-    bucket_name: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
-    s3_path: str = "s3://" + os.path.join(
-        bucket_name, "lamp", "tableau", "alerts", "LAMP_RT_ALERTS.parquet"
-    )
+    s3_path: str = public_alerts_file.s3_uri
     version_key: str = "lamp_version"
     file_version: str = "1.1.0"
 

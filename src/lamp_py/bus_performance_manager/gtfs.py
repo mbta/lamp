@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from lamp_py.runtime_utils.remote_files import RemoteFileLocations
+from lamp_py.runtime_utils.remote_files import compressed_gtfs
 from lamp_py.aws.s3 import file_list_from_s3, download_file
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -37,10 +37,8 @@ def sync_gtfs_files(service_date: date) -> None:
     os.makedirs(gtfs_date_folder, exist_ok=True)
 
     s3_objects = file_list_from_s3(
-        bucket_name=RemoteFileLocations.compressed_gtfs.bucket_name,
-        file_prefix=os.path.join(
-            RemoteFileLocations.compressed_gtfs.file_prefix, str(gtfs_year)
-        ),
+        bucket_name=compressed_gtfs.bucket,
+        file_prefix=os.path.join(compressed_gtfs.prefix, str(gtfs_year)),
     )
 
     # check previous calendar year for s3_files, if none for current year
@@ -50,10 +48,8 @@ def sync_gtfs_files(service_date: date) -> None:
         gtfs_year -= 1
 
         s3_objects = file_list_from_s3(
-            bucket_name=RemoteFileLocations.compressed_gtfs.bucket_name,
-            file_prefix=os.path.join(
-                RemoteFileLocations.compressed_gtfs.file_prefix, str(gtfs_year)
-            ),
+            bucket_name=compressed_gtfs.bucket,
+            file_prefix=os.path.join(compressed_gtfs.prefix, str(gtfs_year)),
         )
 
         if len(s3_objects) == 0:

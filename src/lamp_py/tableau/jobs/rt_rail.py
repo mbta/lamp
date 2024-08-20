@@ -11,6 +11,7 @@ from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import tableau_rail
 
 
 class HyperRtRail(HyperJob):
@@ -20,7 +21,7 @@ class HyperRtRail(HyperJob):
         HyperJob.__init__(
             self,
             hyper_file_name="LAMP_ALL_RT_fields.hyper",
-            remote_parquet_path=f"s3://{os.getenv('PUBLIC_ARCHIVE_BUCKET')}/lamp/tableau/rail/LAMP_ALL_RT_fields.parquet",
+            remote_parquet_path=f"{tableau_rail.s3_uri}/LAMP_ALL_RT_fields.parquet",
             lamp_version="1.1.4",
         )
         self.table_query = (

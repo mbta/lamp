@@ -11,7 +11,7 @@ from lamp_py.bus_performance_manager.gtfs_rt_ingestion import (
     generate_gtfs_rt_events,
 )
 
-from ..test_resources import LocalFileLocaions
+from ..test_resources import rt_vehicle_positions as s3_vp
 
 
 def get_service_date_and_files() -> Tuple[date, List[str]]:
@@ -24,7 +24,7 @@ def get_service_date_and_files() -> Tuple[date, List[str]]:
     only have rail performance test data.
     """
     vp_files = []
-    vp_dir = LocalFileLocaions.vehicle_positions.get_s3_path()
+    vp_dir = s3_vp.s3_uri
     assert os.path.exists(vp_dir)
 
     for root, _, files in os.walk(vp_dir):

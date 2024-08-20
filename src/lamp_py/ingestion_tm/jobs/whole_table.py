@@ -7,7 +7,18 @@ import sqlalchemy as sa
 from lamp_py.ingestion_tm.tm_export import TMExport
 from lamp_py.mssql.mssql_utils import MSSQLManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import S3Location, RemoteFileLocations
+from lamp_py.runtime_utils.remote_files import (
+    S3Location,
+    tm_geo_node_file,
+    tm_trip_file,
+    tm_route_file,
+    tm_vehicle_file,
+    tm_operator_file,
+    tm_run_file,
+    tm_block_file,
+    tm_work_piece_file,
+    tm_daily_sched_adherence_waiver_file,
+)
 from lamp_py.aws.s3 import upload_file
 
 
@@ -40,7 +51,7 @@ class TMWholeTable(TMExport):
                 logger.add_metadata(
                     pq_export_bytes=os.stat(local_export_path).st_size
                 )
-                upload_file(local_export_path, self.s3_location.get_s3_path())
+                upload_file(local_export_path, self.s3_location.s3_uri)
                 logger.log_complete()
 
         except Exception as exception:
@@ -53,7 +64,7 @@ class TMMainGeoNode(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_geo_node_file,
+            s3_location=tm_geo_node_file,
             tm_table="TMMain.dbo.GEO_NODE",
         )
 
@@ -101,7 +112,7 @@ class TMMainTrip(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_trip_file,
+            s3_location=tm_trip_file,
             tm_table="TMMain.dbo.TRIP",
         )
 
@@ -136,7 +147,7 @@ class TMMainRoute(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_route_file,
+            s3_location=tm_route_file,
             tm_table="TMMain.dbo.ROUTE",
         )
 
@@ -162,7 +173,7 @@ class TMMainVehicle(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_vehicle_file,
+            s3_location=tm_vehicle_file,
             tm_table="TMMain.dbo.VEHICLE",
         )
 
@@ -217,7 +228,7 @@ class TMMainOperator(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_operator_file,
+            s3_location=tm_operator_file,
             tm_table="TMMain.dbo.OPERATOR",
         )
 
@@ -247,7 +258,7 @@ class TMMainRun(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_run_file,
+            s3_location=tm_run_file,
             tm_table="TMMain.dbo.RUN",
         )
 
@@ -274,7 +285,7 @@ class TMMainBlock(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_block_file,
+            s3_location=tm_block_file,
             tm_table="TMMain.dbo.BLOCK",
         )
 
@@ -307,7 +318,7 @@ class TMMainWorkPiece(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_work_piece_file,
+            s3_location=tm_work_piece_file,
             tm_table="TMMain.dbo.WORK_PIECE",
         )
 
@@ -338,7 +349,7 @@ class TMDailyLogDailySchedAdhereWaiver(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=RemoteFileLocations.tm_daily_sched_adherence_waiver_file,
+            s3_location=tm_daily_sched_adherence_waiver_file,
             tm_table="TMDailyLog.dbo.SCHED_ADHERE_WAIVER",
         )
 

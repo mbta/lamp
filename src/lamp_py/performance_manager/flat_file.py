@@ -28,6 +28,10 @@ from lamp_py.postgres.rail_performance_manager_schema import (
 )
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import (
+    LAMP,
+    S3_PUBLIC,
+)
 
 
 class S3Archive:
@@ -35,9 +39,9 @@ class S3Archive:
     Class for holding constant information about the public archive s3 bucket
     """
 
-    BUCKET_NAME = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "")
+    BUCKET_NAME = S3_PUBLIC
     RAIL_PERFORMANCE_PREFIX = os.path.join(
-        "lamp", "subway-on-time-performance-v1"
+        LAMP, "subway-on-time-performance-v1"
     )
     INDEX_FILENAME = "index.csv"
     VERSION_KEY = "rpm_version"

@@ -21,10 +21,7 @@ from lamp_py.aws.s3 import (
     file_list_from_s3,
     download_file,
 )
-
-GTFS_PATH = os.path.join(
-    str(os.getenv("PUBLIC_ARCHIVE_BUCKET")), "lamp/gtfs_archive"
-)
+from lamp_py.runtime_utils.remote_files import compressed_gtfs
 
 
 # pylint: disable=R0902
@@ -224,14 +221,15 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
 
         pq_fi_path = os.path.join(tmp_folder, year, "feed_info.parquet")
         if not os.path.exists(pq_fi_path):
-            bucket, prefix = GTFS_PATH.split("/", 1)
-            prefix = os.path.join(prefix, year)
-            s3_files = file_list_from_s3(bucket, prefix)
+            prefix = os.path.join(compressed_gtfs.prefix, year)
+            s3_files = file_list_from_s3(compressed_gtfs.bucket, prefix)
             if len(s3_files) > 1:
                 for obj_path in s3_files:
                     if not obj_path.endswith(".parquet"):
                         continue
-                    local_path = obj_path.replace(f"s3://{bucket}", "/tmp")
+                    local_path = obj_path.replace(
+                        f"s3://{compressed_gtfs.bucket}", "/tmp"
+                    )
                     download_file(obj_path, local_path)
             else:
                 continue
