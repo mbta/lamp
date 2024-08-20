@@ -1,7 +1,7 @@
 import os
-from _pytest.monkeypatch import MonkeyPatch
 from datetime import datetime
 
+from _pytest.monkeypatch import MonkeyPatch
 import polars as pl
 
 from lamp_py.bus_performance_manager.tm_ingestion import generate_tm_events
@@ -10,6 +10,9 @@ from ..test_resources import LocalFileLocaions
 
 
 def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
+    """
+    run tests on each file in the test files tm stop crossings directory
+    """
     monkeypatch.setattr(
         "lamp_py.bus_performance_manager.tm_ingestion.RemoteFileLocations",
         LocalFileLocaions,
@@ -23,9 +26,13 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
 
 
 def check_stop_crossings(stop_crossings_filepath: str) -> None:
+    """
+    run checks on the dataframes produced by running generate_tm_events on
+    transit master stop crossing files.
+    """
     # Remove the .parquet extension and get the date
     filename = os.path.basename(stop_crossings_filepath)
-    date_str = filename.replace( ".parquet", "")[1:]
+    date_str = filename.replace(".parquet", "")[1:]
     service_date = datetime.strptime(date_str, "%Y%m%d").date()
 
     # this is the df of all useful records from the stop crossings files
