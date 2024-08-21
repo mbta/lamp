@@ -6,7 +6,13 @@ import polars as pl
 
 from lamp_py.bus_performance_manager.tm_ingestion import generate_tm_events
 
-from ..test_resources import LocalFileLocaions
+from ..test_resources import (
+    tm_geo_node_file,
+    tm_route_file,
+    tm_trip_file,
+    tm_vehicle_file,
+    tm_stop_crossings,
+)
 
 
 def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
@@ -14,11 +20,24 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     run tests on each file in the test files tm stop crossings directory
     """
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.tm_ingestion.RemoteFileLocations",
-        LocalFileLocaions,
+        "lamp_py.bus_performance_manager.tm_ingestion.tm_geo_node_file",
+        tm_geo_node_file,
+    )
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.tm_ingestion.tm_route_file",
+        tm_route_file,
+    )
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.tm_ingestion.tm_trip_file",
+        tm_trip_file,
+    )
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.tm_ingestion.tm_vehicle_file",
+        tm_vehicle_file,
     )
 
-    tm_sc_dir = LocalFileLocaions.tm_stop_crossing.get_s3_path()
+    tm_sc_dir = tm_stop_crossings.s3_uri
+    print(tm_sc_dir)
     assert os.path.exists(tm_sc_dir)
 
     for filename in os.listdir(tm_sc_dir):
