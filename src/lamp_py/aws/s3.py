@@ -196,9 +196,11 @@ def object_exists(obj: str) -> bool:
     """
     check if s3 object exists
 
+    will raise on any error other than "NoSuchKey"
+
     :param obj - expected as 's3://my_bucket/object' or 'my_bucket/object'
 
-    :return: True is object exists, otherwise false
+    :return: True if object exists, otherwise false
     """
     try:
         s3_client = get_s3_client()
@@ -209,17 +211,13 @@ def object_exists(obj: str) -> bool:
         # split into bucket and object name
         bucket, obj = obj.split("/", 1)
 
-        s3_client.head_object(
-            Bucket=bucket,
-            Key=obj,
-        )
+        s3_client.head_object(Bucket=bucket, Key=obj)
         return True
 
     except botocore.exceptions.ClientError as exception:
         if exception.response["Error"]["Code"] == "404":
             return False
-
-    return False
+        raise exception
 
 
 def version_check(obj: str, version: str) -> bool:
