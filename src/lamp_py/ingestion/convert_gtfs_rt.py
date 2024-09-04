@@ -44,6 +44,7 @@ from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
 from lamp_py.ingestion.converter import ConfigType, Converter
 from lamp_py.ingestion.error import NoImplException
+from lamp_py.ingestion.error import IgnoreIngestion
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
 from lamp_py.ingestion.utils import (
     GTFS_RT_HASH_COL,
@@ -102,6 +103,8 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
+        elif config_type == ConfigType.LIGHT_RAIL:
+            raise IgnoreIngestion("Ignore LIGHT_RAIL files")
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 

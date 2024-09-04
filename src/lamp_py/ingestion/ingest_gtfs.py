@@ -22,6 +22,7 @@ from lamp_py.ingestion.converter import (
 from lamp_py.ingestion.error import (
     ConfigTypeFromFilenameException,
     NoImplException,
+    IgnoreIngestion,
 )
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING
 from lamp_py.ingestion.utils import group_sort_file_list
@@ -98,6 +99,8 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
                         config_type, metadata_queue
                     )
                 converters[config_type].add_files(file_group)
+            except IgnoreIngestion:
+                continue
             except (ConfigTypeFromFilenameException, NoImplException):
                 error_files += file_group
 

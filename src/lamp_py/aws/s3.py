@@ -17,6 +17,8 @@ from typing import (
 )
 
 import boto3
+import botocore
+import botocore.exceptions
 import pandas
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
@@ -177,7 +179,6 @@ def object_metadata(obj: str) -> Dict[str, str]:
         # split into bucket and object name
         bucket, obj = obj.split("/", 1)
 
-        # delete the source object
         object_head = s3_client.head_object(
             Bucket=bucket,
             Key=obj,
@@ -189,6 +190,34 @@ def object_metadata(obj: str) -> Dict[str, str]:
     except Exception as error:
         process_logger.log_failure(error)
         raise error
+
+
+def object_exists(obj: str) -> bool:
+    """
+    check if s3 object exists
+
+    will raise on any error other than "NoSuchKey"
+
+    :param obj - expected as 's3://my_bucket/object' or 'my_bucket/object'
+
+    :return: True if object exists, otherwise false
+    """
+    try:
+        s3_client = get_s3_client()
+
+        # trim off leading s3://
+        obj = obj.replace("s3://", "")
+
+        # split into bucket and object name
+        bucket, obj = obj.split("/", 1)
+
+        s3_client.head_object(Bucket=bucket, Key=obj)
+        return True
+
+    except botocore.exceptions.ClientError as exception:
+        if exception.response["Error"]["Code"] == "404":
+            return False
+        raise exception
 
 
 def version_check(obj: str, version: str) -> bool:

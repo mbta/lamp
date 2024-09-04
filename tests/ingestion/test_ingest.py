@@ -8,6 +8,7 @@ import pytest
 
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.error import NoImplException
+from lamp_py.ingestion.error import IgnoreIngestion
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
 
@@ -32,7 +33,6 @@ def test_each_config_type() -> None:
 
     bad_config_types = [
         ConfigType.VEHICLE_COUNT,
-        ConfigType.LIGHT_RAIL,
         ConfigType.ERROR,
         ConfigType.SCHEDULE,
     ]
@@ -40,3 +40,6 @@ def test_each_config_type() -> None:
     for config_type in bad_config_types:
         with pytest.raises(NoImplException):
             converter = GtfsRtConverter(config_type, Queue())
+
+    with pytest.raises(IgnoreIngestion):
+        converter = GtfsRtConverter(ConfigType.LIGHT_RAIL, Queue())
