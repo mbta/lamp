@@ -16,8 +16,7 @@ from lamp_py.aws.s3 import (
     object_exists,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-
-from lamp_py.ingestion.utils import DEFAULT_S3_PREFIX
+from lamp_py.runtime_utils.remote_files import LAMP
 
 raw_gps_schema = pl.Schema(
     {
@@ -168,7 +167,7 @@ def write_parquet(dataframe: pl.DataFrame) -> None:
 
         remote_obj = os.path.join(
             os.environ["PUBLIC_ARCHIVE_BUCKET"],
-            DEFAULT_S3_PREFIX,
+            LAMP,
             "light_rail_gps",
             f"year={date.year}",
             f"{date.isoformat()}.parquet",
@@ -204,7 +203,7 @@ def ingest_light_rail_gps() -> None:
     try:
         s3_files = file_list_from_s3(
             bucket_name=os.environ["INCOMING_BUCKET"],
-            file_prefix=DEFAULT_S3_PREFIX,
+            file_prefix=LAMP,
             max_list_size=5_000,
         )
 
