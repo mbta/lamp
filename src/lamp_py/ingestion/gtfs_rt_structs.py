@@ -22,6 +22,7 @@ trip_descriptor = pyarrow.struct(
         ("tm_trip_id", pyarrow.string()),  # Only used by Busloc
         ("overload_id", pyarrow.int64()),  # Only used by Busloc
         ("overload_offset", pyarrow.int64()),  # Only used by Busloc
+        ("revenue", pyarrow.bool_()),
     ]
 )
 
