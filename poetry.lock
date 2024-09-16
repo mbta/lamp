@@ -1553,17 +1553,17 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "polars"
-version = "1.3.0"
+version = "1.7.1"
 description = "Blazingly fast DataFrame library"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "polars-1.3.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:85a338b8f617fdf5e5472567d32efeb46e6624a604c45622cc96669324f82961"},
-    {file = "polars-1.3.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:5859a11d1c8ec14089127043d8d6bae01f015021113ed01a2e4953e6c21feee5"},
-    {file = "polars-1.3.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9a1ff7779315e6b0d17641af3eb4dd7aec2ab0bc1bee009efb12242bf6403aeb"},
-    {file = "polars-1.3.0-cp38-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:e675269c17a83484c74165989d93572785d4298019f4f8ca65e25a49d4440236"},
-    {file = "polars-1.3.0-cp38-abi3-win_amd64.whl", hash = "sha256:75cbbccc4a55a8ae8c5ea8b9daa8747aee5d182c2bba7c712496f32a8096562d"},
-    {file = "polars-1.3.0.tar.gz", hash = "sha256:c7812d6c72ffdc9e70aaa8f9aa6378db80b393e7ecbe7005ad84b150c17c71cb"},
+    {file = "polars-1.7.1-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:589c1b5a9b5167f3c49713212cbeccc39e3a0e12577e21331c50dbf7178e32ed"},
+    {file = "polars-1.7.1-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:c955cca9d109ed5d79f4498915ec80590aa2e4619bc40bafbbeb5a160fcb166e"},
+    {file = "polars-1.7.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5cd675e4a306b2da57a1b688e65382aaa9e992dd7156b485fbd7f39892a3d784"},
+    {file = "polars-1.7.1-cp38-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:45c255749b49bee244d10baeb69057580a0a397125b014bc8854b73ba5bdf45e"},
+    {file = "polars-1.7.1-cp38-abi3-win_amd64.whl", hash = "sha256:a9004a907fc8e923dda27879f7e6eea8e06a753e160d08e606c8b9b5f914f911"},
+    {file = "polars-1.7.1.tar.gz", hash = "sha256:3323bf6b3f1cf55212ddd35f044af8a1aa02033bca17d06f3852325e0da93a80"},
 ]
 
 [package.extras]
@@ -1583,7 +1583,7 @@ iceberg = ["pyiceberg (>=0.5.0)"]
 numpy = ["numpy (>=1.16.0)"]
 openpyxl = ["openpyxl (>=3.0.0)"]
 pandas = ["pandas", "polars[pyarrow]"]
-plot = ["hvplot (>=0.9.1)", "polars[pandas]"]
+plot = ["altair (>=5.4.0)"]
 pyarrow = ["pyarrow (>=7.0.0)"]
 pydantic = ["pydantic"]
 sqlalchemy = ["polars[pandas]", "sqlalchemy"]
@@ -2414,4 +2414,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "ce04479359233a98ccde023bdabf5f3cc99069946afb8a0590710c41f9e4f329"
+content-hash = "8a021eab706b2dc88d71fe349dcdfc5d947c560a78033e3dce6e2abb2dfcada9"
