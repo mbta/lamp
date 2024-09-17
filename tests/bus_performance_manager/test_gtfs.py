@@ -34,9 +34,12 @@ def mock_file_download(object_path: str, file_name: str) -> bool:
     return True
 
 
-@mock.patch("lamp_py.bus_performance_manager.events_gtfs_schedule.file_list_from_s3")
 @mock.patch(
-    "lamp_py.bus_performance_manager.events_gtfs_schedule.download_file", new=mock_file_download
+    "lamp_py.bus_performance_manager.events_gtfs_schedule.file_list_from_s3"
+)
+@mock.patch(
+    "lamp_py.bus_performance_manager.events_gtfs_schedule.download_file",
+    new=mock_file_download,
 )
 def test_gtfs_events_for_date(s3_patch: mock.MagicMock) -> None:
     """
