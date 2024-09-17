@@ -19,7 +19,7 @@ from lamp_py.runtime_utils.remote_files import (
 
 def get_new_event_files() -> List[Dict[str, date | List[str]]]:
     """
-    Generate a dataframe that contains a record for every service date to be
+    Generate a list of dictionaries that contains a record for every service date to be
     processed.
     * Collect all of the potential input filepaths, their last modified
         timestamp, and potential service dates.

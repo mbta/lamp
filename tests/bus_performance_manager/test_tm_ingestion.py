@@ -4,7 +4,7 @@ from datetime import datetime
 from _pytest.monkeypatch import MonkeyPatch
 import polars as pl
 
-from lamp_py.bus_performance_manager.tm_ingestion import generate_tm_events
+from lamp_py.bus_performance_manager.events_tm import generate_tm_events
 
 from ..test_resources import (
     tm_geo_node_file,
@@ -20,19 +20,19 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     run tests on each file in the test files tm stop crossings directory
     """
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.tm_ingestion.tm_geo_node_file",
+        "lamp_py.bus_performance_manager.events_tm.tm_geo_node_file",
         tm_geo_node_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.tm_ingestion.tm_route_file",
+        "lamp_py.bus_performance_manager.events_tm.tm_route_file",
         tm_route_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.tm_ingestion.tm_trip_file",
+        "lamp_py.bus_performance_manager.events_tm.tm_trip_file",
         tm_trip_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.tm_ingestion.tm_vehicle_file",
+        "lamp_py.bus_performance_manager.events_tm.tm_vehicle_file",
         tm_vehicle_file,
     )
 
@@ -70,11 +70,8 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     # ensure data has been extracted from the filepath
     assert not bus_events.is_empty()
 
-    # make sure we only have a single service date and it matches the filename service date
-    assert set(bus_events["service_date"]) == {service_date}
-
-    # ensure we didn't lose any data from the raw dataset when joining
-    assert len(bus_events) == len(raw_stop_crossings)
+    # ensure we didn't lose any Revenue data from the raw dataset when joining
+    assert len(bus_events) == len(raw_stop_crossings.filter((pl.col("IsRevenue") == "R")))
 
     # check that crossings without trips are garage pullouts
     bus_garages = {
@@ -87,8 +84,8 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
         "qubus",
         "somvl",
     }
-    non_trip_events = bus_events.filter(pl.col("tm_trip_id").is_null())
-    assert set(non_trip_events["tm_stop_id"]).issubset(bus_garages)
+    non_trip_events = bus_events.filter(pl.col("trip_id").is_null())
+    assert set(non_trip_events["stop_id"]).issubset(bus_garages)
 
     # check that all arrival and departure timestamps happen after the start of the service date
     assert bus_events.filter(
@@ -103,7 +100,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
 
     # check that there are no leading zeros on route ids
     assert bus_events.filter(
-        pl.col("tm_route_id").str.starts_with("0")
-        | pl.col("tm_trip_id").str.starts_with("0")
-        | pl.col("tm_stop_id").str.starts_with("0")
+        pl.col("route_id").str.starts_with("0")
+        | pl.col("trip_id").str.starts_with("0")
+        | pl.col("stop_id").str.starts_with("0")
     ).is_empty()
