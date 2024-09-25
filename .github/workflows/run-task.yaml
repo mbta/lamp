@@ -7,14 +7,12 @@ on:
         description: Environment
         type: choice
         options:
-          - dev
           - staging
           - prod
       task:
         description: Task
         type: choice
         options:
-          - Ad-Hoc Runner
           - Tableau Publisher
           - Transit Master Ingestion
 
@@ -33,8 +31,6 @@ jobs:
             echo "task_name=tableau-publisher" >> $GITHUB_ENV
           elif [ "${{ github.event.inputs.task }}" == "Transit Master Ingestion" ]; then
             echo "task_name=tm-ingestion" >> $GITHUB_ENV
-          elif [ "${{ github.event.inputs.task }}" == "Ad-Hoc Runner" ]; then
-            echo "task_name=ad-hoc" >> $GITHUB_ENV
           fi
       - name: Run Task Action
         uses: ./.github/actions/run_task

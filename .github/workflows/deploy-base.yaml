@@ -37,6 +37,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy-ad-hoc:
+        description: Should the Ad-Hoc Runner be Deployed
+        required: false
+        default: false
+        type: boolean
     secrets:
       DOCKER_REPO:
         description: ECR Docker repo to push to
@@ -127,6 +132,16 @@ jobs:
           ecs-cluster: lamp
           ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
           ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy Ad-Hoc Process
+        id: deploy-ad-hoc
+        if: ${{ inputs.deploy-ad-hoc }}
+        uses: mbta/actions/deploy-scheduled-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-ad-hoc-${{ inputs.environment }}
+          ecs-task-definition: lamp-ad-hoc-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - uses: mbta/actions/notify-slack-deploy@v2
         if: ${{ !cancelled() }}
