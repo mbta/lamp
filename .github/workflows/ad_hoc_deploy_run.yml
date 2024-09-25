@@ -1,5 +1,4 @@
 name: Ad-Hoc Deploy & Run
-description: Deploy and Run Ad-Hoc process on LAMP environment (be careful!). 
 
 on:
   workflow_dispatch:
@@ -36,4 +35,3 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           environment: ${{ github.event.inputs.environment }}
           task_name: 'ad-hoc'
-
