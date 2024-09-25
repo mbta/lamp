@@ -11,10 +11,10 @@ set -e -u
 # - ENVIRONMENT
 
 # Get the VPC ID based on the VPC name
-if [ "$ENVIRONMENT" == "staging" ]; then
+if [ "$ENVIRONMENT" == "staging" ] || [ "$ENVIRONMENT" == "dev" ]; then
     VPC_NAME="vpc-dev-ctd-itd"
 elif [ "$ENVIRONMENT" == "prod" ]; then
-    VPC_NAME="vpc-prod-ctd-itd"A
+    VPC_NAME="vpc-prod-ctd-itd"
 else
     echo "Invalid environment: $ENVIRONMENT"
     exit 1

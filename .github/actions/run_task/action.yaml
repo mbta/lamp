@@ -10,7 +10,7 @@ inputs:
     required: true
     default: us-east-1
   environment:
-    description: prod or staging
+    description: LAMP environment
     required: true
   task_name:
     description: name of the task to run in kebab case
