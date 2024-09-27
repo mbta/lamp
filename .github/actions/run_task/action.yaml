@@ -1,5 +1,5 @@
-name: Run LAMP ECS Task in Environment
-description: Run an existing task in the LAMP ECS Cluster
+name: Manually Run ECS Task
+description: Run an existing task in an existing AWS Service and Cluster
 
 inputs:
   role-to-assume:
@@ -9,26 +9,25 @@ inputs:
     description: AWS region to use
     required: true
     default: us-east-1
-  environment:
-    description: LAMP environment
+  cluster:
+    description: ECS Cluster for Service
     required: true
-  task_name:
-    description: name of the task to run in kebab case
+  service:
+    description: ECS Service for task to run
     required: true
 
 runs:
   using: composite
   steps:
     - name: Setup AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ inputs.role-to-assume }}
         aws-region: ${{ inputs.aws-region }}
-    - name: Run ECS Task
-      id: run-ecs
-      run: ${{ github.action_path }}/run_task.sh
+        mask-aws-account-id: true
+    - run: ${{ github.action_path }}/run_task.sh
       shell: bash
       env:
         AWS_REGION: ${{ inputs.aws-region }}
-        TASK_NAME: ${{ inputs.task_name }}
-        ENVIRONMENT: ${{ inputs.environment }}
+        CLUSTER: ${{ inputs.cluster }}
+        SERVICE: ${{ inputs.service }}

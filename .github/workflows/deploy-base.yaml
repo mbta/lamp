@@ -136,13 +136,14 @@ jobs:
       - name: Deploy Ad-Hoc Process
         id: deploy-ad-hoc
         if: ${{ inputs.deploy-ad-hoc }}
-        uses: mbta/actions/deploy-scheduled-ecs@v2
+        uses: mbta/actions/deploy-ecs@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
           ecs-service: lamp-ad-hoc-${{ inputs.environment }}
           ecs-task-definition: lamp-ad-hoc-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+          allow-zero-desired: true
       - uses: mbta/actions/notify-slack-deploy@v2
         if: ${{ !cancelled() }}
         with:

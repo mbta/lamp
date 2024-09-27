@@ -10,18 +10,21 @@ on:
           - dev
           - staging
           - prod
+    secrets:
+      AWS_ROLE_ARN:
+        description: AWS_ROLE_ARN
+        required: true
 
 jobs:
-  deploy:
-    uses: ./.github/workflows/deploy-base.yaml
-    with:
-      # pass the inputs from the workflow dispatch through to the deploy base. the booleans are
-      # converted to strings, so flip them back using fromJson function
-      environment: ${{ github.event.inputs.environment }}
-      deploy-ad-hoc: true
-    secrets: inherit
+  # deploy:
+  #   uses: ./.github/workflows/deploy-base.yaml
+  #   with:
+  #     # pass the inputs from the workflow dispatch through to the deploy base. the booleans are
+  #     # converted to strings, so flip them back using fromJson function
+  #     environment: ${{ github.event.inputs.environment }}
+  #     deploy-ad-hoc: true
+  #   secrets: inherit
   run_ad_hoc_task:
-    needs: deploy
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -29,9 +32,9 @@ jobs:
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v3
-      - name: Run Task Action
+      - name: Run Ad-Hoc Task
         uses: ./.github/actions/run_task
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          environment: ${{ github.event.inputs.environment }}
-          task_name: 'ad-hoc'
+          cluster: 'lamp'
+          service: lamp-ad-hoc-${{ inputs.environment }}

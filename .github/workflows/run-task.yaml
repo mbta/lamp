@@ -27,14 +27,14 @@ jobs:
         uses: actions/checkout@v3
       - name: Generate Task Name
         run: |
-          if [ "${{ github.event.inputs.task }}" == "Tableau Publisher" ]; then
+          if [ "${{ inputs.task }}" == "Tableau Publisher" ]; then
             echo "task_name=tableau-publisher" >> $GITHUB_ENV
-          elif [ "${{ github.event.inputs.task }}" == "Transit Master Ingestion" ]; then
+          elif [ "${{ inputs.task }}" == "Transit Master Ingestion" ]; then
             echo "task_name=tm-ingestion" >> $GITHUB_ENV
           fi
       - name: Run Task Action
         uses: ./.github/actions/run_task
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          environment: ${{ inputs.environment }}
-          task_name: ${{ env.task_name }}
+          cluster: 'lamp'
+          service: lamp-${{ env.task_name }}-${{ inputs.environment }}
