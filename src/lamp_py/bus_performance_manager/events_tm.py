@@ -40,6 +40,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "GEO_NODE_ID",
             "GEO_NODE_ABBR",
         )
+        .filter(pl.col("GEO_NODE_ABBR").is_not_null())
         .unique()
     )
 
@@ -52,6 +53,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "ROUTE_ID",
             "ROUTE_ABBR",
         )
+        .filter(pl.col("ROUTE_ABBR").is_not_null())
         .unique()
     )
 
@@ -63,6 +65,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "TRIP_ID",
             "TRIP_SERIAL_NUMBER",
         )
+        .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null())
         .unique()
     )
 
@@ -74,6 +77,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "VEHICLE_ID",
             "PROPERTY_TAG",
         )
+        .filter(pl.col("PROPERTY_TAG").is_not_null())
         .unique()
     )
 
@@ -87,8 +91,15 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
     tm_stop_crossings = (
         pl.scan_parquet(tm_files)
         .filter(
-            (pl.col("ACT_ARRIVAL_TIME").is_not_null())
-            | (pl.col("ACT_DEPARTURE_TIME").is_not_null())
+            (pl.col("IsRevenue") == "R")
+            & pl.col("ROUTE_ID").is_not_null()
+            & pl.col("GEO_NODE_ID").is_not_null()
+            & pl.col("TRIP_ID").is_not_null()
+            & pl.col("VEHICLE_ID").is_not_null()
+            & (
+                (pl.col("ACT_ARRIVAL_TIME").is_not_null())
+                | (pl.col("ACT_DEPARTURE_TIME").is_not_null())
+            )
         )
         .join(
             tm_geo_nodes,
@@ -124,17 +135,19 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             ),
         )
         .select(
-            pl.col("service_date").cast(pl.Date),
-            pl.col("PROPERTY_TAG").cast(pl.String).alias("tm_vehicle_label"),
             (
                 pl.col("ROUTE_ABBR")
                 .cast(pl.String)
                 .str.strip_chars_start("0")
-                .alias("tm_route_id")
+                .alias("route_id")
             ),
-            pl.col("GEO_NODE_ID").cast(pl.String).alias("tm_geo_node_id"),
-            pl.col("GEO_NODE_ABBR").cast(pl.String).alias("tm_stop_id"),
-            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("tm_trip_id"),
+            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
+            pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
+            pl.col("PATTERN_GEO_NODE_SEQ")
+            .cast(pl.Int64)
+            .alias("tm_stop_sequence"),
+            pl.col("IS_LAYOVER").cast(pl.String).alias("tm_is_layover"),
+            pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
             (
                 (
                     pl.col("service_date")
@@ -158,6 +171,19 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
         .collect()
     )
+
+    if tm_stop_crossings.shape[0] == 0:
+        schema = {
+            "route_id": pl.String,
+            "trip_id": pl.String,
+            "stop_id": pl.String,
+            "tm_stop_sequence": pl.Int64,
+            "tm_is_layover": pl.Boolean,
+            "vehicle_label": pl.String,
+            "tm_arrival_dt": pl.Datetime,
+            "tm_departure_dt": pl.Datetime,
+        }
+        tm_stop_crossings = pl.DataFrame(schema=schema)
 
     return tm_stop_crossings
 

@@ -55,13 +55,14 @@ def read_vehicle_positions(
             & pl.col("vehicle.trip.trip_id").is_not_null()
             & pl.col("vehicle.vehicle.id").is_not_null()
             & pl.col("vehicle.timestamp").is_not_null()
+            & pl.col("vehicle.trip.start_time").is_not_null()
         )
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
             pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
             pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
             pl.col("vehicle.current_stop_sequence")
-            .cast(pl.String)
+            .cast(pl.Int64)
             .alias("stop_sequence"),
             pl.col("vehicle.trip.direction_id")
             .cast(pl.Int8)
@@ -103,18 +104,17 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     :param vehicle_positions: Dataframe of vehiclie positions
 
     :return dataframe:
+        service_date -> String
         route_id -> String
         trip_id -> String
-        stop_id -> String
-        stop_sequence -> String
-        direction_id -> Int8
         start_time -> String
-        service_date -> String
+        direction_id -> Int8
+        stop_id -> String
+        stop_sequence -> Int64
         vehicle_id -> String
         vehicle_label -> String
-        current_status -> String
-        arrival_gtfs -> Datetime
-        travel_towards_gtfs -> Datetime
+        gtfs_travel_to_dt -> Datetime
+        gtfs_arrival_dt -> Datetime
     """
     vehicle_events = vehicle_positions.pivot(
         values="vehicle_timestamp",
@@ -141,22 +141,22 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
 
     vehicle_events = vehicle_events.rename(
         {
-            "STOPPED_AT": "arrival_gtfs",
-            "IN_TRANSIT_TO": "travel_towards_gtfs",
+            "STOPPED_AT": "gtfs_arrival_dt",
+            "IN_TRANSIT_TO": "gtfs_travel_to_dt",
         }
     ).select(
         [
+            "service_date",
             "route_id",
             "trip_id",
+            "start_time",
+            "direction_id",
             "stop_id",
             "stop_sequence",
-            "direction_id",
-            "start_time",
-            "service_date",
             "vehicle_id",
             "vehicle_label",
-            "arrival_gtfs",
-            "travel_towards_gtfs",
+            "gtfs_travel_to_dt",
+            "gtfs_arrival_dt",
         ]
     )
 

@@ -5,7 +5,7 @@ from typing import Tuple, List
 import polars as pl
 
 from lamp_py.aws.s3 import get_datetime_from_partition_path
-from lamp_py.bus_performance_manager.gtfs_rt_ingestion import (
+from lamp_py.bus_performance_manager.events_gtfs_rt import (
     read_vehicle_positions,
     positions_to_events,
     generate_gtfs_rt_events,
@@ -54,7 +54,7 @@ VP_SCHEMA = {
     "direction_id": pl.Int8,
     "trip_id": pl.String,
     "stop_id": pl.String,
-    "stop_sequence": pl.String,
+    "stop_sequence": pl.Int64,
     "start_time": pl.String,
     "service_date": pl.String,
     "vehicle_id": pl.String,
@@ -65,18 +65,18 @@ VP_SCHEMA = {
 
 # schema for vehicle events dataframes
 VE_SCHEMA = {
-    "route_id": pl.String,
-    "direction_id": pl.Int8,
-    "trip_id": pl.String,
-    "stop_id": pl.String,
-    "stop_sequence": pl.String,
-    "start_time": pl.String,
     "service_date": pl.String,
+    "route_id": pl.String,
+    "trip_id": pl.String,
+    "start_time": pl.String,
+    "direction_id": pl.Int8,
+    "stop_id": pl.String,
+    "stop_sequence": pl.Int64,
     "vehicle_id": pl.String,
     "vehicle_label": pl.String,
     "current_status": pl.String,
-    "arrival_gtfs": pl.Datetime,
-    "travel_towards_gtfs": pl.Datetime,
+    "gtfs_travel_to_dt": pl.Datetime,
+    "gtfs_arrival_dt": pl.Datetime,
 }
 
 
@@ -113,26 +113,26 @@ def test_gtfs_rt_to_bus_events() -> None:
         assert event["direction_id"] == 0
 
         if event["stop_id"] == "173":
-            assert event["travel_towards_gtfs"] == datetime(
+            assert event["gtfs_travel_to_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=1, second=19
             )
-            assert event["arrival_gtfs"] == datetime(
+            assert event["gtfs_arrival_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=2, second=34
             )
 
         if event["stop_id"] == "655":
-            assert event["travel_towards_gtfs"] == datetime(
+            assert event["gtfs_travel_to_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=50, second=31
             )
-            assert event["arrival_gtfs"] == datetime(
+            assert event["gtfs_arrival_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=53, second=29
             )
 
         if event["stop_id"] == "903":
-            assert event["travel_towards_gtfs"] == datetime(
+            assert event["gtfs_travel_to_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=3, second=39
             )
-            assert event["arrival_gtfs"] == datetime(
+            assert event["gtfs_arrival_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=11, second=3
             )
 
@@ -153,16 +153,16 @@ def test_gtfs_rt_to_bus_events() -> None:
 
         # no arrival time at this stop
         if event["stop_id"] == "12005":
-            assert event["travel_towards_gtfs"] == datetime(
+            assert event["gtfs_travel_to_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=47, second=23
             )
-            assert event["arrival_gtfs"] is None
+            assert event["gtfs_arrival_dt"] is None
 
         if event["stop_id"] == "17091":
-            assert event["travel_towards_gtfs"] == datetime(
+            assert event["gtfs_travel_to_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=52, second=41
             )
-            assert event["arrival_gtfs"] is None
+            assert event["gtfs_arrival_dt"] is None
 
     # get an empty dataframe by reading the same files but for events the day prior.
     previous_service_date = service_date - timedelta(days=1)
@@ -202,7 +202,7 @@ def route_one() -> pl.DataFrame:
         "direction_id": [0, 0, 0, 0],
         "trip_id": ["101", "101", "101", "101"],
         "stop_id": ["1", "1", "2", "2"],
-        "stop_sequence": ["1", "1", "2", "2"],
+        "stop_sequence": [1, 1, 2, 2],
         "start_time": ["08:45:00", "08:45:00", "08:45:00", "08:45:00"],
         "service_date": ["20240601", "20240601", "20240601", "20240601"],
         "vehicle_id": ["y1001", "y1001", "y1001", "y1001"],
@@ -233,7 +233,7 @@ def route_two() -> pl.DataFrame:
         "direction_id": [0, 0, 0, 0, 0, 0],
         "trip_id": ["202", "202", "202", "202", "202", "202"],
         "stop_id": ["1", "1", "1", "2", "2", "2"],
-        "stop_sequence": ["1", "1", "1", "2", "2", "2"],
+        "stop_sequence": [1, 1, 1, 2, 2, 2],
         "start_time": [
             "09:45:00",
             "09:45:00",
@@ -282,7 +282,7 @@ def route_three() -> pl.DataFrame:
         "direction_id": [0, 0, 0, 0, 0, 0],
         "trip_id": ["303", "303", "303", "303", "303", "303"],
         "stop_id": ["1", "1", "1", "2", "2", "2"],
-        "stop_sequence": ["1", "1", "1", "2", "2", "2"],
+        "stop_sequence": [1, 1, 1, 2, 2, 2],
         "start_time": [
             "10:45:00",
             "10:45:00",
@@ -331,7 +331,7 @@ def route_four() -> pl.DataFrame:
         "direction_id": [0, 0, 0, 0, 0, 0],
         "trip_id": ["404", "404", "404", "404", "404", "404"],
         "stop_id": ["1", "1", "1", "2", "2", "2"],
-        "stop_sequence": ["1", "1", "1", "2", "2", "2"],
+        "stop_sequence": [1, 1, 1, 2, 2, 2],
         "start_time": [
             "11:45:00",
             "11:45:00",
