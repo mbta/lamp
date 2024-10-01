@@ -515,7 +515,7 @@ def test_bad_empty_static_table() -> None:
     static_tables = get_table_objects()
     test_table = {"stop_times": static_tables["stop_times"]}
 
-    with pytest.raises(pyarrow.ArrowInvalid):
+    with pytest.raises((pyarrow.ArrowInvalid, AssertionError)):
         load_parquet_files(test_table, "/tmp/FEED_INFO/timestamp=0000000000")
 
 
@@ -557,24 +557,24 @@ def test_gtfs_rt_processing(
     route_ids = rail_routes_from_filepath(files["vp_paths"], rpm_db_manager)
     positions = get_vp_dataframe(files["vp_paths"], route_ids)
     position_size = positions.shape[0]
-    assert positions.shape[1] == 13
+    assert positions.shape[1] == 14
 
     # check that the types can be set correctly
     positions = transform_vp_datatypes(positions)
-    assert positions.shape[1] == 13
+    assert positions.shape[1] == 14
     assert position_size == positions.shape[0]
 
     # check that it can be combined with the static schedule
     positions = add_static_version_key_column(positions, rpm_db_manager)
-    assert positions.shape[1] == 14
-    assert position_size == positions.shape[0]
-
-    positions = add_parent_station_column(positions, rpm_db_manager)
     assert positions.shape[1] == 15
     assert position_size == positions.shape[0]
 
+    positions = add_parent_station_column(positions, rpm_db_manager)
+    assert positions.shape[1] == 16
+    assert position_size == positions.shape[0]
+
     positions = transform_vp_timestamps(positions)
-    assert positions.shape[1] == 14
+    assert positions.shape[1] == 15
     assert position_size > positions.shape[0]
 
     trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"], route_ids)
@@ -619,6 +619,7 @@ def test_gtfs_rt_processing(
     expected_columns.add("start_time")
     expected_columns.add("vehicle_id")
     expected_columns.add("static_version_key")
+    expected_columns.add("revenue")
     assert len(expected_columns) == len(events.columns)
 
     missing_columns = set(events.columns) - expected_columns
