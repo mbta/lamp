@@ -102,6 +102,7 @@ class VehicleTrips(RpmSqlBase):  # pylint: disable=too-few-public-methods
     vehicle_consist = sa.Column(sa.String(), nullable=True)
     direction = sa.Column(sa.String(30), nullable=True)
     direction_destination = sa.Column(sa.String(60), nullable=True)
+    revenue = sa.Column(sa.Boolean, nullable=False)
 
     # static trip matching
     static_trip_id_guess = sa.Column(sa.String(512), nullable=True)
@@ -171,6 +172,7 @@ class TempEventCompare(RpmSqlBase):  # pylint: disable=too-few-public-methods
     vehicle_id = sa.Column(sa.String(60), nullable=False)
     vehicle_label = sa.Column(sa.String(128), nullable=True)
     vehicle_consist = sa.Column(sa.String(), nullable=True)
+    revenue = sa.Column(sa.Boolean, nullable=False)
 
     # forign key to static schedule expected values
     static_version_key = sa.Column(

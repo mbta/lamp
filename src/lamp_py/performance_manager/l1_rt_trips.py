@@ -103,6 +103,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
             TempEventCompare.vehicle_label,
             TempEventCompare.vehicle_consist,
             TempEventCompare.static_version_key,
+            TempEventCompare.revenue,
         )
         .distinct(
             TempEventCompare.service_date,
@@ -127,6 +128,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
         "vehicle_label",
         "vehicle_consist",
         "static_version_key",
+        "revenue",
     ]
 
     trip_insert_query = (
@@ -152,6 +154,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
             TempEventCompare.trip_id,
             TempEventCompare.vehicle_label,
             TempEventCompare.vehicle_consist,
+            TempEventCompare.revenue,
         )
         .distinct(
             TempEventCompare.service_date,
@@ -179,6 +182,7 @@ def load_new_trip_data(db_manager: DatabaseManager) -> None:
             trip_id=distinct_update_query.c.trip_id,
             vehicle_label=distinct_update_query.c.vehicle_label,
             vehicle_consist=distinct_update_query.c.vehicle_consist,
+            revenue=distinct_update_query.c.revenue,
         )
         .where(
             VehicleTrips.service_date == distinct_update_query.c.service_date,

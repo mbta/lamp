@@ -36,6 +36,7 @@ def get_vp_dataframe(
         "vehicle.trip.route_id",
         "vehicle.trip.start_date",
         "vehicle.trip.start_time",
+        "vehicle.trip.revenue",
         "vehicle.vehicle.id",
         "vehicle.trip.trip_id",
         "vehicle.vehicle.label",
@@ -64,6 +65,7 @@ def get_vp_dataframe(
         "vehicle.trip.route_id": "route_id",
         "vehicle.trip.start_date": "start_date",
         "vehicle.trip.start_time": "start_time",
+        "vehicle.trip.revenue": "revenue",
         "vehicle.vehicle.id": "vehicle_id",
         "vehicle.trip.trip_id": "trip_id",
         "vehicle.vehicle.label": "vehicle_label",
@@ -123,6 +125,11 @@ def transform_vp_datatypes(
     # store direction_id as bool
     vehicle_positions["direction_id"] = pandas.to_numeric(
         vehicle_positions["direction_id"]
+    ).astype(numpy.bool_)
+
+    # fix revenue field, NULL is True
+    vehicle_positions["revenue"] = numpy.where(
+        vehicle_positions["revenue"].eq(False), False, True
     ).astype(numpy.bool_)
 
     # store start_time as seconds from start of day as int64

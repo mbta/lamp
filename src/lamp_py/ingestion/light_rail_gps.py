@@ -209,16 +209,18 @@ def ingest_light_rail_gps() -> None:
 
         s3_files = [file for file in s3_files if "LightRailRawGPS" in file]
 
-        dataframe, archive_files, error_files = dataframe_from_gz(s3_files)
+        if len(s3_files) > 0:
 
-        write_parquet(dataframe)
+            dataframe, archive_files, error_files = dataframe_from_gz(s3_files)
+
+            write_parquet(dataframe)
+
+            if len(archive_files) > 0:
+                move_s3_objects(archive_files, os.environ["ARCHIVE_BUCKET"])
+            if len(error_files) > 0:
+                move_s3_objects(error_files, os.environ["ERROR_BUCKET"])
 
         logger.log_complete()
 
     except Exception as exception:
         logger.log_failure(exception)
-
-    if len(archive_files) > 0:
-        move_s3_objects(archive_files, os.environ["ARCHIVE_BUCKET"])
-    if len(error_files) > 0:
-        move_s3_objects(error_files, os.environ["ERROR_BUCKET"])
