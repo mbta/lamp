@@ -4,59 +4,36 @@ set -e -u
 # uncomment to debug
 # set -x
 
-# Run an ECS Task in the LAMP ECS Cluster
+# Run an ECS Task from the provided CLUSTER and SERVICE
 
 # required environment varialbes
-# - TASK_NAME
-# - ENVIRONMENT
+# - CLUSTER
+# - SERVICE
 
-# Get the VPC ID based on the VPC name
-if [ "$ENVIRONMENT" == "staging" ] || [ "$ENVIRONMENT" == "dev" ]; then
-    VPC_NAME="vpc-dev-ctd-itd"
-elif [ "$ENVIRONMENT" == "prod" ]; then
-    VPC_NAME="vpc-prod-ctd-itd"
-else
-    echo "Invalid environment: $ENVIRONMENT"
-    exit 1
-fi
+# Get the Security Groups that can run the task.
+echo "Retrieving SecurityGroups for SERVICE:${SERVICE} in CLUSTER:${CLUSTER}"
+SECURITY_GROUPS=$(aws ecs describe-services \
+  --services $SERVICE \
+  --cluster $CLUSTER \
+  --query services[0].networkConfiguration.awsvpcConfiguration.securityGroups \
+  --output text \
+  | sed 's/\t/,/g')
+echo "SECURITY GROUPS: ${SECURITY_GROUPS}"
 
-echo "Retrieving VPC ID for ${VPC_NAME}"
-
-VPC_ID=$(aws ec2 describe-vpcs \
-  --filters "Name=tag:Name,Values=${VPC_NAME}" \
-  --query "Vpcs[0].VpcId" \
-  --output text)
-
-echo "VPC ID: ${VPC_ID}"
-
-# Get the subnet ID based on the VPC ID
-echo "Retrieving SUBNET ID"
-
-SUBNET_ID=$(aws ec2 describe-subnets \
-  --filters "Name=vpc-id,Values=${VPC_ID}" \
-  --query "Subnets[0].SubnetId" \
-  --output text)
-
-echo "SUBNET ID: ${SUBNET_ID}"
-
-# Get the Security Group Id that can run the task.
-SG_NAME="lamp-${TASK_NAME}-${ENVIRONMENT}-ecs-service"
-echo "Retrieving SECURITY GROUP ID for ${SG_NAME}"
-
-SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
-  --filters "Name=group-name,Values=${SG_NAME}" \
-  --query "SecurityGroups[0].GroupId" \
-  --output text)
-
-echo "SECURITY GROUP ID: ${SECURITY_GROUP_ID}"
-
-# Build the Task Definition from the Task Name and Env
-TASK_DEFINITION="lamp-${TASK_NAME}-${ENVIRONMENT}"
+# Get the Subnets that the task runs on.
+echo "Retrieving subnets for SERVICE:${SERVICE} in CLUSTER:${CLUSTER}"
+SUBNETS=$(aws ecs describe-services \
+  --services $SERVICE \
+  --cluster $CLUSTER \
+  --query services[0].networkConfiguration.awsvpcConfiguration.subnets \
+  --output text \
+  | sed 's/\t/,/g')
+echo "SUBNETS: ${SUBNETS}"
 
 # Run the ECS task
 aws ecs run-task \
-  --cluster lamp \
-  --task-definition $TASK_DEFINITION \
+  --cluster $CLUSTER \
+  --task-definition $SERVICE \
   --launch-type FARGATE \
   --count 1 \
-  --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}"
+  --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=DISABLED}"
