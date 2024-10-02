@@ -8,17 +8,17 @@ LAMP currently produces the following sets of public data exports:
 
 # Subway Performance Data
 
-Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of rail service.
+Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of revenue rail service.
 
 | field name | type | description | source |
 | ----------- | --------- | ----------- | ------------ |
-| service_date | int64 | equivalent to GTFS-RT `start_date` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) as `int` instead of `string` | GTFS-RT |
-| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) converted to seconds after midnight | GTFS-RT |
-| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
-| branch_route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) for lines with multiple routes, `NULL` if line has single route,  e.g. `Green-B` for `Green-B` route, `NULL` for `Blue` route. EXCEPTION: LAMP Inserts `Red-A` or `Red-B` to indicate `Red`-line Ashmont or Braintree branch if trip stops at station south of JFK/UMass. | GTFS-RT |
+| service_date | int64 | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor] as `int` instead of `string` | GTFS-RT |
+| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor][gtfs-tripdescriptor] converted to seconds after midnight | GTFS-RT |
+| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| branch_route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] for lines with multiple routes, `NULL` if line has single route,  e.g. `Green-B` for `Green-B` route, `NULL` for `Blue` route. EXCEPTION: LAMP Inserts `Red-A` or `Red-B` to indicate `Red`-line Ashmont or Braintree branch if trip stops at station south of JFK/UMass. | GTFS-RT |
 | trunk_route_id | string | line if multiple routes exist on line, otherwise `route_id`,  e.g. `Green` for `Green-B` route, `Blue` for `Blue` route | GTFS-RT |
-| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
-| direction_id | bool | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) as `bool` instead of `int` | GTFS-RT |
+| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| direction_id | bool | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor][gtfs-tripdescriptor] as `bool` instead of `int` | GTFS-RT |
 | direction | string | equivalent to GTFS `direction` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
 | direction_destination | string | equivalent to GTFS `direction_destination` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
 | stop_count | int16 | number of stops recorded on trip | LAMP Calculated |
@@ -61,8 +61,8 @@ Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of
 
 | field name | type | description | source |
 | ----------- | --------- | ----------- | ------------ |
-| service_date | date | equivalent to GTFS-RT `start_date` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) as `date` instead of `string` | GTFS-RT |
-| start_datetime | datetime | equivalent to GTFS-RT `start_time` added to `start_date` from [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | LAMP Calculated |
+| service_date | date | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor] as `date` instead of `string` | GTFS-RT |
+| start_datetime | datetime | equivalent to GTFS-RT `start_time` added to `start_date` from [Trip Descriptor][gtfs-tripdescriptor] | LAMP Calculated |
 | static_start_datetime | datetime | equivalent to `start_datetime` if planned trip, otherwise GTFS-RT `start_date` added to `static_start_time` | LAMP Calculated |
 | stop_sequence | int16 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
 | canonical_stop_sequence | int16 | stop sequence based on "canonical" route trip as defined in [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#route_patternstxt) table | LAMP Calculated |
@@ -81,14 +81,15 @@ Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of
 | previous_stop_departure_sec | int64 | `previous_stop_departure_datetime` as seconds after midnight | LAMP Calculated
 | stop_arrival_sec | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated
 | stop_departure_sec | int64 | `stop_departure_datetime` as seconds after midnight | LAMP Calculated
-| direction_id | int8 | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
-| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
-| branch_route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) for lines with multiple routes, `NULL` if line has single route,  e.g. `Green-B` for `Green-B` route, `NULL` for `Blue` route_id. EXCEPTION: LAMP Inserts `Red-A` or `Red-B` to indicate `Red`-line Ashmont or Braintree branch if trip stops at station south of JFK/UMass. | GTFS-RT |
+| is_revenue | boolen | equivalent to MBTA GTFS-RT `revenue` value in [Trip Descriptor](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#non-revenue-trips) as only bool | GTFS-RT |
+| direction_id | int8 | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| branch_route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] for lines with multiple routes, `NULL` if line has single route,  e.g. `Green-B` for `Green-B` route, `NULL` for `Blue` route_id. EXCEPTION: LAMP Inserts `Red-A` or `Red-B` to indicate `Red`-line Ashmont or Braintree branch if trip stops at station south of JFK/UMass. | GTFS-RT |
 | trunk_route_id | string | line if multiple routes exist on line, otherwise `route_id`,  e.g. `Green` for `Green-B` route, `Blue` for `Blue` route | GTFS-RT |
-| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) converted to seconds after midnight | GTFS-RT |
+| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor][gtfs-tripdescriptor] converted to seconds after midnight | GTFS-RT |
 | vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
 | stop_count | int16 | number of stops recorded on trip | LAMP Calculated |
-| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
+| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
 | vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
 | vehicle_consist | string | Pipe separated concatenation of `multi_carriage_details` labels in [CarriageDetails](https://gtfs.org/realtime/reference/#message-CarriageDetails) | GTFS-RT
 | direction | string | equivalent to GTFS `direction` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
@@ -260,3 +261,4 @@ In generating this dataset, translation string fields contain only the English t
 
 [gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
 [mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields
+[gtfs-tripdescriptor]: https://gtfs.org/realtime/reference/#message-tripdescriptor

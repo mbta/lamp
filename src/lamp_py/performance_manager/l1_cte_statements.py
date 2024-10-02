@@ -137,6 +137,7 @@ def rt_trips_subquery(service_date: int) -> sa.sql.selectable.Subquery:
             VehicleTrips.vehicle_id,
             VehicleTrips.stop_count,
             VehicleTrips.static_trip_id_guess,
+            VehicleTrips.revenue,
             VehicleEvents.pm_trip_id,
             VehicleEvents.stop_sequence,
             VehicleEvents.parent_station,
@@ -301,8 +302,8 @@ def trips_for_headways_subquery(
         .select_from(rt_trips_sub)
         .where(
             # drop trips with one stop count, probably not valid
-            rt_trips_sub.c.stop_count
-            > 1,
+            rt_trips_sub.c.stop_count > 1,
+            rt_trips_sub.c.revenue == sa.true(),
         )
         .order_by(
             rt_trips_sub.c.pm_trip_id,

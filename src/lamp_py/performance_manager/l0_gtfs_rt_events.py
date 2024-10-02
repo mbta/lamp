@@ -152,6 +152,7 @@ def combine_events(
         "direction_id",
         "parent_station",
         "vehicle_id",
+        "revenue",
         "stop_id",
         "stop_sequence",
         "trip_id",

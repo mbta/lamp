@@ -312,7 +312,7 @@ def load_parquet_files(
                 paths_to_load[:1], columns=table.column_info.columns_to_pull
             )
             assert table.data_table.shape[0] > 0
-        except pyarrow.ArrowInvalid as exception:
+        except (pyarrow.ArrowInvalid, AssertionError) as exception:
             if table.allow_empty_dataframe is False:
                 raise exception
 

@@ -47,51 +47,6 @@ def upgrade() -> None:
         postgresql_where=sa.text("rail_pm_processed = false"),
     )
 
-    # pull metadata from the rail performance manager database into the
-    # metadata database. the table may or may not exist, so wrap this in a try
-    # except
-    try:
-        rpm_db_manager = DatabaseManager(
-            db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
-        )
-
-        insert_data = []
-        # pull metadata from the rail performance manager database via direct
-        # sql query. the metadata_log table may or may not exist.
-        with rpm_db_manager.session.begin() as session:
-            result = session.execute(
-                text("SELECT path, processed, process_fail FROM metadata_log")
-            )
-            for row in result:
-                (path, processed, process_fail) = row
-                insert_data.append(
-                    {
-                        "path": path,
-                        "rail_pm_processed": processed,
-                        "rail_pm_process_fail": process_fail,
-                    }
-                )
-
-    except ProgrammingError as error:
-        # Error 42P01 is an 'Undefined Table' error. This occurs when there is
-        # no metadata_log table in the rail performance manager database
-        #
-        # Raise all other sql errors
-        insert_data = []
-        original_error = error.orig
-        if (
-            original_error is not None
-            and hasattr(original_error, "pgcode")
-            and original_error.pgcode == "42P01"
-        ):
-            logging.info("No Metadata Table in Rail Performance Manager")
-        else:
-            raise
-
-    # insert data into the metadata database
-    if insert_data:
-        op.bulk_insert(MetadataLog.__table__, insert_data)
-
     # ### end Alembic commands ###
 
 

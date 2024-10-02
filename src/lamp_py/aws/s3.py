@@ -19,11 +19,12 @@ from typing import (
 import boto3
 import botocore
 import botocore.exceptions
+from botocore.exceptions import ClientError
 import pandas
+import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
-from botocore.exceptions import ClientError
 from pyarrow import Table, fs
 from pyarrow.util import guid
 
@@ -254,7 +255,10 @@ def get_zip_buffer(filename: str) -> IO[bytes]:
 
 
 def file_list_from_s3(
-    bucket_name: str, file_prefix: str, max_list_size: int = 250_000
+    bucket_name: str,
+    file_prefix: str,
+    max_list_size: int = 250_000,
+    in_filter: Optional[str] = None,
 ) -> List[str]:
     """
     get a list of s3 objects
@@ -283,7 +287,10 @@ def file_list_from_s3(
             for obj in page["Contents"]:
                 if obj["Size"] == 0:
                     continue
-                filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+                if in_filter is None or in_filter in obj["Key"]:
+                    filepaths.append(
+                        os.path.join("s3://", bucket_name, obj["Key"])
+                    )
 
             if len(filepaths) > max_list_size:
                 break
@@ -673,15 +680,27 @@ def read_parquet(
 ) -> pandas.core.frame.DataFrame:
     """
     read parquet file or files from s3 and return it as a pandas dataframe
+
+    if requested column from "columns" does not exist in parquet file then
+    the column will be added as all nulls, this was added to capture
+    vehicle.trip.revenue field from VehiclePosition files starting december 2023
     """
     retry_attempts = 2
     for retry_attempt in range(retry_attempts + 1):
         try:
-            df = (
-                _get_pyarrow_dataset(filename, filters)
-                .to_table(columns=columns)
-                .to_pandas(self_destruct=True)
-            )
+            ds = _get_pyarrow_dataset(filename, filters)
+            if columns is None:
+                table = ds.to_table(columns=columns)
+
+            else:
+                read_columns = list(set(ds.schema.names) & set(columns))
+                table = ds.to_table(columns=read_columns)
+                for null_column in set(columns).difference(ds.schema.names):
+                    table = table.append_column(
+                        null_column, pa.nulls(table.num_rows)
+                    )
+
+            df = table.to_pandas(self_destruct=True)
             break
         except Exception as exception:
             if retry_attempt == retry_attempts:

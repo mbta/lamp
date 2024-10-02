@@ -73,9 +73,7 @@ def reset_rpm(parsed_args: argparse.Namespace) -> None:
         )
 
         if parsed_args.clear_static:
-            rpm_db_name = os.getenv(
-                "ALEMBIC_RPM_DB_NAME", "performance_manager_prod"
-            )
+            rpm_db_name = os.getenv("ALEMBIC_RPM_DB_NAME", "")
             alembic_downgrade_to_base(rpm_db_name)
             alembic_upgrade_to_head(rpm_db_name)
         elif parsed_args.clear_rt:
@@ -99,7 +97,7 @@ def run() -> None:
     )
 
     if parsed_args.clear_static:
-        md_db_name = os.getenv("ALEMBIC_MD_DB_NAME", "metadata_prod")
+        md_db_name = os.getenv("ALEMBIC_MD_DB_NAME", "")
         alembic_downgrade_to_base(md_db_name)
         alembic_upgrade_to_head(md_db_name)
     elif parsed_args.clear_rt:

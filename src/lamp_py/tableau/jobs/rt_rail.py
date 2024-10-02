@@ -46,6 +46,7 @@ class HyperRtRail(HyperJob):
             "   , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) - vt.service_date::text::timestamp))::int as previous_stop_departure_sec"
             "   , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) - vt.service_date::text::timestamp))::int as stop_arrival_sec"
             "   , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(next_ve.vp_move_timestamp)) - vt.service_date::text::timestamp))::int as stop_departure_sec"
+            "   , vt.revenue as is_revenue"
             "   , vt.direction_id::int"
             "   , vt.route_id"
             "   , vt.branch_route_id"
@@ -146,6 +147,7 @@ class HyperRtRail(HyperJob):
                 ("previous_stop_departure_sec", pyarrow.int64()),
                 ("stop_arrival_sec", pyarrow.int64()),
                 ("stop_departure_sec", pyarrow.int64()),
+                ("is_revenue", pyarrow.bool_()),
                 ("direction_id", pyarrow.int8()),
                 ("route_id", pyarrow.string()),
                 ("branch_route_id", pyarrow.string()),
