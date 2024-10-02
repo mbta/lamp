@@ -305,12 +305,10 @@ def gtfs_to_parquet() -> None:
 
     # compress each schedule in feed
     for schedule in feed.rows(named=True):
-        schedule_url = schedule["archive_url"]
-        schedule_pub_dt = schedule["published_dt"]
         schedule_details = ScheduleDetails(
-            schedule_url,
-            schedule_pub_dt,
-            gtfs_tmp_folder,
+            file_location=schedule["archive_url"],
+            published_dt=schedule["published_dt"],
+            tmp_folder=gtfs_tmp_folder,
         )
         compress_gtfs_schedule(schedule_details)
 
@@ -319,8 +317,9 @@ def gtfs_to_parquet() -> None:
         year_path = os.path.join(gtfs_tmp_folder, year)
         pq_folder_to_sqlite(year_path)
         for file in os.listdir(year_path):
-            local_path = os.path.join(year_path, file)
-            upload_path = compressed_gtfs.parquet_path(year, file).s3_uri
-            upload_file(local_path, upload_path)
+            upload_file(
+                file_name=os.path.join(year_path, file),
+                object_path=os.path.join(compressed_gtfs.s3_uri, year, file),
+            )
 
     logger.log_complete()
