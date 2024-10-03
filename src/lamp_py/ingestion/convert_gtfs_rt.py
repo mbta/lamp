@@ -222,7 +222,7 @@ class GtfsRtConverter(Converter):
         process_logger.log_complete()
 
     def yield_check(
-        self, process_logger: ProcessLogger, min_rows: int = 5_000_000
+        self, process_logger: ProcessLogger, min_rows: int = 2_000_000
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -393,17 +393,25 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+        logger = ProcessLogger("make_hash_dataset")
+        logger.log_start()
+
         table = hash_gtfs_rt_table(table)
+        logger.add_metadata(step="complete hash_gtfs_rt_table")
         out_ds = pd.dataset(table)
+        logger.add_metadata(step="create out_ds(table)")
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
+            logger.add_metadata(step="complete hash_gtfs_rt_parquet")
             out_ds = pd.dataset(
                 [
                     pd.dataset(table),
                     pd.dataset(local_path),
                 ]
             )
+            logger.add_metadata(step="create out_ds(local+table)")
+        logger.log_complete()
 
         return out_ds
 
