@@ -421,7 +421,9 @@ class GtfsRtConverter(Converter):
         )
         logger.log_start()
 
+        logging.warning("Starting: make_hash_dataset")
         out_ds = self.make_hash_dataset(table, local_path)
+        logging.warning("Complete: make_hash_dataset")
 
         unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (
             60 * 45
@@ -442,7 +444,9 @@ class GtfsRtConverter(Converter):
                     self.detail.partition_column
                 )
             )
+            logging.warning("Start partition iteration")
             for part in partitions:
+                logging.warning(f"part={part}")
                 unique_table = (
                     pl.DataFrame(
                         out_ds.to_table(
