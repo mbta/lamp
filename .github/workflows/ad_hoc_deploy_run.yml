@@ -25,6 +25,7 @@ jobs:
       deploy-ad-hoc: true
     secrets: inherit
   run_ad_hoc_task:
+    needs: deploy
     runs-on: ubuntu-latest
     permissions:
       id-token: write
