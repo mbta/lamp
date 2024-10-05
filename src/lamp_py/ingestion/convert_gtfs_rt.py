@@ -222,7 +222,7 @@ class GtfsRtConverter(Converter):
         process_logger.log_complete()
 
     def yield_check(
-        self, process_logger: ProcessLogger, min_rows: int = 5_000_000
+        self, process_logger: ProcessLogger, min_rows: int = 2_000_000
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -244,8 +244,10 @@ class GtfsRtConverter(Converter):
                     number_of_rows=table.num_rows,
                 )
                 process_logger.log_complete()
-
-                process_logger.add_metadata(file_count=0, number_of_rows=0)
+                # reset process logger
+                process_logger.add_metadata(
+                    file_count=0, number_of_rows=0, print_log=False
+                )
                 process_logger.log_start()
 
                 yield table

@@ -25,7 +25,8 @@ runs:
         role-to-assume: ${{ inputs.role-to-assume }}
         aws-region: ${{ inputs.aws-region }}
         mask-aws-account-id: true
-    - run: ${{ github.action_path }}/run_task.sh
+    - name: Start ECS Task
+      run: ${{ github.action_path }}/run_task.sh
       shell: bash
       env:
         AWS_REGION: ${{ inputs.aws-region }}
