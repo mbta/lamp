@@ -21,9 +21,7 @@ def test_bad_conversion_local() -> None:
     be added to the error files list
     """
     # dummy config to avoid mypy errors
-    converter = GtfsRtConverter(
-        config_type=ConfigType.RT_ALERTS, metadata_queue=Queue()
-    )
+    converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS, metadata_queue=Queue())
     converter.add_files(["badfile"])
 
     # process the bad file and get the table out
@@ -41,9 +39,7 @@ def test_bad_conversion_s3() -> None:
     will be added to the error files list
     """
     with patch("pyarrow.fs.S3FileSystem", return_value=fs.LocalFileSystem):
-        converter = GtfsRtConverter(
-            config_type=ConfigType.RT_ALERTS, metadata_queue=Queue()
-        )
+        converter = GtfsRtConverter(config_type=ConfigType.RT_ALERTS, metadata_queue=Queue())
         converter.add_files(["s3://badfile"])
 
         # process the bad file and get the table out
@@ -64,9 +60,7 @@ def test_empty_files() -> None:
     )
 
     for config_type in configs_to_test:
-        converter = GtfsRtConverter(
-            config_type=config_type, metadata_queue=Queue()
-        )
+        converter = GtfsRtConverter(config_type=config_type, metadata_queue=Queue())
         converter.thread_init()
 
         empty_file = os.path.join(incoming_dir, "empty.json.gz")
@@ -74,8 +68,7 @@ def test_empty_files() -> None:
         assert filename == empty_file
         assert table.to_pandas().shape == (
             0,
-            len(converter.detail.import_schema)
-            + 4,  # add 4 for header timestamp columns
+            len(converter.detail.import_schema) + 4,  # add 4 for header timestamp columns
         )
 
         one_blank_file = os.path.join(incoming_dir, "one_blank_record.json.gz")
@@ -83,8 +76,7 @@ def test_empty_files() -> None:
         assert filename == one_blank_file
         assert table.to_pandas().shape == (
             1,
-            len(converter.detail.import_schema)
-            + 4,  # add 4 for header timestamp columns
+            len(converter.detail.import_schema) + 4,  # add 4 for header timestamp columns
         )
 
 
@@ -133,9 +125,7 @@ def test_vehicle_positions_file_conversion() -> None:
 
     # 426 records in 'entity' for 2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz
     assert table.num_rows == 426
-    assert (
-        table.num_columns == len(converter.detail.import_schema) + 4
-    )  # add 4 for header timestamp columns
+    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -161,9 +151,7 @@ def test_vehicle_positions_file_conversion() -> None:
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
-    parquet_file = os.path.join(
-        test_files_dir, "ingestion_GTFS-RT_VP_OLD.parquet"
-    )
+    parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_VP_OLD.parquet")
     parquet_df = pandas.read_parquet(parquet_file)
     parquet_df = drop_list_columns(parquet_df)
 
@@ -196,16 +184,12 @@ def test_rt_alert_file_conversion() -> None:
 
     # 144 records in 'entity' for 2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz
     assert table.num_rows == 144
-    assert (
-        table.num_columns == len(converter.detail.import_schema) + 4
-    )  # add 4 for header timestamp columns
+    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
-    parquet_file = os.path.join(
-        test_files_dir, "ingestion_GTFS-RT_ALERT.parquet"
-    )
+    parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_ALERT.parquet")
     parquet_df = pandas.read_parquet(parquet_file)
     parquet_df = drop_list_columns(parquet_df)
 
@@ -239,9 +223,7 @@ def test_rt_trip_file_conversion() -> None:
     # 79 records in 'entity' for
     # 2022-05-08T06:04:57Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
     assert table.num_rows == 79
-    assert (
-        table.num_columns == len(converter.detail.import_schema) + 4
-    )  # add 4 for header timestamp columns
+    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -266,9 +248,7 @@ def test_rt_trip_file_conversion() -> None:
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
-    parquet_file = os.path.join(
-        test_files_dir, "ingestion_GTFS-RT_TU_OLD.parquet"
-    )
+    parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_TU_OLD.parquet")
     parquet_df = pandas.read_parquet(parquet_file)
     parquet_df = drop_list_columns(parquet_df)
 
@@ -301,9 +281,7 @@ def test_bus_vehicle_positions_file_conversion() -> None:
 
     # 844 records in 'entity' for 2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
     assert table.num_rows == 844
-    assert (
-        table.num_columns == len(converter.detail.import_schema) + 4
-    )  # add 4 for header timestamp columns
+    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
@@ -341,9 +319,7 @@ def test_bus_trip_updates_file_conversion() -> None:
 
     # 157 records in 'entity' for 2022-06-28T10_03_18Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz
     assert table.num_rows == 157
-    assert (
-        table.num_columns == len(converter.detail.import_schema) + 4
-    )  # add 4 for header timestamp columns
+    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
     np_df = flatten_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)

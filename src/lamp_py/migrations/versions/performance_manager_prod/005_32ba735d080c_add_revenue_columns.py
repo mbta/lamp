@@ -30,21 +30,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute(
-        f"ALTER TABLE public.vehicle_trips DISABLE TRIGGER rt_trips_update_branch_trunk;"
-    )
-    op.execute(
-        f"ALTER TABLE public.vehicle_trips DISABLE TRIGGER update_vehicle_trips_modified;"
-    )
+    op.execute(f"ALTER TABLE public.vehicle_trips DISABLE TRIGGER rt_trips_update_branch_trunk;")
+    op.execute(f"ALTER TABLE public.vehicle_trips DISABLE TRIGGER update_vehicle_trips_modified;")
     op.drop_index("ix_vehicle_trips_composite_1", table_name="vehicle_trips")
     op.drop_constraint("vehicle_trips_unique_trip", table_name="vehicle_trips")
 
-    op.add_column(
-        "temp_event_compare", sa.Column("revenue", sa.Boolean(), nullable=True)
-    )
-    op.add_column(
-        "vehicle_trips", sa.Column("revenue", sa.Boolean(), nullable=True)
-    )
+    op.add_column("temp_event_compare", sa.Column("revenue", sa.Boolean(), nullable=True))
+    op.add_column("vehicle_trips", sa.Column("revenue", sa.Boolean(), nullable=True))
     op.execute(sa.update(TempEventCompare).values(revenue=True))
     op.execute(sa.update(VehicleTrips).values(revenue=True))
     op.alter_column("temp_event_compare", "revenue", nullable=False)
@@ -61,12 +53,8 @@ def upgrade() -> None:
         ["route_id", "direction_id", "vehicle_id"],
         unique=False,
     )
-    op.execute(
-        f"ALTER TABLE public.vehicle_trips ENABLE TRIGGER rt_trips_update_branch_trunk;"
-    )
-    op.execute(
-        f"ALTER TABLE public.vehicle_trips ENABLE TRIGGER update_vehicle_trips_modified;"
-    )
+    op.execute(f"ALTER TABLE public.vehicle_trips ENABLE TRIGGER rt_trips_update_branch_trunk;")
+    op.execute(f"ALTER TABLE public.vehicle_trips ENABLE TRIGGER update_vehicle_trips_modified;")
 
 
 def downgrade() -> None:

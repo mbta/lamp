@@ -18,9 +18,7 @@ from .gtfs_utils import (
 )
 
 
-def get_tu_dataframe_chunks(
-    to_load: Union[str, List[str]], route_ids: List[str]
-) -> Iterator[pandas.DataFrame]:
+def get_tu_dataframe_chunks(to_load: Union[str, List[str]], route_ids: List[str]) -> Iterator[pandas.DataFrame]:
     """
     return interator of dataframe chunks from a trip updates parquet file
     (or list of files)
@@ -55,9 +53,7 @@ def get_tu_dataframe_chunks(
     )
 
 
-def get_and_unwrap_tu_dataframe(
-    paths: Union[str, List[str]], route_ids: List[str]
-) -> pandas.DataFrame:
+def get_and_unwrap_tu_dataframe(paths: Union[str, List[str]], route_ids: List[str]) -> pandas.DataFrame:
     """
     get trip updates records from parquet files
     to create predicted trip update stop events
@@ -94,43 +90,23 @@ def get_and_unwrap_tu_dataframe(
                 batch_events = batch_events.drop(columns=["feed_timestamp"])
 
                 # store start_date as int64 and rename to service_date
-                batch_events.rename(
-                    columns={"start_date": "service_date"}, inplace=True
-                )
-                batch_events["service_date"] = pandas.to_numeric(
-                    batch_events["service_date"]
-                ).astype("Int64")
+                batch_events.rename(columns={"start_date": "service_date"}, inplace=True)
+                batch_events["service_date"] = pandas.to_numeric(batch_events["service_date"]).astype("Int64")
 
                 # store direction_id as bool
-                batch_events["direction_id"] = pandas.to_numeric(
-                    batch_events["direction_id"]
-                ).astype(numpy.bool_)
+                batch_events["direction_id"] = pandas.to_numeric(batch_events["direction_id"]).astype(numpy.bool_)
 
                 # store start_time as seconds from start of day int64
-                batch_events["start_time"] = (
-                    batch_events["start_time"]
-                    .apply(start_time_to_seconds)
-                    .astype("Int64")
-                )
+                batch_events["start_time"] = batch_events["start_time"].apply(start_time_to_seconds).astype("Int64")
 
-                batch_events["tu_stop_timestamp"] = pandas.to_numeric(
-                    batch_events["tu_stop_timestamp"]
-                ).astype("Int64")
+                batch_events["tu_stop_timestamp"] = pandas.to_numeric(batch_events["tu_stop_timestamp"]).astype("Int64")
 
                 # filter out stop event predictions that are too far into the future
                 # and are unlikely to be used as a final stop event prediction
                 # (2 minutes) or predictions that go into the past (negative values)
                 batch_events = batch_events[
-                    (
-                        batch_events["tu_stop_timestamp"]
-                        - batch_events["timestamp"]
-                        >= 0
-                    )
-                    & (
-                        batch_events["tu_stop_timestamp"]
-                        - batch_events["timestamp"]
-                        < 120
-                    )
+                    (batch_events["tu_stop_timestamp"] - batch_events["timestamp"] >= 0)
+                    & (batch_events["tu_stop_timestamp"] - batch_events["timestamp"] < 120)
                 ]
 
                 trip_updates = pandas.concat([trip_updates, batch_events])
@@ -151,9 +127,7 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
     """
     reduce the data frame to a single record per trip / stop.
     """
-    process_logger = ProcessLogger(
-        "tu.reduce", start_row_count=trip_updates.shape[0]
-    )
+    process_logger = ProcessLogger("tu.reduce", start_row_count=trip_updates.shape[0])
     process_logger.log_start()
 
     trip_stop_columns = unique_trip_stop_columns()
@@ -162,16 +136,12 @@ def reduce_trip_updates(trip_updates: pandas.DataFrame) -> pandas.DataFrame:
     # for the same trip and same station but the first one. the first update will
     # be the most recent arrival time prediction
     trip_updates = trip_updates.sort_values(by=["timestamp"], ascending=False)
-    trip_updates = trip_updates.drop_duplicates(
-        subset=trip_stop_columns, keep="first"
-    )
+    trip_updates = trip_updates.drop_duplicates(subset=trip_stop_columns, keep="first")
 
     # after group and sort, "timestamp" longer needed
     trip_updates = trip_updates.drop(columns=["timestamp"])
 
-    trip_updates["tu_stop_timestamp"] = trip_updates[
-        "tu_stop_timestamp"
-    ].astype("Int64")
+    trip_updates["tu_stop_timestamp"] = trip_updates["tu_stop_timestamp"].astype("Int64")
 
     # add selected columns
     # trip_updates and vehicle_positions dataframes must all have the same columns
@@ -194,17 +164,13 @@ def process_tu_files(
     """
     Generate a dataframe of Vehicle Events from gtfs_rt trip updates parquet files.
     """
-    process_logger = ProcessLogger(
-        "process_trip_updates", file_count=len(paths), paths=paths
-    )
+    process_logger = ProcessLogger("process_trip_updates", file_count=len(paths), paths=paths)
     process_logger.log_start()
 
     route_ids = rail_routes_from_filepath(paths, db_manager)
     trip_updates = get_and_unwrap_tu_dataframe(paths, route_ids)
     if trip_updates.shape[0] > 0:
-        trip_updates = add_missing_service_dates(
-            events_dataframe=trip_updates, timestamp_key="timestamp"
-        )
+        trip_updates = add_missing_service_dates(events_dataframe=trip_updates, timestamp_key="timestamp")
         trip_updates = add_static_version_key_column(trip_updates, db_manager)
         trip_updates = add_parent_station_column(trip_updates, db_manager)
         trip_updates = reduce_trip_updates(trip_updates)

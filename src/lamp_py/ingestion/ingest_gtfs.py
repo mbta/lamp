@@ -95,18 +95,14 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
             try:
                 config_type = ConfigType.from_filename(file_group[0])
                 if config_type not in converters:
-                    converters[config_type] = GtfsRtConverter(
-                        config_type, metadata_queue
-                    )
+                    converters[config_type] = GtfsRtConverter(config_type, metadata_queue)
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:
                 continue
             except (ConfigTypeFromFilenameException, NoImplException):
                 error_files += file_group
 
-        converters[ConfigType.ERROR] = NoImplConverter(
-            ConfigType.ERROR, metadata_queue
-        )
+        converters[ConfigType.ERROR] = NoImplConverter(ConfigType.ERROR, metadata_queue)
         converters[ConfigType.ERROR].add_files(error_files)
 
     except Exception as exception:

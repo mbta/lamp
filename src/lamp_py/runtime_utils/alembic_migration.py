@@ -14,9 +14,7 @@ def get_alembic_config(db_name: str) -> Config:
     here = os.path.dirname(os.path.abspath(__file__))
     alembic_cfg_file = os.path.join(here, "..", "..", "..", "alembic.ini")
     alembic_cfg_file = os.path.abspath(alembic_cfg_file)
-    logging.info(
-        "getting alembic config for %s from %s", db_name, alembic_cfg_file
-    )
+    logging.info("getting alembic config for %s from %s", db_name, alembic_cfg_file)
 
     db_names = (
         "performance_manager_dev",

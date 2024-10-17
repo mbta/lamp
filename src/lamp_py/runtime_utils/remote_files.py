@@ -112,7 +112,8 @@ public_alerts_file = S3Location(
     prefix=os.path.join(TABLEAU, "alerts", "LAMP_RT_ALERTS.parquet"),
 )
 tableau_rail = S3Location(
-    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "rail")
+    bucket=S3_PUBLIC,
+    prefix=os.path.join(TABLEAU, "rail"),
 )
 
 

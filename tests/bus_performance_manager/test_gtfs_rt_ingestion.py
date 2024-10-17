@@ -4,7 +4,7 @@ from typing import Tuple, List
 
 import polars as pl
 
-from lamp_py.aws.s3 import get_datetime_from_partition_path
+from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.bus_performance_manager.events_gtfs_rt import (
     read_vehicle_positions,
     positions_to_events,
@@ -36,7 +36,7 @@ def get_service_date_and_files() -> Tuple[date, List[str]]:
     # get the service date for all the files in the springboard
     service_date = None
     for vp_file in vp_files:
-        new_service_date = get_datetime_from_partition_path(vp_file).date()
+        new_service_date = dt_from_obj_path(vp_file).date()
 
         if service_date is None:
             service_date = new_service_date
@@ -92,9 +92,7 @@ def test_gtfs_rt_to_bus_events() -> None:
     service_date, vp_files = get_service_date_and_files()
 
     # get the bus vehicle events for these files / service date
-    bus_vehicle_events = generate_gtfs_rt_events(
-        service_date=service_date, gtfs_rt_files=vp_files
-    )
+    bus_vehicle_events = generate_gtfs_rt_events(service_date=service_date, gtfs_rt_files=vp_files)
 
     assert not bus_vehicle_events.is_empty()
 
@@ -102,9 +100,7 @@ def test_gtfs_rt_to_bus_events() -> None:
         assert VE_SCHEMA[col] == data_type
 
     # the following properties are known to be in the consumed dataset
-    y1808_events = bus_vehicle_events.filter(
-        (pl.col("vehicle_id") == "y1808") & (pl.col("trip_id") == "61348621")
-    )
+    y1808_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1808") & (pl.col("trip_id") == "61348621"))
 
     assert not y1808_events.is_empty()
 
@@ -113,34 +109,19 @@ def test_gtfs_rt_to_bus_events() -> None:
         assert event["direction_id"] == 0
 
         if event["stop_id"] == "173":
-            assert event["gtfs_travel_to_dt"] == datetime(
-                year=2024, month=6, day=1, hour=13, minute=1, second=19
-            )
-            assert event["gtfs_arrival_dt"] == datetime(
-                year=2024, month=6, day=1, hour=13, minute=2, second=34
-            )
+            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=1, second=19)
+            assert event["gtfs_arrival_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=2, second=34)
 
         if event["stop_id"] == "655":
-            assert event["gtfs_travel_to_dt"] == datetime(
-                year=2024, month=6, day=1, hour=12, minute=50, second=31
-            )
-            assert event["gtfs_arrival_dt"] == datetime(
-                year=2024, month=6, day=1, hour=12, minute=53, second=29
-            )
+            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=50, second=31)
+            assert event["gtfs_arrival_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=53, second=29)
 
         if event["stop_id"] == "903":
-            assert event["gtfs_travel_to_dt"] == datetime(
-                year=2024, month=6, day=1, hour=13, minute=3, second=39
-            )
-            assert event["gtfs_arrival_dt"] == datetime(
-                year=2024, month=6, day=1, hour=13, minute=11, second=3
-            )
+            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=3, second=39)
+            assert event["gtfs_arrival_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=11, second=3)
 
     # the following properties are known to be in the consumed dataset
-    y1329_events = bus_vehicle_events.filter(
-        (pl.col("vehicle_id") == "y1329")
-        & (pl.col("trip_id") == "61884885-OL1")
-    )
+    y1329_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1329") & (pl.col("trip_id") == "61884885-OL1"))
 
     assert not y1329_events.is_empty()
 
@@ -153,22 +134,16 @@ def test_gtfs_rt_to_bus_events() -> None:
 
         # no arrival time at this stop
         if event["stop_id"] == "12005":
-            assert event["gtfs_travel_to_dt"] == datetime(
-                year=2024, month=6, day=1, hour=12, minute=47, second=23
-            )
+            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=47, second=23)
             assert event["gtfs_arrival_dt"] is None
 
         if event["stop_id"] == "17091":
-            assert event["gtfs_travel_to_dt"] == datetime(
-                year=2024, month=6, day=1, hour=12, minute=52, second=41
-            )
+            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=52, second=41)
             assert event["gtfs_arrival_dt"] is None
 
     # get an empty dataframe by reading the same files but for events the day prior.
     previous_service_date = service_date - timedelta(days=1)
-    empty_bus_vehicle_events = generate_gtfs_rt_events(
-        service_date=previous_service_date, gtfs_rt_files=vp_files
-    )
+    empty_bus_vehicle_events = generate_gtfs_rt_events(service_date=previous_service_date, gtfs_rt_files=vp_files)
 
     assert empty_bus_vehicle_events.is_empty()
 
@@ -185,9 +160,7 @@ def test_read_vehicle_positions() -> None:
     """
     service_date, vp_files = get_service_date_and_files()
 
-    vehicle_positions = read_vehicle_positions(
-        service_date=service_date, gtfs_rt_files=vp_files
-    )
+    vehicle_positions = read_vehicle_positions(service_date=service_date, gtfs_rt_files=vp_files)
 
     for col, data_type in vehicle_positions.schema.items():
         assert VP_SCHEMA[col] == data_type
@@ -377,27 +350,19 @@ def test_positions_to_events() -> None:
     correctly for different edge cases.
     """
     route_one_positions = route_one()
-    route_one_events = positions_to_events(
-        vehicle_positions=route_one_positions
-    )
+    route_one_events = positions_to_events(vehicle_positions=route_one_positions)
     assert len(route_one_events) == 2
 
     route_two_positions = route_two()
-    route_two_events = positions_to_events(
-        vehicle_positions=route_two_positions
-    )
+    route_two_events = positions_to_events(vehicle_positions=route_two_positions)
     assert len(route_two_events) == 2
 
     route_three_positions = route_three()
-    route_three_events = positions_to_events(
-        vehicle_positions=route_three_positions
-    )
+    route_three_events = positions_to_events(vehicle_positions=route_three_positions)
     assert len(route_three_events) == 2
 
     route_four_positions = route_four()
-    route_four_events = positions_to_events(
-        vehicle_positions=route_four_positions
-    )
+    route_four_events = positions_to_events(vehicle_positions=route_four_positions)
     assert len(route_four_events) == 2
 
     empty_positions = pl.DataFrame(schema=VP_SCHEMA)

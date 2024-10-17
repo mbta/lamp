@@ -84,9 +84,7 @@ def test_file_list_s3(s3_stub):  # type: ignore
     # Process large page_obj_response from json file
     # 'test_files/large_page_obj_response.json'
     # large json file contains 1,000 Contents records.
-    large_response_file = os.path.join(
-        incoming_dir, "large_page_obj_response.json"
-    )
+    large_response_file = os.path.join(incoming_dir, "large_page_obj_response.json")
     page_obj_params = {
         "Bucket": "mbta-gtfs-s3",
         "Prefix": ANY,

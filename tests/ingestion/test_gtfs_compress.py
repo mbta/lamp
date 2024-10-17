@@ -26,9 +26,7 @@ def test_gtfs_to_parquet_compression() -> None:
     will test compression of 3 randomly selected schedules from the past year
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        with mock.patch(
-            "lamp_py.ingestion.compress_gtfs.schedule_details.file_list_from_s3"
-        ) as patch_s3:
+        with mock.patch("lamp_py.ingestion.compress_gtfs.schedule_details.file_list_from_s3") as patch_s3:
             patch_s3.return_value = []
             feed = schedules_to_compress(temp_dir)
             patch_s3.assert_called()
@@ -84,12 +82,10 @@ def test_gtfs_to_parquet_compression() -> None:
                 )
                 pq_start_count = 0
                 if os.path.exists(start_path):
-                    pq_filter = (
-                        pc.field("gtfs_active_date") <= active_start_date
-                    ) & (pc.field("gtfs_end_date") >= active_start_date)
-                    pq_start_count = (
-                        pd.dataset(start_path).filter(pq_filter).count_rows()
+                    pq_filter = (pc.field("gtfs_active_date") <= active_start_date) & (
+                        pc.field("gtfs_end_date") >= active_start_date
                     )
+                    pq_start_count = pd.dataset(start_path).filter(pq_filter).count_rows()
 
                 assert (
                     pq_start_count == zip_count
@@ -103,12 +99,10 @@ def test_gtfs_to_parquet_compression() -> None:
                 )
                 pq_end_count = 0
                 if os.path.exists(end_path):
-                    pq_filter = (
-                        pc.field("gtfs_active_date") <= active_end_date
-                    ) & (pc.field("gtfs_end_date") >= active_end_date)
-                    pq_end_count = (
-                        pd.dataset(end_path).filter(pq_filter).count_rows()
+                    pq_filter = (pc.field("gtfs_active_date") <= active_end_date) & (
+                        pc.field("gtfs_end_date") >= active_end_date
                     )
+                    pq_end_count = pd.dataset(end_path).filter(pq_filter).count_rows()
 
                 assert (
                     pq_end_count == zip_count

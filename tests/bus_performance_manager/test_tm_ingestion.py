@@ -57,10 +57,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     # this is the df of all useful records from the stop crossings files
     raw_stop_crossings = (
         pl.scan_parquet(stop_crossings_filepath)
-        .filter(
-            pl.col("ACT_ARRIVAL_TIME").is_not_null()
-            | pl.col("ACT_DEPARTURE_TIME").is_not_null()
-        )
+        .filter(pl.col("ACT_ARRIVAL_TIME").is_not_null() | pl.col("ACT_DEPARTURE_TIME").is_not_null())
         .collect()
     )
 
@@ -71,9 +68,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     assert not bus_events.is_empty()
 
     # ensure we didn't lose any Revenue data from the raw dataset when joining
-    assert len(bus_events) == len(
-        raw_stop_crossings.filter((pl.col("IsRevenue") == "R"))
-    )
+    assert len(bus_events) == len(raw_stop_crossings.filter((pl.col("IsRevenue") == "R")))
 
     # check that crossings without trips are garage pullouts
     bus_garages = {
@@ -91,14 +86,11 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
 
     # check that all arrival and departure timestamps happen after the start of the service date
     assert bus_events.filter(
-        (pl.col("tm_arrival_dt") < service_date)
-        | (pl.col("tm_departure_dt") < service_date)
+        (pl.col("tm_arrival_dt") < service_date) | (pl.col("tm_departure_dt") < service_date)
     ).is_empty()
 
     # check that all departure times are after the arrival times
-    assert bus_events.filter(
-        pl.col("tm_arrival_dt") > pl.col("tm_departure_dt")
-    ).is_empty()
+    assert bus_events.filter(pl.col("tm_arrival_dt") > pl.col("tm_departure_dt")).is_empty()
 
     # check that there are no leading zeros on route ids
     assert bus_events.filter(

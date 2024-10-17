@@ -34,9 +34,7 @@ def mock_file_download(object_path: str, file_name: str) -> bool:
     return True
 
 
-@mock.patch(
-    "lamp_py.bus_performance_manager.events_gtfs_schedule.file_list_from_s3"
-)
+@mock.patch("lamp_py.bus_performance_manager.events_gtfs_schedule.file_list_from_s3")
 @mock.patch(
     "lamp_py.bus_performance_manager.events_gtfs_schedule.download_file",
     new=mock_file_download,
@@ -59,9 +57,7 @@ def test_gtfs_events_for_date(s3_patch: mock.MagicMock) -> None:
     expected_trips = expected_bus_events.select("trip_id").unique()
 
     # Filter and sort pipeline events for CSV trips
-    bus_events = bus_events.join(
-        expected_trips, on="trip_id", how="right"
-    ).sort(by=["trip_id", "stop_sequence"])
+    bus_events = bus_events.join(expected_trips, on="trip_id", how="right").sort(by=["trip_id", "stop_sequence"])
 
     # Compare pipeline values to CSV values by column
     column_exceptions = []
@@ -79,12 +75,8 @@ def test_gtfs_events_for_date(s3_patch: mock.MagicMock) -> None:
         for trip_id in expected_bus_events.get_column("trip_id").unique():
             try:
                 pl_test.assert_series_equal(
-                    bus_events.filter(
-                        (pl.col("trip_id") == trip_id)
-                    ).get_column(column),
-                    expected_bus_events.filter(
-                        (pl.col("trip_id") == trip_id)
-                    ).get_column(column),
+                    bus_events.filter((pl.col("trip_id") == trip_id)).get_column(column),
+                    expected_bus_events.filter((pl.col("trip_id") == trip_id)).get_column(column),
                 )
             except Exception as exception:
                 logging.error(

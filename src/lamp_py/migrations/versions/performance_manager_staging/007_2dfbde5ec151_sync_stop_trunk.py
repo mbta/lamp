@@ -28,9 +28,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    date_query = sa.text(
-        "SELECT DISTINCT service_date, static_version_key FROM vehicle_trips ORDER BY service_date"
-    )
+    date_query = sa.text("SELECT DISTINCT service_date, static_version_key FROM vehicle_trips ORDER BY service_date")
 
     conn = op.get_bind()
     result = conn.execute(date_query)

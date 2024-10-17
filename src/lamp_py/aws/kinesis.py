@@ -27,15 +27,11 @@ class KinesisReader:
         Get the stream description and the shard id for the first shard in the
         Kinesis Stream.  Throws if the stream has more than one shard.
         """
-        process_logger = ProcessLogger(
-            process_name="update_shard_id", stream_name=self.stream_name
-        )
+        process_logger = ProcessLogger(process_name="update_shard_id", stream_name=self.stream_name)
         process_logger.log_start()
 
         # Describe the stream and pull out the shard IDs
-        stream_description = self.kinesis_client.describe_stream(
-            StreamName=self.stream_name
-        )
+        stream_description = self.kinesis_client.describe_stream(StreamName=self.stream_name)
         shards = stream_description["StreamDescription"]["Shards"]
 
         # Per conversation with Glides, their Kinesis Stream only consists of a
@@ -54,9 +50,7 @@ class KinesisReader:
         that case, get the Trim Horizon iterator which is the oldest one in the
         shard. Otherwise, get the next iterator after the last sequence number.
         """
-        process_logger = ProcessLogger(
-            process_name="update_shard_iterator", stream_name=self.stream_name
-        )
+        process_logger = ProcessLogger(process_name="update_shard_iterator", stream_name=self.stream_name)
         process_logger.log_start()
 
         if self.shard_id is None:
@@ -90,9 +84,7 @@ class KinesisReader:
         records that can be processed and the next shard iterator to use for the
         next read.
         """
-        process_logger = ProcessLogger(
-            process_name="kinesis.get_records", stream_name=self.stream_name
-        )
+        process_logger = ProcessLogger(process_name="kinesis.get_records", stream_name=self.stream_name)
         process_logger.log_start()
 
         all_records = []
@@ -106,9 +98,7 @@ class KinesisReader:
 
             while True:
                 try:
-                    response = self.kinesis_client.get_records(
-                        ShardIterator=self.shard_iterator
-                    )
+                    response = self.kinesis_client.get_records(ShardIterator=self.shard_iterator)
                     shard_count += 1
                     self.shard_iterator = response["NextShardIterator"]
                     records = response["Records"]
@@ -125,9 +115,7 @@ class KinesisReader:
                 except self.kinesis_client.exceptions.ExpiredIteratorException:
                     self.update_shard_iterator()
 
-            process_logger.add_metadata(
-                record_count=len(all_records), shard_count=shard_count
-            )
+            process_logger.add_metadata(record_count=len(all_records), shard_count=shard_count)
         except Exception as e:
             process_logger.log_failure(e)
 

@@ -65,12 +65,8 @@ def main(args: argparse.Namespace) -> None:
     main_process_logger.log_start()
 
     # get the engine that manages sessions that read and write to the db
-    rpm_db_manager = DatabaseManager(
-        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER, verbose=args.verbose
-    )
-    md_db_manager = DatabaseManager(
-        db_index=DatabaseIndex.METADATA, verbose=args.verbose
-    )
+    rpm_db_manager = DatabaseManager(db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER, verbose=args.verbose)
+    md_db_manager = DatabaseManager(db_index=DatabaseIndex.METADATA, verbose=args.verbose)
 
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.monotonic, time.sleep)

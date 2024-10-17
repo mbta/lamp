@@ -10,9 +10,7 @@ from lamp_py.postgres.rail_performance_manager_schema import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-def generate_scheduled_travel_times(
-    static_version_key: int, db_manager: DatabaseManager
-) -> None:
+def generate_scheduled_travel_times(static_version_key: int, db_manager: DatabaseManager) -> None:
     """
     generate scheduled travel_times and insert into static_stop_times table
     """
@@ -50,9 +48,7 @@ def generate_scheduled_travel_times(
     process_logger.log_complete()
 
 
-def generate_scheduled_branch_headways(
-    static_version_key: int, db_manager: DatabaseManager
-) -> None:
+def generate_scheduled_branch_headways(static_version_key: int, db_manager: DatabaseManager) -> None:
     """
     generate scheduled branch headways and insert into static_stop_times table
     """
@@ -97,9 +93,7 @@ def generate_scheduled_branch_headways(
     process_logger.log_complete()
 
 
-def generate_scheduled_trunk_headways(
-    static_version_key: int, db_manager: DatabaseManager
-) -> None:
+def generate_scheduled_trunk_headways(static_version_key: int, db_manager: DatabaseManager) -> None:
     """
     generate scheduled trunk headways and insert into static_stop_times table
     """
@@ -155,9 +149,7 @@ def static_headways_subquery(
         sa.select(
             StaticStopTimes.pk_id,
             StaticStopTimes.departure_time,
-            sa.func.coalesce(
-                StaticStops.parent_station, StaticStops.stop_id
-            ).label("parent_station"),
+            sa.func.coalesce(StaticStops.parent_station, StaticStops.stop_id).label("parent_station"),
             StaticTrips.service_id,
             StaticTrips.direction_id,
             StaticTrips.trunk_route_id,
@@ -168,16 +160,14 @@ def static_headways_subquery(
             StaticStops,
             sa.and_(
                 StaticStops.stop_id == StaticStopTimes.stop_id,
-                StaticStops.static_version_key
-                == StaticStopTimes.static_version_key,
+                StaticStops.static_version_key == StaticStopTimes.static_version_key,
             ),
         )
         .join(
             StaticTrips,
             sa.and_(
                 StaticTrips.trip_id == StaticStopTimes.trip_id,
-                StaticTrips.static_version_key
-                == StaticStopTimes.static_version_key,
+                StaticTrips.static_version_key == StaticStopTimes.static_version_key,
             ),
         )
         .where(
@@ -188,9 +178,7 @@ def static_headways_subquery(
     ).subquery("temp_static_headways")
 
 
-def modify_static_tables(
-    static_version_key: int, db_manager: DatabaseManager
-) -> None:
+def modify_static_tables(static_version_key: int, db_manager: DatabaseManager) -> None:
     """
     This function is responsible for modifying any GTFS static schedule tables after
     a new schedule as been loaded

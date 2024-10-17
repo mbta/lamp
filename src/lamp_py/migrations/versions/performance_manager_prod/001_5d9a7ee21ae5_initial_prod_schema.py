@@ -78,9 +78,7 @@ def upgrade() -> None:
         sa.Column("route_id", sa.String(length=60), nullable=False),
         sa.Column("direction_id", sa.Boolean(), nullable=True),
         sa.Column("direction", sa.String(length=30), nullable=False),
-        sa.Column(
-            "direction_destination", sa.String(length=60), nullable=False
-        ),
+        sa.Column("direction_destination", sa.String(length=60), nullable=False),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("pk_id"),
     )
@@ -139,12 +137,8 @@ def upgrade() -> None:
         sa.Column("arrival_time", sa.Integer(), nullable=False),
         sa.Column("departure_time", sa.Integer(), nullable=False),
         sa.Column("schedule_travel_time_seconds", sa.Integer(), nullable=True),
-        sa.Column(
-            "schedule_headway_trunk_seconds", sa.Integer(), nullable=True
-        ),
-        sa.Column(
-            "schedule_headway_branch_seconds", sa.Integer(), nullable=True
-        ),
+        sa.Column("schedule_headway_trunk_seconds", sa.Integer(), nullable=True),
+        sa.Column("schedule_headway_branch_seconds", sa.Integer(), nullable=True),
         sa.Column("stop_id", sa.String(length=60), nullable=False),
         sa.Column("stop_sequence", sa.SmallInteger(), nullable=False),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
@@ -232,9 +226,7 @@ def upgrade() -> None:
         sa.Column("route_id", sa.String(length=60), nullable=False),
         sa.Column("direction_id", sa.Boolean(), nullable=True),
         sa.Column("route_pattern_typicality", sa.SmallInteger(), nullable=True),
-        sa.Column(
-            "representative_trip_id", sa.String(length=512), nullable=False
-        ),
+        sa.Column("representative_trip_id", sa.String(length=512), nullable=False),
         sa.Column("static_version_key", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("pk_id"),
     )
@@ -280,9 +272,7 @@ def upgrade() -> None:
         sa.Column("sync_stop_sequence", sa.SmallInteger(), nullable=True),
         sa.Column("stop_id", sa.String(length=60), nullable=False),
         sa.Column("parent_station", sa.String(length=60), nullable=False),
-        sa.Column(
-            "previous_trip_stop_pm_event_id", sa.Integer(), nullable=True
-        ),
+        sa.Column("previous_trip_stop_pm_event_id", sa.Integer(), nullable=True),
         sa.Column("next_trip_stop_pm_event_id", sa.Integer(), nullable=True),
         sa.Column("vp_move_timestamp", sa.Integer(), nullable=True),
         sa.Column("vp_stop_timestamp", sa.Integer(), nullable=True),
@@ -316,9 +306,7 @@ def upgrade() -> None:
         "vehicle_events",
         ["pm_event_id"],
         unique=False,
-        postgresql_where=sa.text(
-            "vp_move_timestamp IS NOT NULL OR vp_stop_timestamp IS NOT NULL"
-        ),
+        postgresql_where=sa.text("vp_move_timestamp IS NOT NULL OR vp_stop_timestamp IS NOT NULL"),
     )
 
     op.create_table(
@@ -431,37 +419,25 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    drop_opmi_all_rt_fields_joined = (
-        "DROP VIEW IF EXISTS opmi_all_rt_fields_joined;"
-    )
+    drop_opmi_all_rt_fields_joined = "DROP VIEW IF EXISTS opmi_all_rt_fields_joined;"
     op.execute(drop_opmi_all_rt_fields_joined)
 
-    drop_static_service_id_lookup = (
-        "DROP VIEW IF EXISTS static_service_id_lookup;"
-    )
+    drop_static_service_id_lookup = "DROP VIEW IF EXISTS static_service_id_lookup;"
     op.execute(drop_static_service_id_lookup)
 
-    drop_service_id_by_date_and_route = (
-        "DROP VIEW IF EXISTS service_id_by_date_and_route;"
-    )
+    drop_service_id_by_date_and_route = "DROP VIEW IF EXISTS service_id_by_date_and_route;"
     op.execute(drop_service_id_by_date_and_route)
 
-    drop_trigger = (
-        "DROP TRIGGER IF EXISTS rt_trips_update_branch_trunk ON vehicle_trips;"
-    )
+    drop_trigger = "DROP TRIGGER IF EXISTS rt_trips_update_branch_trunk ON vehicle_trips;"
     op.execute(drop_trigger)
 
-    drop_function = (
-        "DROP function if EXISTS public.update_rt_branch_trunk_id();"
-    )
+    drop_function = "DROP function if EXISTS public.update_rt_branch_trunk_id();"
     op.execute(drop_function)
 
     drop_function = "DROP function if EXISTS public.rt_red_is_ashmont_branch();"
     op.execute(drop_function)
 
-    drop_function = (
-        "DROP function if EXISTS public.rt_red_is_braintree_branch();"
-    )
+    drop_function = "DROP function if EXISTS public.rt_red_is_braintree_branch();"
     op.execute(drop_function)
 
     drop_trigger = "DROP TRIGGER IF EXISTS static_trips_create_branch_trunk ON static_trips;"
@@ -473,14 +449,10 @@ def downgrade() -> None:
     drop_function = "DROP function IF EXISTS public.red_is_ashmont_branch();"
     op.execute(drop_function)
 
-    drop_function = (
-        "DROP function IF EXISTS public.insert_static_trips_branch_trunk();"
-    )
+    drop_function = "DROP function IF EXISTS public.insert_static_trips_branch_trunk();"
     op.execute(drop_function)
 
-    drop_trigger = (
-        "DROP TRIGGER IF EXISTS insert_into_feed_info ON static_feed_info;"
-    )
+    drop_trigger = "DROP TRIGGER IF EXISTS insert_into_feed_info ON static_feed_info;"
     op.execute(drop_trigger)
     drop_function = "DROP function IF EXISTS public.insert_feed_info();"
     op.execute(drop_function)
@@ -493,9 +465,7 @@ def downgrade() -> None:
         drop_trigger = f"DROP TRIGGER IF EXISTS {trigger_name} on {table};"
         op.execute(drop_trigger)
 
-    drop_update_on_and_triggers = (
-        "DROP function if EXISTS public.update_modified_columns();"
-    )
+    drop_update_on_and_triggers = "DROP function if EXISTS public.update_modified_columns();"
     op.execute(drop_update_on_and_triggers)
 
     op.drop_index("ix_vehicle_trips_composite_1", table_name="vehicle_trips")
@@ -524,12 +494,8 @@ def downgrade() -> None:
     op.drop_index("ix_static_stops_composite_1", table_name="static_stops")
     op.drop_table("static_stops")
 
-    op.drop_index(
-        "ix_static_stop_times_composite_2", table_name="static_stop_times"
-    )
-    op.drop_index(
-        "ix_static_stop_times_composite_1", table_name="static_stop_times"
-    )
+    op.drop_index("ix_static_stop_times_composite_2", table_name="static_stop_times")
+    op.drop_index("ix_static_stop_times_composite_1", table_name="static_stop_times")
     op.drop_table("static_stop_times")
 
     op.drop_index("ix_static_routes_composite_1", table_name="static_routes")
@@ -537,9 +503,7 @@ def downgrade() -> None:
 
     op.drop_table("static_feed_info")
 
-    op.drop_index(
-        "ix_static_directions_composite_1", table_name="static_directions"
-    )
+    op.drop_index("ix_static_directions_composite_1", table_name="static_directions")
     op.drop_table("static_directions")
 
     op.drop_index(
@@ -548,8 +512,6 @@ def downgrade() -> None:
     )
     op.drop_table("static_calendar_dates")
 
-    op.drop_index(
-        "ix_static_calendar_composite_1", table_name="static_calendar"
-    )
+    op.drop_index("ix_static_calendar_composite_1", table_name="static_calendar")
     op.drop_table("static_calendar")
     # ### end Alembic commands ###

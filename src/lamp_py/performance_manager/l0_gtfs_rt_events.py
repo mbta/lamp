@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.functions import count
 
-from lamp_py.aws.s3 import get_datetime_from_partition_path
+from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.postgres.metadata_schema import MetadataLog
 from lamp_py.postgres.rail_performance_manager_schema import (
     TempEventCompare,
@@ -26,9 +26,7 @@ from .l1_rt_trips import process_trips, load_new_trip_data
 from .l1_rt_metrics import update_metrics_from_temp_events
 
 
-def get_gtfs_rt_paths(
-    md_db_manager: DatabaseManager, path_count: int = 12
-) -> Dict[str, List]:
+def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> Dict[str, List]:
     """
     get lists of GTFS-RT paths, grouped by type, and DB primary keys of each path
     limit number of paths in each list to a max of `path_count`
@@ -48,9 +46,7 @@ def get_gtfs_rt_paths(
 
     vp_files = get_unprocessed_files("RT_VEHICLE_POSITIONS", md_db_manager)
     for record in vp_files:
-        timestamp = get_datetime_from_partition_path(
-            record["paths"][0]
-        ).timestamp()
+        timestamp = dt_from_obj_path(record["paths"][0]).timestamp()
 
         grouped_files[timestamp] = {
             "ids": record["ids"],
@@ -60,9 +56,7 @@ def get_gtfs_rt_paths(
 
     tu_files = get_unprocessed_files("RT_TRIP_UPDATES", md_db_manager)
     for record in tu_files:
-        timestamp = get_datetime_from_partition_path(
-            record["paths"][0]
-        ).timestamp()
+        timestamp = dt_from_obj_path(record["paths"][0]).timestamp()
         if timestamp in grouped_files:
             grouped_files[timestamp]["ids"] += record["ids"]
             grouped_files[timestamp]["tu_paths"] += record["paths"]
@@ -94,9 +88,7 @@ def get_gtfs_rt_paths(
     return return_dict
 
 
-def combine_events(
-    vp_events: pandas.DataFrame, tu_events: pandas.DataFrame
-) -> pandas.DataFrame:
+def combine_events(vp_events: pandas.DataFrame, tu_events: pandas.DataFrame) -> pandas.DataFrame:
     """
     collapse the vp events and tu events into a single vehicle events df
 
@@ -118,9 +110,7 @@ def combine_events(
 
     # merge together the trip_stop_columns and the timestamps
     events = pandas.merge(
-        vp_events[
-            trip_stop_columns + ["vp_stop_timestamp", "vp_move_timestamp"]
-        ],
+        vp_events[trip_stop_columns + ["vp_stop_timestamp", "vp_move_timestamp"]],
         tu_events[
             trip_stop_columns
             + [
@@ -161,18 +151,12 @@ def combine_events(
         "static_version_key",
     ]
 
-    event_details = pandas.concat(
-        [vp_events[details_columns], tu_events[details_columns]]
-    )
+    event_details = pandas.concat([vp_events[details_columns], tu_events[details_columns]])
 
     # create sort column to indicate which records have null values for select columns
     # we want to drop these null value records whenever possible
     # to prioritize records from vehicle_positions
-    event_details["na_sort"] = (
-        event_details[["stop_sequence", "vehicle_label", "vehicle_consist"]]
-        .isna()
-        .sum(axis=1)
-    )
+    event_details["na_sort"] = event_details[["stop_sequence", "vehicle_label", "vehicle_consist"]].isna().sum(axis=1)
 
     event_details = (
         event_details.sort_values(
@@ -187,9 +171,7 @@ def combine_events(
     )
 
     # join `details_columns` to df with timestamps
-    events = events.merge(
-        event_details, how="left", on=trip_stop_columns, validate="one_to_one"
-    )
+    events = events.merge(event_details, how="left", on=trip_stop_columns, validate="one_to_one")
 
     process_logger.add_metadata(total_event_count=events.shape[0])
     process_logger.log_complete()
@@ -225,16 +207,14 @@ def flag_insert_update_events(db_manager: DatabaseManager) -> Tuple[int, int]:
                     TempEventCompare.vp_move_timestamp.is_not(None),
                     sa.or_(
                         VehicleEvents.vp_move_timestamp.is_(None),
-                        VehicleEvents.vp_move_timestamp
-                        > TempEventCompare.vp_move_timestamp,
+                        VehicleEvents.vp_move_timestamp > TempEventCompare.vp_move_timestamp,
                     ),
                 ),
                 sa.and_(
                     TempEventCompare.vp_stop_timestamp.is_not(None),
                     sa.or_(
                         VehicleEvents.vp_stop_timestamp.is_(None),
-                        VehicleEvents.vp_stop_timestamp
-                        > TempEventCompare.vp_move_timestamp,
+                        VehicleEvents.vp_stop_timestamp > TempEventCompare.vp_move_timestamp,
                     ),
                 ),
                 TempEventCompare.tu_stop_timestamp.is_not(None),
@@ -244,12 +224,8 @@ def flag_insert_update_events(db_manager: DatabaseManager) -> Tuple[int, int]:
     db_manager.execute(update_do_update)
 
     # get count of do_update records
-    update_count_query = sa.select(count(TempEventCompare.do_update)).where(
-        TempEventCompare.do_update == sa.true()
-    )
-    update_count = int(
-        db_manager.select_as_list(update_count_query)[0]["count"]
-    )
+    update_count_query = sa.select(count(TempEventCompare.do_update)).where(TempEventCompare.do_update == sa.true())
+    update_count = int(db_manager.select_as_list(update_count_query)[0]["count"])
 
     # populate do_insert column of temp_event_compare
     do_insert_pre_select = (
@@ -271,12 +247,8 @@ def flag_insert_update_events(db_manager: DatabaseManager) -> Tuple[int, int]:
     db_manager.execute(update_do_insert)
 
     # get count of do_insert records
-    insert_count_query = sa.select(count(TempEventCompare.do_insert)).where(
-        TempEventCompare.do_insert == sa.true()
-    )
-    insert_count = int(
-        db_manager.select_as_list(insert_count_query)[0]["count"]
-    )
+    insert_count_query = sa.select(count(TempEventCompare.do_insert)).where(TempEventCompare.do_insert == sa.true())
+    insert_count = int(db_manager.select_as_list(insert_count_query)[0]["count"])
 
     # remove records from temp_event_compare that are not related to updates or inserts
     delete_temp = sa.delete(TempEventCompare.__table__).where(
@@ -288,9 +260,7 @@ def flag_insert_update_events(db_manager: DatabaseManager) -> Tuple[int, int]:
     return (update_count, insert_count)
 
 
-def build_temp_events(
-    events: pandas.DataFrame, db_manager: DatabaseManager
-) -> pandas.DataFrame:
+def build_temp_events(events: pandas.DataFrame, db_manager: DatabaseManager) -> pandas.DataFrame:
     """
     add vehicle event data to the database
 
@@ -395,8 +365,7 @@ def update_events_from_temp(db_manager: DatabaseManager) -> None:
                 sa.text("excluded.vp_move_timestamp IS NOT NULL"),
                 sa.or_(
                     VehicleEvents.vp_move_timestamp.is_(None),
-                    VehicleEvents.vp_move_timestamp
-                    > sa.text("excluded.vp_move_timestamp"),
+                    VehicleEvents.vp_move_timestamp > sa.text("excluded.vp_move_timestamp"),
                 ),
             ),
         )
@@ -418,8 +387,7 @@ def update_events_from_temp(db_manager: DatabaseManager) -> None:
             TempEventCompare.vp_stop_timestamp.is_not(None),
             sa.or_(
                 VehicleEvents.vp_stop_timestamp.is_(None),
-                VehicleEvents.vp_stop_timestamp
-                > TempEventCompare.vp_stop_timestamp,
+                VehicleEvents.vp_stop_timestamp > TempEventCompare.vp_stop_timestamp,
             ),
         )
     )
@@ -539,9 +507,7 @@ def process_gtfs_rt_files(
                 update_metrics_from_temp_events(rpm_db_manager)
 
         md_db_manager.execute(
-            sa.update(MetadataLog.__table__)
-            .where(MetadataLog.pk_id.in_(files["ids"]))
-            .values(rail_pm_processed=True)
+            sa.update(MetadataLog.__table__).where(MetadataLog.pk_id.in_(files["ids"])).values(rail_pm_processed=True)
         )
         process_logger.add_metadata(event_count=events.shape[0])
         process_logger.log_complete()
