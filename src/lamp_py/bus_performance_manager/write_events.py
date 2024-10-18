@@ -1,9 +1,12 @@
 import os
+import tempfile
 
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
 from lamp_py.runtime_utils.remote_files import bus_events
+from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.aws.s3 import upload_file
 
 
 def write_bus_metrics() -> None:
@@ -36,8 +39,17 @@ def write_bus_metrics() -> None:
         try:
             events_df = bus_performance_metrics(service_date, gtfs_files, tm_files)
             day_logger.add_metadata(bus_performance_rows=events_df.shape[0])
-            write_path = os.path.join(bus_events.s3_uri, f"{service_date}_bus-performance-v1.parquet")
-            events_df.write_parquet(write_path, use_pyarrow=True)
+
+            with tempfile.TemporaryDirectory() as tempdir:
+                write_file = f"{service_date.strftime('%Y%m%d')}.parquet"
+                events_df.write_parquet(os.path.join(tempdir,write_file), use_pyarrow=True)
+
+                upload_file(
+                    file_name=os.path.join(tempdir,write_file),
+                    object_path=os.path.join(bus_events.s3_uri,write_file),
+                    extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
+                )
+
             day_logger.log_complete()
         except Exception as exception:
             day_logger.log_failure(exception)

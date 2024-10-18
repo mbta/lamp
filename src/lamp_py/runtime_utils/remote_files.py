@@ -14,6 +14,7 @@ LAMP = "lamp"
 TM = os.path.join(LAMP, "TM")
 TABLEAU = os.path.join(LAMP, "tableau")
 
+VERSION_KEY = "lamp_version"
 
 @dataclass
 class S3Location:
@@ -23,6 +24,7 @@ class S3Location:
 
     bucket: str
     prefix: str
+    version: str = "1.0"
 
     @property
     def s3_uri(self) -> str:

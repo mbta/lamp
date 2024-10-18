@@ -154,7 +154,7 @@ def event_files_to_load() -> Dict[date, Dict[str, List[str]]]:
     latest_event_file = get_last_modified_object(
         bucket_name=bus_events.bucket,
         file_prefix=bus_events.prefix,
-        version="1.0",
+        version=bus_events.version,
     )
 
     # if there is a event file, pull the service date from it and filter
