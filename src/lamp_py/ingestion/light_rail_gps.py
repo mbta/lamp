@@ -69,13 +69,7 @@ def thread_gps_to_frame(path: str) -> Tuple[Optional[pl.DataFrame], str]:
                 .select(
                     pl.col("serial_number").cast(pl.String),
                     pl.col("data").struct.field("speed").cast(pl.Float64),
-                    (
-                        pl.col("data")
-                        .struct.field("updated_at")
-                        .str.slice(0, length=10)
-                        .str.to_date()
-                        .alias("date")
-                    ),
+                    (pl.col("data").struct.field("updated_at").str.slice(0, length=10).str.to_date().alias("date")),
                     pl.col("data").struct.field("updated_at").cast(pl.String),
                     pl.col("data").struct.field("bearing").cast(pl.Float64),
                     pl.col("data").struct.field("latitude").cast(pl.String),
@@ -115,9 +109,7 @@ def dataframe_from_gz(
     archive_files: correctly loaded gzip paths
     error_files: gzip paths that failed to load
     """
-    logger = ProcessLogger(
-        process_name="light_rail_df_from_gz", num_files=len(files)
-    )
+    logger = ProcessLogger(process_name="light_rail_df_from_gz", num_files=len(files))
     logger.log_start()
 
     init_file = files[0]
@@ -126,9 +118,7 @@ def dataframe_from_gz(
     error_files = []
 
     try:
-        with ThreadPoolExecutor(
-            max_workers=16, initializer=thread_init, initargs=(init_file,)
-        ) as pool:
+        with ThreadPoolExecutor(max_workers=16, initializer=thread_init, initargs=(init_file,)) as pool:
             for df, path in pool.map(thread_gps_to_frame, files):
                 if df is not None:
                     archive_files.append(path)
@@ -160,9 +150,7 @@ def write_parquet(dataframe: pl.DataFrame) -> None:
     will merge any existing parquet files in memory
     """
     for date in dataframe.get_column("date").unique():
-        logger = ProcessLogger(
-            process_name="light_rail_write_parquet", date=date
-        )
+        logger = ProcessLogger(process_name="light_rail_write_parquet", date=date)
         logger.log_start()
 
         remote_obj = os.path.join(
@@ -175,9 +163,7 @@ def write_parquet(dataframe: pl.DataFrame) -> None:
         day_frame = dataframe.filter(pl.col("date") == date)
 
         if object_exists(remote_obj):
-            day_frame = pl.concat(
-                [day_frame, pl.read_parquet(f"s3://{remote_obj}")]
-            )
+            day_frame = pl.concat([day_frame, pl.read_parquet(f"s3://{remote_obj}")])
 
         day_frame = day_frame.unique().sort(by=["serial_number", "updated_at"])
 

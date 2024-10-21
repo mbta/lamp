@@ -80,9 +80,7 @@ def reset_rpm(parsed_args: argparse.Namespace) -> None:
             rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
             rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     except Exception as exception:
-        logging.exception(
-            "Unable to Reset Rail Performance Manager DB\n%s", exception
-        )
+        logging.exception("Unable to Reset Rail Performance Manager DB\n%s", exception)
 
 
 def run() -> None:

@@ -35,6 +35,4 @@ def test_ingestion_job_count() -> None:
     assert all_job_types
 
     # ensure all job types are accounted for in ingestion
-    assert (
-        all_job_types == job_types
-    ), f"Missing instances for subclasses: {all_job_types - job_types}"
+    assert all_job_types == job_types, f"Missing instances for subclasses: {all_job_types - job_types}"

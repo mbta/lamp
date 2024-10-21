@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 import pyarrow
 import pyarrow.parquet as pq
 
-from lamp_py.aws.s3 import get_datetime_from_partition_path
+from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from .metadata_schema import MetadataLog
@@ -135,18 +135,12 @@ class PsqlArgs:
 
                 # set the ssl cert path to the file that should be added to the
                 # lambda function at deploy time
-                db_ssl_cert = os.path.abspath(
-                    os.path.join(
-                        "/", "usr", "local", "share", "amazon-certs.pem"
-                    )
-                )
+                db_ssl_cert = os.path.abspath(os.path.join("/", "usr", "local", "share", "amazon-certs.pem"))
 
                 assert os.path.isfile(db_ssl_cert)
 
                 # update the ssl options string to add to the database url
-                db_ssl_options = (
-                    f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
-                )
+                db_ssl_options = f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
 
             database_url = (
                 f"postgresql+psycopg2://{self.user}:"
@@ -345,9 +339,7 @@ class DatabaseManager:
 
         return result  # type: ignore
 
-    def insert_dataframe(
-        self, dataframe: pandas.DataFrame, insert_table: Any
-    ) -> None:
+    def insert_dataframe(self, dataframe: pandas.DataFrame, insert_table: Any) -> None:
         """
         insert data into db table from pandas dataframe
         """
@@ -359,20 +351,14 @@ class DatabaseManager:
                 dataframe.to_dict(orient="records"),
             )
 
-    def select_as_dataframe(
-        self, select_query: sa.sql.selectable.Select
-    ) -> pandas.DataFrame:
+    def select_as_dataframe(self, select_query: sa.sql.selectable.Select) -> pandas.DataFrame:
         """
         select data from db table and return pandas dataframe
         """
         with self.session.begin() as cursor:
-            return pandas.DataFrame(
-                [row._asdict() for row in cursor.execute(select_query)]
-            )
+            return pandas.DataFrame([row._asdict() for row in cursor.execute(select_query)])
 
-    def select_as_list(
-        self, select_query: sa.sql.selectable.Select
-    ) -> Union[List[Any], List[Dict[str, Any]]]:
+    def select_as_list(self, select_query: sa.sql.selectable.Select) -> Union[List[Any], List[Dict[str, Any]]]:
         """
         select data from db table and return list
         """
@@ -418,9 +404,7 @@ class DatabaseManager:
             with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
                 for part in cursor.execute(part_stmt).partitions(batch_size):
                     pq_writer.write_batch(
-                        pyarrow.RecordBatch.from_pylist(
-                            [row._asdict() for row in part], schema=schema
-                        )
+                        pyarrow.RecordBatch.from_pylist([row._asdict() for row in part], schema=schema)
                     )
 
         process_logger.log_complete()
@@ -471,9 +455,7 @@ class DatabaseManager:
         simple queries.
         """
         table = self._get_schema_table(VehicleTrips)
-        disable_trigger = (
-            f"ALTER TABLE {table} DISABLE TRIGGER rt_trips_update_branch_trunk;"
-        )
+        disable_trigger = f"ALTER TABLE {table} DISABLE TRIGGER rt_trips_update_branch_trunk;"
 
         with self.session.begin() as cursor:
             cursor.execute(sa.text(disable_trigger))
@@ -483,9 +465,7 @@ class DatabaseManager:
         ENABLE rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
         """
         table = self._get_schema_table(VehicleTrips)
-        enable_trigger = (
-            f"ALTER TABLE {table} ENABLE TRIGGER rt_trips_update_branch_trunk;"
-        )
+        enable_trigger = f"ALTER TABLE {table} ENABLE TRIGGER rt_trips_update_branch_trunk;"
 
         with self.session.begin() as cursor:
             cursor.execute(sa.text(enable_trigger))
@@ -518,21 +498,18 @@ def get_unprocessed_files(
         "paths": [s3 paths of parquet files that share path]
     }
     """
-    process_logger = ProcessLogger(
-        "get_unprocessed_files", seed_string=path_contains
-    )
+    process_logger = ProcessLogger("get_unprocessed_files", seed_string=path_contains)
     process_logger.log_start()
 
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
         read_md_log = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
-            (MetadataLog.rail_pm_processed == sa.false())
-            & (MetadataLog.path.contains(path_contains))
+            (MetadataLog.rail_pm_processed == sa.false()) & (MetadataLog.path.contains(path_contains))
         )
         for path_record in db_manager.select_as_list(read_md_log):
             path_id = path_record.get("pk_id")
             path = str(path_record.get("path"))
-            path_timestamp = get_datetime_from_partition_path(path).timestamp()
+            path_timestamp = dt_from_obj_path(path).timestamp()
 
             if path_timestamp not in paths_to_load:
                 paths_to_load[path_timestamp] = {"ids": [], "paths": []}
@@ -544,18 +521,14 @@ def get_unprocessed_files(
         if file_limit is not None:
             paths_returned = file_limit
 
-        process_logger.add_metadata(
-            paths_found=paths_found, paths_returned=paths_returned
-        )
+        process_logger.add_metadata(paths_found=paths_found, paths_returned=paths_returned)
 
         process_logger.log_complete()
 
     except Exception as exception:
         process_logger.log_failure(exception)
 
-    return [
-        paths_to_load[timestamp] for timestamp in sorted(paths_to_load.keys())
-    ][:file_limit]
+    return [paths_to_load[timestamp] for timestamp in sorted(paths_to_load.keys())][:file_limit]
 
 
 def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:

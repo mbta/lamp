@@ -46,15 +46,10 @@ def gtfs_files_to_convert() -> List[Tuple[str, int]]:
 
     # add version_key column
     mbta_schedule_feed = mbta_schedule_feed.with_columns(
-        pl.col("published_dt")
-        .dt.timestamp("ms")
-        .floordiv(1000)
-        .alias("version_key")
+        pl.col("published_dt").dt.timestamp("ms").floordiv(1000).alias("version_key")
     )
 
-    return mbta_schedule_feed.select(["archive_url", "version_key"]).rows(
-        named=False
-    )
+    return mbta_schedule_feed.select(["archive_url", "version_key"]).rows(named=False)
 
 
 class GtfsConverter(Converter):
@@ -102,9 +97,7 @@ class GtfsConverter(Converter):
 
             self.create_table(gtfs_zip, "feed_info.txt", version_key)
 
-    def create_table(
-        self, gtfs_zip: zipfile.ZipFile, table_filename: str, version_key: int
-    ) -> None:
+    def create_table(self, gtfs_zip: zipfile.ZipFile, table_filename: str, version_key: int) -> None:
         """
         read a csv table out of a gtfs static schedule file, add a timestamp
         column to each row, and write it as a parquet file on s3, partitioned

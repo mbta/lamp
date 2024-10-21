@@ -81,9 +81,7 @@ def test_transform_translations() -> None:
 
         # check that the number of records that have english translations is
         # the same as the number of transformed translations.
-        raw_en_translation_count = (
-            alerts_raw[old_name].apply(lambda x: '"en"' in json.dumps(x)).sum()
-        )
+        raw_en_translation_count = alerts_raw[old_name].apply(lambda x: '"en"' in json.dumps(x)).sum()
         processed_translation_count = alerts_processed[new_name].notna().sum()
 
         assert raw_en_translation_count == processed_translation_count
@@ -106,23 +104,17 @@ def generate_sample_timestamps(start_ts: int, end_ts: int) -> pandas.DataFrame:
         created_timestamp = random.randint(start_ts, end_ts)
         record["created_timestamp"] = created_timestamp
         if random.choice([True, False]):
-            record["last_modified_timestamp"] = (
-                created_timestamp + random.randint(0, 3600 * 24 * 2)
-            )
+            record["last_modified_timestamp"] = created_timestamp + random.randint(0, 3600 * 24 * 2)
         else:
             record["last_modified_timestamp"] = created_timestamp
 
         if random.choice([True, False]):
-            record["last_push_notification_timestamp"] = (
-                created_timestamp + random.randint(0, 3600 * 24 * 2)
-            )
+            record["last_push_notification_timestamp"] = created_timestamp + random.randint(0, 3600 * 24 * 2)
         else:
             record["last_push_notification_timestamp"] = None
 
         if random.choice([True, False]):
-            record["closed_timestamp"] = created_timestamp + random.randint(
-                0, 3600 * 24 * 2
-            )
+            record["closed_timestamp"] = created_timestamp + random.randint(0, 3600 * 24 * 2)
         else:
             record["closed_timestamp"] = None
 
@@ -130,18 +122,10 @@ def generate_sample_timestamps(start_ts: int, end_ts: int) -> pandas.DataFrame:
 
     # convert sample data to formatted dataframe
     alerts_raw = pandas.DataFrame(sample_data)
-    alerts_raw["created_timestamp"] = alerts_raw["created_timestamp"].astype(
-        "Int64"
-    )
-    alerts_raw["last_modified_timestamp"] = alerts_raw[
-        "last_modified_timestamp"
-    ].astype("Int64")
-    alerts_raw["last_push_notification_timestamp"] = alerts_raw[
-        "last_push_notification_timestamp"
-    ].astype("Int64")
-    alerts_raw["closed_timestamp"] = alerts_raw["closed_timestamp"].astype(
-        "Int64"
-    )
+    alerts_raw["created_timestamp"] = alerts_raw["created_timestamp"].astype("Int64")
+    alerts_raw["last_modified_timestamp"] = alerts_raw["last_modified_timestamp"].astype("Int64")
+    alerts_raw["last_push_notification_timestamp"] = alerts_raw["last_push_notification_timestamp"].astype("Int64")
+    alerts_raw["closed_timestamp"] = alerts_raw["closed_timestamp"].astype("Int64")
 
     return alerts_raw
 
@@ -174,9 +158,7 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
         if base in ["created", "last_modified"]:
             assert datetime_count == len(alerts_processed)
         else:
-            assert (
-                datetime_count < len(alerts_processed) * 0.75
-            ), alerts_processed[[old_name, new_name]].head()
+            assert datetime_count < len(alerts_processed) * 0.75, alerts_processed[[old_name, new_name]].head()
 
         non_null = alerts_processed[new_name].dropna()
         assert len(non_null) > 0
@@ -222,16 +204,12 @@ def generate_sample_active_periods(
 
     # generate sample data
     for index in range(1000):
-        record: Dict[str, list[Dict[str, int | None]] | int | None] = {
-            "id": index
-        }
+        record: Dict[str, list[Dict[str, int | None]] | int | None] = {"id": index}
         periods: List[Dict[str, int | None]] = []
         for __ in range(random.randint(0, 15)):
             exploded_count += 1
             start: Optional[int] = random.randint(range_start_ts, range_end_ts)
-            end: Optional[int] = (
-                start + random.randint(3600, max_end_seconds) if start else None
-            )
+            end: Optional[int] = start + random.randint(3600, max_end_seconds) if start else None
 
             if random.randint(1, 100) < 5:
                 start = None
@@ -270,11 +248,7 @@ def test_explode_active_period() -> None:
     alerts_processed = explode_active_periods(alerts_raw)
     assert "active_period" not in alerts_processed.columns
 
-    nan_active_periods = (
-        alerts_raw["active_period"]
-        .apply(lambda x: 1 if x is None or len(x) == 0 else 0)
-        .sum()
-    )
+    nan_active_periods = alerts_raw["active_period"].apply(lambda x: 1 if x is None or len(x) == 0 else 0).sum()
     total_record_count = nan_active_periods + active_period_count
 
     assert len(alerts_processed) == total_record_count
@@ -314,21 +288,13 @@ def generate_sample_informed_entity(
     informed_entity_count = 0
     for index in range(100):
         informed_entity = []
-        for route_id in random.sample(
-            choices["route_id"], random.randint(1, 4)
-        ):
+        for route_id in random.sample(choices["route_id"], random.randint(1, 4)):
             route_type = random.choice([0, 1, 2, 3, None])
 
-            for direction_id in random.sample(
-                choices["direction_id"], random.randint(1, 2)
-            ):
-                for stop_id in random.sample(
-                    choices["stop_id"], random.randint(1, 3)
-                ):
+            for direction_id in random.sample(choices["direction_id"], random.randint(1, 2)):
+                for stop_id in random.sample(choices["stop_id"], random.randint(1, 3)):
                     facility_id = random.choice(choices["facility_id"])
-                    activities = random.sample(
-                        choices["activities"], random.randint(0, 4)
-                    )
+                    activities = random.sample(choices["activities"], random.randint(0, 4))
 
                     record = {}
                     record["route_id"] = route_id
@@ -351,9 +317,7 @@ def test_explode_informed_entity() -> None:
     """
     test that exploding around the informed entity column works as expected
     """
-    choices: Dict[
-        str, Union[List[str | None], List[float | None], List[str]]
-    ] = {
+    choices: Dict[str, Union[List[str | None], List[float | None], List[str]]] = {
         "route_id": [
             "1234",
             "Blue",
@@ -388,9 +352,7 @@ def test_explode_informed_entity() -> None:
         if column == "route_type":
             filtered_options = [o for o in options if not pandas.isna(o)]
             filtered_values = [v for v in values if not pandas.isna(v)]
-            assert set(filtered_values) == set(
-                filtered_options
-            ), f"{column} has different values"
+            assert set(filtered_values) == set(filtered_options), f"{column} has different values"
         elif column == "activities":
             for value in values:
                 if value == "":
@@ -420,9 +382,7 @@ def test_etl() -> None:
     key_columns = ["id", "last_modified_timestamp"]
     existing = pandas.DataFrame(columns=key_columns)
 
-    alerts = extract_alerts(
-        alert_files=[test_file], existing_id_timestamp_pairs=existing
-    )
+    alerts = extract_alerts(alert_files=[test_file], existing_id_timestamp_pairs=existing)
     alerts = transform_translations(alerts)
     alerts = transform_timestamps(alerts)
     alerts = explode_active_periods(alerts)
@@ -430,9 +390,7 @@ def test_etl() -> None:
 
     # process it a second time with some of the id / lm timestamp pairs to filter against.
     existing = alerts[key_columns].drop_duplicates().head(5)
-    alerts_2 = extract_alerts(
-        alert_files=[test_file], existing_id_timestamp_pairs=existing
-    )
+    alerts_2 = extract_alerts(alert_files=[test_file], existing_id_timestamp_pairs=existing)
     alerts_2 = transform_translations(alerts_2)
     alerts_2 = transform_timestamps(alerts_2)
     alerts_2 = explode_active_periods(alerts_2)

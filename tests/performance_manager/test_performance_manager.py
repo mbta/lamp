@@ -101,9 +101,7 @@ def set_env_vars() -> None:
     if int(os.environ.get("BOOTSTRAPPED", 0)) == 1:
         logging.warning("already bootstrapped")
     else:
-        env_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env"
-        )
+        env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env")
         logging.debug("bootstrapping with env file %s", env_file)
 
         with open(env_file, "r", encoding="utf8") as reader:
@@ -123,9 +121,7 @@ def fixture_rpm_db_manager() -> DatabaseManager:
     generate a database manager for all of our tests
     """
     set_env_vars()
-    db_manager = DatabaseManager(
-        db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
-    )
+    db_manager = DatabaseManager(db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER)
     db_name = os.getenv("ALEMBIC_DB_NAME", "performance_manager_prod")
     alembic_downgrade_to_base(db_name)
     alembic_upgrade_to_head(db_name)
@@ -152,9 +148,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     files instead of s3, so we read these files differently
     """
 
-    def mock__get_static_parquet_paths(
-        table_type: str, feed_info_path: str
-    ) -> List[str]:
+    def mock__get_static_parquet_paths(table_type: str, feed_info_path: str) -> List[str]:
         """
         instead of mocking up s3 responses, just rewrite this method and
         monkeypatch it
@@ -219,10 +213,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         return the current value, implying that we're not testing the logic
         that will reset old versions.
         """
-        assert (
-            obj
-            == f"{test_archive_value}/lamp/subway-on-time-performance-v1/index.csv"
-        )
+        assert obj == f"{test_archive_value}/lamp/subway-on-time-performance-v1/index.csv"
         return {S3Archive.VERSION_KEY: test_version_value}
 
     monkeypatch.setattr(
@@ -230,9 +221,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         mock__object_metadata,
     )
 
-    def mock__file_list_from_s3(
-        bucket_name: str, file_prefix: str, max_list_size: int = 250_000
-    ) -> List[str]:
+    def mock__file_list_from_s3(bucket_name: str, file_prefix: str, max_list_size: int = 250_000) -> List[str]:
         """
         this is used to get all of the files that are already on s3.
         """
@@ -252,9 +241,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         mock__file_list_from_s3,
     )
 
-    def mock__file_list_from_s3_with_details(
-        bucket_name: str, file_prefix: str
-    ) -> List[Dict]:
+    def mock__file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[Dict]:
         """
         this is used to write the index csv in the flat file
         """
@@ -268,9 +255,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         mock__file_list_from_s3_with_details,
     )
 
-    def mock__upload_file(
-        file_name: str, object_path: str, extra_args: Optional[Dict] = None
-    ) -> bool:
+    def mock__upload_file(file_name: str, object_path: str, extra_args: Optional[Dict] = None) -> bool:
         """
         this is used by the flat file writer to move parquet and index csv files to s3
 
@@ -287,9 +272,7 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
                 "size_bytes",
                 "last_modified",
             ]
-            assert set(index_data.columns) == set(
-                expected_columns
-            ), "index.csv has incorrect columns"
+            assert set(index_data.columns) == set(expected_columns), "index.csv has incorrect columns"
 
             # ensure that the index didn't refer to itself
             assert not (
@@ -331,15 +314,11 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
                 "scheduled_headway_trunk",
             ]
 
-            assert set(flat_data.columns) == set(
-                expected_columns
-            ), "flat parquet file has incorrect columns"
+            assert set(flat_data.columns) == set(expected_columns), "flat parquet file has incorrect columns"
 
             assert not flat_data.empty, "flat parquet file has no data"
 
-        expected_extra_args = {
-            "Metadata": {S3Archive.VERSION_KEY: test_version_value}
-        }
+        expected_extra_args = {"Metadata": {S3Archive.VERSION_KEY: test_version_value}}
         assert extra_args == expected_extra_args
 
         if object_path.endswith("index.csv"):
@@ -382,9 +361,7 @@ def check_logs(caplog: pytest.LogCaptureFixture) -> None:
                 (key, value) = part.split("=", 1)
                 message_dict[key] = value
             except Exception as exception:
-                pytest.fail(
-                    f"Unable to parse log message {message}. Reason {exception}"
-                )
+                pytest.fail(f"Unable to parse log message {message}. Reason {exception}")
         return message_dict
 
     # keep track of logged processes to ensure order is correct
@@ -415,9 +392,7 @@ def check_logs(caplog: pytest.LogCaptureFixture) -> None:
         if log["status"] == "complete":
             # process should be at the end of the stack
             if process_stack[-1]["uuid"] != log["uuid"]:
-                pytest.fail(
-                    f"Improper Ordering of Log Statements {caplog.text}"
-                )
+                pytest.fail(f"Improper Ordering of Log Statements {caplog.text}")
             if "duration" not in log:
                 pytest.fail(f"Log missing duration key - {record.message}")
             process_stack.pop()
@@ -452,14 +427,11 @@ def test_static_tables(
 
     unprocessed_static_schedules = md_db_manager.select_as_list(
         sa.select(MetadataLog.path).where(
-            (MetadataLog.rail_pm_processed == sa.false())
-            & (MetadataLog.path.contains("FEED_INFO"))
+            (MetadataLog.rail_pm_processed == sa.false()) & (MetadataLog.path.contains("FEED_INFO"))
         )
     )
 
-    process_static_tables(
-        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
-    )
+    process_static_tables(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     # these are the row counts in the parquet files computed in a jupyter
     # notebook without using any of our module. our module should be taking
@@ -481,14 +453,11 @@ def test_static_tables(
         for table, should_count in row_counts.items():
             actual_count = session.query(table).count()
             tablename = table.__tablename__
-            assert (
-                actual_count == should_count
-            ), f"Table {tablename} has incorrect row count"
+            assert actual_count == should_count, f"Table {tablename} has incorrect row count"
 
     unprocessed_static_schedules = md_db_manager.select_as_list(
         sa.select(MetadataLog.path).where(
-            (MetadataLog.rail_pm_processed == sa.false())
-            & (MetadataLog.path.contains("FEED_INFO"))
+            (MetadataLog.rail_pm_processed == sa.false()) & (MetadataLog.path.contains("FEED_INFO"))
         )
     )
 
@@ -534,17 +503,12 @@ def test_gtfs_rt_processing(
     rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
 
-    md_db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
-        )
-    )
+    md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
     paths = [
         file
         for file in test_files()
-        if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file)
-        and ("hour=12" in file or "hour=13" in file)
+        if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file) and ("hour=12" in file or "hour=13" in file)
     ]
     seed_metadata(md_db_manager, paths)
 
@@ -648,22 +612,12 @@ def test_vp_only(
 
     rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    md_db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
-        )
-    )
+    md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [
-        p
-        for p in test_files()
-        if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)
-    ]
+    paths = [p for p in test_files() if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)]
     seed_metadata(md_db_manager, paths)
 
-    process_gtfs_rt_files(
-        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
-    )
+    process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     check_logs(caplog)
 
@@ -680,22 +634,12 @@ def test_tu_only(
 
     rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    md_db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
-        )
-    )
+    md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [
-        p
-        for p in test_files()
-        if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)
-    ]
+    paths = [p for p in test_files() if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)]
     seed_metadata(md_db_manager, paths)
 
-    process_gtfs_rt_files(
-        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
-    )
+    process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     check_logs(caplog)
 
@@ -712,18 +656,12 @@ def test_vp_and_tu(
 
     rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    md_db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
-        )
-    )
+    md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
     paths = [p for p in test_files() if "hourt=12" in p or "hour=13" in p]
     seed_metadata(md_db_manager, paths)
 
-    process_gtfs_rt_files(
-        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
-    )
+    process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     check_logs(caplog)
 
@@ -743,18 +681,12 @@ def test_missing_start_time(
     # clear out old data from the database
     rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    md_db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
-        )
-    )
+    md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
     # create a new parquet file from ths missing start times csv and add it to
     # the metadata table for processing
     csv_file = os.path.join(test_files_dir, "vp_missing_start_time.csv")
-    parquet_folder = tmp_path.joinpath(
-        "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
-    )
+    parquet_folder = tmp_path.joinpath("RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11")
     parquet_folder.mkdir(parents=True)
     parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
 
@@ -762,9 +694,7 @@ def test_missing_start_time(
     seed_metadata(md_db_manager, paths=[parquet_file])
 
     # process the parquet file
-    process_gtfs_rt_files(
-        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
-    )
+    process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     # check that all trips have an int convertible start time that is in
     # seconds after midnight.
@@ -781,9 +711,7 @@ def test_missing_start_time(
     # there is an added trip in the csv data who's first move time is 1683547198
     # or 7:59:58 AM. that is 25200 + 3540 + 58 = 28798 seconds after midnight.
     added_trip_start_time = rpm_db_manager.select_as_list(
-        sa.select(VehicleTrips.start_time).where(
-            VehicleTrips.trip_id == "ADDED-1581518546"
-        )
+        sa.select(VehicleTrips.start_time).where(VehicleTrips.trip_id == "ADDED-1581518546")
     )
     assert len(added_trip_start_time) == 1
     assert added_trip_start_time[0]["start_time"] == 28798
@@ -804,9 +732,7 @@ def test_process_vp_files(
     caplog.set_level(logging.INFO)
 
     csv_file = os.path.join(test_files_dir, "vehicle_positions_flat_input.csv")
-    parquet_folder = tmp_path.joinpath(
-        "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
-    )
+    parquet_folder = tmp_path.joinpath("RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11")
     parquet_folder.mkdir(parents=True)
     parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
 
@@ -847,9 +773,7 @@ def test_process_vp_files(
     column_exceptions = []
     for column in csv_result_df.columns:
         try:
-            pandas.testing.assert_series_equal(
-                result_df[column], csv_result_df[column]
-            )
+            pandas.testing.assert_series_equal(result_df[column], csv_result_df[column])
         except Exception as exception:
             logging.error(
                 "Pipeline values in %s column do not match process_vp_files_flat_out.csv CSV file",
@@ -877,25 +801,17 @@ def test_whole_table(
 
     rpm_db_manager.truncate_table(VehicleEvents, restart_identity=True)
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
-    md_db_manager.execute(
-        sa.delete(MetadataLog.__table__).where(
-            ~MetadataLog.path.contains("FEED_INFO")
-        )
-    )
+    md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
     csv_file = os.path.join(test_files_dir, "vehicle_positions_flat_input.csv")
-    parquet_folder = tmp_path.joinpath(
-        "RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11"
-    )
+    parquet_folder = tmp_path.joinpath("RT_VEHICLE_POSITIONS/year=2023/month=5/day=8/hour=11")
     parquet_folder.mkdir(parents=True)
     parquet_file = str(parquet_folder.joinpath("flat_file.parquet"))
 
     csv_to_vp_parquet(csv_file, parquet_file)
     seed_metadata(md_db_manager, paths=[parquet_file])
 
-    process_gtfs_rt_files(
-        rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager
-    )
+    process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     result_select = (
         sa.select(
@@ -975,9 +891,7 @@ def test_whole_table(
     column_exceptions = []
     for column in csv_result_df.columns:
         try:
-            pandas.testing.assert_series_equal(
-                db_result_df[column], csv_result_df[column]
-            )
+            pandas.testing.assert_series_equal(db_result_df[column], csv_result_df[column])
         except Exception as exception:
             logging.error(
                 "Pipeline values in %s column do not match pipeline_flat_out.csv CSV file",

@@ -97,9 +97,7 @@ class AlertParquetHandler:
         columns = ["id", "last_modified_timestamp"]
 
         if os.path.exists(self.local_path):
-            existing_alerts = pq.read_table(
-                self.local_path, columns=columns
-            ).to_pandas()
+            existing_alerts = pq.read_table(self.local_path, columns=columns).to_pandas()
             existing_alerts = existing_alerts.drop_duplicates()
             return existing_alerts
 
@@ -115,9 +113,7 @@ class AlertParquetHandler:
         process_logger.log_start()
 
         alerts = alerts.reset_index(drop=True)
-        alerts_table = pyarrow.Table.from_pandas(
-            alerts, schema=self.parquet_schema
-        )
+        alerts_table = pyarrow.Table.from_pandas(alerts, schema=self.parquet_schema)
 
         if alerts_table.num_rows == 0:
             process_logger.log_complete()
@@ -141,9 +137,7 @@ class AlertParquetHandler:
         row_group_count = 0
 
         partition_key = "active_period.start_timestamp"
-        partition_key_arr = joined_ds.to_table(columns=[partition_key]).column(
-            partition_key
-        )
+        partition_key_arr = joined_ds.to_table(columns=[partition_key]).column(partition_key)
 
         # the start is the start of the month containing the minimum timestamp
         start = pc.min(partition_key_arr).as_py()
@@ -163,9 +157,7 @@ class AlertParquetHandler:
                         & (pc.field(partition_key) < int(end.timestamp()))
                     ).to_table()
                 else:
-                    table = joined_ds.filter(
-                        (pc.field(partition_key) >= int(start.timestamp()))
-                    ).to_table()
+                    table = joined_ds.filter((pc.field(partition_key) >= int(start.timestamp()))).to_table()
 
                 if table.num_rows > 0:
                     row_group_count += 1
@@ -173,9 +165,7 @@ class AlertParquetHandler:
 
                 start = end
 
-            table = joined_ds.filter(
-                (pc.field(partition_key).is_null())
-            ).to_table()
+            table = joined_ds.filter((pc.field(partition_key).is_null())).to_table()
 
             if table.num_rows > 0:
                 row_group_count += 1
@@ -195,17 +185,11 @@ class AlertParquetHandler:
             upload_file(
                 file_name=self.local_path,
                 object_path=self.s3_path,
-                extra_args={
-                    "Metadata": {
-                        AlertsS3Info.version_key: AlertsS3Info.file_version
-                    }
-                },
+                extra_args={"Metadata": {AlertsS3Info.version_key: AlertsS3Info.file_version}},
             )
 
 
-def extract_alerts(
-    alert_files: List[str], existing_id_timestamp_pairs: pandas.DataFrame
-) -> pandas.DataFrame:
+def extract_alerts(alert_files: List[str], existing_id_timestamp_pairs: pandas.DataFrame) -> pandas.DataFrame:
     """Read alerts data from unprocessed files, remove duplicates, and set types"""
     columns = [
         "id",
@@ -268,12 +252,8 @@ def extract_alerts(
     alerts["alert_lifecycle"] = alerts["alert_lifecycle"].astype("string")
     alerts["duration_certainty"] = alerts["duration_certainty"].astype("string")
     alerts["created_timestamp"] = alerts["created_timestamp"].astype("Int64")
-    alerts["last_modified_timestamp"] = alerts[
-        "last_modified_timestamp"
-    ].astype("Int64")
-    alerts["last_push_notification_timestamp"] = alerts[
-        "last_push_notification_timestamp"
-    ].astype("Int64")
+    alerts["last_modified_timestamp"] = alerts["last_modified_timestamp"].astype("Int64")
+    alerts["last_push_notification_timestamp"] = alerts["last_push_notification_timestamp"].astype("Int64")
     alerts["closed_timestamp"] = alerts["closed_timestamp"].astype("Int64")
 
     # perform an anti-join against existing alerts. merge with existing pairs
@@ -294,9 +274,7 @@ def extract_alerts(
 def transform_translations(alerts: pandas.DataFrame) -> pandas.DataFrame:
     """For each string field with translations, pull out the English string"""
 
-    def process_translation(
-        translations: Optional[List[Dict[str, str]]]
-    ) -> Optional[str]:
+    def process_translation(translations: Optional[List[Dict[str, str]]]) -> Optional[str]:
         """small lambda for processing the translation"""
         if translations is None:
             return None
@@ -316,9 +294,7 @@ def transform_translations(alerts: pandas.DataFrame) -> pandas.DataFrame:
     drop_columns = []
     for key in translation_columns:
         translation_key = f"{key}.translation"
-        alerts[f"{translation_key}.text"] = alerts[translation_key].apply(
-            process_translation
-        )
+        alerts[f"{translation_key}.text"] = alerts[translation_key].apply(process_translation)
         drop_columns.append(translation_key)
 
     alerts = alerts.drop(columns=drop_columns)
@@ -382,9 +358,7 @@ def explode_active_periods(alerts: pandas.DataFrame) -> pandas.DataFrame:
     # pull out the active period timestamps from the dict in that column
     alerts = alerts.explode("active_period")
 
-    def extract_start_end(
-        period: Dict[str, int] | float | None
-    ) -> Tuple[int | None, int | None]:
+    def extract_start_end(period: Dict[str, int] | float | None) -> Tuple[int | None, int | None]:
         """
         small lambda for extracting start and end timestamps
 
@@ -406,12 +380,8 @@ def explode_active_periods(alerts: pandas.DataFrame) -> pandas.DataFrame:
     )
 
     # convert these timestamps to Int64 to avoid floating point errors
-    alerts["active_period.start_timestamp"] = alerts[
-        "active_period.start_timestamp"
-    ].astype("Int64")
-    alerts["active_period.end_timestamp"] = alerts[
-        "active_period.end_timestamp"
-    ].astype("Int64")
+    alerts["active_period.start_timestamp"] = alerts["active_period.start_timestamp"].astype("Int64")
+    alerts["active_period.end_timestamp"] = alerts["active_period.end_timestamp"].astype("Int64")
 
     # drop the active period list column
     alerts = alerts.drop(columns=["active_period"])
@@ -446,21 +416,13 @@ def explode_informed_entity(alerts: pandas.DataFrame) -> pandas.DataFrame:
     # extract information from the informed entity
     for key in informed_entity_keys:
         full_key = f"informed_entity.{key}"
-        alerts[full_key] = alerts["informed_entity"].apply(
-            lambda x, k=key: None if x is None else x.get(k)
-        )
+        alerts[full_key] = alerts["informed_entity"].apply(lambda x, k=key: None if x is None else x.get(k))
 
     alerts = alerts.drop(columns=["informed_entity"])
 
     # transform the activities field from a list to a pipe delimitated string
-    alerts["informed_entity.activities"] = alerts[
-        "informed_entity.activities"
-    ].apply(
-        lambda x: (
-            None
-            if x is None
-            else "|".join(str(item) for item in x if item is not None)
-        )
+    alerts["informed_entity.activities"] = alerts["informed_entity.activities"].apply(
+        lambda x: (None if x is None else "|".join(str(item) for item in x if item is not None))
     )
 
     # the commuter rail informed entity contains extra details that aren't
@@ -471,9 +433,7 @@ def explode_informed_entity(alerts: pandas.DataFrame) -> pandas.DataFrame:
     return alerts
 
 
-def get_alert_files(
-    md_db_manager: DatabaseManager, unprocessed_only: bool
-) -> List[Dict[str, str]]:
+def get_alert_files(md_db_manager: DatabaseManager, unprocessed_only: bool) -> List[Dict[str, str]]:
     """
     Get unprocessed RT Alert Files from the MetadataLog table.
 
@@ -485,13 +445,10 @@ def get_alert_files(
     """
     if unprocessed_only:
         read_md = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
-            (MetadataLog.rail_pm_processed == sa.false())
-            & (MetadataLog.path.contains("RT_ALERTS"))
+            (MetadataLog.rail_pm_processed == sa.false()) & (MetadataLog.path.contains("RT_ALERTS"))
         )
     else:
-        read_md = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
-            (MetadataLog.path.contains("RT_ALERTS"))
-        )
+        read_md = sa.select(MetadataLog.pk_id, MetadataLog.path).where((MetadataLog.path.contains("RT_ALERTS")))
 
     return md_db_manager.select_as_list(read_md)
 
@@ -503,9 +460,7 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
     process_logger = ProcessLogger("process_alerts")
     process_logger.log_start()
 
-    version_match = version_check(
-        obj=AlertsS3Info.s3_path, version=AlertsS3Info.file_version
-    )
+    version_match = version_check(obj=AlertsS3Info.s3_path, version=AlertsS3Info.file_version)
 
     metadata_records = get_alert_files(
         md_db_manager=md_db_manager,
@@ -535,9 +490,7 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
         pk_ids = [record["pk_id"] for record in chunk]
         alert_files = [record["path"] for record in chunk]
 
-        subprocess_logger = ProcessLogger(
-            "process_alerts_chunk", alert_files=alert_files
-        )
+        subprocess_logger = ProcessLogger("process_alerts_chunk", alert_files=alert_files)
         subprocess_logger.log_start()
 
         try:
@@ -560,15 +513,11 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
 
             # add new id timestamp pairs to existing for next pass
             new_id_timestamp_pairs = alerts[["id", "last_modified_timestamp"]]
-            existing_id_timestamp_pairs = pandas.concat(
-                [existing_id_timestamp_pairs, new_id_timestamp_pairs]
-            )
+            existing_id_timestamp_pairs = pandas.concat([existing_id_timestamp_pairs, new_id_timestamp_pairs])
 
             # update metadata for the files that were processed
             md_db_manager.execute(
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(pk_ids))
-                .values(rail_pm_processed=True)
+                sa.update(MetadataLog.__table__).where(MetadataLog.pk_id.in_(pk_ids)).values(rail_pm_processed=True)
             )
 
             subprocess_logger.log_complete()

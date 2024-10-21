@@ -39,15 +39,9 @@ def downgrade() -> None:
     op.create_table(
         "metadata_log",
         sa.Column("pk_id", sa.INTEGER(), autoincrement=True, nullable=False),
-        sa.Column(
-            "processed", sa.BOOLEAN(), autoincrement=False, nullable=True
-        ),
-        sa.Column(
-            "process_fail", sa.BOOLEAN(), autoincrement=False, nullable=True
-        ),
-        sa.Column(
-            "path", sa.VARCHAR(length=256), autoincrement=False, nullable=False
-        ),
+        sa.Column("processed", sa.BOOLEAN(), autoincrement=False, nullable=True),
+        sa.Column("process_fail", sa.BOOLEAN(), autoincrement=False, nullable=True),
+        sa.Column("path", sa.VARCHAR(length=256), autoincrement=False, nullable=False),
         sa.Column(
             "created_on",
             postgresql.TIMESTAMP(timezone=True),

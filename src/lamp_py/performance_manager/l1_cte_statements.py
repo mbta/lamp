@@ -11,9 +11,7 @@ from lamp_py.postgres.rail_performance_manager_schema import (
 )
 
 
-def static_trips_subquery(
-    static_version_key: int, service_date: int
-) -> sa.sql.selectable.Subquery:
+def static_trips_subquery(static_version_key: int, service_date: int) -> sa.sql.selectable.Subquery:
     """
     return Selectable representing all static trips on
     given service_date and static_version_key value combo
@@ -72,24 +70,21 @@ def static_trips_subquery(
         .join(
             StaticTrips,
             sa.and_(
-                StaticStopTimes.static_version_key
-                == StaticTrips.static_version_key,
+                StaticStopTimes.static_version_key == StaticTrips.static_version_key,
                 StaticStopTimes.trip_id == StaticTrips.trip_id,
             ),
         )
         .join(
             StaticStops,
             sa.and_(
-                StaticStopTimes.static_version_key
-                == StaticStops.static_version_key,
+                StaticStopTimes.static_version_key == StaticStops.static_version_key,
                 StaticStopTimes.stop_id == StaticStops.stop_id,
             ),
         )
         .join(
             ServiceIdDates,
             sa.and_(
-                StaticStopTimes.static_version_key
-                == ServiceIdDates.static_version_key,
+                StaticStopTimes.static_version_key == ServiceIdDates.static_version_key,
                 StaticTrips.service_id == ServiceIdDates.service_id,
                 StaticTrips.route_id == ServiceIdDates.route_id,
             ),
@@ -97,8 +92,7 @@ def static_trips_subquery(
         .join(
             StaticRoutes,
             sa.and_(
-                StaticStopTimes.static_version_key
-                == StaticRoutes.static_version_key,
+                StaticStopTimes.static_version_key == StaticRoutes.static_version_key,
                 StaticTrips.route_id == StaticRoutes.route_id,
             ),
         )
@@ -183,9 +177,7 @@ def rt_trips_subquery(service_date: int) -> sa.sql.selectable.Subquery:
     ).subquery(name="rt_trips_sub")
 
 
-def trips_for_metrics_subquery(
-    static_version_key: int, service_date: int
-) -> sa.sql.selectable.Subquery:
+def trips_for_metrics_subquery(static_version_key: int, service_date: int) -> sa.sql.selectable.Subquery:
     """
     return Selectable named "trips_for_metrics" with fields needed to develop metrics tables
 
@@ -242,14 +234,10 @@ def trips_for_metrics_subquery(
         .join(
             static_trips_sub,
             sa.and_(
-                rt_trips_sub.c.static_trip_id_guess
-                == static_trips_sub.c.static_trip_id,
-                rt_trips_sub.c.static_version_key
-                == static_trips_sub.c.static_version_key,
-                rt_trips_sub.c.parent_station
-                == static_trips_sub.c.parent_station,
-                rt_trips_sub.c.rt_trip_stop_rank
-                >= static_trips_sub.c.static_trip_stop_rank,
+                rt_trips_sub.c.static_trip_id_guess == static_trips_sub.c.static_trip_id,
+                rt_trips_sub.c.static_version_key == static_trips_sub.c.static_version_key,
+                rt_trips_sub.c.parent_station == static_trips_sub.c.parent_station,
+                rt_trips_sub.c.rt_trip_stop_rank >= static_trips_sub.c.static_trip_stop_rank,
             ),
             isouter=True,
         )

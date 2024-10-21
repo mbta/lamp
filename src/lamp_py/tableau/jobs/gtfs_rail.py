@@ -68,9 +68,7 @@ class HyperGTFS(HyperJob):
 
         max_parquet_key = max_stats["static_version_key"]
 
-        max_key_query = (
-            f"SELECT MAX(static_version_key) FROM {self.gtfs_table_name};"
-        )
+        max_key_query = f"SELECT MAX(static_version_key) FROM {self.gtfs_table_name};"
 
         max_db_key = db_manager.select_as_list(sa.text(max_key_query))[0]["max"]
 
@@ -83,9 +81,7 @@ class HyperGTFS(HyperJob):
             return True
 
         # add WHERE clause to UPDATE query
-        update_query = self.update_query % (
-            f" WHERE static_version_key > {max_parquet_key} ",
-        )
+        update_query = self.update_query % (f" WHERE static_version_key > {max_parquet_key} ",)
 
         db_parquet_path = "/tmp/db_local.parquet"
         db_manager.write_to_parquet(
@@ -104,9 +100,7 @@ class HyperGTFS(HyperJob):
             schema=self.parquet_schema,
         ).to_batches(batch_size=self.ds_batch_size)
 
-        with pq.ParquetWriter(
-            combine_parquet_path, schema=self.parquet_schema
-        ) as writer:
+        with pq.ParquetWriter(combine_parquet_path, schema=self.parquet_schema) as writer:
             for batch in combine_batches:
                 writer.write_batch(batch)
 

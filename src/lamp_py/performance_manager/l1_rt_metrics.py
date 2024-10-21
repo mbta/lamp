@@ -27,9 +27,7 @@ def update_metrics_columns(
     process_logger = ProcessLogger("l1_rt_metrics_table_loader")
     process_logger.log_start()
 
-    trips_for_metrics = trips_for_metrics_subquery(
-        static_version_key, seed_service_date
-    )
+    trips_for_metrics = trips_for_metrics_subquery(static_version_key, seed_service_date)
     trips_for_headways = trips_for_headways_subquery(
         service_date=seed_service_date,
     )
@@ -40,18 +38,14 @@ def update_metrics_columns(
     # negative travel times are error records, should flag???
     update_travel_times = (
         sa.update(VehicleEvents.__table__)
-        .values(
-            travel_time_seconds=trips_for_metrics.c.stop_timestamp
-            - trips_for_metrics.c.move_timestamp
-        )
+        .values(travel_time_seconds=trips_for_metrics.c.stop_timestamp - trips_for_metrics.c.move_timestamp)
         .where(
             VehicleEvents.pm_trip_id == trips_for_metrics.c.pm_trip_id,
             VehicleEvents.service_date == trips_for_metrics.c.service_date,
             VehicleEvents.parent_station == trips_for_metrics.c.parent_station,
             trips_for_metrics.c.stop_timestamp.is_not(None),
             trips_for_metrics.c.move_timestamp.is_not(None),
-            trips_for_metrics.c.stop_timestamp
-            > trips_for_metrics.c.move_timestamp,
+            trips_for_metrics.c.stop_timestamp > trips_for_metrics.c.move_timestamp,
         )
     )
 
@@ -146,14 +140,11 @@ def update_metrics_columns(
     # get it to work with sqlalchemy
     update_branch_headways = (
         sa.update(VehicleEvents.__table__)
-        .values(
-            headway_branch_seconds=t_headways_branch_sub.c.headway_branch_seconds
-        )
+        .values(headway_branch_seconds=t_headways_branch_sub.c.headway_branch_seconds)
         .where(
             VehicleEvents.pm_trip_id == t_headways_branch_sub.c.pm_trip_id,
             VehicleEvents.service_date == t_headways_branch_sub.c.service_date,
-            VehicleEvents.parent_station
-            == t_headways_branch_sub.c.parent_station,
+            VehicleEvents.parent_station == t_headways_branch_sub.c.parent_station,
             t_headways_branch_sub.c.headway_branch_seconds.is_not(None),
             t_headways_branch_sub.c.headway_branch_seconds > 0,
         )
@@ -190,14 +181,11 @@ def update_metrics_columns(
     # get it to work with sqlalchemy
     update_trunk_headways = (
         sa.update(VehicleEvents.__table__)
-        .values(
-            headway_trunk_seconds=t_headways_trunk_sub.c.headway_trunk_seconds
-        )
+        .values(headway_trunk_seconds=t_headways_trunk_sub.c.headway_trunk_seconds)
         .where(
             VehicleEvents.pm_trip_id == t_headways_trunk_sub.c.pm_trip_id,
             VehicleEvents.service_date == t_headways_trunk_sub.c.service_date,
-            VehicleEvents.parent_station
-            == t_headways_trunk_sub.c.parent_station,
+            VehicleEvents.parent_station == t_headways_trunk_sub.c.parent_station,
             t_headways_trunk_sub.c.headway_trunk_seconds.is_not(None),
             t_headways_trunk_sub.c.headway_trunk_seconds > 0,
         )

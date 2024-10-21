@@ -1,489 +1,489 @@
-trip_id,stop_id,stop_sequence,timepoint,checkpoint_id,block_id,route_id,service_id,route_pattern_id,route_pattern_typicality,direction_id,direction,direction_destination,stop_name,parent_station,static_stop_count,arrival_seconds,departure_seconds,plan_travel_time_seconds,plan_route_direction_headway_seconds,plan_direction_destination_headway_seconds
-63070693,334,1,1,ashmt,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Ashmont,place-asmnl,29,55800,55800,,540,480
-63070693,367,2,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Dorchester Ave,,29,55860,55860,60,540,420
-63070693,369,3,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Welles Ave,,29,55920,55920,60,540,420
-63070693,371,4,0,codmn,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Centre St,,29,55980,55980,60,540,360
-63070693,372,5,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Southern Ave,,29,56040,56040,60,540,540
-63070693,373,6,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Spencer St,,29,56100,56100,60,540,540
-63070693,374,7,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Talbot Station,,29,56160,56160,60,540,540
-63070693,375,8,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Bernard St,,29,56220,56220,60,540,540
-63070693,376,9,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Kerwin St,,29,56280,56280,60,540,540
-63070693,378,10,0,bltal,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Nightingale St,,29,56340,56340,60,540,540
-63070693,1737,11,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Harvard St,,29,56400,56400,60,540,360
-63070693,381,12,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Wales St,,29,56460,56460,60,540,300
-63070693,382,13,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Charlotte St,,29,56520,56520,60,540,300
-63070693,383,14,0,frnpk,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Ellington St,,29,56580,56580,60,540,240
-63070693,9448,15,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Blue Hill Ave,,29,56640,56640,60,540,540
-63070693,1739,16,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Maple St,,29,56700,56700,60,540,540
-63070693,1740,17,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Elm Hill Ave,,29,56760,56760,60,540,540
-63070693,1741,18,0,svrhm,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Humboldt Ave,,29,56820,56820,60,540,540
-63070693,1742,19,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Harold St,,29,56880,56880,60,540,540
-63070693,1743,20,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Walnut Ave,,29,56940,56940,60,540,540
-63070693,1188,21,0,egles,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave opp Weld Ave - Egleston Sq,,29,57000,57000,60,540,540
-63070693,1215,22,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Bray St,,29,57060,57060,60,540,540
-63070693,1216,23,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Dimock St,,29,57120,57120,60,540,540
-63070693,11531,24,0,jasst,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Jackson Square,place-jaksn,29,57360,57360,240,540,540
-63070693,1219,25,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Centre St,,29,57480,57480,120,540,540
-63070693,1221,26,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Cedar St,,29,57540,57540,60,540,540
-63070693,1222,27,0,roxbs,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Malcolm X Blvd,,29,57660,57660,120,540,540
-63070693,1224,28,0,,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Tremont St opp Prentiss St,,29,57840,57840,180,540,60
-63070693,17861,29,0,rugg,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Ruggles,place-rugg,29,58200,58200,360,540,180
-63070975,33,1,1,ctypt,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,City Point Bus Terminal,,14,26880,26880,,480,480
-63070975,10033,2,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,E 1st St @ O St,,14,26940,26940,60,480,480
-63070975,34,3,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,P St @ E 2nd St,,14,27000,27000,60,480,480
-63070975,35,4,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,P St @ E Broadway,,14,27000,27000,0,480,480
-63070975,895,5,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,E Broadway @ N St,,14,27120,27120,120,480,480
-63070975,886,6,0,lbrwy,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,L St @ Broadway,,14,27180,27180,60,480,480
-63070975,884,7,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ E 1st St,,14,27240,27240,60,480,480
-63070975,210,8,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ Drydock Ave,,14,27360,27360,120,480,480
-63070975,212,9,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ D St,,14,27420,27420,60,480,480
-63070975,890,10,0,bcec,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ WTC Ave,,14,27480,27480,60,480,480
-63070975,891,11,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St opp Melcher St,,14,27600,27600,120,480,480
-63070975,892,12,0,sosta,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ Atlantic Ave,,14,27720,27720,120,480,480
-63070975,6535,13,0,,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Federal St @ Matthews St,,14,27960,27960,240,480,480
-63070975,16535,14,0,otsum,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Otis St @ Summer St,,14,28140,28140,180,480,480
-63071767,1475,1,1,kane,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Hancock St @ Bowdoin St,,21,57000,57000,,600,600
-63071767,1478,2,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Hancock St @ Rowell St,,21,57060,57060,60,600,600
-63071767,1479,3,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Hancock St @ Jerome St,,21,57060,57060,0,600,600
-63071767,1480,4,0,upham,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Columbia Rd @ Hancock St,,21,57120,57120,60,600,600
-63071767,1481,5,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Belden St,,21,57180,57180,60,600,600
-63071767,11482,6,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Uphams Corner Station,,21,57240,57240,60,600,600
-63071767,14831,7,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St opp Howard Ave,,21,57300,57300,60,600,600
-63071767,1484,8,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ E Cottage St,,21,57360,57360,60,600,600
-63071767,1485,9,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Langdon St,,21,57420,57420,60,600,600
-63071767,1486,10,0,bhdud,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Magazine St,,21,57480,57480,60,600,600
-63071767,1487,11,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Hampden St,,21,57540,57540,60,600,600
-63071767,1488,12,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Adams St,,21,57660,57660,120,600,600
-63071767,1489,13,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Dearborn St,,21,57780,57780,120,660,660
-63071767,1491,14,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Harrison Ave,,21,57960,57960,180,720,0
-63071767,64000,15,0,nubn,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Nubian,place-nubn,21,58020,58020,60,720,0
-63071767,1148,16,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ Shawmut Ave,,21,58140,58140,120,720,60
-63071767,11149,17,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ O'Bryant HS,,21,58200,58200,60,720,120
-63071767,11148,18,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ Madison Park HS,,21,58260,58260,60,720,120
-63071767,21148,19,0,roxbs,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ Tremont St,,21,58320,58320,60,720,180
-63071767,1224,20,0,,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Tremont St opp Prentiss St,,21,58440,58440,120,720,120
-63071767,17861,21,0,rugg,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Ruggles,place-rugg,21,58740,58740,300,720,60
-63072828,6551,1,1,fedfr,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Federal St @ Franklin St,,12,29220,29220,,960,960
-63072828,16535,2,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Otis St @ Summer St,,12,29340,29340,120,960,960
-63072828,6555,3,0,kneel,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Chinatown Gate,,12,29520,29520,180,960,960
-63072828,9983,4,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Stuart St @ Charles St S,,12,29700,29700,180,960,960
-63072828,177,5,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Saint James Ave @ Arlington St,,12,29820,29820,120,960,960
-63072828,173,6,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Saint James Ave @ Berkeley St,,12,29940,29940,120,960,960
-63072828,178,7,0,stjim,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Saint James Ave @ Dartmouth St,,12,30000,30000,60,960,960
-63072828,903,8,0,nwcor,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Washington St @ Bacon St,,12,30540,30540,540,960,960
-63072828,19031,9,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,400 Centre St - West,,12,30720,30720,180,960,960
-63072828,988,10,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Centre St @ Jefferson St,,12,30900,30900,180,960,480
-63072828,989,11,0,,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Galen St @ Maple St,,12,30960,30960,60,960,420
-63072828,999,12,0,wtryd,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Galen St @ Water St,,12,31140,31140,180,960,420
-63075088,64000,1,1,nubn,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Nubian,place-nubn,33,20700,20700,,720,720
-63075088,1148,2,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ Shawmut Ave,,33,20760,20760,60,720,720
-63075088,11149,3,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ O'Bryant HS,,33,20820,20820,60,720,720
-63075088,11148,4,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ Madison Park HS,,33,20880,20880,60,720,720
-63075088,21148,5,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ Tremont St,,33,20940,20940,60,720,720
-63075088,1357,6,0,roxbs,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St opp Roxbury Crossing Sta,,33,21000,21000,60,720,720
-63075088,13590,7,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St @ Tobin Community Center,,33,21060,21060,60,720,720
-63075088,1360,8,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St @ Saint Alphonsus St,,33,21060,21060,0,720,720
-63075088,1362,9,0,brghm,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St @ Huntington Ave,,33,21120,21120,60,720,720
-63075088,1363,10,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Huntington Ave @ Fenwood Rd,,33,21180,21180,60,720,720
-63075088,1365,11,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,835 Huntington Ave opp Parker Hill Ave,,33,21240,21240,60,720,720
-63075088,1366,12,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Huntington Ave @ Riverway,,33,21360,21360,120,720,720
-63075088,1526,13,0,brkvl,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Washington St @ Pearl St,,33,21420,21420,60,720,720
-63075088,1367,14,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Kent St,,33,21480,21480,60,720,720
-63075088,1369,15,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Aspinwall Ave,,33,21480,21480,0,720,720
-63075088,1371,16,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St opp Vernon St,,33,21540,21540,60,720,720
-63075088,1372,17,0,cool,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Beacon St,,33,21600,21600,60,720,720
-63075088,1373,18,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Stedman St,,33,21660,21660,60,720,720
-63075088,1375,19,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Coolidge St,,33,21720,21720,60,720,720
-63075088,1376,20,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St opp Verndale St,,33,21780,21780,60,720,720
-63075088,1378,21,0,hvdcm,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard Ave @ Commonwealth Ave,,33,21840,21840,60,720,720
-63075088,1379,22,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard Ave @ Brighton Ave,,33,21900,21900,60,720,720
-63075088,964,23,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Brighton Ave opp Quint Ave,,33,21960,21960,60,780,780
-63075088,1111,24,0,union,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Cambridge St opp Hano St,,33,22020,22020,60,780,780
-63075088,1112,25,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Cambridge St @ Harvard Ave,,33,22080,22080,60,780,780
-63075088,2558,26,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Empire St,,33,22260,22260,180,840,840
-63075088,2559,27,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Oxford St,,33,22260,22260,0,780,780
-63075088,2560,28,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Kingsley St,,33,22320,22320,60,840,840
-63075088,2561,29,0,nhvws,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Western Ave,,33,22380,22380,60,840,840
-63075088,2564,30,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St opp Harvard Stadium Gate 2,,33,22560,22560,180,840,840
-63075088,25641,31,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,JFK St @ Eliot St,,33,22680,22680,120,840,840
-63075088,2168,32,0,,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Massachusetts Ave @ Johnston Gate,,33,22860,22860,180,840,840
-63075088,22549,33,0,harsq,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard Sq @ Garden St - Dawes Island,,33,22920,22920,60,840,840
-63089353,32002,1,1,qnctr,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Quincy Center,place-qnctr,53,72900,72900,,900,900
-63089353,3237,2,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Coddington St @ Washington St,,53,72960,72960,60,900,900
-63089353,3239,3,0,codwd,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Coddington St @ Quincy YMCA,,53,73020,73020,60,900,900
-63089353,3425,4,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Coddington St @ Southern Artery,,53,73080,73080,60,900,900
-63089353,3240,5,0,sosea,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,55 Sea St,,53,73140,73140,60,900,900
-63089353,3241,6,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Overlook Rd,,53,73200,73200,60,900,900
-63089353,3242,7,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Samoset Ave,,53,73200,73200,0,900,900
-63089353,3243,8,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,227 Sea St,,53,73200,73200,0,900,900
-63089353,3244,9,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Barbour Terr,,53,73260,73260,60,900,900
-63089353,13245,10,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Moffat Rd,,53,73260,73260,0,900,900
-63089353,3245,11,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,405 Sea St,,53,73260,73260,0,900,900
-63089353,3246,12,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,455 Sea St,,53,73260,73260,0,900,900
-63089353,3247,13,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Braintree Ave,,53,73320,73320,60,900,900
-63089353,3292,14,0,seast,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Sea St,,53,73320,73320,0,900,900
-63089353,3295,15,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Oakwood Rd,,53,73380,73380,60,900,900
-63089353,3298,16,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Forbush Ave,,53,73440,73440,60,900,900
-63089353,3299,17,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Brockton Ave,,53,73440,73440,0,900,900
-63089353,3300,18,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Roach St,,53,73440,73440,0,900,900
-63089353,3301,19,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Bowes Ave,,53,73440,73440,0,900,900
-63089353,3303,20,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,375 Palmer St,,53,73500,73500,60,900,900
-63089353,3304,21,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Taffrail Rd,,53,73560,73560,60,900,900
-63089353,3305,22,0,grmnt,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,26 Taffrail Rd,,53,73560,73560,0,900,900
-63089353,3306,23,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Taffrail Rd @ Bicknell St,,53,73560,73560,0,900,900
-63089353,3307,24,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Bicknell St @ O'Brien Towers Driveway,,53,73560,73560,0,900,900
-63089353,3308,25,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,O'Brien Towers,,53,73620,73620,60,900,900
-63089353,3309,26,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,O'Brien Towers Driveway @ Bicknell St,,53,73620,73620,0,900,900
-63089353,3310,27,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Bicknell St @ Binnacle Lane,,53,73620,73620,0,900,900
-63089353,3311,28,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Bicknell St @ Yardarm Ln,,53,73680,73680,60,900,900
-63089353,3312,29,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Shed St,,53,73680,73680,0,900,900
-63089353,3314,30,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Bowes Ave,,53,73740,73740,60,900,900
-63089353,3315,31,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Roach St,,53,73740,73740,0,900,900
-63089353,3316,32,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Brockton Ave,,53,73740,73740,0,900,900
-63089353,3317,33,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Empire St,,53,73800,73800,60,900,900
-63089353,3320,34,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Oakwood Rd,,53,73800,73800,0,900,900
-63089353,3321,35,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Wilgus Rd,,53,73800,73800,0,900,900
-63089353,3322,36,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Utica St,,53,73860,73860,60,900,900
-63089353,3323,37,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Sea St,,53,73860,73860,0,900,900
-63089353,3249,38,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,565 Sea St,,53,73860,73860,0,900,900
-63089353,3250,39,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Lee St,,53,73920,73920,60,900,900
-63089353,3251,40,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Opp 700 Sea St,,53,73980,73980,60,900,900
-63089353,3252,41,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,749 Sea St,,53,73980,73980,0,900,900
-63089353,3253,42,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Babcock St,,53,74040,74040,60,900,900
-63089353,3254,43,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Manet Ave,,53,74040,74040,0,900,900
-63089353,3255,44,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Newton St,,53,74040,74040,0,900,900
-63089353,3256,45,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Malvern St,,53,74100,74100,60,900,900
-63089353,3257,46,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Rockland St,,53,74100,74100,0,900,900
-63089353,3258,47,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Darrow St,,53,74100,74100,0,900,900
-63089353,3259,48,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Manet Ave,,53,74160,74160,60,900,900
-63089353,3260,49,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Wall St,,53,74220,74220,60,900,900
-63089353,3261,50,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Bell St,,53,74220,74220,0,900,900
-63089353,3262,51,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Thomas St,,53,74220,74220,0,900,900
-63089353,3263,52,0,,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,1263 Sea St,,53,74220,74220,0,900,900
-63089353,3265,53,0,hsnck,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Fensmere Ave,,53,74280,74280,60,900,900
-63101043,5072,1,1,malst,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Malden Center,place-mlmnl,39,43200,43200,,1200,1200
-63101043,5328,2,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Elm St,,39,43260,43260,60,1200,1200
-63101043,9028,3,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St opp Russell St,,39,43320,43320,60,1200,1200
-63101043,5330,4,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Prospect St,,39,43320,43320,0,1200,1200
-63101043,5331,5,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St opp West St,,39,43380,43380,60,1200,1200
-63101043,45332,6,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Vista St,,39,43380,43380,0,1200,1200
-63101043,5332,7,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Fellsway E,,39,43380,43380,0,1200,1200
-63101043,8308,8,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Fellsway W,,39,43440,43440,60,1200,1200
-63101043,5282,9,0,fells,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Grant Ave,,39,43500,43500,60,1200,1200
-63101043,5283,10,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,390 Salem St,,39,43500,43500,0,1200,1200
-63101043,5284,11,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Almont St,,39,43560,43560,60,1200,1200
-63101043,5285,12,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Paris St,,39,43560,43560,0,1200,1200
-63101043,5286,13,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Court St,,39,43620,43620,60,1200,1200
-63101043,5287,14,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Allen Ct,,39,43680,43680,60,1200,1200
-63101043,5002,15,0,medfd,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St opp River St,,39,43800,43800,120,1200,1200
-63101043,5031,16,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ High St,,39,43800,43800,0,1200,1200
-63101043,5032,17,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Emerson St,,39,43860,43860,60,1200,1200
-63101043,5290,18,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Summer St,,39,43860,43860,0,1200,1200
-63101043,5291,19,0,mngrg,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ George St,,39,43860,43860,0,1200,1200
-63101043,5292,20,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Stearns Ave,,39,43920,43920,60,1200,1200
-63101043,5293,21,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Windsor Rd,,39,43920,43920,0,1200,1200
-63101043,5294,22,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Wellesley St,,39,43980,43980,60,1200,1200
-63101043,5295,23,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Princeton St,,39,43980,43980,0,1200,1200
-63101043,5296,24,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Harvard St,,39,44040,44040,60,1200,1200
-63101043,5297,25,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Marion St,,39,44040,44040,0,1200,1200
-63101043,5298,26,0,tufts,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Medford St,,39,44100,44100,60,1200,1200
-63101043,5299,27,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Albion St,,39,44160,44160,60,1200,1200
-63101043,5300,28,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Dexter St,,39,44220,44220,60,1200,1200
-63101043,5301,29,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Bow St,,39,44280,44280,60,1200,1200
-63101043,5302,30,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St opp Moreland St,,39,44280,44280,0,1200,1200
-63101043,5303,31,0,whill,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Broadway,,39,44340,44340,60,1200,1200
-63101043,2704,32,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Thurston St,,39,44400,44400,60,1200,600
-63101043,2706,33,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Marshall St,,39,44460,44460,60,1200,600
-63101043,2707,34,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Montgomery Ave,,39,44520,44520,60,1200,600
-63101043,2710,35,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Cross St,,39,44640,44640,120,1200,600
-63101043,2711,36,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Glen St,,39,44700,44700,60,1200,600
-63101043,2713,37,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Lincoln St,,39,44760,44760,60,1200,600
-63101043,2714,38,0,,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Mt Vernon St,,39,44820,44820,60,1200,60
-63101043,29001,39,0,sull,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Sullivan Square,place-sull,39,44880,44880,60,1200,0
-63156984,141,1,1,alewf,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Alewife,place-alfcl,21,40200,40200,,3000,3000
-63156984,2482,2,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,West Service Rd @ Lake St,,21,40380,40380,180,3000,3000
-63156984,23530,3,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,244 Pleasant St opp Brunswick Rd,,21,40500,40500,120,3000,3000
-63156984,23531,4,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Pleasant St @ Gould Rd,,21,40500,40500,0,3000,3000
-63156984,23532,5,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Pleasant St @ Spring Valley St,,21,40560,40560,60,3000,3000
-63156984,23533,6,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Pleasant St @ Wellington St,,21,40560,40560,0,3000,3000
-63156984,2283,7,0,arlct,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Massachusetts Ave @ Mystic St,,21,40620,40620,60,3000,3000
-63156984,2284,8,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Massachusetts Ave @ Central St,,21,40680,40680,60,3000,3000
-63156984,7976,9,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Mill St @ Bacon St,,21,40680,40680,0,3000,3000
-63156984,7977,10,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St @ Winthrop Rd,,21,40740,40740,60,3000,3000
-63156984,7978,11,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St @ Oak Hill Dr,,21,40800,40800,60,3000,3000
-63156984,7979,12,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St @ Symmes Rd,,21,40860,40860,60,3000,3000
-63156984,7981,13,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Symmes Circle @ Symmes Rd,,21,40980,40980,120,3000,3000
-63156984,7953,14,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St opp Washington St,,21,41160,41160,180,3000,3000
-63156984,7954,15,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Washington St @ Candia St,,21,41160,41160,0,3000,3000
-63156984,7955,16,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Washington St @ Ronald Rd,,21,41220,41220,60,3000,3000
-63156984,7956,17,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Washington St @ Mountain Ave,,21,41280,41280,60,3000,3000
-63156984,7959,18,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Clyde Terr @ Lawrence Ln,,21,41340,41340,60,3000,3000
-63156984,7960,19,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Forest St @ Thomas St,,21,41400,41400,60,3000,3000
-63156984,7962,20,0,,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Forest St @ Hancock St,,21,41460,41460,60,3000,3000
-63156984,7961,21,0,trkhl,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Forest St @ Heard Rd,,21,41460,41460,0,3000,3000
-63157369,20761,1,1,bally,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Harvard,place-harsq,22,40620,40620,,960,960
-63157369,2020,2,0,mtsty,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Story St,,22,40740,40740,120,960,960
-63157369,2021,3,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Ash St,,22,40800,40800,60,960,960
-63157369,2023,4,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Sparks St,,22,40860,40860,60,960,960
-63157369,2025,5,0,mthsp,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Longfellow Rd,,22,40920,40920,60,960,960
-63157369,2026,6,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Traill St,,22,40980,40980,60,960,960
-63157369,2027,7,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St opp Coolidge Ave,,22,41040,41040,60,960,960
-63157369,2028,8,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Brattle St,,22,41100,41100,60,960,960
-63157369,2030,9,0,mtaub,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Homer Ave,,22,41160,41160,60,960,960
-63157369,2032,10,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Saint Marys St,,22,41220,41220,60,960,960
-63157369,2033,11,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Keenan St,,22,41280,41280,60,960,960
-63157369,2034,12,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Kimball Rd,,22,41280,41280,0,960,960
-63157369,2036,13,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Upland Rd,,22,41340,41340,60,960,960
-63157369,2037,14,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Winsor Ave,,22,41400,41400,60,960,960
-63157369,2038,15,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Adams Ave,,22,41460,41460,60,960,960
-63157369,2040,16,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Amherst Rd,,22,41520,41520,60,960,960
-63157369,2047,17,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Bates Rd E,,22,41580,41580,60,960,960
-63157369,2042,18,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Russell Ave,,22,41580,41580,0,960,960
-63157369,2043,19,0,wtrhs,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Marshall St,,22,41640,41640,60,960,960
-63157369,2044,20,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Summer St,,22,41760,41760,120,960,960
-63157369,2046,21,0,,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Main St,,22,41880,41880,120,960,960
-63157369,8178,22,0,wtrsq,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Watertown Sq Terminal,,22,41940,41940,60,960,480
-63157836,2362,1,1,arlct,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Massachusetts Ave,,37,29400,29400,,2700,2700
-63157836,2363,2,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Lewis Ave,,37,29460,29460,60,2700,2700
-63157836,2365,3,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Hamlet St,,37,29460,29460,0,2700,2700
-63157836,2366,4,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St opp Hayes St - Medford Line,,37,29520,29520,60,2700,2700
-63157836,2367,5,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,High St @ Jerome St,,37,29520,29520,0,2700,2700
-63157836,2368,6,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,High St @ Monument St,,37,29580,29580,60,2700,2700
-63157836,3513,7,0,boshi,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ High St,,37,29580,29580,0,2700,2700
-63157836,2369,8,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Harvard Ave,,37,29640,29640,60,2700,2700
-63157836,2370,9,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Holton St,,37,29640,29640,0,2700,2700
-63157836,2371,10,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Arlington St,,37,29700,29700,60,2700,2700
-63157836,2372,11,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Mystic Valley Pkwy,,37,29760,29760,60,2700,2700
-63157836,2373,12,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Harris Rd,,37,29760,29760,0,2700,2700
-63157836,2374,13,0,nostr,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ North St,,37,29820,29820,60,2700,2700
-63157836,2375,14,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Hillsdale Rd,,37,29880,29880,60,2700,2700
-63157836,2376,15,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Winthrop St,,37,29880,29880,0,2700,2700
-63157836,2378,16,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Tufts Garage,,37,29940,29940,60,2700,2700
-63157836,2379,17,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,College Ave @ Boston Ave,,37,30000,30000,60,2700,2700
-63157836,2380,18,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,College Ave @ Professors Row,,37,30060,30060,60,2700,2700
-63157836,2381,19,0,powdr,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,College Ave @ Powder House Sq,,37,30120,30120,60,2700,2700
-63157836,2695,20,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway opp Warner St - Powder House Sq,,37,30180,30180,60,2700,2700
-63157836,2696,21,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Bay State Ave,,37,30180,30180,0,2700,2700
-63157836,2697,22,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Josephine Ave - Ball Sq,,37,30240,30240,60,2700,2700
-63157836,2698,23,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Cedar St,,37,30360,30360,120,2700,2700
-63157836,2699,24,0,mgnsq,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Hinckley St - Magoun Sq,,37,30420,30420,60,2700,2700
-63157836,12699,25,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Broadway - Magoun Sq,,37,30420,30420,0,2700,2700
-63157836,23841,26,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Glenwood Rd,,37,30540,30540,120,2700,2700
-63157836,2385,27,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Central St,,37,30600,30600,60,2700,2700
-63157836,2386,28,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Sycamore St,,37,30660,30660,60,2700,2700
-63157836,2388,29,0,mdscl,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ School St,,37,30720,30720,60,2700,2700
-63157836,2389,30,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Pearl St @ Skilton Ave,,37,30780,30780,60,2700,2700
-63157836,2390,31,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Pearl St @ Walnut St,,37,30840,30840,60,2700,2700
-63157836,2391,32,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Pearl St @ McGrath Hwy,,37,30900,30900,60,2700,2700
-63157836,2689,33,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,422 McGrath Hwy,,37,31080,31080,180,2700,300
-63157836,2690,34,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Washington St,,37,31140,31140,60,2700,300
-63157836,2600,35,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,McGrath Hwy @ Medford St,,37,31320,31320,180,2700,300
-63157836,2601,36,0,,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,McGrath Hwy @ Twin City Plaza,,37,31560,31560,240,2700,300
-63157836,70500,37,0,lchmr,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Lechmere,place-lech,37,31680,31680,120,2700,300
-63256578,5327,1,1,malst,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Malden Center,place-mlmnl,22,65100,65100,,2100,60
-63256578,45327,2,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Commercial St @ Charles St,,22,65160,65160,60,2100,2100
-63256578,45326,3,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Commercial St @ Medford St,,22,65160,65160,0,2100,2100
-63256578,45330,4,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Medford St @ Green St,,22,65220,65220,60,2100,2100
-63256578,44330,5,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Medford St @ Brackenbury St,,22,65280,65280,60,2100,2100
-63256578,45331,6,0,mfdmn,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Medford St @ Main St,,22,65280,65280,0,2100,2100
-63256578,5395,7,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Main St @ Converse Ave,,22,65340,65340,60,2100,900
-63256578,5047,8,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Belmont St @ Main St,,22,65400,65400,60,2100,2100
-63256578,5048,9,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Belmont St @ Kinsman St,,22,65400,65400,0,2100,2100
-63256578,5049,10,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Hancock St @ Belmont St,,22,65460,65460,60,2100,2100
-63256578,5050,11,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Hancock St @ Tappan St,,22,65520,65520,60,2100,2100
-63256578,5051,12,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Hancock St @ Dean St,,22,65580,65580,60,2100,2100
-63256578,15492,13,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Maple Ave,,22,65700,65700,120,2100,2100
-63256578,5495,14,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Church St,,22,65760,65760,60,2100,2100
-63256578,5496,15,0,evrtc,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Norwood St,,22,65820,65820,60,2100,540
-63256578,5559,16,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway opp Second St,,22,65820,65820,0,2100,540
-63256578,5560,17,0,sweet,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Gladstone St,,22,65880,65880,60,2100,540
-63256578,5561,18,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Santilli Circle,,22,66060,66060,180,2100,180
-63256578,55631,19,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Gateway Center opp Texas Roadhouse,,22,66180,66180,120,2100,2100
-63256578,55632,20,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Gateway Center @ Target,,22,66240,66240,60,2100,2100
-63256578,6569,21,0,,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Corporation Way,,22,66600,66600,360,2100,360
-63256578,5271,22,0,welst,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Wellington Station Busway,place-welln,22,66660,66660,60,2100,240
-63256596,53270,1,1,malst,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Malden Center,place-mlmnl,29,74880,74880,,1080,1080
-63256596,5289,2,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Centre St @ Stop & Shop,,29,74940,74940,60,1080,1080
-63256596,5342,3,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Main St opp Pleasant St,,29,75060,75060,120,1080,1080
-63256596,5343,4,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Irving St,,29,75060,75060,0,1080,1080
-63256596,5344,5,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Eastern Ave,,29,75120,75120,60,1080,1080
-63256596,5345,6,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St opp Clayton St,,29,75180,75180,60,1080,1080
-63256596,5347,7,0,fercr,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Cross St,,29,75240,75240,60,1080,1080
-63256596,5348,8,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Winthrop St,,29,75300,75300,60,1080,1080
-63256596,5349,9,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Belmont St,,29,75360,75360,60,1080,1080
-63256596,5350,10,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Bennett St,,29,75360,75360,0,1080,1080
-63256596,5351,11,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Central Ave,,29,75420,75420,60,1080,1080
-63256596,5352,12,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Glendale St,,29,75480,75480,60,1080,1080
-63256596,5353,13,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Walnut St - Glendale Towers,,29,75480,75480,0,1080,1080
-63256596,5354,14,0,glndl,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Broadway,,29,75540,75540,60,1080,1080
-63256596,5490,15,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Raymond St,,29,75600,75600,60,1080,120
-63256596,15492,16,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Maple Ave,,29,75660,75660,60,1080,120
-63256596,5495,17,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Church St,,29,75720,75720,60,1080,120
-63256596,5496,18,0,evrtc,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Norwood St,,29,75720,75720,0,1080,120
-63256596,5559,19,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway opp Second St,,29,75780,75780,60,1080,120
-63256596,5560,20,0,sweet,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Gladstone St,,29,75900,75900,120,1080,120
-63256596,5497,21,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Bowdoin St,,29,76020,76020,120,1080,120
-63256596,5498,22,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway opp Beacham St,,29,76020,76020,0,1080,120
-63256596,5499,23,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway opp Thorndike St,,29,76020,76020,0,1080,120
-63256596,5500,24,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Horizon Way,,29,76080,76080,60,1080,120
-63256596,5501,25,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Opp 173 Alford St,,29,76140,76140,60,1080,120
-63256596,55011,26,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Alford St @ MWRA Pump Station,,29,76140,76140,0,1080,120
-63256596,55012,27,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Alford St @ MBTA Charlestown Garage,,29,76200,76200,60,1080,120
-63256596,5502,28,0,,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Alford St @ West St,,29,76260,76260,60,1080,120
-63256596,29001,29,0,sull,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Sullivan Square,place-sull,29,76320,76320,60,1080,120
-63256882,29011,1,1,sull,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Sullivan Square,place-sull,21,64620,64620,,420,420
-63256882,2718,2,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Austin St,,21,64800,64800,180,360,360
-63256882,2719,3,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Illinois Ave,,21,64860,64860,60,420,420
-63256882,2721,4,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Cross St,,21,64920,64920,60,420,420
-63256882,2723,5,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Fellsway W,,21,64980,64980,60,360,360
-63256882,2725,6,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Temple St,,21,65040,65040,60,360,360
-63256882,2726,7,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Winter Hill Plaza,,21,65100,65100,60,360,360
-63256882,2729,8,0,whill,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Main St,,21,65160,65160,60,360,360
-63256882,2731,9,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway opp Glenwood Rd,,21,65220,65220,60,360,360
-63256882,2733,10,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Medford St - Magoun Sq,,21,65340,65340,120,360,360
-63256882,2734,11,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ William St,,21,65340,65340,0,360,360
-63256882,2735,12,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Alfred St,,21,65400,65400,60,360,360
-63256882,2736,13,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Boston Ave - Ball Sq,,21,65460,65460,60,360,360
-63256882,2737,14,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Pearson Rd,,21,65520,65520,60,360,360
-63256882,2738,15,0,powdr,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Warner St - Powder House Sq,,21,65580,65580,60,360,360
-63256882,5012,16,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,College Ave @ Broadway,,21,65640,65640,60,1080,1080
-63256882,5014,17,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,College Ave @ William St,,21,65700,65700,60,1080,1080
-63256882,5015,18,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,College Ave @ Highland Ave,,21,65760,65760,60,1080,1080
-63256882,2582,19,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Elm St @ Chester St,,21,65820,65820,60,1080,1080
-63256882,2628,20,0,,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Grove St @ Highland Ave,,21,65940,65940,120,1140,1140
-63256882,5104,21,0,davis,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Davis,place-davis,21,66000,66000,60,1140,1140
-63361157,1618,1,1,gtown,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,84 Georgetowne Pl,,32,20160,20160,,,
-63361157,11618,2,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Georgetowne Dr @ Georgetowne Pl,,32,20220,20220,60,,
-63361157,6523,3,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Alwin St @ Dedham Pkwy,,32,20220,20220,0,,
-63361157,6524,4,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Alwin St @ Leighton Rd,,32,20280,20280,60,,
-63361157,6526,5,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Alwin St @ Turtle Pond Pkwy,,32,20280,20280,0,,
-63361157,6522,6,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Dedham Pkwy @ Georgetowne Dr,,32,20400,20400,120,,
-63361157,1616,7,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Margaretta Dr @ Crown Point Dr,,32,20460,20460,60,,
-63361157,1617,8,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Opp 67 Crown Point Dr,,32,20580,20580,120,,
-63361157,1620,9,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Georgetowne Dr opp Margaretta Dr,,32,20580,20580,0,,
-63361157,1621,10,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,W Boundary Rd @ Georgetowne Dr,,32,20580,20580,0,,
-63361157,1623,11,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,W Boundary Rd @ Cedarcrest Rd,,32,20640,20640,60,,
-63361157,625,12,0,wawbw,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ W Boundary Rd,,32,20760,20760,120,,600
-63361157,10625,13,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Heron St,,32,20760,20760,0,,600
-63361157,626,14,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Maplewood St,,32,20760,20760,0,,540
-63361157,627,15,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Cowing St,,32,20820,20820,60,,540
-63361157,628,16,0,walag,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Enneking Pkwy,,32,20820,20820,0,,540
-63361157,629,17,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Schubert St,,32,20880,20880,60,,480
-63361157,630,18,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Blue Ledge Dr,,32,20940,20940,60,,540
-63361157,631,19,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Beech St,,32,21000,21000,60,,540
-63361157,632,20,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Cornell St,,32,21000,21000,0,,480
-63361157,633,21,0,wamet,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Metropolitan Ave,,32,21060,21060,60,,480
-63361157,10633,22,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Rosecliff St,,32,21060,21060,0,,480
-63361157,634,23,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Albano St,,32,21120,21120,60,,480
-63361157,635,24,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Poplar St,,32,21180,21180,60,,480
-63361157,636,25,0,rossq,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Cummins Hwy,,32,21240,21240,60,,180
-63361157,637,26,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Firth Rd,,32,21300,21300,60,,180
-63361157,638,27,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Granfield Ave,,32,21360,21360,60,,180
-63361157,639,28,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Whipple Ave,,32,21420,21420,60,,180
-63361157,640,29,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Archdale Rd,,32,21420,21420,0,,180
-63361157,641,30,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Aldwin Rd,,32,21480,21480,60,,180
-63361157,642,31,0,,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Tollgate Way,,32,21540,21540,60,,180
-63361157,10642,32,0,fhill,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Forest Hills,place-forhl,32,21660,21660,120,,180
-63361458,18511,1,1,matpn,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Mattapan,place-matt,28,83100,83100,,3120,3120
-63361458,1722,2,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,1624 Blue Hill Ave @ Mattapan Sq,,28,83100,83100,0,3120,3120
-63361458,1723,3,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Babson St,,28,83160,83160,60,3120,3120
-63361458,1724,4,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave opp Woodhaven St,,28,83160,83160,0,3120,3120
-63361458,1725,5,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,1458 Blue Hill Ave opp Almont St,,28,83160,83160,0,3120,3120
-63361458,1726,6,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Mattapan Library,,28,83220,83220,60,3120,3120
-63361458,1728,7,0,wellh,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Fessenden St,,28,83220,83220,0,3120,3120
-63361458,1730,8,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Woolson St,,28,83280,83280,60,3120,3120
-63361458,1731,9,0,mortn,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Morton St,,28,83340,83340,60,3120,3120
-63361458,1732,10,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Woodrow Ave,,28,83340,83340,0,3120,3120
-63361458,1733,11,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Arbutus St,,28,83400,83400,60,3120,3120
-63361458,1734,12,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Callender St,,28,83400,83400,0,3120,3120
-63361458,1735,13,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Westview St,,28,83460,83460,60,3120,3120
-63361458,1736,14,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave opp Health Ctr,,28,83520,83520,60,3120,3120
-63361458,1737,15,0,bltal,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Harvard St,,28,83520,83520,0,3120,3120
-63361458,381,16,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Wales St,,28,83580,83580,60,3120,3120
-63361458,382,17,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Charlotte St,,28,83640,83640,60,3120,3120
-63361458,383,18,0,frnpk,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Ellington St,,28,83700,83700,60,3120,3120
-63361458,9448,19,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Blue Hill Ave,,28,83760,83760,60,3120,3120
-63361458,1739,20,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Maple St,,28,83820,83820,60,3120,3120
-63361458,1740,21,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Elm Hill Ave,,28,83820,83820,0,3120,3120
-63361458,1741,22,0,svrhm,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Humboldt Ave,,28,83880,83880,60,3120,3120
-63361458,1742,23,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Harold St,,28,83940,83940,60,3120,1200
-63361458,1743,24,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave @ Walnut Ave,,28,84000,84000,60,3120,1200
-63361458,1188,25,0,egles,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave opp Weld Ave - Egleston Sq,,28,84060,84060,60,3120,1200
-63361458,1215,26,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave @ Bray St,,28,84120,84120,60,3120,1140
-63361458,1216,27,0,,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave @ Dimock St,,28,84180,84180,60,3120,1140
-63361458,11531,28,0,jasst,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Jackson Square,place-jaksn,28,84300,84300,120,3120,960
-63362022,900,1,1,wtryd,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Water St @ Watertown Yard,,55,42480,42480,,3600,3600
-63362022,902,2,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Galen St @ Boyd St,,55,42600,42600,120,3600,3600
-63362022,1900,3,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Pearl St,,55,42600,42600,0,3600,3600
-63362022,903,4,0,nwcor,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Washington St @ Bacon St,,55,42660,42660,60,3600,3600
-63362022,8517,5,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Church St,,55,42720,42720,60,3600,3600
-63362022,8518,6,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Newtonville Ave,,55,42780,42780,60,3600,3600
-63362022,8519,7,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Bellevue St,,55,42780,42780,0,3600,3600
-63362022,8520,8,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Lombard St,,55,42780,42780,0,3600,3600
-63362022,8521,9,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Cabot St,,55,42840,42840,60,3600,3600
-63362022,8522,10,0,mtalv,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,785 Centre St,,55,42840,42840,0,3600,3600
-63362022,8523,11,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Cotton St,,55,42900,42900,60,3600,3600
-63362022,8524,12,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Mill St,,55,42900,42900,0,3600,3600
-63362022,8525,13,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Ward St,,55,42960,42960,60,3600,3600
-63362022,8526,14,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Commonwealth Ave,,55,42960,42960,0,3600,3600
-63362022,8527,15,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Bowen St,,55,43020,43020,60,3600,3600
-63362022,8528,16,0,newct,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Beacon St,,55,43080,43080,60,3600,3600
-63362022,8529,17,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Cypress St @ Braeland Ave,,55,43080,43080,0,3600,3600
-63362022,8530,18,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Cypress St,,55,43140,43140,60,3600,3600
-63362022,8531,19,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Athelstane Rd,,55,43200,43200,60,3600,3600
-63362022,8532,20,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Stearns St,,55,43200,43200,0,3600,3600
-63362022,8533,21,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Boylston St,,55,43200,43200,0,3600,3600
-63362022,8534,22,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Parker Ave,,55,43260,43260,60,3600,3600
-63362022,8535,23,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Hagen Rd,,55,43260,43260,0,3600,3600
-63362022,8536,24,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Parker Rd,,55,43320,43320,60,3600,3600
-63362022,8537,25,0,prkwl,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St opp Wheeler Rd,,55,43320,43320,0,3600,3600
-63362022,85371,26,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wheeler Rd @ Meadowbrook Rd,,55,43380,43380,60,3600,3600
-63362022,8540,27,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Meadowbrook Rd,,55,43440,43440,60,3600,3600
-63362022,8541,28,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Greenwood St,,55,43440,43440,0,3600,3600
-63362022,8542,29,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Arnold Rd,,55,43500,43500,60,3600,3600
-63362022,18542,30,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Rosalie Rd,,55,43500,43500,0,3600,3600
-63362022,8544,31,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St @ Carlson Ave,,55,43560,43560,60,3600,3600
-63362022,8545,32,0,oak,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St @ Wiswall Rd,,55,43560,43560,0,3600,3600
-63362022,8546,33,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ Indian Ridge Rd,,55,43560,43560,0,3600,3600
-63362022,8547,34,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd opp McCarthy Rd,,55,43560,43560,0,3600,3600
-63362022,8548,35,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ O Roadway,,55,43620,43620,60,3600,3600
-63362022,8549,36,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ M Roadway,,55,43620,43620,0,3600,3600
-63362022,8550,37,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ Walsh Rd,,55,43680,43680,60,3600,3600
-63362022,8552,38,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ Walsh Rd,,55,43680,43680,0,3600,3600
-63362022,85511,39,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ Spiers Rd,,55,43680,43680,0,3600,3600
-63362022,8553,40,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ Keller Path,,55,43740,43740,60,3600,3600
-63362022,8554,41,0,sbpfd,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ McCarthy Rd,,55,43740,43740,0,3600,3600
-63362022,85551,42,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Fredette Rd @ Spiers Rd,,55,43800,43800,60,3600,3600
-63362022,8556,43,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Spiers Rd @ Dedham St,,55,43800,43800,0,3600,3600
-63362022,85562,44,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ VFW Pkwy,,55,43980,43980,180,3600,3600
-63362022,85563,45,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ VFW Pkwy,,55,43980,43980,0,3600,3600
-63362022,85564,46,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Capital St,,55,43980,43980,0,3600,3600
-63362022,85565,47,0,baker,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St opp Varick Rd,,55,44040,44040,60,3600,3600
-63362022,85566,48,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Amesbury St,,55,44100,44100,60,3600,3600
-63362022,85567,49,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Cutter Rd,,55,44100,44100,0,3600,3600
-63362022,85568,50,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Dunwell St,,55,44160,44160,60,3600,3600
-63362022,85569,51,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Wycliff Ave,,55,44220,44220,60,3600,3600
-63362022,816,52,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Spring St @ Moville St,,55,44220,44220,0,3600,3600
-63362022,817,53,0,cloop,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Spring St @ VA Hospital,,55,44280,44280,60,3600,3600
-63362022,10835,54,0,,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham Mall @ South Side,,55,44700,44700,420,3600,3600
-63362022,10833,55,0,dmall,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham Mall @ Stop & Shop,,55,44820,44820,120,3600,3600
-Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,5271,1,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Wellington Station Busway,place-welln,5,56160,56160,,60,60
-Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,28743,2,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Grand Union Blvd @ Foley St,,5,56700,56700,540,120,120
-Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,29001,3,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Sullivan Square,place-sull,5,57660,57660,960,60,60
-Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,9070028,4,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Community College - Rutherford Ave @ Austin St,,5,58260,58260,600,120,120
-Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,9070026,5,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,North Station,,5,58560,58560,300,180,180
-Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,9070026,1,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,North Station,,5,75420,75420,,180,180
-Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,9070029,2,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Community College - Rutherford Ave @ Austin St,,5,75600,75600,180,120,120
-Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,29001,3,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Sullivan Square,place-sull,5,76200,76200,600,60,60
-Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,28742,4,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Grand Union Blvd @ Foley St,,5,76440,76440,240,180,180
-Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,5271,5,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Wellington Station Busway,place-welln,5,76860,76860,420,120,120
-Orange-NorthStationWellington-Saturday-df498-0-22:01:30,5271,1,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Wellington Station Busway,place-welln,5,79260,79260,,0,0
-Orange-NorthStationWellington-Saturday-df498-0-22:01:30,28743,2,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Grand Union Blvd @ Foley St,,5,79680,79680,420,0,0
-Orange-NorthStationWellington-Saturday-df498-0-22:01:30,29001,3,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Sullivan Square,place-sull,5,80340,80340,660,0,0
-Orange-NorthStationWellington-Saturday-df498-0-22:01:30,9070028,4,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Community College - Rutherford Ave @ Austin St,,5,80760,80760,420,0,0
-Orange-NorthStationWellington-Saturday-df498-0-22:01:30,9070026,5,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,North Station,,5,80940,80940,180,0,0
-Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,5271,1,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Wellington Station Busway,place-welln,5,24060,24060,,120,120
-Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,28743,2,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Grand Union Blvd @ Foley St,,5,24420,24420,360,180,180
-Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,29001,3,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Sullivan Square,place-sull,5,24960,24960,540,120,120
-Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,9070028,4,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Community College - Rutherford Ave @ Austin St,,5,25320,25320,360,120,120
-Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,9070026,5,,,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,North Station,,5,25500,25500,180,120,120
+plan_trip_id,stop_id,stop_sequence,block_id,route_id,service_id,route_pattern_id,route_pattern_typicality,direction_id,direction,direction_destination,stop_name,plan_stop_count,plan_start_time,plan_start_dt,plan_travel_time_seconds,plan_route_direction_headway_seconds,plan_direction_destination_headway_seconds
+63070693,334,1,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Ashmont,29,55800,2024-08-01T15:30:00.000000,,0,0
+63070693,367,2,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Dorchester Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,369,3,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Welles Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,371,4,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Centre St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,372,5,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Southern Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,373,6,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Spencer St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,374,7,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Talbot Station,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,375,8,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Bernard St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,376,9,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Kerwin St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,378,10,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Talbot Ave @ Nightingale St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1737,11,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Harvard St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,381,12,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Wales St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,382,13,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Charlotte St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,383,14,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Blue Hill Ave @ Ellington St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,9448,15,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Blue Hill Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1739,16,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Maple St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1740,17,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Elm Hill Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1741,18,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Humboldt Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1742,19,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Seaver St @ Harold St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1743,20,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Walnut Ave,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1188,21,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave opp Weld Ave - Egleston Sq,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1215,22,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Bray St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1216,23,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Dimock St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,11531,24,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Jackson Square,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1219,25,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Centre St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1221,26,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Cedar St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1222,27,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Columbus Ave @ Malcolm X Blvd,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,1224,28,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Tremont St opp Prentiss St,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070693,17861,29,C22-146,22,BUS32024-hbc34ns1-Weekday-02,22-_-1,1,1,Inbound,Ruggles Station,Ruggles,29,55800,2024-08-01T15:30:00.000000,0,0,0
+63070975,33,1,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,City Point Bus Terminal,14,26880,2024-08-01T07:28:00.000000,,0,0
+63070975,10033,2,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,E 1st St @ O St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,34,3,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,P St @ E 2nd St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,35,4,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,P St @ E Broadway,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,895,5,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,E Broadway @ N St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,886,6,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,L St @ Broadway,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,884,7,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ E 1st St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,210,8,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ Drydock Ave,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,212,9,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ D St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,890,10,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ WTC Ave,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,891,11,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St opp Melcher St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,892,12,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Summer St @ Atlantic Ave,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,6535,13,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Federal St @ Matthews St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63070975,16535,14,C07-23,7,BUS32024-hbc34ns1-Weekday-02,7-1-1,1,1,Inbound,Otis Street & Summer Street,Otis St @ Summer St,14,26880,2024-08-01T07:28:00.000000,0,0,0
+63071767,1475,1,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Hancock St @ Bowdoin St,21,57000,2024-08-01T15:50:00.000000,,0,0
+63071767,1478,2,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Hancock St @ Rowell St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1479,3,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Hancock St @ Jerome St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1480,4,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Columbia Rd @ Hancock St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1481,5,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Belden St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,11482,6,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Uphams Corner Station,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,14831,7,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St opp Howard Ave,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1484,8,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ E Cottage St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1485,9,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Langdon St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1486,10,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Magazine St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1487,11,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Hampden St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1488,12,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Adams St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1489,13,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Dearborn St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1491,14,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Dudley St @ Harrison Ave,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,64000,15,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Nubian,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1148,16,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ Shawmut Ave,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,11149,17,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ O'Bryant HS,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,11148,18,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ Madison Park HS,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,21148,19,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Malcolm X Blvd @ Tremont St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,1224,20,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Tremont St opp Prentiss St,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63071767,17861,21,C15-106,15,BUS32024-hbc34ns1-Weekday-02,15-_-1,1,1,Inbound,Ruggles Station,Ruggles,21,57000,2024-08-01T15:50:00.000000,0,0,0
+63072828,6551,1,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Federal St @ Franklin St,12,29220,2024-08-01T08:07:00.000000,,0,0
+63072828,16535,2,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Otis St @ Summer St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,6555,3,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Chinatown Gate,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,9983,4,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Stuart St @ Charles St S,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,177,5,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Saint James Ave @ Arlington St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,173,6,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Saint James Ave @ Berkeley St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,178,7,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Saint James Ave @ Dartmouth St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,903,8,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Washington St @ Bacon St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,19031,9,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,400 Centre St - West,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,988,10,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Centre St @ Jefferson St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,989,11,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Galen St @ Maple St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63072828,999,12,C18-134,504,BUS32024-hbc34ns1-Weekday-02,504-2-0,1,0,Outbound,Watertown Yard,Galen St @ Water St,12,29220,2024-08-01T08:07:00.000000,0,0,0
+63075088,64000,1,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Nubian,33,20700,2024-08-01T05:45:00.000000,,0,0
+63075088,1148,2,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ Shawmut Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,11149,3,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ O'Bryant HS,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,11148,4,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ Madison Park HS,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,21148,5,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Malcolm X Blvd @ Tremont St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1357,6,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St opp Roxbury Crossing Sta,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,13590,7,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St @ Tobin Community Center,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1360,8,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St @ Saint Alphonsus St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1362,9,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Tremont St @ Huntington Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1363,10,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Huntington Ave @ Fenwood Rd,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1365,11,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,835 Huntington Ave opp Parker Hill Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1366,12,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Huntington Ave @ Riverway,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1526,13,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Washington St @ Pearl St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1367,14,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Kent St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1369,15,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Aspinwall Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1371,16,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St opp Vernon St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1372,17,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Beacon St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1373,18,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Stedman St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1375,19,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St @ Coolidge St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1376,20,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard St opp Verndale St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1378,21,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard Ave @ Commonwealth Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1379,22,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard Ave @ Brighton Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,964,23,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Brighton Ave opp Quint Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1111,24,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Cambridge St opp Hano St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,1112,25,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Cambridge St @ Harvard Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,2558,26,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Empire St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,2559,27,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Oxford St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,2560,28,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Kingsley St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,2561,29,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St @ Western Ave,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,2564,30,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,N Harvard St opp Harvard Stadium Gate 2,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,25641,31,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,JFK St @ Eliot St,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,2168,32,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Massachusetts Ave @ Johnston Gate,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63075088,22549,33,A66-325,66,BUS32024-hba34ns1-Weekday-02,66-6-0,1,0,Outbound,Harvard Square,Harvard Sq @ Garden St - Dawes Island,33,20700,2024-08-01T05:45:00.000000,0,0,0
+63089353,32002,1,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Quincy Center,53,72900,2024-08-01T20:15:00.000000,,0,0
+63089353,3237,2,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Coddington St @ Washington St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3239,3,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Coddington St @ Quincy YMCA,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3425,4,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Coddington St @ Southern Artery,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3240,5,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,55 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3241,6,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Overlook Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3242,7,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Samoset Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3243,8,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,227 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3244,9,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Barbour Terr,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,13245,10,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Moffat Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3245,11,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,405 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3246,12,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,455 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3247,13,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Braintree Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3292,14,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3295,15,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Oakwood Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3298,16,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Forbush Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3299,17,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Brockton Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3300,18,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Roach St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3301,19,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Bowes Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3303,20,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,375 Palmer St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3304,21,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Taffrail Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3305,22,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,26 Taffrail Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3306,23,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Taffrail Rd @ Bicknell St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3307,24,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Bicknell St @ O'Brien Towers Driveway,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3308,25,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,O'Brien Towers,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3309,26,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,O'Brien Towers Driveway @ Bicknell St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3310,27,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Bicknell St @ Binnacle Lane,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3311,28,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Bicknell St @ Yardarm Ln,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3312,29,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Shed St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3314,30,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Bowes Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3315,31,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Roach St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3316,32,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Brockton Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3317,33,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Empire St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3320,34,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Oakwood Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3321,35,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Wilgus Rd,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3322,36,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St opp Utica St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3323,37,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Palmer St @ Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3249,38,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,565 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3250,39,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Lee St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3251,40,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Opp 700 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3252,41,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,749 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3253,42,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Babcock St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3254,43,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Manet Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3255,44,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Newton St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3256,45,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St opp Malvern St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3257,46,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Rockland St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3258,47,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Darrow St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3259,48,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Manet Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3260,49,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Wall St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3261,50,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Bell St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3262,51,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Thomas St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3263,52,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,1263 Sea St,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63089353,3265,53,Q222-59,216,BUS32024-hbq34ns1-Weekday-02,216-2-0,1,0,Outbound,Houghs Neck,Sea St @ Fensmere Ave,53,72900,2024-08-01T20:15:00.000000,0,0,0
+63101043,5072,1,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Malden Center,39,43200,2024-08-01T12:00:00.000000,,0,0
+63101043,5328,2,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Elm St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,9028,3,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St opp Russell St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5330,4,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Prospect St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5331,5,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St opp West St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,45332,6,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Vista St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5332,7,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Pleasant St @ Fellsway E,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,8308,8,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Fellsway W,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5282,9,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Grant Ave,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5283,10,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,390 Salem St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5284,11,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Almont St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5285,12,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Paris St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5286,13,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Court St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5287,14,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St @ Allen Ct,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5002,15,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Salem St opp River St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5031,16,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ High St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5032,17,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Emerson St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5290,18,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Summer St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5291,19,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ George St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5292,20,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Stearns Ave,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5293,21,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Windsor Rd,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5294,22,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Wellesley St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5295,23,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Princeton St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5296,24,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Harvard St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5297,25,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Marion St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5298,26,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Medford St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5299,27,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Albion St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5300,28,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Dexter St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5301,29,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Bow St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5302,30,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St opp Moreland St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,5303,31,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Main St @ Broadway,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2704,32,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Thurston St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2706,33,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Marshall St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2707,34,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Montgomery Ave,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2710,35,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Cross St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2711,36,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Glen St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2713,37,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Lincoln St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,2714,38,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Broadway @ Mt Vernon St,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63101043,29001,39,F101-47,101,BUS32024-hbf34ns1-Weekday-02,101-3-1,1,1,Inbound,Sullivan Square Station,Sullivan Square,39,43200,2024-08-01T12:00:00.000000,0,0,0
+63156984,141,1,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Alewife,21,40200,2024-08-01T11:10:00.000000,,0,0
+63156984,2482,2,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,West Service Rd @ Lake St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,23530,3,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,244 Pleasant St opp Brunswick Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,23531,4,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Pleasant St @ Gould Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,23532,5,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Pleasant St @ Spring Valley St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,23533,6,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Pleasant St @ Wellington St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,2283,7,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Massachusetts Ave @ Mystic St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,2284,8,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Massachusetts Ave @ Central St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7976,9,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Mill St @ Bacon St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7977,10,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St @ Winthrop Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7978,11,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St @ Oak Hill Dr,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7979,12,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St @ Symmes Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7981,13,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Symmes Circle @ Symmes Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7953,14,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Summer St opp Washington St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7954,15,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Washington St @ Candia St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7955,16,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Washington St @ Ronald Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7956,17,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Washington St @ Mountain Ave,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7959,18,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Clyde Terr @ Lawrence Ln,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7960,19,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Forest St @ Thomas St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7962,20,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Forest St @ Hancock St,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63156984,7961,21,T67-22,67,BUS32024-hbt34ns1-Weekday-02,67-4-0,1,0,Outbound,Turkey Hill,Forest St @ Heard Rd,21,40200,2024-08-01T11:10:00.000000,0,0,0
+63157369,20761,1,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Harvard,22,40620,2024-08-01T11:17:00.000000,,0,0
+63157369,2020,2,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Story St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2021,3,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Ash St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2023,4,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Sparks St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2025,5,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Longfellow Rd,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2026,6,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Traill St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2027,7,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St opp Coolidge Ave,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2028,8,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Brattle St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2030,9,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Homer Ave,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2032,10,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Saint Marys St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2033,11,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Keenan St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2034,12,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Kimball Rd,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2036,13,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Upland Rd,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2037,14,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Winsor Ave,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2038,15,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Adams Ave,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2040,16,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Amherst Rd,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2047,17,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Bates Rd E,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2042,18,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Russell Ave,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2043,19,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Marshall St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2044,20,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Summer St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,2046,21,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Mt Auburn St @ Main St,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157369,8178,22,T71-68,71,BUS32024-hbt34ns1-Weekday-02,71-2-0,1,0,Outbound,Watertown Square,Watertown Sq Terminal,22,40620,2024-08-01T11:17:00.000000,0,0,0
+63157836,2362,1,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Massachusetts Ave,37,29400,2024-08-01T08:10:00.000000,,0,0
+63157836,2363,2,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Lewis Ave,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2365,3,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Hamlet St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2366,4,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St opp Hayes St - Medford Line,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2367,5,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,High St @ Jerome St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2368,6,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,High St @ Monument St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,3513,7,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ High St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2369,8,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Harvard Ave,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2370,9,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Holton St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2371,10,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Arlington St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2372,11,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Mystic Valley Pkwy,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2373,12,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Harris Rd,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2374,13,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ North St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2375,14,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Hillsdale Rd,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2376,15,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Winthrop St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2378,16,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Boston Ave @ Tufts Garage,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2379,17,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,College Ave @ Boston Ave,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2380,18,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,College Ave @ Professors Row,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2381,19,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,College Ave @ Powder House Sq,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2695,20,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway opp Warner St - Powder House Sq,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2696,21,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Bay State Ave,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2697,22,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Josephine Ave - Ball Sq,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2698,23,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Cedar St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2699,24,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Broadway @ Hinckley St - Magoun Sq,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,12699,25,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Broadway - Magoun Sq,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,23841,26,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Glenwood Rd,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2385,27,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Central St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2386,28,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Sycamore St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2388,29,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ School St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2389,30,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Pearl St @ Skilton Ave,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2390,31,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Pearl St @ Walnut St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2391,32,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Pearl St @ McGrath Hwy,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2689,33,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,422 McGrath Hwy,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2690,34,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Medford St @ Washington St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2600,35,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,McGrath Hwy @ Medford St,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,2601,36,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,McGrath Hwy @ Twin City Plaza,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63157836,70500,37,T80-134,80,BUS32024-hbt34ns1-Weekday-02,80-_-1,1,1,Inbound,Lechmere Station,Lechmere,37,29400,2024-08-01T08:10:00.000000,0,0,0
+63256578,5327,1,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Malden Center,22,65100,2024-08-01T18:05:00.000000,,0,0
+63256578,45327,2,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Commercial St @ Charles St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,45326,3,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Commercial St @ Medford St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,45330,4,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Medford St @ Green St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,44330,5,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Medford St @ Brackenbury St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,45331,6,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Medford St @ Main St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5395,7,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Main St @ Converse Ave,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5047,8,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Belmont St @ Main St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5048,9,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Belmont St @ Kinsman St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5049,10,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Hancock St @ Belmont St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5050,11,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Hancock St @ Tappan St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5051,12,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Hancock St @ Dean St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,15492,13,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Maple Ave,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5495,14,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Church St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5496,15,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Norwood St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5559,16,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway opp Second St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5560,17,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Broadway @ Gladstone St,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5561,18,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Santilli Circle,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,55631,19,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Gateway Center opp Texas Roadhouse,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,55632,20,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Gateway Center @ Target,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,6569,21,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Corporation Way,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256578,5271,22,G101-66,97,BUS32024-hbg34ns1-Weekday-02,97-5-1,1,1,Inbound,Wellington Station,Wellington Station Busway,22,65100,2024-08-01T18:05:00.000000,0,0,0
+63256596,53270,1,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Malden Center,29,74880,2024-08-01T20:48:00.000000,,0,0
+63256596,5289,2,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Centre St @ Stop & Shop,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5342,3,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Main St opp Pleasant St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5343,4,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Irving St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5344,5,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Eastern Ave,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5345,6,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St opp Clayton St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5347,7,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Cross St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5348,8,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Winthrop St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5349,9,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Belmont St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5350,10,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Bennett St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5351,11,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Central Ave,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5352,12,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Glendale St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5353,13,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Walnut St - Glendale Towers,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5354,14,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Ferry St @ Broadway,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5490,15,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Raymond St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,15492,16,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Maple Ave,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5495,17,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Church St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5496,18,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Norwood St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5559,19,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway opp Second St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5560,20,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Gladstone St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5497,21,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Bowdoin St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5498,22,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway opp Beacham St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5499,23,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway opp Thorndike St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5500,24,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Broadway @ Horizon Way,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5501,25,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Opp 173 Alford St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,55011,26,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Alford St @ MWRA Pump Station,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,55012,27,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Alford St @ MBTA Charlestown Garage,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,5502,28,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Alford St @ West St,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256596,29001,29,G109-113,104,BUS32024-hbg34ns1-Weekday-02,104-_-1,1,1,Inbound,Sullivan Square Station,Sullivan Square,29,74880,2024-08-01T20:48:00.000000,0,0,0
+63256882,29011,1,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Sullivan Square,21,64620,2024-08-01T17:57:00.000000,,0,0
+63256882,2718,2,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Austin St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2719,3,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Illinois Ave,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2721,4,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Cross St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2723,5,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Fellsway W,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2725,6,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Temple St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2726,7,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Winter Hill Plaza,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2729,8,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Main St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2731,9,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway opp Glenwood Rd,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2733,10,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Medford St - Magoun Sq,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2734,11,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ William St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2735,12,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Alfred St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2736,13,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Boston Ave - Ball Sq,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2737,14,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Pearson Rd,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2738,15,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Broadway @ Warner St - Powder House Sq,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,5012,16,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,College Ave @ Broadway,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,5014,17,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,College Ave @ William St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,5015,18,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,College Ave @ Highland Ave,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2582,19,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Elm St @ Chester St,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,2628,20,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Grove St @ Highland Ave,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63256882,5104,21,G89-5,89,BUS32024-hbg34ns1-Weekday-02,89-2-0,1,0,Outbound,Clarendon Hill or Davis Station,Davis,21,64620,2024-08-01T17:57:00.000000,0,0,0
+63361157,1618,1,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,84 Georgetowne Pl,32,20160,2024-08-01T05:36:00.000000,,,
+63361157,11618,2,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Georgetowne Dr @ Georgetowne Pl,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,6523,3,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Alwin St @ Dedham Pkwy,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,6524,4,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Alwin St @ Leighton Rd,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,6526,5,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Alwin St @ Turtle Pond Pkwy,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,6522,6,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Dedham Pkwy @ Georgetowne Dr,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,1616,7,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Margaretta Dr @ Crown Point Dr,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,1617,8,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Opp 67 Crown Point Dr,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,1620,9,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Georgetowne Dr opp Margaretta Dr,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,1621,10,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,W Boundary Rd @ Georgetowne Dr,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,1623,11,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,W Boundary Rd @ Cedarcrest Rd,32,20160,2024-08-01T05:36:00.000000,0,,
+63361157,625,12,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ W Boundary Rd,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,10625,13,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Heron St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,626,14,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Maplewood St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,627,15,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Cowing St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,628,16,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Enneking Pkwy,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,629,17,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St opp Schubert St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,630,18,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Blue Ledge Dr,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,631,19,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Beech St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,632,20,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Cornell St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,633,21,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Metropolitan Ave,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,10633,22,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Rosecliff St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,634,23,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Albano St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,635,24,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Poplar St,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,636,25,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Cummins Hwy,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,637,26,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Firth Rd,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,638,27,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Granfield Ave,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,639,28,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Whipple Ave,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,640,29,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Archdale Rd,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,641,30,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Aldwin Rd,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,642,31,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Washington St @ Tollgate Way,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361157,10642,32,B40-149,40,BUS32024-hbb34ns1-Weekday-02,40-2-1,1,1,Inbound,Forest Hills Station,Forest Hills,32,20160,2024-08-01T05:36:00.000000,0,,0
+63361458,18511,1,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Mattapan,28,83100,2024-08-01T23:05:00.000000,,0,0
+63361458,1722,2,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,1624 Blue Hill Ave @ Mattapan Sq,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1723,3,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Babson St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1724,4,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave opp Woodhaven St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1725,5,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,1458 Blue Hill Ave opp Almont St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1726,6,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Mattapan Library,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1728,7,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Fessenden St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1730,8,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Woolson St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1731,9,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Morton St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1732,10,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Woodrow Ave,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1733,11,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Arbutus St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1734,12,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Callender St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1735,13,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Westview St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1736,14,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave opp Health Ctr,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1737,15,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Harvard St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,381,16,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Wales St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,382,17,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Charlotte St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,383,18,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Blue Hill Ave @ Ellington St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,9448,19,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Blue Hill Ave,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1739,20,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Maple St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1740,21,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Elm Hill Ave,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1741,22,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Humboldt Ave,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1742,23,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Seaver St @ Harold St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1743,24,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave @ Walnut Ave,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1188,25,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave opp Weld Ave - Egleston Sq,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1215,26,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave @ Bray St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,1216,27,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Columbus Ave @ Dimock St,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63361458,11531,28,B29-40,29,BUS32024-hbb34ns1-Weekday-02,29-5-1,1,1,Inbound,Jackson Square Station,Jackson Square,28,83100,2024-08-01T23:05:00.000000,0,0,0
+63362022,900,1,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Water St @ Watertown Yard,55,42480,2024-08-01T11:48:00.000000,,0,0
+63362022,902,2,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Galen St @ Boyd St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,1900,3,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Pearl St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,903,4,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Washington St @ Bacon St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8517,5,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Church St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8518,6,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Newtonville Ave,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8519,7,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Bellevue St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8520,8,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Lombard St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8521,9,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Cabot St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8522,10,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,785 Centre St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8523,11,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Cotton St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8524,12,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Mill St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8525,13,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Ward St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8526,14,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Commonwealth Ave,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8527,15,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Bowen St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8528,16,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Centre St @ Beacon St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8529,17,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Cypress St @ Braeland Ave,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8530,18,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Cypress St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8531,19,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Athelstane Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8532,20,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Stearns St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8533,21,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Boylston St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8534,22,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Parker Ave,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8535,23,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Hagen Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8536,24,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St @ Parker Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8537,25,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Parker St opp Wheeler Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85371,26,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wheeler Rd @ Meadowbrook Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8540,27,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Meadowbrook Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8541,28,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Greenwood St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8542,29,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Arnold Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,18542,30,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St opp Rosalie Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8544,31,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St @ Carlson Ave,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8545,32,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham St @ Wiswall Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8546,33,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ Indian Ridge Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8547,34,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd opp McCarthy Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8548,35,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ O Roadway,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8549,36,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ M Roadway,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8550,37,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Wiswall Rd @ Walsh Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8552,38,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ Walsh Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85511,39,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ Spiers Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8553,40,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ Keller Path,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8554,41,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Sawmill Brook Pkwy @ McCarthy Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85551,42,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Fredette Rd @ Spiers Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,8556,43,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Spiers Rd @ Dedham St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85562,44,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ VFW Pkwy,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85563,45,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ VFW Pkwy,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85564,46,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Capital St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85565,47,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St opp Varick Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85566,48,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Amesbury St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85567,49,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Cutter Rd,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85568,50,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Dunwell St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,85569,51,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Baker St @ Wycliff Ave,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,816,52,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Spring St @ Moville St,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,817,53,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Spring St @ VA Hospital,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,10835,54,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham Mall @ South Side,55,42480,2024-08-01T11:48:00.000000,0,0,0
+63362022,10833,55,B52-191,52,BUS32024-hbb34ns1-Weekday-02,52-5-0,1,0,Outbound,Dedham Mall,Dedham Mall @ Stop & Shop,55,42480,2024-08-01T11:48:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,5271,1,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Wellington Station Busway,5,56160,2024-08-01T15:36:00.000000,,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,28743,2,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Grand Union Blvd @ Foley St,5,56160,2024-08-01T15:36:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,29001,3,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Sullivan Square,5,56160,2024-08-01T15:36:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,9070028,4,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Community College - Rutherford Ave @ Austin St,5,56160,2024-08-01T15:36:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-0-15:36:06,9070026,5,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,North Station,5,56160,2024-08-01T15:36:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,9070026,1,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,North Station,5,75420,2024-08-01T20:57:00.000000,,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,9070029,2,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Community College - Rutherford Ave @ Austin St,5,75420,2024-08-01T20:57:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,29001,3,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Sullivan Square,5,75420,2024-08-01T20:57:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,28742,4,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Grand Union Blvd @ Foley St,5,75420,2024-08-01T20:57:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-8b4a8-1-20:57:18,5271,5,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-8b8,Shuttle-NorthStationWellington-0-1,5,1,North,Oak Grove,Wellington Station Busway,5,75420,2024-08-01T20:57:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-df498-0-22:01:30,5271,1,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Wellington Station Busway,5,79260,2024-08-01T22:01:00.000000,,0,0
+Orange-NorthStationWellington-Saturday-df498-0-22:01:30,28743,2,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Grand Union Blvd @ Foley St,5,79260,2024-08-01T22:01:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-df498-0-22:01:30,29001,3,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Sullivan Square,5,79260,2024-08-01T22:01:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-df498-0-22:01:30,9070028,4,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Community College - Rutherford Ave @ Austin St,5,79260,2024-08-01T22:01:00.000000,0,0,0
+Orange-NorthStationWellington-Saturday-df498-0-22:01:30,9070026,5,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Sa-df8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,North Station,5,79260,2024-08-01T22:01:00.000000,0,0,0
+Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,5271,1,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Wellington Station Busway,5,24060,2024-08-01T06:41:00.000000,,0,0
+Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,28743,2,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Grand Union Blvd @ Foley St,5,24060,2024-08-01T06:41:00.000000,0,0,0
+Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,29001,3,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Sullivan Square,5,24060,2024-08-01T06:41:00.000000,0,0,0
+Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,9070028,4,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,Community College - Rutherford Ave @ Austin St,5,24060,2024-08-01T06:41:00.000000,0,0,0
+Orange-NorthStationWellington-Sunday-8b4a8-0-06:41:48,9070026,5,,Shuttle-NorthStationWellington,Orange-NorthStationWellington-Su-8b8,Shuttle-NorthStationWellington-0-0,5,0,South,Forest Hills,North Station,5,24060,2024-08-01T06:41:00.000000,0,0,0

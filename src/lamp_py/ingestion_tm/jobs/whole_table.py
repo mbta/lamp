@@ -45,12 +45,8 @@ class TMWholeTable(TMExport):
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 local_export_path = os.path.join(temp_dir, "out.parquet")
-                tm_db.write_to_parquet(
-                    query, local_export_path, self.export_schema
-                )
-                logger.add_metadata(
-                    pq_export_bytes=os.stat(local_export_path).st_size
-                )
+                tm_db.write_to_parquet(query, local_export_path, self.export_schema)
+                logger.add_metadata(pq_export_bytes=os.stat(local_export_path).st_size)
                 upload_file(local_export_path, self.s3_location.s3_uri)
                 logger.log_complete()
 

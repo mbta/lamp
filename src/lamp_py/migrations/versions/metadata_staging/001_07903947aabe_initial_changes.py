@@ -51,17 +51,13 @@ def upgrade() -> None:
     # metadata database. the table may or may not exist, so wrap this in a try
     # except
     try:
-        rpm_db_manager = DatabaseManager(
-            db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER
-        )
+        rpm_db_manager = DatabaseManager(db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER)
 
         insert_data = []
         # pull metadata from the rail performance manager database via direct
         # sql query. the metadata_log table may or may not exist.
         with rpm_db_manager.session.begin() as session:
-            result = session.execute(
-                text("SELECT path, processed, process_fail FROM metadata_log")
-            )
+            result = session.execute(text("SELECT path, processed, process_fail FROM metadata_log"))
             for row in result:
                 (path, processed, process_fail) = row
                 insert_data.append(
@@ -79,11 +75,7 @@ def upgrade() -> None:
         # Raise all other sql errors
         insert_data = []
         original_error = error.orig
-        if (
-            original_error is not None
-            and hasattr(original_error, "pgcode")
-            and original_error.pgcode == "42P01"
-        ):
+        if original_error is not None and hasattr(original_error, "pgcode") and original_error.pgcode == "42P01":
             logging.info("No Metadata Table in Rail Performance Manager")
         else:
             raise
