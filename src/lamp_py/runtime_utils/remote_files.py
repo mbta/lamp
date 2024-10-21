@@ -16,6 +16,7 @@ TABLEAU = os.path.join(LAMP, "tableau")
 
 VERSION_KEY = "lamp_version"
 
+
 @dataclass
 class S3Location:
     """

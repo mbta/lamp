@@ -14,20 +14,22 @@ from lamp_py.runtime_utils.remote_files import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
+
 def _empty_stop_crossing() -> pl.DataFrame:
     """
     create empty stop crossing dataframe with expected columns
     """
     schema = {
-            "vehicle_label": pl.String,
-            "route_id": pl.String,
-            "trip_id": pl.String,
-            "stop_id": pl.String,
-            "tm_stop_sequence": pl.Int64,
-            "tm_arrival_dt": pl.Datetime,
-            "tm_departure_dt": pl.Datetime,
-        }
+        "vehicle_label": pl.String,
+        "route_id": pl.String,
+        "trip_id": pl.String,
+        "stop_id": pl.String,
+        "tm_stop_sequence": pl.Int64,
+        "tm_arrival_dt": pl.Datetime,
+        "tm_departure_dt": pl.Datetime,
+    }
     return pl.DataFrame(schema=schema)
+
 
 def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
     """

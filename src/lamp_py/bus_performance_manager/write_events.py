@@ -42,11 +42,11 @@ def write_bus_metrics() -> None:
 
             with tempfile.TemporaryDirectory() as tempdir:
                 write_file = f"{service_date.strftime('%Y%m%d')}.parquet"
-                events_df.write_parquet(os.path.join(tempdir,write_file), use_pyarrow=True)
+                events_df.write_parquet(os.path.join(tempdir, write_file), use_pyarrow=True)
 
                 upload_file(
-                    file_name=os.path.join(tempdir,write_file),
-                    object_path=os.path.join(bus_events.s3_uri,write_file),
+                    file_name=os.path.join(tempdir, write_file),
+                    object_path=os.path.join(bus_events.s3_uri, write_file),
                     extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
                 )
 
