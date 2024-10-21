@@ -32,7 +32,6 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
             pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
-            pl.col("vehicle.trip.route_pattern_id").cast(pl.String).alias("route_pattern_id"),
             pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
             pl.col("vehicle.current_stop_sequence").cast(pl.Int64).alias("stop_sequence"),
             pl.col("vehicle.trip.direction_id").cast(pl.Int8).alias("direction_id"),
@@ -68,7 +67,6 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
     columns = [
         "vehicle.trip.route_id",
         "vehicle.trip.trip_id",
-        "vehicle.trip.route_pattern_id",
         "vehicle.trip.direction_id",
         "vehicle.trip.start_time",
         "vehicle.trip.start_date",
@@ -101,7 +99,6 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
             pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
-            pl.col("vehicle.trip.route_pattern_id").cast(pl.String).alias("route_pattern_id"),
             pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
             pl.col("vehicle.current_stop_sequence").cast(pl.Int64).alias("stop_sequence"),
             pl.col("vehicle.trip.direction_id").cast(pl.Int8).alias("direction_id"),
@@ -268,7 +265,7 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.
         stop_count -> UInt32
         direction_id -> Int8
         stop_id -> String
-        stop_sequence -> String
+        stop_sequence -> Int64
         vehicle_id -> String
         vehicle_label -> String
         gtfs_travel_to_dt -> Datetime

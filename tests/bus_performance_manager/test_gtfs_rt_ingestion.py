@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 from datetime import datetime, timedelta, date
 from typing import Tuple, List
 
@@ -68,7 +69,9 @@ VE_SCHEMA = {
     "service_date": pl.String,
     "route_id": pl.String,
     "trip_id": pl.String,
-    "start_time": pl.String,
+    "start_time": pl.Int64,
+    "start_dt": pl.Datetime,
+    "stop_count": pl.UInt32,
     "direction_id": pl.Int8,
     "stop_id": pl.String,
     "stop_sequence": pl.Int64,
@@ -80,7 +83,8 @@ VE_SCHEMA = {
 }
 
 
-def test_gtfs_rt_to_bus_events() -> None:
+@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
+def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
     """
     generate vehicle event dataframes from gtfs realtime vehicle position files.
     inspect them to ensure they
@@ -89,6 +93,8 @@ def test_gtfs_rt_to_bus_events() -> None:
 
     generate an empty vechicle event frame and ensure it has the correct columns.
     """
+    exists_patch.return_value = True
+
     service_date, vp_files = get_service_date_and_files()
 
     # get the bus vehicle events for these files / service date
@@ -153,11 +159,13 @@ def test_gtfs_rt_to_bus_events() -> None:
     pl.concat([bus_vehicle_events, empty_bus_vehicle_events])
 
 
-def test_read_vehicle_positions() -> None:
+@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
+def test_read_vehicle_positions(exists_patch: mock.MagicMock) -> None:
     """
     test that vehicle positions can be read from files and return a df with the
     correct schema.
     """
+    exists_patch.return_value = True
     service_date, vp_files = get_service_date_and_files()
 
     vehicle_positions = read_vehicle_positions(service_date=service_date, gtfs_rt_files=vp_files)
