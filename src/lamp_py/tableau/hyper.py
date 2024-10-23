@@ -3,6 +3,7 @@ from abc import ABC
 from abc import abstractmethod
 from itertools import chain
 from typing import Dict
+from typing import Optional
 
 import pyarrow
 from pyarrow import fs
@@ -69,13 +70,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
         """
 
     @abstractmethod
-    def create_parquet(self, db_manager: DatabaseManager) -> None:
+    def create_parquet(self, db_manager: Optional[DatabaseManager]) -> None:
         """
         Business logic to create new Job parquet file
         """
 
     @abstractmethod
-    def update_parquet(self, db_manager: DatabaseManager) -> bool:
+    def update_parquet(self, db_manager: Optional[DatabaseManager]) -> bool:
         """
         Business logic to update existing Job parquet file
 
@@ -252,7 +253,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 if retry_count == max_retries:
                     process_log.log_failure(exception=exception)
 
-    def run_parquet(self, db_manager: DatabaseManager) -> None:
+    def run_parquet(self, db_manager: Optional[DatabaseManager]) -> None:
         """
         Remote parquet Create / Update runner
 
@@ -291,7 +292,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 run_action = "update"
                 upload_parquet = self.update_parquet(db_manager)
 
-            parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (1024 * 1024)
+            parquet_file_size_mb = 0.0
+            if os.path.exists(self.local_parquet_path):
+                parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (1024 * 1024)
 
             process_log.add_metadata(
                 remote_schema_match=remote_schema_match,
@@ -307,7 +310,8 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     extra_args={"Metadata": {"lamp_version": self.lamp_version}},
                 )
 
-            os.remove(self.local_parquet_path)
+            if os.path.exists(self.local_parquet_path):
+                os.remove(self.local_parquet_path)
 
             process_log.log_complete()
 
