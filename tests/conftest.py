@@ -49,9 +49,7 @@ def fixture_get_pyarrow_dataset_patch(
 
         return ds
 
-    monkeypatch.setattr(
-        "lamp_py.aws.s3._get_pyarrow_dataset", mock__get_pyarrow_dataset
-    )
+    monkeypatch.setattr("lamp_py.aws.s3._get_pyarrow_dataset", mock__get_pyarrow_dataset)
 
     yield
 
@@ -66,8 +64,6 @@ def fixture_remote_file_locations_patch(
     don't have access to s3, so tests need to be run against local files. Use
     monkeypatch to redefine how these utilities work.
     """
-    monkeypatch.setattr(
-        "lamp_py.runtime_utils.remote_files.S3Location", LocalS3Location
-    )
+    monkeypatch.setattr("lamp_py.runtime_utils.remote_files.S3Location", LocalS3Location)
 
     yield

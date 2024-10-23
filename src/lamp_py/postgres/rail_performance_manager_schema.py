@@ -108,9 +108,7 @@ class VehicleTrips(RpmSqlBase):  # pylint: disable=too-few-public-methods
     static_trip_id_guess = sa.Column(sa.String(512), nullable=True)
     static_start_time = sa.Column(sa.Integer, nullable=True)
     static_stop_count = sa.Column(sa.SmallInteger, nullable=True)
-    first_last_station_match = sa.Column(
-        sa.Boolean, nullable=False, default=sa.false()
-    )
+    first_last_station_match = sa.Column(sa.Boolean, nullable=False, default=sa.false())
 
     # forign key to static schedule expected values
     static_version_key = sa.Column(

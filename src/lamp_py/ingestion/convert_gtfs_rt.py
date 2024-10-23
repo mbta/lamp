@@ -84,9 +84,7 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(
-        self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]
-    ) -> None:
+    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
@@ -173,12 +171,8 @@ class GtfsRtConverter(Converter):
         )
         process_logger.log_start()
 
-        with ThreadPoolExecutor(
-            max_workers=max_workers, initializer=self.thread_init
-        ) as pool:
-            for result_dt, result_filename, rt_data in pool.map(
-                self.gz_to_pyarrow, self.files
-            ):
+        with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
+            for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
                 # the error and move on to the next file.
@@ -200,9 +194,7 @@ class GtfsRtConverter(Converter):
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
-                    self.data_parts[dt_part].table = (
-                        self.detail.transform_for_write(rt_data)
-                    )
+                    self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
                 else:
                     self.data_parts[dt_part].table = pyarrow.concat_tables(
                         [
@@ -221,9 +213,7 @@ class GtfsRtConverter(Converter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(
-        self, process_logger: ProcessLogger, min_rows: int = 2_000_000
-    ) -> Iterable[pyarrow.table]:
+    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
         processed.
@@ -245,17 +235,13 @@ class GtfsRtConverter(Converter):
                 )
                 process_logger.log_complete()
                 # reset process logger
-                process_logger.add_metadata(
-                    file_count=0, number_of_rows=0, print_log=False
-                )
+                process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
                 process_logger.log_start()
 
                 yield table
                 del self.data_parts[iter_ts]
 
-    def gz_to_pyarrow(
-        self, filename: str
-    ) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
+    def gz_to_pyarrow(self, filename: str) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
         """
         Convert a gzipped json of gtfs realtime data into a pyarrow table. This
         function is executed inside of a thread, so all exceptions must be
@@ -284,42 +270,30 @@ class GtfsRtConverter(Converter):
                 with file_system.open_input_stream(filename) as file:
                     json_data = json.load(file)
             except UnicodeDecodeError as _:
-                with file_system.open_input_stream(
-                    filename, compression="gzip"
-                ) as file:
+                with file_system.open_input_stream(filename, compression="gzip") as file:
                     json_data = json.load(file)
 
             # parse timestamp info out of the header
             feed_timestamp = json_data["header"]["timestamp"]
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
 
-            table = pyarrow.Table.from_pylist(
-                json_data["entity"], schema=self.detail.import_schema
-            )
+            table = pyarrow.Table.from_pylist(json_data["entity"], schema=self.detail.import_schema)
 
             table = table.append_column(
                 "year",
-                pyarrow.array(
-                    [timestamp.year] * table.num_rows, pyarrow.uint16()
-                ),
+                pyarrow.array([timestamp.year] * table.num_rows, pyarrow.uint16()),
             )
             table = table.append_column(
                 "month",
-                pyarrow.array(
-                    [timestamp.month] * table.num_rows, pyarrow.uint8()
-                ),
+                pyarrow.array([timestamp.month] * table.num_rows, pyarrow.uint8()),
             )
             table = table.append_column(
                 "day",
-                pyarrow.array(
-                    [timestamp.day] * table.num_rows, pyarrow.uint8()
-                ),
+                pyarrow.array([timestamp.day] * table.num_rows, pyarrow.uint8()),
             )
             table = table.append_column(
                 "feed_timestamp",
-                pyarrow.array(
-                    [feed_timestamp] * table.num_rows, pyarrow.uint64()
-                ),
+                pyarrow.array([feed_timestamp] * table.num_rows, pyarrow.uint64()),
             )
 
         except FileNotFoundError as _:
@@ -386,9 +360,7 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(
-        self, table: pyarrow.Table, local_path: str
-    ) -> pyarrow.dataset:
+    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
         """
         create dataset, with hash column, that will be written to parquet file
 
@@ -418,20 +390,14 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
-        logger = ProcessLogger(
-            "write_local_pq", local_path=local_path, table_rows=table.num_rows
-        )
+        logger = ProcessLogger("write_local_pq", local_path=local_path, table_rows=table.num_rows)
         logger.log_start()
 
         out_ds = self.make_hash_dataset(table, local_path)
 
-        unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (
-            60 * 45
-        )
+        unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
 
-        no_hash_schema = out_ds.schema.remove(
-            out_ds.schema.get_field_index(GTFS_RT_HASH_COL)
-        )
+        no_hash_schema = out_ds.schema.remove(out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
 
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
@@ -440,9 +406,7 @@ class GtfsRtConverter(Converter):
             upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
 
             partitions = pc.unique(
-                out_ds.to_table(columns=[self.detail.partition_column]).column(
-                    self.detail.partition_column
-                )
+                out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
             for part in partitions:
                 unique_table = (
@@ -461,20 +425,15 @@ class GtfsRtConverter(Converter):
                 )
                 ds_table = out_ds.to_table(
                     filter=(
-                        (pc.field(self.detail.partition_column) == part)
-                        & (pc.field("feed_timestamp") < unique_ts_min)
+                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                write_table = pyarrow.concat_tables(
-                    [unique_table, ds_table]
-                ).sort_by(self.detail.table_sort_order)
+                write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
 
                 hash_writer.write_table(write_table)
 
                 # drop GTFS_RT_HASH_COL column for S3 upload
-                upload_writer.write_table(
-                    write_table.drop_columns(GTFS_RT_HASH_COL)
-                )
+                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
             hash_writer.close()
             upload_writer.close()
@@ -513,9 +472,7 @@ class GtfsRtConverter(Converter):
             log.add_metadata(local_path=local_path)
 
             self.write_local_pq(table, local_path)
-            self.send_metadata(
-                local_path.replace(self.tmp_folder, S3_SPRINGBOARD)
-            )
+            self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
 
             log.log_complete()
 
@@ -546,11 +503,7 @@ class GtfsRtConverter(Converter):
         for w_dir, _, files in os.walk(root_folder):
             if len(files) == 0:
                 continue
-            paths[
-                datetime.strptime(
-                    w_dir, f"{root_folder}/year=%Y/month=%m/day=%d"
-                )
-            ] = w_dir
+            paths[datetime.strptime(w_dir, f"{root_folder}/year=%Y/month=%m/day=%d")] = w_dir
 
         # remove all local day folders except two most recent
         for key in sorted(paths.keys())[:-days_to_keep]:

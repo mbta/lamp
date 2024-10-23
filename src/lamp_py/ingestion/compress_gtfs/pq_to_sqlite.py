@@ -29,9 +29,7 @@ def sqlite_table_query(table_name: str, schema: pyarrow.Schema) -> str:
     """
     logger = ProcessLogger("sqlite_create_table")
     logger.log_start()
-    field_list = [
-        f"{field.name} {sqlite_type(str(field.type))}" for field in schema
-    ]
+    field_list = [f"{field.name} {sqlite_type(str(field.type))}" for field in schema]
     query = f"""
         CREATE TABLE 
         IF NOT EXISTS 

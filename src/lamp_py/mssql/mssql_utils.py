@@ -34,9 +34,7 @@ def get_local_engine(echo: bool = False) -> sa.future.engine.Engine:
         assert db_password is not None
         assert db_port != 0
 
-        process_logger.add_metadata(
-            host=db_host, database_name=db_name, user=db_user, port=db_port
-        )
+        process_logger.add_metadata(host=db_host, database_name=db_name, user=db_user, port=db_port)
 
         connection = sa.URL.create(
             "mssql+pyodbc",
@@ -101,20 +99,14 @@ class MSSQLManager:
 
         return result
 
-    def select_as_dataframe(
-        self, select_query: sa.sql.selectable.Select
-    ) -> pandas.DataFrame:
+    def select_as_dataframe(self, select_query: sa.sql.selectable.Select) -> pandas.DataFrame:
         """
         select data from db table and return pandas dataframe
         """
         with self.session.begin() as cursor:
-            return pandas.DataFrame(
-                [row._asdict() for row in cursor.execute(select_query)]
-            )
+            return pandas.DataFrame([row._asdict() for row in cursor.execute(select_query)])
 
-    def select_as_list(
-        self, select_query: sa.sql.selectable.Select
-    ) -> Union[List[Any], List[Dict[str, Any]]]:
+    def select_as_list(self, select_query: sa.sql.selectable.Select) -> Union[List[Any], List[Dict[str, Any]]]:
         """
         select data from db table and return list
         """
@@ -165,12 +157,8 @@ class MSSQLManager:
             process_logger.add_metadata(retry_attempts=retry_attempts)
             try:
                 with self.session.begin() as cursor:
-                    with pq.ParquetWriter(
-                        write_path, schema=schema
-                    ) as pq_writer:
-                        for part in cursor.execute(part_stmt).partitions(
-                            batch_size
-                        ):
+                    with pq.ParquetWriter(write_path, schema=schema) as pq_writer:
+                        for part in cursor.execute(part_stmt).partitions(batch_size):
                             pq_writer.write_batch(
                                 pyarrow.RecordBatch.from_pylist(
                                     [row._asdict() for row in part],

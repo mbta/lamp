@@ -12,6 +12,8 @@ from typing import List
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.bus_performance_manager.write_events import write_bus_metrics
+from lamp_py.tableau.pipeline import start_bus_parquet_updates
 
 logging.getLogger().setLevel("INFO")
 
@@ -23,7 +25,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         "--interval",
-        default=60,
+        default=300,
         dest="interval",
         help="interval to run event loop on",
     )
@@ -46,8 +48,9 @@ def main(args: argparse.Namespace) -> None:
         check_for_sigterm()
         process_logger = ProcessLogger("event_loop")
         process_logger.log_start()
-
         try:
+            write_bus_metrics()
+            start_bus_parquet_updates()
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
@@ -76,7 +79,6 @@ def start() -> None:
             "PUBLIC_ARCHIVE_BUCKET",
             "SERVICE_NAME",
         ],
-        db_prefixes=["MD"],
     )
 
     # run main method

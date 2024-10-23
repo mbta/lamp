@@ -48,12 +48,8 @@ def frame_parquet_diffs(
         new_records: polars.DataFrame,
     ]
     """
-    pq_filter = (pc.field("gtfs_active_date") <= filter_date) & (
-        pc.field("gtfs_end_date") >= filter_date
-    )
-    pq_frame = pl.read_parquet(
-        pq_path, use_pyarrow=True, pyarrow_options={"filters": pq_filter}
-    )
+    pq_filter = (pc.field("gtfs_active_date") <= filter_date) & (pc.field("gtfs_end_date") >= filter_date)
+    pq_frame = pl.read_parquet(pq_path, use_pyarrow=True, pyarrow_options={"filters": pq_filter})
 
     join_columns = tuple(gtfs_schema(gtfs_table_file).keys())
 
@@ -81,9 +77,7 @@ def frame_parquet_diffs(
     return old_records, same_records, new_records
 
 
-def merge_frame_with_parquet(
-    merge_df: pl.DataFrame, export_path: str, filter_date: int
-) -> None:
+def merge_frame_with_parquet(merge_df: pl.DataFrame, export_path: str, filter_date: int) -> None:
     """
     merge merge_df with existing parqut file (export_path) and over-write with results
 
@@ -110,9 +104,7 @@ def merge_frame_with_parquet(
         tmp_path = os.path.join(temp_dir, "filter.parquet")
 
         # create filtered parquet file, excluding records from merge_frame
-        pq_filter = (pc.field("gtfs_active_date") > filter_date) | (
-            pc.field("gtfs_end_date") < filter_date
-        )
+        pq_filter = (pc.field("gtfs_active_date") > filter_date) | (pc.field("gtfs_end_date") < filter_date)
         filter_ds = pd.dataset(export_path).filter(pq_filter)
         with pq.ParquetWriter(tmp_path, schema=merge_df.schema) as writer:
             for batch in filter_ds.to_batches(batch_size=batch_size):
@@ -125,9 +117,7 @@ def merge_frame_with_parquet(
                 writer.write_batch(batch)
 
 
-def compress_gtfs_file(
-    gtfs_table_file: str, schedule_details: ScheduleDetails
-) -> None:
+def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) -> None:
     """
     compress an indivdual gtfs_table_file (ie. stop_times.txt) into yearly parquet
     partitioned parquet file(s)
@@ -179,12 +169,8 @@ def compress_gtfs_file(
         # "gtfs_end_date":
         #   (same or new records) set to schedule_details.active_to_int
         #   (old records) set to schedule_details.published_int (day before active_to_int)
-        same_records = same_records.with_columns(
-            pl.lit(schedule_details.active_to_int).alias("gtfs_end_date")
-        )
-        old_records = old_records.with_columns(
-            pl.lit(schedule_details.published_int).alias("gtfs_end_date")
-        )
+        same_records = same_records.with_columns(pl.lit(schedule_details.active_to_int).alias("gtfs_end_date"))
+        old_records = old_records.with_columns(pl.lit(schedule_details.published_int).alias("gtfs_end_date"))
 
         merge_records = pl.concat(
             (old_records, same_records, new_records),
@@ -238,9 +224,7 @@ def compress_gtfs_file(
             how="diagonal",
         ).filter(
             pl.col("gtfs_end_date") > pl.col("gtfs_active_date")
-        ).write_parquet(
-            export_path, use_pyarrow=True, statistics=True
-        )
+        ).write_parquet(export_path, use_pyarrow=True, statistics=True)
     else:
         #
         # no partition file exists (current or last)
@@ -249,9 +233,7 @@ def compress_gtfs_file(
         if new_frame.shape[0] == 0:
             return
 
-        new_frame.drop("from_zip").write_parquet(
-            export_path, use_pyarrow=True, statistics=True
-        )
+        new_frame.drop("from_zip").write_parquet(export_path, use_pyarrow=True, statistics=True)
 
 
 def compress_gtfs_schedule(schedule_details: ScheduleDetails) -> None:
@@ -295,9 +277,7 @@ def gtfs_to_parquet() -> None:
     while processing Feb-2018 to April-2024
     """
     gtfs_tmp_folder = os.path.join("/tmp", compressed_gtfs.prefix)
-    logger = ProcessLogger(
-        "compress_gtfs_schedules", gtfs_tmp_folder=gtfs_tmp_folder
-    )
+    logger = ProcessLogger("compress_gtfs_schedules", gtfs_tmp_folder=gtfs_tmp_folder)
     logger.log_start()
 
     feed = schedules_to_compress(gtfs_tmp_folder)

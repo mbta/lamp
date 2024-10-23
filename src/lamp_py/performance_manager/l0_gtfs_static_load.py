@@ -296,29 +296,21 @@ def get_static_parquet_paths(table_type: str, feed_info_path: str) -> List[str]:
     return file_list_from_s3(S3_SPRINGBOARD, static_prefix)
 
 
-def load_parquet_files(
-    static_tables: Dict[str, StaticTableDetails], feed_info_path: str
-) -> None:
+def load_parquet_files(static_tables: Dict[str, StaticTableDetails], feed_info_path: str) -> None:
     """
     get parquet paths to load from feed_info_path and load parquet files as
     dataframe into StaticTableDetails objects
     """
     for table in static_tables.values():
-        paths_to_load = get_static_parquet_paths(
-            table.table_name, feed_info_path
-        )
+        paths_to_load = get_static_parquet_paths(table.table_name, feed_info_path)
         try:
-            table.data_table = read_parquet(
-                paths_to_load[:1], columns=table.column_info.columns_to_pull
-            )
+            table.data_table = read_parquet(paths_to_load[:1], columns=table.column_info.columns_to_pull)
             assert table.data_table.shape[0] > 0
         except (pyarrow.ArrowInvalid, AssertionError) as exception:
             if table.allow_empty_dataframe is False:
                 raise exception
 
-            table.data_table = pandas.DataFrame(
-                columns=table.column_info.columns_to_pull
-            )
+            table.data_table = pandas.DataFrame(columns=table.column_info.columns_to_pull)
 
 
 def transform_data_tables(static_tables: Dict[str, StaticTableDetails]) -> None:
@@ -330,27 +322,17 @@ def transform_data_tables(static_tables: Dict[str, StaticTableDetails]) -> None:
 
         if table.column_info.int64_cols is not None:
             for col in table.column_info.int64_cols:
-                table.data_table[col] = pandas.to_numeric(
-                    table.data_table[col]
-                ).astype("Int64")
+                table.data_table[col] = pandas.to_numeric(table.data_table[col]).astype("Int64")
 
         if table.column_info.bool_cols is not None:
             for col in table.column_info.bool_cols:
-                table.data_table[col] = numpy.where(
-                    table.data_table[col] == 1, True, False
-                ).astype(numpy.bool_)
+                table.data_table[col] = numpy.where(table.data_table[col] == 1, True, False).astype(numpy.bool_)
 
         if table.column_info.time_to_seconds_cols is not None:
             for col in table.column_info.time_to_seconds_cols:
-                table.data_table[col] = (
-                    table.data_table[col]
-                    .apply(start_time_to_seconds)
-                    .astype("Int64")
-                )
+                table.data_table[col] = table.data_table[col].apply(start_time_to_seconds).astype("Int64")
 
-        table.data_table = table.data_table.fillna(numpy.nan).replace(
-            [numpy.nan], [None]
-        )
+        table.data_table = table.data_table.fillna(numpy.nan).replace([numpy.nan], [None])
         table.data_table = table.data_table.replace([""], [None])
 
         table.data_table = table.data_table.rename(
@@ -366,9 +348,7 @@ def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
     """
     process_logger = ProcessLogger(
         "gtfs.remove_bus_records",
-        stop_times_start_row_count=static_tables["stop_times"].data_table.shape[
-            0
-        ],
+        stop_times_start_row_count=static_tables["stop_times"].data_table.shape[0],
     )
     process_logger.log_start()
 
@@ -397,9 +377,9 @@ def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
     # save new stop_times dataframe for RDS insertion
     static_tables["stop_times"].data_table = stop_times
 
-    static_tables["route_patterns"].data_table = static_tables[
-        "route_patterns"
-    ].data_table.merge(no_bus_route_ids, how="inner", on="route_id")
+    static_tables["route_patterns"].data_table = static_tables["route_patterns"].data_table.merge(
+        no_bus_route_ids, how="inner", on="route_id"
+    )
 
     process_logger.add_metadata(
         stop_times_after_row_count=stop_times.shape[0],
@@ -418,15 +398,11 @@ def insert_data_tables(
     """
     try:
         for table in static_tables.values():
-            process_logger = ProcessLogger(
-                "gtfs_insert", table_name=table.table_name
-            )
+            process_logger = ProcessLogger("gtfs_insert", table_name=table.table_name)
             process_logger.log_start()
 
             if table.data_table.shape[0] > 0:
-                db_manager.insert_dataframe(
-                    table.data_table, table.insert_table
-                )
+                db_manager.insert_dataframe(table.data_table, table.insert_table)
                 db_manager.vacuum_analyze(table.insert_table)
             process_logger.log_complete()
     except Exception as error:
@@ -434,13 +410,9 @@ def insert_data_tables(
         # from all tables matching the same static key. re-raise the error so
         # it can be properly logged.
         for table in static_tables.values():
-            process_logger = ProcessLogger(
-                "gtfs_clean", table_name=table.table_name
-            )
+            process_logger = ProcessLogger("gtfs_clean", table_name=table.table_name)
             process_logger.log_start()
-            delete_static = sa.delete(table.insert_table).where(
-                table.static_version_key_column == static_version_key
-            )
+            delete_static = sa.delete(table.insert_table).where(table.static_version_key_column == static_version_key)
             db_manager.execute(delete_static)
             process_logger.log_complete()
         raise error
@@ -453,9 +425,7 @@ def process_static_tables(
     """
     process gtfs static table files from metadataLog table
     """
-    process_logger = ProcessLogger(
-        "l0_tables_loader", table_type="static_schedule"
-    )
+    process_logger = ProcessLogger("l0_tables_loader", table_type="static_schedule")
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
@@ -465,9 +435,7 @@ def process_static_tables(
     for folder_data in paths_to_load:
         check_for_sigterm()
         folder = str(pathlib.Path(folder_data["paths"][0]).parent)
-        individual_logger = ProcessLogger(
-            "l0_load_table", table_type="static_schedule", s3_path=folder
-        )
+        individual_logger = ProcessLogger("l0_load_table", table_type="static_schedule", s3_path=folder)
         individual_logger.log_start()
 
         ids = folder_data["ids"]
@@ -479,21 +447,13 @@ def process_static_tables(
             transform_data_tables(static_tables)
             drop_bus_records(static_tables)
 
-            static_version_key = int(
-                static_tables["feed_info"].data_table.loc[
-                    0, "static_version_key"
-                ]
-            )
+            static_version_key = int(static_tables["feed_info"].data_table.loc[0, "static_version_key"])
 
-            insert_data_tables(
-                static_tables, static_version_key, rpm_db_manager
-            )
+            insert_data_tables(static_tables, static_version_key, rpm_db_manager)
             modify_static_tables(static_version_key, rpm_db_manager)
 
             update_md_log = (
-                sa.update(MetadataLog.__table__)
-                .where(MetadataLog.pk_id.in_(ids))
-                .values(rail_pm_processed=True)
+                sa.update(MetadataLog.__table__).where(MetadataLog.pk_id.in_(ids)).values(rail_pm_processed=True)
             )
             md_db_manager.execute(update_md_log)
             individual_logger.log_complete()

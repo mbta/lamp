@@ -14,7 +14,7 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     StaticStops,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.aws.s3 import get_datetime_from_partition_path
+from lamp_py.aws.s3 import dt_from_obj_path
 
 
 # boston tzinfo to be used with datetimes that require DST considerations.
@@ -51,11 +51,7 @@ def start_timestamp_to_seconds(start_timestamp: int) -> int:
     year = int(service_date_string[:4])
     month = int(service_date_string[4:6])
     day = int(service_date_string[6:8])
-    start_of_service_day = int(
-        BOSTON_TZ.localize(
-            datetime.datetime(year=year, month=month, day=day)
-        ).timestamp()
-    )
+    start_of_service_day = int(BOSTON_TZ.localize(datetime.datetime(year=year, month=month, day=day)).timestamp())
 
     return start_timestamp - start_of_service_day
 
@@ -74,14 +70,10 @@ def service_date_from_timestamp(timestamp: int) -> int:
     else:
         service_date = date_and_time.date()
 
-    return int(
-        f"{service_date.year:04}{service_date.month:02}{service_date.day:02}"
-    )
+    return int(f"{service_date.year:04}{service_date.month:02}{service_date.day:02}")
 
 
-def add_missing_service_dates(
-    events_dataframe: pandas.DataFrame, timestamp_key: str
-) -> pandas.DataFrame:
+def add_missing_service_dates(events_dataframe: pandas.DataFrame, timestamp_key: str) -> pandas.DataFrame:
     """
     # generate the service date from the vehicle timestamp if null
     """
@@ -105,9 +97,7 @@ def unique_trip_stop_columns() -> List[str]:
     ]
 
 
-def static_version_key_from_service_date(
-    service_date: int, db_manager: DatabaseManager
-) -> int:
+def static_version_key_from_service_date(service_date: int, db_manager: DatabaseManager) -> int:
     """
     for a given service date, determine the correct static schedule to use
     """
@@ -158,9 +148,7 @@ def static_version_key_from_service_date(
     # exists for this trip update data, so the data
     # should not be processed until valid static schedule data exists
     if len(result) == 0:
-        raise IndexError(
-            f"StaticFeedInfo table has no matching schedule for service_date={service_date}"
-        )
+        raise IndexError(f"StaticFeedInfo table has no matching schedule for service_date={service_date}")
 
     return int(result[0]["static_version_key"])
 
@@ -195,14 +183,10 @@ def add_static_version_key_column(
 
     for date in events_dataframe["service_date"].unique():
         service_date = int(date)
-        static_version_key = static_version_key_from_service_date(
-            service_date=service_date, db_manager=db_manager
-        )
+        static_version_key = static_version_key_from_service_date(service_date=service_date, db_manager=db_manager)
 
         service_date_mask = events_dataframe["service_date"] == service_date
-        events_dataframe.loc[service_date_mask, "static_version_key"] = (
-            static_version_key
-        )
+        events_dataframe.loc[service_date_mask, "static_version_key"] = static_version_key
 
     process_logger.log_complete()
 
@@ -234,10 +218,7 @@ def add_parent_station_column(
         return events_dataframe
 
     # unique list of "static_version_key" values for pulling parent stations
-    lookup_v_keys = [
-        int(s_v_key)
-        for s_v_key in events_dataframe["static_version_key"].unique()
-    ]
+    lookup_v_keys = [int(s_v_key) for s_v_key in events_dataframe["static_version_key"].unique()]
 
     # pull parent station data for joining to events dataframe
     parent_station_query = sa.select(
@@ -248,9 +229,7 @@ def add_parent_station_column(
     parent_stations = db_manager.select_as_dataframe(parent_station_query)
 
     # join parent stations to events on "stop_id" and "static_version_key" foreign key
-    events_dataframe = events_dataframe.merge(
-        parent_stations, how="left", on=["static_version_key", "stop_id"]
-    )
+    events_dataframe = events_dataframe.merge(parent_stations, how="left", on=["static_version_key", "stop_id"])
     # is parent station is not provided, transfer "stop_id" value to
     # "parent_station" column
     events_dataframe["parent_station"] = numpy.where(
@@ -264,9 +243,7 @@ def add_parent_station_column(
     return events_dataframe
 
 
-def rail_routes_from_filepath(
-    filepath: Union[List[str], str], db_manager: DatabaseManager
-) -> List[str]:
+def rail_routes_from_filepath(filepath: Union[List[str], str], db_manager: DatabaseManager) -> List[str]:
     """
     get a list of rail route_ids that were in effect on a given service date
     described by a timestamp. the schedule version is derived from the service
@@ -276,12 +253,10 @@ def rail_routes_from_filepath(
     if isinstance(filepath, list):
         filepath = filepath[0]
 
-    date = get_datetime_from_partition_path(filepath)
+    date = dt_from_obj_path(filepath)
     service_date = int(f"{date.year:04}{date.month:02}{date.day:02}")
 
-    static_version_key = static_version_key_from_service_date(
-        service_date=service_date, db_manager=db_manager
-    )
+    static_version_key = static_version_key_from_service_date(service_date=service_date, db_manager=db_manager)
 
     result = db_manager.execute(
         sa.select(StaticRoutes.route_id).where(
