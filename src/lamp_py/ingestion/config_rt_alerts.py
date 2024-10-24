@@ -75,35 +75,35 @@ class RtAlertsDetail(GTFSRTDetail):
                             (
                                 "severity",
                                 pyarrow.uint16(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "created_timestamp",
                                 pyarrow.uint64(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "last_modified_timestamp",
                                 pyarrow.uint64(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "last_push_notification_timestamp",
                                 pyarrow.uint64(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "closed_timestamp",
                                 pyarrow.int64(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "alert_lifecycle",
                                 pyarrow.string(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "duration_certainty",
                                 pyarrow.string(),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "reminder_times",
                                 pyarrow.list_(pyarrow.uint64()),
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "short_header_text",
                                 translated_string,
@@ -111,15 +111,15 @@ class RtAlertsDetail(GTFSRTDetail):
                             (
                                 "service_effect_text",
                                 translated_string,
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "timeframe_text",
                                 translated_string,
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                             (
                                 "recurrence_text",
                                 translated_string,
-                            ),  # not in message Alert struct spec
+                            ),  # MBTA Enhanced field
                         ]
                     ),
                 ),
