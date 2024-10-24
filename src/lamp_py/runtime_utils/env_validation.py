@@ -65,9 +65,7 @@ def validate_environment(
 
     # if required variables are missing, log a failure and throw.
     if missing_required:
-        exception = EnvironmentError(
-            f"Missing required environment variables {missing_required}"
-        )
+        exception = EnvironmentError(f"Missing required environment variables {missing_required}")
         process_logger.log_failure(exception)
         raise exception
 

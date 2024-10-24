@@ -12,6 +12,23 @@ from lamp_py.runtime_utils.remote_files import (
     tm_run_file,
     tm_operator_file,
 )
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
+def _empty_stop_crossing() -> pl.DataFrame:
+    """
+    create empty stop crossing dataframe with expected columns
+    """
+    schema = {
+        "vehicle_label": pl.String,
+        "route_id": pl.String,
+        "trip_id": pl.String,
+        "stop_id": pl.String,
+        "tm_stop_sequence": pl.Int64,
+        "tm_arrival_dt": pl.Datetime,
+        "tm_departure_dt": pl.Datetime,
+    }
+    return pl.DataFrame(schema=schema)
 
 
 def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
@@ -23,15 +40,16 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
     :param tm_files: transit master parquet files from the StopCrossings table.
 
     :return dataframe:
-        service_date -> Date
-        tm_vehicle_label -> String
-        tm_route_id -> String
-        tm_geo_node_id -> String
-        tm_stop_id -> String
-        tm_trip_id -> String
+        vehicle_label -> String
+        route_id -> String
+        trip_id -> String
+        stop_id -> String
+        tm_stop_sequence -> Int64
         tm_arrival_dt -> Datetime(time_unit='us', time_zone=None) as UTC
         tm_departure_dt -> Datetime(time_unit='us', time_zone=None) as UTC
     """
+    logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
+    logger.log_start()
     # the geo node id is the transit master key and the geo node abbr is the
     # gtfs stop id
     tm_geo_nodes = (
@@ -88,103 +106,80 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
     # remove leading zeros from route ids where they exist
     # convert arrival and departure times to utc datetimes
     # cast everything else as a string
-    tm_stop_crossings = (
-        pl.scan_parquet(tm_files)
-        .filter(
-            (pl.col("IsRevenue") == "R")
-            & pl.col("ROUTE_ID").is_not_null()
-            & pl.col("GEO_NODE_ID").is_not_null()
-            & pl.col("TRIP_ID").is_not_null()
-            & pl.col("VEHICLE_ID").is_not_null()
-            & (
-                (pl.col("ACT_ARRIVAL_TIME").is_not_null())
-                | (pl.col("ACT_DEPARTURE_TIME").is_not_null())
+    tm_stop_crossings = _empty_stop_crossing()
+    if len(tm_files) > 0:
+        tm_stop_crossings = (
+            pl.scan_parquet(tm_files)
+            .filter(
+                (pl.col("IsRevenue") == "R")
+                & pl.col("ROUTE_ID").is_not_null()
+                & pl.col("GEO_NODE_ID").is_not_null()
+                & pl.col("TRIP_ID").is_not_null()
+                & pl.col("VEHICLE_ID").is_not_null()
+                & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
             )
-        )
-        .join(
-            tm_geo_nodes,
-            on="GEO_NODE_ID",
-            how="left",
-            coalesce=True,
-        )
-        .join(
-            tm_routes,
-            on="ROUTE_ID",
-            how="left",
-            coalesce=True,
-        )
-        .join(
-            tm_trips,
-            on="TRIP_ID",
-            how="left",
-            coalesce=True,
-        )
-        .join(
-            tm_vehicles,
-            on="VEHICLE_ID",
-            how="left",
-            coalesce=True,
-        )
-        .with_columns(
-            (
-                pl.col("CALENDAR_ID")
-                .cast(pl.Utf8)
-                .str.slice(1)
-                .str.strptime(pl.Datetime, format="%Y%m%d")
-                .alias("service_date")
-            ),
-        )
-        .select(
-            (
-                pl.col("ROUTE_ABBR")
-                .cast(pl.String)
-                .str.strip_chars_start("0")
-                .alias("route_id")
-            ),
-            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
-            pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
-            pl.col("PATTERN_GEO_NODE_SEQ")
-            .cast(pl.Int64)
-            .alias("tm_stop_sequence"),
-            pl.col("IS_LAYOVER").cast(pl.String).alias("tm_is_layover"),
-            pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
-            (
+            .join(
+                tm_geo_nodes,
+                on="GEO_NODE_ID",
+                how="left",
+                coalesce=True,
+            )
+            .join(
+                tm_routes,
+                on="ROUTE_ID",
+                how="left",
+                coalesce=True,
+            )
+            .join(
+                tm_trips,
+                on="TRIP_ID",
+                how="left",
+                coalesce=True,
+            )
+            .join(
+                tm_vehicles,
+                on="VEHICLE_ID",
+                how="left",
+                coalesce=True,
+            )
+            .with_columns(
                 (
-                    pl.col("service_date")
-                    + pl.duration(seconds="ACT_ARRIVAL_TIME")
-                )
-                .dt.replace_time_zone("America/New_York")
-                .dt.convert_time_zone("UTC")
-                .dt.replace_time_zone(None)
-                .alias("tm_arrival_dt")
-            ),
-            (
+                    pl.col("CALENDAR_ID")
+                    .cast(pl.Utf8)
+                    .str.slice(1)
+                    .str.strptime(pl.Datetime, format="%Y%m%d")
+                    .alias("service_date")
+                ),
+            )
+            .select(
+                (pl.col("ROUTE_ABBR").cast(pl.String).str.strip_chars_start("0").alias("route_id")),
+                pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
+                pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
+                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
                 (
-                    pl.col("service_date")
-                    + pl.duration(seconds="ACT_DEPARTURE_TIME")
-                )
-                .dt.replace_time_zone("America/New_York")
-                .dt.convert_time_zone("UTC")
-                .dt.replace_time_zone(None)
-                .alias("tm_departure_dt")
-            ),
+                    (pl.col("service_date") + pl.duration(seconds="ACT_ARRIVAL_TIME"))
+                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                    .dt.convert_time_zone("UTC")
+                    .dt.replace_time_zone(None)
+                    .alias("tm_arrival_dt")
+                ),
+                (
+                    (pl.col("service_date") + pl.duration(seconds="ACT_DEPARTURE_TIME"))
+                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                    .dt.convert_time_zone("UTC")
+                    .dt.replace_time_zone(None)
+                    .alias("tm_departure_dt")
+                ),
+            )
+            .collect()
         )
-        .collect()
-    )
 
     if tm_stop_crossings.shape[0] == 0:
-        schema = {
-            "route_id": pl.String,
-            "trip_id": pl.String,
-            "stop_id": pl.String,
-            "tm_stop_sequence": pl.Int64,
-            "tm_is_layover": pl.Boolean,
-            "vehicle_label": pl.String,
-            "tm_arrival_dt": pl.Datetime,
-            "tm_departure_dt": pl.Datetime,
-        }
-        tm_stop_crossings = pl.DataFrame(schema=schema)
+        tm_stop_crossings = _empty_stop_crossing()
 
+    logger.add_metadata(events_for_day=tm_stop_crossings.shape[0])
+    logger.log_complete()
     return tm_stop_crossings
 
 
@@ -307,10 +302,7 @@ def get_daily_work_pieces(daily_work_piece_files: List[str]) -> pl.DataFrame:
             on=["BLOCK_ID", "TIME_TABLE_VERSION_ID"],
             coalesce=True,
         )
-        .filter(
-            (pl.col("BEGIN_TIME") < pl.col("TRIP_END_TIME"))
-            & (pl.col("END_TIME") >= pl.col("TRIP_END_TIME"))
-        )
+        .filter((pl.col("BEGIN_TIME") < pl.col("TRIP_END_TIME")) & (pl.col("END_TIME") >= pl.col("TRIP_END_TIME")))
     )
 
     # Collect the Realtime Details of who operated what vehicle for which piece
@@ -406,28 +398,18 @@ def get_daily_work_pieces(daily_work_piece_files: List[str]) -> pl.DataFrame:
             pl.col("BLOCK_ABBR").cast(pl.String).alias("tm_block_id"),
             pl.col("RUN_DESIGNATOR").cast(pl.String).alias("tm_run_id"),
             pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("tm_trip_id"),
-            (
-                pl.col("ONBOARD_LOGON_ID")
-                .cast(pl.String)
-                .alias("operator_badge_number")
-            ),
+            (pl.col("ONBOARD_LOGON_ID").cast(pl.String).alias("operator_badge_number")),
             pl.col("PROPERTY_TAG").cast(pl.String).alias("tm_vehicle_label"),
             (
-                (
-                    pl.col("service_date")
-                    + pl.duration(seconds="ACTUAL_LOGON_TIME")
-                )
-                .dt.replace_time_zone("America/New_York")
+                (pl.col("service_date") + pl.duration(seconds="ACTUAL_LOGON_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
                 .dt.convert_time_zone("UTC")
                 .dt.replace_time_zone(None)
                 .alias("logon_time")
             ),
             (
-                (
-                    pl.col("service_date")
-                    + pl.duration(seconds="ACTUAL_LOGOFF_TIME")
-                )
-                .dt.replace_time_zone("America/New_York")
+                (pl.col("service_date") + pl.duration(seconds="ACTUAL_LOGOFF_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
                 .dt.convert_time_zone("UTC")
                 .dt.replace_time_zone(None)
                 .alias("logoff_time")

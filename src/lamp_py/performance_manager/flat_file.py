@@ -40,9 +40,7 @@ class S3Archive:
     """
 
     BUCKET_NAME = S3_PUBLIC
-    RAIL_PERFORMANCE_PREFIX = os.path.join(
-        LAMP, "subway-on-time-performance-v1"
-    )
+    RAIL_PERFORMANCE_PREFIX = os.path.join(LAMP, "subway-on-time-performance-v1")
     INDEX_FILENAME = "index.csv"
     VERSION_KEY = "rpm_version"
     RPM_VERSION = "1.1.0"
@@ -64,10 +62,7 @@ def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
         if df.size == 0:
             return set()
 
-        return set(
-            datetime.strptime(str(service_date), "%Y%m%d")
-            for service_date in df["service_date"]
-        )
+        return set(datetime.strptime(str(service_date), "%Y%m%d") for service_date in df["service_date"])
 
     def filepaths_to_datetimes(filepaths: List[str]) -> Set[datetime]:
         """
@@ -83,9 +78,7 @@ def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
         for filepath in filepaths:
             match = re.search(r"(?P<date>\d{4}-\d{1,2}-\d{1,2})", filepath)
             if match is not None:
-                datetimes.add(
-                    datetime.strptime(match.group("date"), "%Y-%m-%d")
-                )
+                datetimes.add(datetime.strptime(match.group("date"), "%Y-%m-%d"))
 
         return datetimes
 
@@ -97,17 +90,11 @@ def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
     archived_datetimes = filepaths_to_datetimes(archive_filepaths)
 
     # get the processed service dates as a set
-    vehicle_events_service_dates = db_manager.select_as_dataframe(
-        sa.select(VehicleTrips.service_date).distinct()
-    )
-    processed_datetimes = db_service_dates_to_datetimes(
-        vehicle_events_service_dates
-    )
+    vehicle_events_service_dates = db_manager.select_as_dataframe(sa.select(VehicleTrips.service_date).distinct())
+    processed_datetimes = db_service_dates_to_datetimes(vehicle_events_service_dates)
 
     # get service dates with new data from the last event loop
-    new_data_service_dates = db_manager.select_as_dataframe(
-        sa.select(TempEventCompare.service_date).distinct()
-    )
+    new_data_service_dates = db_manager.select_as_dataframe(sa.select(TempEventCompare.service_date).distinct())
     new_data_datetimes = db_service_dates_to_datetimes(new_data_service_dates)
 
     # return the processed dates that have yet to be archived plus dates with new data
@@ -150,9 +137,7 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
             sub_process_logger.log_start()
 
             try:
-                write_daily_table(
-                    db_manager=db_manager, service_date=service_date
-                )
+                write_daily_table(db_manager=db_manager, service_date=service_date)
             except Exception as e:
                 sub_process_logger.log_failure(e)
             else:
@@ -198,9 +183,7 @@ def check_version() -> None:
         for file in files_to_remove:
             success = delete_object(file)
             if not success:
-                raise RuntimeError(
-                    f"Failed to delete {file} when updating flat files"
-                )
+                raise RuntimeError(f"Failed to delete {file} when updating flat files")
 
 
 def write_csv_index() -> None:
@@ -218,14 +201,10 @@ def write_csv_index() -> None:
 
     # drop details for the index cvs and add in service date column
     df = df[~df["s3_obj_path"].str.endswith(S3Archive.INDEX_FILENAME)]
-    df["service_date"] = df["s3_obj_path"].apply(
-        lambda x: x.split("/")[-1][:10]
-    )
+    df["service_date"] = df["s3_obj_path"].apply(lambda x: x.split("/")[-1][:10])
 
     # replace "s3://[S3Archive.BUCKET_NAME]" with "https://performancedata.mbta.com"
-    df["file_url"] = df["s3_obj_path"].str.replace(
-        f"s3://{S3Archive.BUCKET_NAME}", "https://performancedata.mbta.com"
-    )
+    df["file_url"] = df["s3_obj_path"].str.replace(f"s3://{S3Archive.BUCKET_NAME}", "https://performancedata.mbta.com")
     df = df.drop(columns=["s3_obj_path"])
 
     # write to local csv and upload file to s3
@@ -245,31 +224,21 @@ def write_csv_index() -> None:
     os.remove(csv_path)
 
 
-def write_daily_table(
-    db_manager: DatabaseManager, service_date: datetime
-) -> pyarrow.Table:
+def write_daily_table(db_manager: DatabaseManager, service_date: datetime) -> pyarrow.Table:
     """
     Generate a dataframe of all events and metrics for a single service date
     """
     service_date_int = int(service_date.strftime("%Y%m%d"))
     service_date_str = service_date.strftime("%Y-%m-%d")
-    static_version_key = static_version_key_from_service_date(
-        service_date=service_date_int, db_manager=db_manager
-    )
+    static_version_key = static_version_key_from_service_date(service_date=service_date_int, db_manager=db_manager)
 
     static_subquery = (
         sa.select(
             StaticStopTimes.arrival_time.label("scheduled_arrival_time"),
             StaticStopTimes.departure_time.label("scheduled_departure_time"),
-            StaticStopTimes.schedule_travel_time_seconds.label(
-                "scheduled_travel_time"
-            ),
-            StaticStopTimes.schedule_headway_branch_seconds.label(
-                "scheduled_headway_branch"
-            ),
-            StaticStopTimes.schedule_headway_trunk_seconds.label(
-                "scheduled_headway_trunk"
-            ),
+            StaticStopTimes.schedule_travel_time_seconds.label("scheduled_travel_time"),
+            StaticStopTimes.schedule_headway_branch_seconds.label("scheduled_headway_branch"),
+            StaticStopTimes.schedule_headway_trunk_seconds.label("scheduled_headway_trunk"),
             StaticStopTimes.trip_id,
             sa.func.coalesce(
                 StaticStops.parent_station,
@@ -280,8 +249,7 @@ def write_daily_table(
         .join(
             StaticStops,
             sa.and_(
-                StaticStopTimes.static_version_key
-                == StaticStops.static_version_key,
+                StaticStopTimes.static_version_key == StaticStops.static_version_key,
                 StaticStopTimes.stop_id == StaticStops.stop_id,
             ),
         )
@@ -331,8 +299,7 @@ def write_daily_table(
             static_subquery,
             sa.and_(
                 static_subquery.c.trip_id == VehicleTrips.static_trip_id_guess,
-                static_subquery.c.parent_station
-                == VehicleEvents.parent_station,
+                static_subquery.c.parent_station == VehicleEvents.parent_station,
             ),
             isouter=True,
         )
@@ -340,8 +307,7 @@ def write_daily_table(
             StaticRoutes,
             sa.and_(
                 VehicleTrips.route_id == StaticRoutes.route_id,
-                VehicleTrips.static_version_key
-                == StaticRoutes.static_version_key,
+                VehicleTrips.static_version_key == StaticRoutes.static_version_key,
             ),
         )
         .where(
@@ -398,9 +364,7 @@ def write_daily_table(
     # generate temp local and s3 paths from the service date
     filename = f"{service_date_str}-subway-on-time-performance-v1.parquet"
     temp_local_path = f"/tmp/{filename}"
-    s3_path = os.path.join(
-        S3Archive.BUCKET_NAME, S3Archive.RAIL_PERFORMANCE_PREFIX, filename
-    )
+    s3_path = os.path.join(S3Archive.BUCKET_NAME, S3Archive.RAIL_PERFORMANCE_PREFIX, filename)
 
     # the local path shouldn't exist, but make sure
     if os.path.exists(temp_local_path):

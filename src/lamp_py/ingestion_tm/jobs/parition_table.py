@@ -65,9 +65,7 @@ class TMDailyTable(TMExport):
 
         :return [120240101, 120240102]
         """
-        tm_dates_query = sa.text(
-            f"SELECT DISTINCT CALENDAR_ID FROM {self.tm_table};"
-        )
+        tm_dates_query = sa.text(f"SELECT DISTINCT CALENDAR_ID FROM {self.tm_table};")
         tm_dates = tm_db.select_as_dataframe(tm_dates_query)
 
         return sorted(tm_dates["CALENDAR_ID"].astype(int).to_list())
@@ -80,9 +78,7 @@ class TMDailyTable(TMExport):
 
         :return [120240101, 120240102]
         """
-        s3_files = file_list_from_s3(
-            self.s3_location.bucket, self.s3_location.prefix
-        )
+        s3_files = file_list_from_s3(self.s3_location.bucket, self.s3_location.prefix)
 
         def date_match(s: str) -> Optional[int]:
             match = re.search(r"\d{9}", s)
@@ -110,9 +106,7 @@ class TMDailyTable(TMExport):
             os.path.join(self.s3_location.prefix, self.version_key),
         )
         if len(version_file) == 1:
-            s3_version = object_metadata(self.s3_version_path).get(
-                self.version_key
-            )
+            s3_version = object_metadata(self.s3_version_path).get(self.version_key)
 
         if s3_version != self.lamp_version:
             return tm_dates
@@ -129,9 +123,7 @@ class TMDailyTable(TMExport):
 
         for date in self.dates_to_export(tm_db):
             try:
-                logger = ProcessLogger(
-                    "tm_daily_log_export", tm_table=self.tm_table, date=date
-                )
+                logger = ProcessLogger("tm_daily_log_export", tm_table=self.tm_table, date=date)
                 logger.log_start()
 
                 query = sa.text(

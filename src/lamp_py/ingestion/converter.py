@@ -99,9 +99,7 @@ class Converter(ABC):
     into pyarrow tables.
     """
 
-    def __init__(
-        self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]
-    ) -> None:
+    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]) -> None:
         self.config_type = config_type
         self.files: List[str] = []
         self.metadata_queue: Queue[Optional[str]] = metadata_queue

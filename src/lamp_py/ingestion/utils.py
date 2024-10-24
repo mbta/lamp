@@ -98,9 +98,7 @@ def date_from_feed_version(feed_version: str) -> datetime.datetime:
 
     if pattern_1_result is not None:
         date_str = pattern_1_result.group(0)
-        date_dt = datetime.datetime.fromisoformat(date_str).replace(
-            tzinfo=utc_tz
-        )
+        date_dt = datetime.datetime.fromisoformat(date_str).replace(tzinfo=utc_tz)
         date_dt = date_dt.astimezone(local_tz).replace(tzinfo=None)
     elif pattern_2_result is not None:
         date_str = pattern_2_result.group(0)
@@ -143,21 +141,14 @@ def ordered_schedule_frame() -> pl.DataFrame:
     # Accept-Encoding header required to avoid cloudfront cache-hit
     req = request.Request(archive_url, headers={"Accept-Encoding": "gzip"})
     with request.urlopen(req) as res:
-        feed = pl.read_csv(
-            res.read(), columns=feed_columns, schema_overrides=feed_dtypes
-        )
+        feed = pl.read_csv(res.read(), columns=feed_columns, schema_overrides=feed_dtypes)
 
     feed = (
         feed.with_columns(
-            pl.col("feed_version")
-            .map_elements(date_from_feed_version, pl.Datetime)
-            .alias("published_dt"),
+            pl.col("feed_version").map_elements(date_from_feed_version, pl.Datetime).alias("published_dt"),
         )
         .with_columns(
-            pl.col("published_dt")
-            .dt.strftime("%Y%m%d")
-            .cast(pl.Int32)
-            .alias("published_date"),
+            pl.col("published_dt").dt.strftime("%Y%m%d").cast(pl.Int32).alias("published_date"),
         )
         .sort(
             by=["feed_start_date", "published_dt"],
@@ -206,14 +197,10 @@ def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
             table.select(other_columns)
             .take(indices)
             .append_column(
-                pyarrow.field(
-                    column, table.schema.field(column).type.value_type
-                ),
+                pyarrow.field(column, table.schema.field(column).type.value_type),
                 pc.list_flatten(table[column]),
             ),
-            table.filter(pc.list_value_length(table[column]).is_null()).select(
-                other_columns
-            ),
+            table.filter(pc.list_value_length(table[column]).is_null()).select(other_columns),
         ],
         promote_options="default",
     )
@@ -235,9 +222,7 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = table.schema.append(
-        pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary())
-    )
+    hash_schema = table.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
 
     table = pl.from_arrow(table)
 
@@ -265,9 +250,7 @@ def hash_gtfs_rt_parquet(path: str) -> None:
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = ds.schema.append(
-        pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary())
-    )
+    hash_schema = ds.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
 
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
@@ -296,9 +279,7 @@ def gzip_file(path: str, keep_original: bool = False) -> None:
     :param path: local file path
     :param keep_original: keep original non-gzip file = False
     """
-    logger = ProcessLogger(
-        "gzip_file", path=path, remove_original=keep_original
-    )
+    logger = ProcessLogger("gzip_file", path=path, remove_original=keep_original)
     logger.log_start()
     with open(path, "rb") as f_in:
         with gzip.open(f"{path}.gz", "wb") as f_out:

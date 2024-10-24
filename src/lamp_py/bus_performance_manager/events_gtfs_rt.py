@@ -2,15 +2,126 @@ from datetime import date
 from typing import List
 
 import polars as pl
+from pyarrow.fs import S3FileSystem
+import pyarrow.compute as pc
 
-from lamp_py.bus_performance_manager.gtfs_utils import (
-    bus_routes_for_service_date,
-)
+from lamp_py.bus_performance_manager.gtfs_utils import bus_routes_for_service_date
+from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-def read_vehicle_positions(
-    service_date: date, gtfs_rt_files: List[str]
-) -> pl.DataFrame:
+def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
+    """
+    Read RT_VEHICLE_POSITIONS parquet files with polars engine
+
+    Polars engine appears to be faster and use less memory than pyarrow enginer, but is not as
+    compatible with all parquet file formats as pyarrow engine
+    """
+    vehicle_positions = (
+        pl.scan_parquet(gtfs_rt_files)
+        .filter(
+            (pl.col("vehicle.trip.route_id").is_in(bus_routes))
+            & (pl.col("vehicle.trip.start_date") == service_date.strftime("%Y%m%d"))
+            & pl.col("vehicle.current_status").is_not_null()
+            & pl.col("vehicle.stop_id").is_not_null()
+            & pl.col("vehicle.trip.trip_id").is_not_null()
+            & pl.col("vehicle.vehicle.id").is_not_null()
+            & pl.col("vehicle.timestamp").is_not_null()
+            & pl.col("vehicle.trip.start_time").is_not_null()
+        )
+        .select(
+            pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
+            pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
+            pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
+            pl.col("vehicle.current_stop_sequence").cast(pl.Int64).alias("stop_sequence"),
+            pl.col("vehicle.trip.direction_id").cast(pl.Int8).alias("direction_id"),
+            pl.col("vehicle.trip.start_time").cast(pl.String).alias("start_time"),
+            pl.col("vehicle.trip.start_date").cast(pl.String).alias("service_date"),
+            pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
+            pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
+            pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
+            pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
+        )
+        .with_columns(
+            pl.when(pl.col("current_status") == "INCOMING_AT")
+            .then(pl.lit("IN_TRANSIT_TO"))
+            .otherwise(pl.col("current_status"))
+            .cast(pl.String)
+            .alias("current_status"),
+        )
+        .collect()
+    )
+
+    return vehicle_positions
+
+
+def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
+    """
+    Read RT_VEHICLE_POSITIONS parquet files with pyarrow engine, instead of polars engine
+
+    the polars implmentation of parquet reader sometimes has issues with files in staging bucket
+    pyarrow engine is more forgiving in reading some parquet file formats at the cost of read speed
+    and memory usage, compared to polars native parquet reader/scanner
+    """
+    gtfs_rt_files = [uri.replace("s3://", "") for uri in gtfs_rt_files]
+    columns = [
+        "vehicle.trip.route_id",
+        "vehicle.trip.trip_id",
+        "vehicle.trip.direction_id",
+        "vehicle.trip.start_time",
+        "vehicle.trip.start_date",
+        "vehicle.vehicle.id",
+        "vehicle.vehicle.label",
+        "vehicle.stop_id",
+        "vehicle.current_stop_sequence",
+        "vehicle.current_status",
+        "vehicle.timestamp",
+    ]
+    # pyarrow_exp filter expression is used to limit memory usage during read operation
+    pyarrow_exp = pc.field("vehicle.trip.route_id").isin(bus_routes)
+    vehicle_positions = (
+        pl.read_parquet(
+            gtfs_rt_files,
+            columns=columns,
+            use_pyarrow=True,
+            pyarrow_options={"filesystem": S3FileSystem(), "filters": pyarrow_exp},
+        )
+        .filter(
+            (pl.col("vehicle.trip.route_id").is_in(bus_routes))
+            & (pl.col("vehicle.trip.start_date") == service_date.strftime("%Y%m%d"))
+            & pl.col("vehicle.current_status").is_not_null()
+            & pl.col("vehicle.stop_id").is_not_null()
+            & pl.col("vehicle.trip.trip_id").is_not_null()
+            & pl.col("vehicle.vehicle.id").is_not_null()
+            & pl.col("vehicle.timestamp").is_not_null()
+            & pl.col("vehicle.trip.start_time").is_not_null()
+        )
+        .select(
+            pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
+            pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
+            pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
+            pl.col("vehicle.current_stop_sequence").cast(pl.Int64).alias("stop_sequence"),
+            pl.col("vehicle.trip.direction_id").cast(pl.Int8).alias("direction_id"),
+            pl.col("vehicle.trip.start_time").cast(pl.String).alias("start_time"),
+            pl.col("vehicle.trip.start_date").cast(pl.String).alias("service_date"),
+            pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
+            pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
+            pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
+            pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
+        )
+        .with_columns(
+            pl.when(pl.col("current_status") == "INCOMING_AT")
+            .then(pl.lit("IN_TRANSIT_TO"))
+            .otherwise(pl.col("current_status"))
+            .cast(pl.String)
+            .alias("current_status"),
+        )
+    )
+
+    return vehicle_positions
+
+
+def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:
     """
     Read gtfs realtime vehicle position files and pull out unique bus vehicle
     positions for a given service day.
@@ -32,73 +143,28 @@ def read_vehicle_positions(
         current_status -> String
         vehicle_timestamp -> Datetime
     """
-
+    logger = ProcessLogger(
+        "read_vehicle_positions",
+        service_date=service_date,
+        file_count=len(gtfs_rt_files),
+        reader_engine="polars",
+    )
+    logger.log_start()
     bus_routes = bus_routes_for_service_date(service_date)
 
-    # build a dataframe of every gtfs record
-    # * scan all of the gtfs realtime files
-    # * only pull out bus records and records for the service date with current status fields
-    # * rename / convert columns as appropriate
-    # * convert
-    # * sort by vehicle id and timestamp
-    # * keep only the first record for a given trip / stop / status
-    vehicle_positions = (
-        pl.scan_parquet(gtfs_rt_files)
-        .filter(
-            (pl.col("vehicle.trip.route_id").is_in(bus_routes))
-            & (
-                pl.col("vehicle.trip.start_date")
-                == service_date.strftime("%Y%m%d")
-            )
-            & pl.col("vehicle.current_status").is_not_null()
-            & pl.col("vehicle.stop_id").is_not_null()
-            & pl.col("vehicle.trip.trip_id").is_not_null()
-            & pl.col("vehicle.vehicle.id").is_not_null()
-            & pl.col("vehicle.timestamp").is_not_null()
-            & pl.col("vehicle.trip.start_time").is_not_null()
-        )
-        .select(
-            pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
-            pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
-            pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
-            pl.col("vehicle.current_stop_sequence")
-            .cast(pl.Int64)
-            .alias("stop_sequence"),
-            pl.col("vehicle.trip.direction_id")
-            .cast(pl.Int8)
-            .alias("direction_id"),
-            pl.col("vehicle.trip.start_time")
-            .cast(pl.String)
-            .alias("start_time"),
-            pl.col("vehicle.trip.start_date")
-            .cast(pl.String)
-            .alias("service_date"),
-            pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
-            pl.col("vehicle.vehicle.label")
-            .cast(pl.String)
-            .alias("vehicle_label"),
-            pl.col("vehicle.current_status")
-            .cast(pl.String)
-            .alias("current_status"),
-            pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
-        )
-        .with_columns(
-            pl.when(pl.col("current_status") == "INCOMING_AT")
-            .then(pl.lit("IN_TRANSIT_TO"))
-            .otherwise(pl.col("current_status"))
-            .cast(pl.String)
-            .alias("current_status"),
-        )
-        .sort(["vehicle_id", "vehicle_timestamp"])
-        .collect()
-    )
+    try:
+        vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
+    except Exception as _:
+        logger.add_metadata(reader_engine="pyarrow")
+        vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
 
+    logger.log_complete()
     return vehicle_positions
 
 
 def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     """
-    using the vehicle positions dataframe, create a dataframe for each event by
+    using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.
 
     :param vehicle_positions: Dataframe of vehiclie positions
@@ -108,6 +174,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         route_id -> String
         trip_id -> String
         start_time -> String
+        start_dt -> Datetime
+        stop_count -> UInt32
         direction_id -> Int8
         stop_id -> String
         stop_sequence -> Int64
@@ -135,37 +203,51 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
 
     for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
         if column not in vehicle_events.columns:
-            vehicle_events = vehicle_events.with_columns(
-                pl.lit(None).cast(pl.Datetime).alias(column)
-            )
+            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
-    vehicle_events = vehicle_events.rename(
-        {
-            "STOPPED_AT": "gtfs_arrival_dt",
-            "IN_TRANSIT_TO": "gtfs_travel_to_dt",
-        }
-    ).select(
-        [
-            "service_date",
-            "route_id",
-            "trip_id",
-            "start_time",
-            "direction_id",
-            "stop_id",
-            "stop_sequence",
-            "vehicle_id",
-            "vehicle_label",
-            "gtfs_travel_to_dt",
-            "gtfs_arrival_dt",
-        ]
+    stop_count = vehicle_events.group_by("trip_id").len("stop_count")
+
+    vehicle_events = (
+        vehicle_events.join(
+            stop_count,
+            on="trip_id",
+            how="left",
+        )
+        .rename(
+            {
+                "STOPPED_AT": "gtfs_arrival_dt",
+                "IN_TRANSIT_TO": "gtfs_travel_to_dt",
+            }
+        )
+        .with_columns(pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64))
+        .with_columns(
+            (pl.col("service_date").str.to_datetime("%Y%m%d") + pl.duration(seconds=pl.col("start_time"))).alias(
+                "start_dt"
+            )
+        )
+        .select(
+            [
+                "service_date",
+                "route_id",
+                "trip_id",
+                "start_time",
+                "start_dt",
+                "stop_count",
+                "direction_id",
+                "stop_id",
+                "stop_sequence",
+                "vehicle_id",
+                "vehicle_label",
+                "gtfs_travel_to_dt",
+                "gtfs_arrival_dt",
+            ]
+        )
     )
 
     return vehicle_events
 
 
-def generate_gtfs_rt_events(
-    service_date: date, gtfs_rt_files: List[str]
-) -> pl.DataFrame:
+def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:
     """
     generate a polars dataframe for bus vehicle events from gtfs realtime
     vehicle position files for a given service date
@@ -175,23 +257,32 @@ def generate_gtfs_rt_events(
         local path
 
     :return dataframe:
+        service_date -> String
         route_id -> String
         trip_id -> String
-        stop_id -> String
-        stop_sequence -> String
+        start_time -> Int64
+        start_dt -> Datetime
+        stop_count -> UInt32
         direction_id -> Int8
-        start_time -> String
-        service_date -> String
+        stop_id -> String
+        stop_sequence -> Int64
         vehicle_id -> String
         vehicle_label -> String
-        current_status -> String
-        arrival_gtfs -> Datetime
-        travel_towards_gtfs -> Datetime
+        gtfs_travel_to_dt -> Datetime
+        gtfs_arrival_dt -> Datetime
     """
-    vehicle_positions = read_vehicle_positions(
-        service_date=service_date, gtfs_rt_files=gtfs_rt_files
-    )
+    logger = ProcessLogger("generate_gtfs_rt_events", service_date=service_date)
+    logger.log_start()
 
+    # if RT_VEHICLE_POSITIONS exists for whole day, filter out hour files for that day
+    for year_file in [f for f in gtfs_rt_files if f.endswith("T00:00:00.parquet")]:
+        prefix, _ = year_file.rsplit("/", 1)
+        gtfs_rt_files = [f for f in gtfs_rt_files if f == year_file or not f.startswith(prefix)]
+
+    vehicle_positions = read_vehicle_positions(service_date=service_date, gtfs_rt_files=gtfs_rt_files)
+    logger.add_metadata(rows_from_parquet=vehicle_positions.shape[0])
     vehicle_events = positions_to_events(vehicle_positions=vehicle_positions)
+    logger.add_metadata(events_for_day=vehicle_events.shape[0])
 
+    logger.log_complete()
     return vehicle_events

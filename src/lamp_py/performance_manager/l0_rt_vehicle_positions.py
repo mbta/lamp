@@ -17,9 +17,7 @@ from .gtfs_utils import (
 )
 
 
-def get_vp_dataframe(
-    to_load: Union[str, List[str]], route_ids: List[str]
-) -> pandas.DataFrame:
+def get_vp_dataframe(to_load: Union[str, List[str]], route_ids: List[str]) -> pandas.DataFrame:
     """
     return a dataframe from a vehicle position parquet file (or list of files)
     with expected columns without null data.
@@ -94,9 +92,7 @@ def transform_vp_datatypes(
     ingest dataframe of vehicle position data from parquet file and transform
     column datatypes
     """
-    process_logger = ProcessLogger(
-        "vp.transform_datatypes", row_count=vehicle_positions.shape[0]
-    )
+    process_logger = ProcessLogger("vp.transform_datatypes", row_count=vehicle_positions.shape[0])
     process_logger.log_start()
 
     # current_status: 1 = MOVING, 0 = STOPPED_AT
@@ -106,38 +102,22 @@ def transform_vp_datatypes(
     vehicle_positions = vehicle_positions.drop(columns=["current_status"])
 
     # rename start_date to service date and store as int64 instead of string
-    vehicle_positions.rename(
-        columns={"start_date": "service_date"}, inplace=True
-    )
-    vehicle_positions["service_date"] = pandas.to_numeric(
-        vehicle_positions["service_date"]
-    ).astype("Int64")
+    vehicle_positions.rename(columns={"start_date": "service_date"}, inplace=True)
+    vehicle_positions["service_date"] = pandas.to_numeric(vehicle_positions["service_date"]).astype("Int64")
 
     # rename current_stop_sequence to stop_sequence
     # and convert to int64
-    vehicle_positions.rename(
-        columns={"current_stop_sequence": "stop_sequence"}, inplace=True
-    )
-    vehicle_positions["stop_sequence"] = pandas.to_numeric(
-        vehicle_positions["stop_sequence"]
-    ).astype("int64")
+    vehicle_positions.rename(columns={"current_stop_sequence": "stop_sequence"}, inplace=True)
+    vehicle_positions["stop_sequence"] = pandas.to_numeric(vehicle_positions["stop_sequence"]).astype("int64")
 
     # store direction_id as bool
-    vehicle_positions["direction_id"] = pandas.to_numeric(
-        vehicle_positions["direction_id"]
-    ).astype(numpy.bool_)
+    vehicle_positions["direction_id"] = pandas.to_numeric(vehicle_positions["direction_id"]).astype(numpy.bool_)
 
     # fix revenue field, NULL is True
-    vehicle_positions["revenue"] = numpy.where(
-        vehicle_positions["revenue"].eq(False), False, True
-    ).astype(numpy.bool_)
+    vehicle_positions["revenue"] = numpy.where(vehicle_positions["revenue"].eq(False), False, True).astype(numpy.bool_)
 
     # store start_time as seconds from start of day as int64
-    vehicle_positions["start_time"] = (
-        vehicle_positions["start_time"]
-        .apply(start_time_to_seconds)
-        .astype("Int64")
-    )
+    vehicle_positions["start_time"] = vehicle_positions["start_time"].apply(start_time_to_seconds).astype("Int64")
 
     process_logger.log_complete()
     return vehicle_positions
@@ -155,9 +135,7 @@ def transform_vp_timestamps(
 
     this method will remove "is_moving" and "vehicle_timestamp"
     """
-    process_logger = ProcessLogger(
-        "vp.transform_timestamps", start_row_count=vehicle_positions.shape[0]
-    )
+    process_logger = ProcessLogger("vp.transform_timestamps", start_row_count=vehicle_positions.shape[0])
     process_logger.log_start()
 
     trip_stop_columns = unique_trip_stop_columns()
@@ -173,9 +151,7 @@ def transform_vp_timestamps(
         aggfunc={"vehicle_timestamp": "min"},
     ).reset_index(drop=False)
 
-    rename_mapper: Dict[Tuple[str, Union[str, bool]], str] = {
-        (column, ""): column for column in trip_stop_columns
-    }
+    rename_mapper: Dict[Tuple[str, Union[str, bool]], str] = {(column, ""): column for column in trip_stop_columns}
     rename_mapper.update({("vehicle_timestamp", True): "vp_move_timestamp"})
     rename_mapper.update({("vehicle_timestamp", False): "vp_stop_timestamp"})
 
@@ -188,9 +164,9 @@ def transform_vp_timestamps(
 
     # we no longer need is moving or vehicle timestamp as those are all
     # stored in the vp_timestamps dataframe. drop duplicated trip-stop events
-    vehicle_positions = vehicle_positions.drop(
-        columns=["is_moving", "vehicle_timestamp"]
-    ).drop_duplicates(subset=trip_stop_columns)
+    vehicle_positions = vehicle_positions.drop(columns=["is_moving", "vehicle_timestamp"]).drop_duplicates(
+        subset=trip_stop_columns
+    )
 
     # join the timestamps to trip-stop details, leaving us with vp move and
     # stop times
@@ -202,25 +178,17 @@ def transform_vp_timestamps(
         validate="one_to_one",
     )
 
-    vehicle_positions["vp_move_timestamp"] = vehicle_positions[
-        "vp_move_timestamp"
-    ].astype("Int64")
-    vehicle_positions["vp_stop_timestamp"] = vehicle_positions[
-        "vp_stop_timestamp"
-    ].astype("Int64")
+    vehicle_positions["vp_move_timestamp"] = vehicle_positions["vp_move_timestamp"].astype("Int64")
+    vehicle_positions["vp_stop_timestamp"] = vehicle_positions["vp_stop_timestamp"].astype("Int64")
 
     # change vehicle_consist to pipe delimited string
-    vehicle_positions["vehicle_consist"] = vehicle_positions[
-        "vehicle_consist"
-    ].map(
+    vehicle_positions["vehicle_consist"] = vehicle_positions["vehicle_consist"].map(
         lambda vc: "|".join(str(vc_val["label"]) for vc_val in vc),
         na_action="ignore",
     )
 
     # change multi_carriage_details to pipe delimited string
-    vehicle_positions["multi_carriage_details"] = vehicle_positions[
-        "multi_carriage_details"
-    ].map(
+    vehicle_positions["multi_carriage_details"] = vehicle_positions["multi_carriage_details"].map(
         lambda vc: "|".join(str(vc_val["label"]) for vc_val in vc),
         na_action="ignore",
     )
@@ -232,9 +200,7 @@ def transform_vp_timestamps(
         vehicle_positions["multi_carriage_details"],
         vehicle_positions["vehicle_consist"],
     )
-    vehicle_positions = vehicle_positions.drop(
-        columns=["multi_carriage_details"]
-    )
+    vehicle_positions = vehicle_positions.drop(columns=["multi_carriage_details"])
 
     process_logger.add_metadata(after_row_count=vehicle_positions.shape[0])
     process_logger.log_complete()
@@ -248,24 +214,16 @@ def process_vp_files(
     """
     Generate a dataframe of Vehicle Events from gtfs_rt vehicle position parquet files.
     """
-    process_logger = ProcessLogger(
-        "process_vehicle_positions", file_count=len(paths), paths=paths
-    )
+    process_logger = ProcessLogger("process_vehicle_positions", file_count=len(paths), paths=paths)
     process_logger.log_start()
 
     route_ids = rail_routes_from_filepath(paths, db_manager)
     vehicle_positions = get_vp_dataframe(paths, route_ids)
     if vehicle_positions.shape[0] > 0:
         vehicle_positions = transform_vp_datatypes(vehicle_positions)
-        vehicle_positions = add_missing_service_dates(
-            vehicle_positions, timestamp_key="vehicle_timestamp"
-        )
-        vehicle_positions = add_static_version_key_column(
-            vehicle_positions, db_manager
-        )
-        vehicle_positions = add_parent_station_column(
-            vehicle_positions, db_manager
-        )
+        vehicle_positions = add_missing_service_dates(vehicle_positions, timestamp_key="vehicle_timestamp")
+        vehicle_positions = add_static_version_key_column(vehicle_positions, db_manager)
+        vehicle_positions = add_parent_station_column(vehicle_positions, db_manager)
         vehicle_positions = transform_vp_timestamps(vehicle_positions)
 
     process_logger.add_metadata(vehicle_events_count=vehicle_positions.shape[0])

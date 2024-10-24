@@ -75,9 +75,7 @@ class ScheduleDetails:
         :return List[header_names]
         """
         if gtfs_table_file not in self.file_list:
-            raise KeyError(
-                f"{gtfs_table_file} not found in {self.file_location} archive"
-            )
+            raise KeyError(f"{gtfs_table_file} not found in {self.file_location} archive")
 
         with zipfile.ZipFile(self.gtfs_bytes) as zf:
             with zf.open(gtfs_table_file) as f_bytes:
@@ -157,16 +155,11 @@ class ScheduleDetails:
 
         # add missing columns as all NULL values
         for null_col in missing_columns:
-            frame = frame.with_columns(
-                pl.lit(None).cast(table_schema[null_col]).alias(null_col)
-            )
+            frame = frame.with_columns(pl.lit(None).cast(table_schema[null_col]).alias(null_col))
 
         # update String values containing only spaces to NULL
         frame = frame.with_columns(
-            pl.when(
-                pl.col(pl.Utf8).str.replace(r"\s*", "", n=1).str.len_chars()
-                == 0
-            )
+            pl.when(pl.col(pl.Utf8).str.replace(r"\s*", "", n=1).str.len_chars() == 0)
             .then(None)
             .otherwise(pl.col(pl.Utf8))
             .name.keep()
@@ -227,9 +220,7 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
                 for obj_path in s3_files:
                     if not obj_path.endswith(".parquet"):
                         continue
-                    local_path = obj_path.replace(
-                        f"s3://{compressed_gtfs.bucket}", "/tmp"
-                    )
+                    local_path = obj_path.replace(f"s3://{compressed_gtfs.bucket}", "/tmp")
                     download_file(obj_path, local_path)
             else:
                 continue
@@ -242,16 +233,11 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
             # values between `feed_info` file in schedule and "archived_feeds.txt" file
             feed = feed.filter(
                 (pl.col("published_date") > int(f"{year}0000"))
-                & (
-                    pl.col("feed_start_date")
-                    > pq_fi_frame.get_column("feed_start_date").max()
-                )
+                & (pl.col("feed_start_date") > pq_fi_frame.get_column("feed_start_date").max())
             )
         else:
             # anti join against records for 'year' to find records not already in feed_info.parquet
-            feed = feed.filter(
-                pl.col("published_date") > int(f"{year}0000")
-            ).join(
+            feed = feed.filter(pl.col("published_date") > int(f"{year}0000")).join(
                 pq_fi_frame.select("feed_version"),
                 on="feed_version",
                 how="anti",

@@ -67,11 +67,7 @@ def upgrade() -> None:
         # unique the records
         # cast to new schema (polars converts things)
         new_table = (
-            pl.DataFrame(old_table.rename_columns(schema.names))
-            .unique()
-            .sort(by=["time"])
-            .to_arrow()
-            .cast(schema)
+            pl.DataFrame(old_table.rename_columns(schema.names)).unique().sort(by=["time"]).to_arrow().cast(schema)
         )
 
         pq.write_table(new_table, new_local_path)

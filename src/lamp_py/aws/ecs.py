@@ -74,9 +74,7 @@ def check_for_parallel_tasks() -> None:
         # count matches the ecs task group.
         match_count = 0
         if task_arns:
-            running_tasks = client.describe_tasks(
-                cluster=ecs_cluster, tasks=task_arns
-            )["tasks"]
+            running_tasks = client.describe_tasks(cluster=ecs_cluster, tasks=task_arns)["tasks"]
 
             for task in running_tasks:
                 if ecs_task_group == task["group"]:
@@ -84,9 +82,7 @@ def check_for_parallel_tasks() -> None:
 
         # if the group matches, raise an exception that will terminate the process
         if match_count > 1:
-            raise SystemError(
-                f"Multiple {ecs_task_group} ECS Tasks Running in {ecs_cluster}"
-            )
+            raise SystemError(f"Multiple {ecs_task_group} ECS Tasks Running in {ecs_cluster}")
 
     except Exception as exception:
         process_logger.log_failure(exception)

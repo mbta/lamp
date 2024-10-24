@@ -113,10 +113,7 @@ def datasource_from_name(
         auth = tableau_authentication()
 
     for datasource in datasource_list(server, auth):
-        if (
-            datasource.name == datasource_name
-            and datasource.project_name == project_name
-        ):
+        if datasource.name == datasource_name and datasource.project_name == project_name:
             return datasource
 
     return None

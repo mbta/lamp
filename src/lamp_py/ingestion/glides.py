@@ -55,9 +55,7 @@ class GlidesConverter(ABC):
         self.base_filename = base_filename
         self.type = self.base_filename.replace(".parquet", "")
         self.local_path = os.path.join(self.tmp_dir, self.base_filename)
-        self.remote_path = (
-            f"s3://{S3_SPRINGBOARD}/{LAMP}/GLIDES/{base_filename}"
-        )
+        self.remote_path = f"s3://{S3_SPRINGBOARD}/{LAMP}/GLIDES/{base_filename}"
 
         self.records: List[Dict] = []
 
@@ -86,9 +84,7 @@ class GlidesConverter(ABC):
 
     def append_records(self) -> None:
         """Add incoming records to a local parquet file"""
-        process_logger = ProcessLogger(
-            process_name="append_glides_records", type=self.type
-        )
+        process_logger = ProcessLogger(process_name="append_glides_records", type=self.type)
         process_logger.log_start()
 
         new_dataset = self.convert_records()
@@ -114,25 +110,15 @@ class GlidesConverter(ABC):
                     end = start + relativedelta(months=1)
                     if end < now:
                         row_group = pl.DataFrame(
-                            joined_ds.filter(
-                                (pc.field("time") >= start)
-                                & (pc.field("time") < end)
-                            ).to_table()
+                            joined_ds.filter((pc.field("time") >= start) & (pc.field("time") < end)).to_table()
                         )
 
                     else:
-                        row_group = pl.DataFrame(
-                            joined_ds.filter(
-                                (pc.field("time") >= start)
-                            ).to_table()
-                        )
+                        row_group = pl.DataFrame(joined_ds.filter((pc.field("time") >= start)).to_table())
 
                     if not row_group.is_empty():
                         unique_table = (
-                            row_group.unique(keep="first")
-                            .sort(by=["time"])
-                            .to_arrow()
-                            .cast(new_dataset.schema)
+                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(new_dataset.schema)
                         )
 
                         row_group_count += 1
@@ -198,14 +184,10 @@ class EditorChanges(GlidesConverter):
         return "changes"
 
     def convert_records(self) -> pd.Dataset:
-        process_logger = ProcessLogger(
-            process_name="convert_records", type=self.type
-        )
+        process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
 
-        editors_table = pyarrow.Table.from_pylist(
-            self.records, schema=self.event_schema
-        )
+        editors_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
         editors_table = flatten_schema(editors_table)
         editors_table = explode_table_column(editors_table, "data.changes")
         editors_table = flatten_schema(editors_table)
@@ -222,9 +204,7 @@ class OperatorSignIns(GlidesConverter):
     """
 
     def __init__(self) -> None:
-        GlidesConverter.__init__(
-            self, base_filename="operator_sign_ins.parquet"
-        )
+        GlidesConverter.__init__(self, base_filename="operator_sign_ins.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
@@ -239,9 +219,7 @@ class OperatorSignIns(GlidesConverter):
                             ("metadata", self.glides_metadata),
                             (
                                 "operator",
-                                pyarrow.struct(
-                                    [("badgeNumber", pyarrow.string())]
-                                ),
+                                pyarrow.struct([("badgeNumber", pyarrow.string())]),
                             ),
                             # a timestamp but it needs reformatting for pyarrow
                             ("signedInAt", pyarrow.string()),
@@ -271,13 +249,9 @@ class OperatorSignIns(GlidesConverter):
         return "operator"
 
     def convert_records(self) -> pd.Dataset:
-        process_logger = ProcessLogger(
-            process_name="convert_records", type=self.type
-        )
+        process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
-        osi_table = pyarrow.Table.from_pylist(
-            self.records, schema=self.event_schema
-        )
+        osi_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
         osi_table = flatten_schema(osi_table)
         osi_dataset = pd.dataset(osi_table)
 
@@ -373,15 +347,11 @@ class TripUpdates(GlidesConverter):
 
             return record
 
-        process_logger = ProcessLogger(
-            process_name="convert_records", type=self.type
-        )
+        process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
 
         modified_records = [flatten_multitypes(r) for r in self.records]
-        tu_table = pyarrow.Table.from_pylist(
-            modified_records, schema=self.event_schema
-        )
+        tu_table = pyarrow.Table.from_pylist(modified_records, schema=self.event_schema)
         tu_table = flatten_schema(tu_table)
         tu_table = explode_table_column(tu_table, "data.tripUpdates")
         tu_table = flatten_schema(tu_table)
@@ -391,9 +361,7 @@ class TripUpdates(GlidesConverter):
         return tu_dataset
 
 
-def ingest_glides_events(
-    kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]]
-) -> None:
+def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]]) -> None:
     """
     ingest glides records from the kinesis stream and add them to parquet files
     """
@@ -410,9 +378,7 @@ def ingest_glides_events(
         for record in kinesis_reader.get_records():
             try:
                 # format this so it can be used to partition parquet files
-                record["time"] = datetime.fromisoformat(
-                    record["time"].replace("Z", "+00:00")
-                )
+                record["time"] = datetime.fromisoformat(record["time"].replace("Z", "+00:00"))
 
                 data_keys = record["data"].keys()
 

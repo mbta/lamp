@@ -14,6 +14,8 @@ LAMP = "lamp"
 TM = os.path.join(LAMP, "TM")
 TABLEAU = os.path.join(LAMP, "tableau")
 
+VERSION_KEY = "lamp_version"
+
 
 @dataclass
 class S3Location:
@@ -23,6 +25,7 @@ class S3Location:
 
     bucket: str
     prefix: str
+    version: str = "1.0"
 
     @property
     def s3_uri(self) -> str:
@@ -112,7 +115,8 @@ public_alerts_file = S3Location(
     prefix=os.path.join(TABLEAU, "alerts", "LAMP_RT_ALERTS.parquet"),
 )
 tableau_rail = S3Location(
-    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "rail")
+    bucket=S3_PUBLIC,
+    prefix=os.path.join(TABLEAU, "rail"),
 )
 
 

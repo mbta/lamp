@@ -36,9 +36,7 @@ def get_s3_client() -> boto3.client:
     return boto3.client("s3")
 
 
-def upload_file(
-    file_name: str, object_path: str, extra_args: Optional[Dict] = None
-) -> bool:
+def upload_file(file_name: str, object_path: str, extra_args: Optional[Dict] = None) -> bool:
     """
     Upload a local file to an S3 Bucket
 
@@ -66,9 +64,7 @@ def upload_file(
 
         s3_client = get_s3_client()
 
-        s3_client.upload_file(
-            file_name, bucket, object_name, ExtraArgs=extra_args
-        )
+        s3_client.upload_file(file_name, bucket, object_name, ExtraArgs=extra_args)
 
         upload_log.log_complete()
 
@@ -270,9 +266,7 @@ def file_list_from_s3(
         object path as s3://bucket-name/object-key
     ]
     """
-    process_logger = ProcessLogger(
-        "file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix
-    )
+    process_logger = ProcessLogger("file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix)
     process_logger.log_start()
 
     try:
@@ -288,9 +282,7 @@ def file_list_from_s3(
                 if obj["Size"] == 0:
                     continue
                 if in_filter is None or in_filter in obj["Key"]:
-                    filepaths.append(
-                        os.path.join("s3://", bucket_name, obj["Key"])
-                    )
+                    filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
             if len(filepaths) > max_list_size:
                 break
@@ -303,9 +295,7 @@ def file_list_from_s3(
         return []
 
 
-def file_list_from_s3_with_details(
-    bucket_name: str, file_prefix: str
-) -> List[Dict]:
+def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[Dict]:
     """
     get a list of s3 objects with additional details
 
@@ -341,9 +331,7 @@ def file_list_from_s3_with_details(
                     continue
                 filepaths.append(
                     {
-                        "s3_obj_path": os.path.join(
-                            "s3://", bucket_name, obj["Key"]
-                        ),
+                        "s3_obj_path": os.path.join("s3://", bucket_name, obj["Key"]),
                         "size_bytes": obj["Size"],
                         "last_modified": obj["LastModified"],
                     }
@@ -357,16 +345,12 @@ def file_list_from_s3_with_details(
         return []
 
 
-def get_last_modified_object(
-    bucket_name: str, file_prefix: str, version: Optional[str] = None
-) -> Optional[Dict]:
+def get_last_modified_object(bucket_name: str, file_prefix: str, version: Optional[str] = None) -> Optional[Dict]:
     """
     For a given bucket, find the last modified object that matches a prefix. If
     a version is passed, only return the newest object matching this version.
     """
-    files = file_list_from_s3_with_details(
-        bucket_name=bucket_name, file_prefix=file_prefix
-    )
+    files = file_list_from_s3_with_details(bucket_name=bucket_name, file_prefix=file_prefix)
 
     # sort the objects by last modified
     files.sort(key=lambda o: o["last_modified"], reverse=True)
@@ -453,9 +437,7 @@ def _init_process_session() -> None:
     """
     process_data = current_thread()
     process_data.__dict__["boto_session"] = boto3.session.Session()
-    process_data.__dict__["boto_s3_resource"] = process_data.__dict__[
-        "boto_session"
-    ].resource("s3")
+    process_data.__dict__["boto_s3_resource"] = process_data.__dict__["boto_session"].resource("s3")
 
 
 # pylint: disable=R0914
@@ -495,13 +477,9 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         process_logger.add_metadata(pool_size=pool_size)
         results = []
         try:
-            with ThreadPoolExecutor(
-                max_workers=pool_size, initializer=_init_process_session
-            ) as pool:
+            with ThreadPoolExecutor(max_workers=pool_size, initializer=_init_process_session) as pool:
                 for filename in files_to_move:
-                    results.append(
-                        pool.submit(_move_s3_object, filename, to_bucket)
-                    )
+                    results.append(pool.submit(_move_s3_object, filename, to_bucket))
             for result in results:
                 current_result = result.result()
                 if isinstance(current_result, str):
@@ -517,9 +495,7 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         # wait for gremlins to disappear
         time.sleep(15)
 
-    process_logger.add_metadata(
-        failed_count=len(files_to_move), retry_attempts=retry_attempt
-    )
+    process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
 
     if len(files_to_move) == 0:
         process_logger.log_complete()
@@ -575,9 +551,7 @@ def write_parquet_file(
     @filename - if set, the filename that will be written to. if left empty,
         the basename template (or _its_ fallback) will be used.
     """
-    process_logger = ProcessLogger(
-        "write_parquet", file_type=file_type, number_of_rows=table.num_rows
-    )
+    process_logger = ProcessLogger("write_parquet", file_type=file_type, number_of_rows=table.num_rows)
     process_logger.log_start()
 
     # pull out the partition information into a list of strings.
@@ -588,9 +562,7 @@ def write_parquet_file(
     for col in partition_cols:
         unique_list = pc.unique(table.column(col)).to_pylist()
 
-        assert (
-            len(unique_list) == 1
-        ), f"Table {s3_dir} column {col} had {len(unique_list)} unique elements"
+        assert len(unique_list) == 1, f"Table {s3_dir} column {col} had {len(unique_list)} unique elements"
 
         partition_strings.append(f"{col}={unique_list[0]}")
 
@@ -609,9 +581,7 @@ def write_parquet_file(
     process_logger.add_metadata(write_path=write_path)
 
     # write teh parquet file to the partitioned path
-    with pq.ParquetWriter(
-        where=write_path, schema=table.schema, filesystem=fs.S3FileSystem()
-    ) as pq_writer:
+    with pq.ParquetWriter(where=write_path, schema=table.schema, filesystem=fs.S3FileSystem()) as pq_writer:
         pq_writer.write(table)
 
     # call the visitor function if it exists
@@ -624,9 +594,16 @@ def write_parquet_file(
 # pylint: enable=R0913
 
 
-def get_datetime_from_partition_path(path: str) -> datetime:
+def dt_from_obj_path(path: str) -> datetime:
     """
     process and return datetime from partitioned s3 path
+
+    handles the following formats:
+    - year=YYYY/month=MM/day=DD/hour=HH
+    - year=YYYY/month=MM/day=DD
+    - timestamp=DDDDDDDDDD
+
+    :return datetime(tz=UTC):
     """
     try:
         # handle gtfs-rt paths
@@ -696,9 +673,7 @@ def read_parquet(
                 read_columns = list(set(ds.schema.names) & set(columns))
                 table = ds.to_table(columns=read_columns)
                 for null_column in set(columns).difference(ds.schema.names):
-                    table = table.append_column(
-                        null_column, pa.nulls(table.num_rows)
-                    )
+                    table = table.append_column(null_column, pa.nulls(table.num_rows))
 
             df = table.to_pandas(self_destruct=True)
             break

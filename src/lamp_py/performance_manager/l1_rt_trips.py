@@ -202,9 +202,7 @@ def update_static_version_key(db_manager: DatabaseManager) -> None:
     version_key_sub = (
         sa.select(
             TempEventCompare.service_date,
-            sa.func.max(TempEventCompare.static_version_key).label(
-                "max_version_key"
-            ),
+            sa.func.max(TempEventCompare.static_version_key).label("max_version_key"),
         )
         .group_by(
             TempEventCompare.service_date,
@@ -240,9 +238,7 @@ def update_start_times(db_manager: DatabaseManager) -> None:
     missing_start_times = (
         sa.select(TempEventCompare.pm_trip_id)
         .distinct()
-        .join(
-            VehicleTrips, VehicleTrips.pm_trip_id == TempEventCompare.pm_trip_id
-        )
+        .join(VehicleTrips, VehicleTrips.pm_trip_id == TempEventCompare.pm_trip_id)
         .where(
             TempEventCompare.start_time.is_(None),
             VehicleTrips.start_time.is_(None),
@@ -267,8 +263,7 @@ def update_start_times(db_manager: DatabaseManager) -> None:
             StaticStopTimes,
             sa.and_(
                 VehicleTrips.trip_id == StaticStopTimes.trip_id,
-                VehicleTrips.static_version_key
-                == StaticStopTimes.static_version_key,
+                VehicleTrips.static_version_key == StaticStopTimes.static_version_key,
             ),
         )
         .group_by(
@@ -315,9 +310,7 @@ def update_start_times(db_manager: DatabaseManager) -> None:
 
     if unscheduled_start_times.shape[0] > 0:
         unscheduled_start_times["b_start_time"] = (
-            unscheduled_start_times["b_start_time"]
-            .apply(start_timestamp_to_seconds)
-            .astype("int64")
+            unscheduled_start_times["b_start_time"].apply(start_timestamp_to_seconds).astype("int64")
         )
 
         start_times_update_query = (
@@ -338,9 +331,7 @@ def update_branch_trunk_route_id(db_manager: DatabaseManager) -> None:
     update `branch_route_id` and `trunk_route_id` fields in trips table
     """
     distinct_t_trips = (
-        sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id)
-        .distinct()
-        .subquery("distinct_trips")
+        sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id).distinct().subquery("distinct_trips")
     )
 
     distinct_trips = (
@@ -414,9 +405,7 @@ def update_branch_trunk_route_id(db_manager: DatabaseManager) -> None:
             "70095",
             "70096",
         }
-        trip_stop_ids = set(
-            red_events_df[red_events_df["pm_trip_id"] == pm_trip_id]["stop_id"]
-        )
+        trip_stop_ids = set(red_events_df[red_events_df["pm_trip_id"] == pm_trip_id]["stop_id"])
         if trip_stop_ids & ashmont_stop_ids:
             return "Red-A"
         if trip_stop_ids & braintree_stop_ids:
@@ -474,9 +463,7 @@ def update_trip_stop_counts(db_manager: DatabaseManager) -> None:
     Update "stop_count" field for trips with new events
     """
     distinct_trips = (
-        sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id)
-        .distinct()
-        .subquery("distinct_trips")
+        sa.select(TempEventCompare.service_date, TempEventCompare.pm_trip_id).distinct().subquery("distinct_trips")
     )
 
     new_stop_counts_cte = (
@@ -535,13 +522,7 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
         )
         .where(
             StaticStopTimes.static_version_key
-            == sa.func.any(
-                sa.func.array(
-                    sa.select(TempEventCompare.static_version_key)
-                    .distinct()
-                    .scalar_subquery()
-                )
-            )
+            == sa.func.any(sa.func.array(sa.select(TempEventCompare.static_version_key).distinct().scalar_subquery()))
         )
         .group_by(
             StaticStopTimes.static_version_key,
@@ -563,16 +544,14 @@ def update_static_trip_id_guess_exact(db_manager: DatabaseManager) -> None:
         .join(
             StaticTrips,
             sa.and_(
-                StaticTrips.static_version_key
-                == TempEventCompare.static_version_key,
+                StaticTrips.static_version_key == TempEventCompare.static_version_key,
                 StaticTrips.trip_id == TempEventCompare.trip_id,
             ),
         )
         .join(
             static_stop_sub,
             sa.and_(
-                static_stop_sub.c.static_version_key
-                == TempEventCompare.static_version_key,
+                static_stop_sub.c.static_version_key == TempEventCompare.static_version_key,
                 static_stop_sub.c.trip_id == TempEventCompare.trip_id,
             ),
         )
@@ -624,8 +603,7 @@ def update_directions(db_manager: DatabaseManager) -> None:
         .join(
             StaticDirections,
             sa.and_(
-                temp_trips.c.static_version_key
-                == StaticDirections.static_version_key,
+                temp_trips.c.static_version_key == StaticDirections.static_version_key,
                 temp_trips.c.direction_id == StaticDirections.direction_id,
                 temp_trips.c.route_id == StaticDirections.route_id,
             ),
@@ -671,15 +649,11 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 StaticRoutePatterns.direction_id,
                 StaticRoutePatterns.representative_trip_id,
                 StaticTrips.trunk_route_id,
-                sa.func.coalesce(
-                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-                ).label("route_id"),
+                sa.func.coalesce(StaticTrips.branch_route_id, StaticTrips.trunk_route_id).label("route_id"),
                 StaticRoutePatterns.static_version_key,
             )
             .distinct(
-                sa.func.coalesce(
-                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-                ),
+                sa.func.coalesce(StaticTrips.branch_route_id, StaticTrips.trunk_route_id),
                 StaticRoutePatterns.direction_id,
                 StaticRoutePatterns.static_version_key,
             )
@@ -687,24 +661,19 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
             .join(
                 StaticTrips,
                 sa.and_(
-                    StaticRoutePatterns.representative_trip_id
-                    == StaticTrips.trip_id,
-                    StaticRoutePatterns.static_version_key
-                    == StaticTrips.static_version_key,
+                    StaticRoutePatterns.representative_trip_id == StaticTrips.trip_id,
+                    StaticRoutePatterns.static_version_key == StaticTrips.static_version_key,
                 ),
             )
             .where(
-                StaticRoutePatterns.static_version_key
-                == record["static_version_key"],
+                StaticRoutePatterns.static_version_key == record["static_version_key"],
                 sa.or_(
                     StaticRoutePatterns.route_pattern_typicality == 1,
                     StaticRoutePatterns.route_pattern_typicality == 5,
                 ),
             )
             .order_by(
-                sa.func.coalesce(
-                    StaticTrips.branch_route_id, StaticTrips.trunk_route_id
-                ),
+                sa.func.coalesce(StaticTrips.branch_route_id, StaticTrips.trunk_route_id),
                 StaticRoutePatterns.direction_id,
                 StaticRoutePatterns.static_version_key,
                 StaticRoutePatterns.route_pattern_typicality.desc(),
@@ -737,18 +706,15 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
             .join(
                 StaticStopTimes,
                 sa.and_(
-                    canon_trips.c.representative_trip_id
-                    == StaticStopTimes.trip_id,
-                    canon_trips.c.static_version_key
-                    == StaticStopTimes.static_version_key,
+                    canon_trips.c.representative_trip_id == StaticStopTimes.trip_id,
+                    canon_trips.c.static_version_key == StaticStopTimes.static_version_key,
                 ),
             )
             .join(
                 StaticStops,
                 sa.and_(
                     StaticStopTimes.stop_id == StaticStops.stop_id,
-                    StaticStopTimes.static_version_key
-                    == StaticStops.static_version_key,
+                    StaticStopTimes.static_version_key == StaticStops.static_version_key,
                 ),
             )
             .subquery("static_canon")
@@ -774,10 +740,8 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                         VehicleTrips.trunk_route_id,
                     )
                     == static_canon.c.route_id,
-                    VehicleTrips.static_version_key
-                    == static_canon.c.static_version_key,
-                    VehicleEvents.parent_station
-                    == static_canon.c.parent_station,
+                    VehicleTrips.static_version_key == static_canon.c.static_version_key,
+                    VehicleEvents.parent_station == static_canon.c.parent_station,
                 ),
             )
             .where(
@@ -826,10 +790,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 count(
                     static_canon.c.stop_sequence,
                 ).desc(),
-                (
-                    sa.func.max(static_canon.c.stop_sequence)
-                    - sa.func.min(static_canon.c.stop_sequence)
-                ).desc(),
+                (sa.func.max(static_canon.c.stop_sequence) - sa.func.min(static_canon.c.stop_sequence)).desc(),
             )
             .subquery("zero_points")
         )
@@ -846,10 +807,8 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
             .join(
                 zero_point_stop,
                 sa.and_(
-                    zero_point_stop.c.trunk_route_id
-                    == static_canon.c.trunk_route_id,
-                    zero_point_stop.c.parent_station
-                    == static_canon.c.parent_station,
+                    zero_point_stop.c.trunk_route_id == static_canon.c.trunk_route_id,
+                    zero_point_stop.c.parent_station == static_canon.c.parent_station,
                 ),
             )
             .subquery("zero_seq_vals")
@@ -863,9 +822,7 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 static_canon.c.direction_id,
                 static_canon.c.trunk_route_id,
                 sa.func.min(static_canon.c.stop_sequence).label("min_seq"),
-                sa.func.min(
-                    static_canon.c.stop_sequence - zero_seq_vals.c.seq_adjust
-                ).label("min_sync"),
+                sa.func.min(static_canon.c.stop_sequence - zero_seq_vals.c.seq_adjust).label("min_sync"),
             )
             .select_from(static_canon)
             .join(
@@ -910,10 +867,8 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
             .join(
                 sync_adjust_vals,
                 sa.and_(
-                    sync_adjust_vals.c.direction_id
-                    == static_canon.c.direction_id,
-                    sync_adjust_vals.c.trunk_route_id
-                    == static_canon.c.trunk_route_id,
+                    sync_adjust_vals.c.direction_id == static_canon.c.direction_id,
+                    sync_adjust_vals.c.trunk_route_id == static_canon.c.trunk_route_id,
                 ),
             )
             .subquery(("sync_values"))
@@ -934,10 +889,8 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
                 sa.and_(
                     VehicleTrips.direction_id == sync_values.c.direction_id,
                     VehicleTrips.trunk_route_id == sync_values.c.trunk_route_id,
-                    VehicleTrips.static_version_key
-                    == sync_values.c.static_version_key,
-                    VehicleEvents.parent_station
-                    == sync_values.c.parent_station,
+                    VehicleTrips.static_version_key == sync_values.c.static_version_key,
+                    VehicleEvents.parent_station == sync_values.c.parent_station,
                 ),
             )
             .where(
@@ -979,9 +932,7 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_sub = static_trips_subquery(
-        static_version_key, seed_service_date
-    )
+    static_trips_sub = static_trips_subquery(static_version_key, seed_service_date)
 
     # to build a 'summary' trips table only the first and last records for each
     # static trip are needed.
@@ -1010,8 +961,7 @@ def backup_rt_static_trip_match(
         .select_from(static_trips_sub)
         .join(
             first_stop_static_sub,
-            static_trips_sub.c.static_trip_id
-            == first_stop_static_sub.c.static_trip_id,
+            static_trips_sub.c.static_trip_id == first_stop_static_sub.c.static_trip_id,
         )
         .where(static_trips_sub.c.static_trip_last_stop == sa.true())
         .subquery(name="static_trips_summary_sub")
@@ -1030,9 +980,7 @@ def backup_rt_static_trip_match(
         sa.select(
             VehicleTrips.pm_trip_id,
             VehicleTrips.direction_id,
-            sa.func.coalesce(
-                VehicleTrips.branch_route_id, VehicleTrips.trunk_route_id
-            ).label("route_id"),
+            sa.func.coalesce(VehicleTrips.branch_route_id, VehicleTrips.trunk_route_id).label("route_id"),
             VehicleTrips.start_time,
         )
         .select_from(VehicleTrips)
@@ -1065,18 +1013,13 @@ def backup_rt_static_trip_match(
         .join(
             static_trips_summary_sub,
             sa.and_(
-                rt_trips_summary_sub.c.direction_id
-                == static_trips_summary_sub.c.direction_id,
-                rt_trips_summary_sub.c.route_id
-                == static_trips_summary_sub.c.route_id,
+                rt_trips_summary_sub.c.direction_id == static_trips_summary_sub.c.direction_id,
+                rt_trips_summary_sub.c.route_id == static_trips_summary_sub.c.route_id,
             ),
         )
         .order_by(
             rt_trips_summary_sub.c.pm_trip_id,
-            sa.func.abs(
-                rt_trips_summary_sub.c.start_time
-                - static_trips_summary_sub.c.static_start_time
-            ),
+            sa.func.abs(rt_trips_summary_sub.c.start_time - static_trips_summary_sub.c.static_start_time),
         )
     ).subquery(name="backup_trips_match")
 

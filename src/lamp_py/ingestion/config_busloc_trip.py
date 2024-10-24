@@ -18,11 +18,7 @@ class RtBusTripDetail(GTFSRTDetail):
 
     def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
         """modify table schema before write to parquet"""
-        return flatten_schema(
-            explode_table_column(
-                flatten_schema(table), "trip_update.stop_time_update"
-            )
-        )
+        return flatten_schema(explode_table_column(flatten_schema(table), "trip_update.stop_time_update"))
 
     @property
     def partition_column(self) -> str:

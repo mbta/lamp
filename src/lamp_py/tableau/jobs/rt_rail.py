@@ -203,9 +203,7 @@ class HyperRtRail(HyperJob):
         # subtract additional day incase of early spurious service_date record
         max_start_date -= datetime.timedelta(days=1)
 
-        update_query = self.table_query % (
-            f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",
-        )
+        update_query = self.table_query % (f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",)
 
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
@@ -215,9 +213,9 @@ class HyperRtRail(HyperJob):
         )
 
         check_filter = pc.field("service_date") >= max_start_date
-        if pd.dataset(self.db_parquet_path).count_rows() == pd.dataset(
-            self.local_parquet_path
-        ).count_rows(filter=check_filter):
+        if pd.dataset(self.db_parquet_path).count_rows() == pd.dataset(self.local_parquet_path).count_rows(
+            filter=check_filter
+        ):
             process_logger.add_metadata(new_data=False)
             process_logger.log_complete()
             # No new records from database, no upload required
@@ -227,18 +225,14 @@ class HyperRtRail(HyperJob):
 
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
-        old_batches = pd.dataset(self.local_parquet_path).to_batches(
-            filter=old_filter, batch_size=self.ds_batch_size
-        )
+        old_batches = pd.dataset(self.local_parquet_path).to_batches(filter=old_filter, batch_size=self.ds_batch_size)
         filter_path = "/tmp/filter_local.parquet"
 
         old_batch_count = 0
         old_batch_rows = 0
         old_batch_bytes = 0
 
-        with pq.ParquetWriter(
-            filter_path, schema=self.parquet_schema
-        ) as writer:
+        with pq.ParquetWriter(filter_path, schema=self.parquet_schema) as writer:
             for batch in old_batches:
                 old_batch_count += 1
                 old_batch_rows += batch.num_rows
@@ -267,9 +261,7 @@ class HyperRtRail(HyperJob):
         combine_batch_rows = 0
         combine_batch_bytes = 0
 
-        with pq.ParquetWriter(
-            combine_parquet_path, schema=self.parquet_schema
-        ) as writer:
+        with pq.ParquetWriter(combine_parquet_path, schema=self.parquet_schema) as writer:
             for batch in combine_batches:
                 combine_batch_count += 1
                 combine_batch_rows += batch.num_rows

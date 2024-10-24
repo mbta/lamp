@@ -1,11 +1,13 @@
 from datetime import date
+from unittest import mock
 
 from lamp_py.bus_performance_manager.gtfs_utils import (
     bus_routes_for_service_date,
 )
 
 
-def test_bus_routes_for_service_date() -> None:
+@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
+def test_bus_routes_for_service_date(exists_patch: mock.MagicMock) -> None:
     """
     Test that bus routes be generated for a given service date. For the
     generated list ensure
@@ -13,7 +15,7 @@ def test_bus_routes_for_service_date() -> None:
         * don't have a leading zero
         * contain a subset of known routes
     """
-    assert True
+    exists_patch.return_value = True
 
     service_date = date(year=2023, month=2, day=1)
     bus_routes = bus_routes_for_service_date(service_date)

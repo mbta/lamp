@@ -7,9 +7,7 @@ UPDATE_FILENAME = "2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_
 
 VEHICLE_POSITIONS_FILENAME = "2022-01-01T00:00:03Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz"
 
-ALERTS_FILENAME = (
-    "2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz"
-)
+ALERTS_FILENAME = "2022-01-01T00:00:38Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz"
 
 
 def test_filname_parsing() -> None:
@@ -20,9 +18,7 @@ def test_filname_parsing() -> None:
     trip_updates_type = ConfigType.from_filename(UPDATE_FILENAME)
     assert trip_updates_type == ConfigType.RT_TRIP_UPDATES
 
-    vehicle_positions_type = ConfigType.from_filename(
-        VEHICLE_POSITIONS_FILENAME
-    )
+    vehicle_positions_type = ConfigType.from_filename(VEHICLE_POSITIONS_FILENAME)
     assert vehicle_positions_type == ConfigType.RT_VEHICLE_POSITIONS
 
     alerts_type = ConfigType.from_filename(ALERTS_FILENAME)
