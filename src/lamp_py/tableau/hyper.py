@@ -99,6 +99,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
             "int8": SqlType.small_int(),
             "int16": SqlType.small_int(),
             "int32": SqlType.int(),
+            "uint32": SqlType.big_int(),
             "int64": SqlType.big_int(),
             "bool": SqlType.bool(),
             "float16": SqlType.double(),
