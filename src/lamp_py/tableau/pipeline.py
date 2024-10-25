@@ -17,6 +17,8 @@ from lamp_py.tableau.jobs.gtfs_rail import (
     HyperStaticStopTimes,
     HyperStaticTrips,
 )
+from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll
+from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
 
@@ -54,6 +56,8 @@ def start_hyper_updates() -> None:
         HyperStaticStopTimes(),
         HyperStaticTrips(),
         HyperRtAlerts(),
+        HyperBusPerformanceAll(),
+        HyperBusPerformanceRecent(),
     ]
 
     for job in hyper_jobs:
@@ -77,3 +81,15 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
 
     for job in parquet_update_jobs:
         job.run_parquet(db_manager)
+
+
+def start_bus_parquet_updates() -> None:
+    """Run all Bus Parquet Update jobs"""
+
+    parquet_update_jobs: List[HyperJob] = [
+        HyperBusPerformanceRecent(),
+        HyperBusPerformanceAll(),
+    ]
+
+    for job in parquet_update_jobs:
+        job.run_parquet(None)
