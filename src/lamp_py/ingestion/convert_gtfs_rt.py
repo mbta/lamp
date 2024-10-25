@@ -372,9 +372,9 @@ class GtfsRtConverter(Converter):
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
-            # RT_ALERTS parquet files contain nested column structures
-            # if new nested field is ingested, combining of new and existing column is not possible
-            # this try/except is meant to catch that error and reset the dataset for the service_day in the event of a schem mis-match
+            # RT_ALERTS parquet files contain columns with nested structure types
+            # if a new nested field is ingested, combining of the new and existing nested column is not possible
+            # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
             # RT_ALERTS updates are essentially the same throughout a service day so resetting the
             # dataset will have minimal impact on archived data
             try:
