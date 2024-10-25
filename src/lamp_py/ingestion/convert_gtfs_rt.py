@@ -372,12 +372,23 @@ class GtfsRtConverter(Converter):
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
-            out_ds = pd.dataset(
-                [
-                    pd.dataset(table),
-                    pd.dataset(local_path),
-                ]
-            )
+            # RT_ALERTS parquet files contain nested column structures
+            # if new nested field is ingested, combining of new and existing column is not possible
+            # this try/except is meant to catch that error and reset the dataset for the service_day in the event of a schem mis-match
+            # RT_ALERTS updates are essentially the same throughout a service day so resetting the
+            # dataset will have minimal impact on archived data
+            try:
+                out_ds = pd.dataset(
+                    [
+                        pd.dataset(table),
+                        pd.dataset(local_path),
+                    ]
+                )
+            except pyarrow.ArrowTypeError as exception:
+                if self.config_type == ConfigType.RT_ALERTS:
+                    out_ds = pd.dataset(table)
+                else:
+                    raise exception
 
         return out_ds
 
