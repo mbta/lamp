@@ -273,6 +273,7 @@ class TripUpdates(GlidesConverter):
         glides_trip_key = pyarrow.struct(
             [
                 ("serviceDate", pyarrow.string()),
+                ("tripId", pyarrow.string()),
                 ("startLocation", self.glides_location),
                 ("endLocation", self.glides_location),
                 ("startTime", pyarrow.string()),
