@@ -126,7 +126,7 @@ jobs:
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
         if: ${{ inputs.deploy-tableau-publisher && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@v2
+        uses: mbta/actions/deploy-scheduled-ecs@rr-fix-import-path
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
