@@ -56,7 +56,7 @@
         Addtionally, each parquet file contains two integer columns, added by LAMP, (<i><b>gtfs_active_date, gtfs_end_date</b></i>). These two columns are used to filter the parquet file for the GTFS records that were applicable on a single service date.
     </p>
     <p>
-        To find the <i>feed_info.txt</i> records that were applicable on December 25, 2022, query <i>https://performancedata.mbta.com/lamp/gtfs_archive/2022/feed_info.parquet</i>, with (gtfs_active_date >= 20221225 AND gtfs_end_date <= 20221225) to retrieve:
+        To find the <i>feed_info.txt</i> records that were applicable on December 25, 2022, query <i>https://performancedata.mbta.com/lamp/gtfs_archive/2022/feed_info.parquet</i>, with (gtfs_active_date <= 20221225 AND gtfs_end_date >= 20221225) to retrieve:
     </p>
     <div><table border="1"><thead><tr><th>feed_publisher_name</th><th>feed_lang</th><th>feed_version</th><th>feed_start_date</th><th>feed_publisher_url</th><th>feed_id</th><th>feed_end_date</th><th>feed_contact_email</th><th>gtfs_active_date</th><th>gtfs_end_date</th></tr><tr><td>str</td><td>str</td><td>str</td><td>i64</td><td>str</td><td>str</td><td>i64</td><td>str</td><td>i32</td><td>i32</td></tr></thead><tbody><tr><td>MBTA</td><td>EN</td><td>Winter 2023, 2022-12-22T20:50:07+00:00, version D</td><td>20221215</td><td>http://www.mbta.com</td><td>null</td><td>20221221</td><td>developer@mbta.com</td><td>20221223</td><td>20221229</td></tr></tbody></table></div>
 
@@ -119,9 +119,8 @@
         OPMI Tableau Data Tables
     </h2>
     <p>
-        LAMP creates several datasets for
-        <a href="https://www.massdottracker.com/wp/about/what-is-opmi-2/">OPMI</a>'s Tableau server.
-        OPMI uses these datasets to develop dashboards, metrics and reports for the public and MBTA Operations.
+        LAMP creates several datasets for the MBTA's internal Tableau server.
+        The data analysts in the MBTA departments Operations Analytics and <a href="https://www.massdottracker.com/about-opmi">OPMI</a> use these datasets to develop dashboards, metrics, and reports for both MBTA Operations and the public.
         These datasets are available at the following links.
     <ul>
         <li>
