@@ -362,6 +362,62 @@ class TripUpdates(GlidesConverter):
         return tu_dataset
 
 
+class VehicleTripAssignment(GlidesConverter):
+    """
+    Converter for Vehcile Trip Assignment Events
+    https://mbta.github.io/schemas/events/glides/com.mbta.ctd.glides.vehicle_trip_assignment.v1
+    """
+
+    def __init__(self) -> None:
+        GlidesConverter.__init__(self, base_filename="vehicle_trip_assignment.parquet")
+
+    @property
+    def event_schema(self) -> pyarrow.schema:
+        # NOTE: These tables will eventually be uniqued via polars, which will
+        # not work if any of the types in the schema are objects.
+        glides_trip_key = pyarrow.struct(
+            [
+                ("serviceDate", pyarrow.string()),
+                ("tripId", pyarrow.string()),
+                ("scheduled", pyarrow.string()),
+            ]
+        )
+
+        return pyarrow.schema(
+            [
+                ("type", pyarrow.string()),
+                ("specversion", pyarrow.string()),
+                ("source", pyarrow.string()),
+                ("id", pyarrow.string()),
+                ("time", pyarrow.timestamp("ms")),
+                (
+                    "data",
+                    pyarrow.struct(
+                        [
+                            ("vehicleId", pyarrow.string()),
+                            ("tripKey", glides_trip_key),
+                        ]
+                    ),
+                ),
+            ]
+        )
+
+    @property
+    def unique_key(self) -> str:
+        return "tripKey"
+
+    def convert_records(self) -> pd.Dataset:
+        process_logger = ProcessLogger(process_name="convert_records", type=self.type)
+        process_logger.log_start()
+
+        tu_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
+        tu_table = flatten_schema(tu_table)
+        tu_dataset = pd.dataset(tu_table)
+
+        process_logger.log_complete()
+        return tu_dataset
+
+
 def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]]) -> None:
     """
     ingest glides records from the kinesis stream and add them to parquet files
@@ -374,6 +430,7 @@ def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Op
             EditorChanges(),
             OperatorSignIns(),
             TripUpdates(),
+            VehicleTripAssignment(),
         ]
 
         for record in kinesis_reader.get_records():
