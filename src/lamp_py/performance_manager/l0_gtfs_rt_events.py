@@ -281,7 +281,7 @@ def build_temp_events(events: pandas.DataFrame, db_manager: DatabaseManager) -> 
     events = events.fillna(numpy.nan).replace([numpy.nan], [None])
 
     # truncate temp_event_compare table and insert all event records
-    db_manager.truncate_table(TempEventCompare)
+    db_manager.truncate_table(TempEventCompare, restart_identity=True)
     db_manager.execute_with_data(
         sa.insert(TempEventCompare.__table__),
         events,
