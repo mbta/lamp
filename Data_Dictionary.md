@@ -43,7 +43,7 @@ Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of
 
 # OPMI Tableau Exports
 
-The following LAMP data exports are used by [OPMI](https://www.massdottracker.com/wp/about/what-is-opmi-2/) for Tableau dashboarding:
+The following LAMP data exports are used by the MBTA departments Operations Analytics and [OPMI](https://www.massdottracker.com/about-opmi) for Tableau dashboarding:
 - [LAMP_ALL_RT_fields](#lamp_all_rt_fields)
 - [LAMP_service_id_by_date_and_route](#lamp_service_id_by_date_and_route)
 - [LAMP_static_calendar_dates](#lamp_static_calendar_dates)
