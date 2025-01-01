@@ -208,6 +208,9 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
         reverse=True,
     )
 
+    # Insert extra year in case schedule is issued on last day of year
+    feed_years.insert(0, str(int(feed_years[0]) + 1))
+
     for year in feed_years:
         if not os.path.exists(os.path.join(tmp_folder, year)):
             os.makedirs(os.path.join(tmp_folder, year))
