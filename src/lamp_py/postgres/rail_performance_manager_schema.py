@@ -19,7 +19,7 @@ class VehicleEvents(RpmSqlBase):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "vehicle_events"
 
-    pm_event_id = sa.Column(sa.Integer, primary_key=True)
+    pm_event_id = sa.Column(sa.BigInteger, primary_key=True)
 
     # trip identifiers
     service_date = sa.Column(sa.Integer, nullable=False)
@@ -33,8 +33,8 @@ class VehicleEvents(RpmSqlBase):  # pylint: disable=too-few-public-methods
     parent_station = sa.Column(sa.String(60), nullable=False)
 
     # stop link fields
-    previous_trip_stop_pm_event_id = sa.Column(sa.Integer, nullable=True)
-    next_trip_stop_pm_event_id = sa.Column(sa.Integer, nullable=True)
+    previous_trip_stop_pm_event_id = sa.Column(sa.BigInteger, nullable=True)
+    next_trip_stop_pm_event_id = sa.Column(sa.BigInteger, nullable=True)
 
     # event timestamps used for metrics
     vp_move_timestamp = sa.Column(sa.Integer, nullable=True)
