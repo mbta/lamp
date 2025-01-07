@@ -16,7 +16,9 @@ Details
 from alembic import op
 import sqlalchemy as sa
 
-from lamp_py.migrations.versions.performance_manager_staging.sql_strings.strings_001 import view_opmi_all_rt_fields_joined
+from lamp_py.migrations.versions.performance_manager_staging.sql_strings.strings_001 import (
+    view_opmi_all_rt_fields_joined,
+)
 
 # revision identifiers, used by Alembic.
 revision = "36e7a7aee148"
