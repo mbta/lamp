@@ -1,10 +1,22 @@
 # LAMP Data Exports
 
-Access instructions for all LAMP public data exports are available at [https://performancedata.mbta.com](https://performancedata.mbta.com). 
+LAMP provides public data exports to support transit performance analysis.
+[Access instructions for all LAMP public data exports](https://performancedata.mbta.com)Some LAMP data exports are used by [OPMI](https://www.massdottracker.com/wp/about/what-is-opmi-2/) for Tableau dashboarding.
 
 LAMP currently produces the following sets of public data exports:
 - [Subway Performance Data](#subway-performance-data)
+- [Bus Performance Data](#bus-performance-data)
 - [OPMI Tableau Exports](#opmi-tableau-exports)
+  - [LAMP\_ALL\_RT\_fields](#lamp_all_rt_fields)
+  - [LAMP\_service\_id\_by\_date\_and\_route](#lamp_service_id_by_date_and_route)
+  - [LAMP\_static\_calendar\_dates](#lamp_static_calendar_dates)
+  - [LAMP\_static\_calendar](#lamp_static_calendar)
+  - [LAMP\_static\_feed\_info](#lamp_static_feed_info)
+  - [LAMP\_static\_routes](#lamp_static_routes)
+  - [LAMP\_static\_stop\_times](#lamp_static_stop_times)
+  - [LAMP\_static\_stops](#lamp_static_stops)
+  - [LAMP\_static\_trips](#lamp_static_trips)
+  - [LAMP\_RT\_ALERTS](#lamp_rt_alerts)
 
 # Subway Performance Data
 
@@ -40,20 +52,27 @@ Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of
 | scheduled_headway_branch | int64 | planned seconds between consecutive vehicles departing `parent_station` on `branch_route_id`, derived from from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) | LAMP Calculated |
 | scheduled_headway_trunk | int64 | planned seconds between consecutive vehicles departing `parent_station` on `trunk_route_id`, derived from from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) | LAMP Calculated |
 
+# Bus Performance Data
+
+Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.
+
+| field name | type | description | source |
+| ----------- | --------- | ----------- | ------------ |
+| service_date | string | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor][gtfs-tripdescriptor] converted to seconds after midnight | GTFS-RT |
+| start_dt | datetime | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor]. Also includes time | GTFS-RT |
+| stop_count | uint32 | number of stops recorded on trip | LAMP Calculated |
+| direction_id | int8 | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| stop_id | string | equivalent to GTFS-RT `stop_id` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)| GTFS-RT |
+| stop_sequence | int64 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
+| vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
+
 
 # OPMI Tableau Exports
 
-The following LAMP data exports are used by [OPMI](https://www.massdottracker.com/wp/about/what-is-opmi-2/) for Tableau dashboarding:
-- [LAMP_ALL_RT_fields](#lamp_all_rt_fields)
-- [LAMP_service_id_by_date_and_route](#lamp_service_id_by_date_and_route)
-- [LAMP_static_calendar_dates](#lamp_static_calendar_dates)
-- [LAMP_static_calendar](#lamp_static_calendar)
-- [LAMP_static_feed_info](#lamp_static_feed_info)
-- [LAMP_static_routes](#lamp_static_routes)
-- [LAMP_static_stop_times](#lamp_static_stop_times)
-- [LAMP_static_stops](#lamp_static_stops)
-- [LAMP_static_trips](#lamp_static_trips)
-- [LAMP_RT_ALERTS](#lamp_rt_alerts)
+Below are the following OPMI Tableau Exports.
 
 ## LAMP_ALL_RT_fields
 
