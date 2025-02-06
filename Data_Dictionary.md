@@ -53,52 +53,6 @@ Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of
 | scheduled_headway_branch | int64 | planned seconds between consecutive vehicles departing `parent_station` on `branch_route_id`, derived from from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) | LAMP Calculated |
 | scheduled_headway_trunk | int64 | planned seconds between consecutive vehicles departing `parent_station` on `trunk_route_id`, derived from from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) | LAMP Calculated |
 
-# LAMP_Bus_Events
-
-LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events
-have the same data dictionary. Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.
-Bus has additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
-
-| field name | type | description | source |
-| ----------- | --------- | ----------- | ------------ |
-| service_date | string | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
-| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
-| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
-| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor][gtfs-tripdescriptor] converted to seconds after midnight | GTFS-RT |
-| start_dt | datetime | equivalent to GTFS-RT `start_time` added to `start_date` from [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
-| stop_count | uint32 | number of stops recorded on trip | LAMP Calculated |
-| direction_id | int8 | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
-| stop_id | string | equivalent to GTFS-RT `stop_id` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)| GTFS-RT |
-| stop_sequence | int64 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
-| vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
-| vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
-| gtfs_travel_to_dt | datetime | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
-| tm_stop_sequence | int64 | TransitMaster stop sequence | TransitMaster
-| plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
-| exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
-| block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
-| service_id | string | `service_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
-| route_pattern_id | string | Database-unique identifier for the route pattern. For the MBTA, this will generally be a concatenation including the route_id and direction_id. Values from this field are referenced in trips.txt. [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md) | GTFS |
-| route_pattern_typicality | int64 | Explains how common the route pattern is. For the MBTA, this is within the context of the entire route. [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md) | GTFS |
-| direction | string | equivalent to GTFS `direction` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
-| direction_destination | string | equivalent to GTFS `direction_destination` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
-| plan_stop_count | uint32 | planned stop count from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) of `plan_trip_id` trip | LAMP Calculated |
-| plan_start_time	| int64 | Earliest `arrival_time` from [stop_times.txt](https://gtfs.org/documentation/schedule/reference/#stop_timestxt) for `plan_trip_id` | GTFS |
-| plan_start_dt	| datetime | equivalent to `start_datetime` if planned trip, otherwise GTFS-RT `start_date` added to `plan_start_time` | LAMP Calculated |
-| stop_name | string | equivalent to GTFS `stop_name` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt) for `stop_id` | GTFS
-| plan_travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
-| plan_route_direction_headway_seconds	| int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
-| plan_direction_destination_headway_seconds | int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
-| stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
-| stop_departure_dt | datetime | equivalent to `gtfs_travel_to_dt` for next stop on trip | GTFS-RT
-| gtfs_travel_to_seconds | int64 | `gtfs_travel_to_dt` as seconds after midnight | LAMP Calculated
-| stop_arrival_seconds | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated |
-| stop_departure_seconds | int64 | `stop_departure_datetime` as seconds after midnight | LAMP Calculated |
-| travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
-| dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
-| route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
-| direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
-
 
 # OPMI Tableau Exports
 
@@ -307,6 +261,52 @@ In generating this dataset, translation string fields contain only the English t
 | informed_entity.stop_id | string | Equivalent to `informed_entity[n][stop_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
 | informed_entity.facility_id | string | Equivalent to `informed_entity[n][faciliy_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
 | informed_entity.activities | string | Equivalent to `informed_entity[n][activities]` as a `\|` delimitated string. All potential values are defined in the [Activity](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enum-activity) enum.
+
+## LAMP_Bus_Events
+
+LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events have the same data dictionary.\
+Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.\
+Bus has additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
+
+| field name | type | description | source |
+| ----------- | --------- | ----------- | ------------ |
+| service_date | string | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor][gtfs-tripdescriptor] converted to seconds after midnight | GTFS-RT |
+| start_dt | datetime | equivalent to GTFS-RT `start_time` added to `start_date` from [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
+| stop_count | uint32 | number of stops recorded on trip | LAMP Calculated |
+| direction_id | int8 | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
+| stop_id | string | equivalent to GTFS-RT `stop_id` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)| GTFS-RT |
+| stop_sequence | int64 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
+| vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
+| vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
+| gtfs_travel_to_dt | datetime | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
+| tm_stop_sequence | int64 | TransitMaster stop sequence | TransitMaster
+| plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
+| exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
+| block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
+| service_id | string | `service_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
+| route_pattern_id | string | Database-unique identifier for the route pattern. For the MBTA, this will generally be a concatenation including the route_id and direction_id. Values from this field are referenced in trips.txt. [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md) | GTFS |
+| route_pattern_typicality | int64 | Explains how common the route pattern is. For the MBTA, this is within the context of the entire route. [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md) | GTFS |
+| direction | string | equivalent to GTFS `direction` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
+| direction_destination | string | equivalent to GTFS `direction_destination` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
+| plan_stop_count | uint32 | planned stop count from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) of `plan_trip_id` trip | LAMP Calculated |
+| plan_start_time	| int64 | Earliest `arrival_time` from [stop_times.txt](https://gtfs.org/documentation/schedule/reference/#stop_timestxt) for `plan_trip_id` | GTFS |
+| plan_start_dt	| datetime | equivalent to `start_datetime` if planned trip, otherwise GTFS-RT `start_date` added to `plan_start_time` | LAMP Calculated |
+| stop_name | string | equivalent to GTFS `stop_name` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt) for `stop_id` | GTFS
+| plan_travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
+| plan_route_direction_headway_seconds	| int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
+| plan_direction_destination_headway_seconds | int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
+| stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
+| stop_departure_dt | datetime | equivalent to `gtfs_travel_to_dt` for next stop on trip | GTFS-RT
+| gtfs_travel_to_seconds | int64 | `gtfs_travel_to_dt` as seconds after midnight | LAMP Calculated
+| stop_arrival_seconds | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated |
+| stop_departure_seconds | int64 | `stop_departure_datetime` as seconds after midnight | LAMP Calculated |
+| travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
+| dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
+| route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
+| direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
 
 [gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
 [mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields
