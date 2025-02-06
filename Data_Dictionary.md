@@ -87,7 +87,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | plan_start_dt	| datetime | equivalent to `start_datetime` if planned trip, otherwise GTFS-RT `start_date` added to `plan_start_time` | LAMP Calculated |
 | stop_name | string | equivalent to GTFS `stop_name` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt) for `stop_id` | GTFS
 | plan_travel_time_seconds | int64 | Planned seconds from previous stop to current stop based on GTFS static | LAMP Calculated |
-| plan_route_direction_headway_seconds	| int64 | Headways aggregated by direction and route | LAMP Calculated |
+| plan_route_direction_headway_seconds	| int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | plan_direction_destination_headway_seconds | int64 | Headways aggregated by direction and ending station | LAMP Calculated |
 | stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
 | stop_departure_dt | datetime | equivalent to `gtfs_travel_to_dt` for next stop on trip | GTFS-RT
