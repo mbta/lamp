@@ -5,7 +5,6 @@ Some LAMP data exports are used by [OPMI](https://www.massdottracker.com/wp/abou
 
 LAMP currently produces the following sets of public data exports:
 - [Subway Performance Data](#subway-performance-data)
-- [Bus Performance Data](#bus-performance-data)
 - [OPMI Tableau Exports](#opmi-tableau-exports)
   - [LAMP\_ALL\_RT\_fields](#lamp_all_rt_fields)
   - [LAMP\_service\_id\_by\_date\_and\_route](#lamp_service_id_by_date_and_route)
@@ -17,6 +16,8 @@ LAMP currently produces the following sets of public data exports:
   - [LAMP\_static\_stops](#lamp_static_stops)
   - [LAMP\_static\_trips](#lamp_static_trips)
   - [LAMP\_RT\_ALERTS](#lamp_rt_alerts)
+  - [LAMP\_ALL\_Bus\_Events](#lamp_bus_events)
+  - [LAMP\_RECENT\_Bus\_Events](#lamp_bus_events)
 
 # Subway Performance Data
 
@@ -52,9 +53,10 @@ Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of
 | scheduled_headway_branch | int64 | planned seconds between consecutive vehicles departing `parent_station` on `branch_route_id`, derived from from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) | LAMP Calculated |
 | scheduled_headway_trunk | int64 | planned seconds between consecutive vehicles departing `parent_station` on `trunk_route_id`, derived from from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) | LAMP Calculated |
 
-# Bus Performance Data
+# LAMP_Bus_Events
 
-Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.
+LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events
+have the same data dictionary. Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.
 Bus has additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
 
 | field name | type | description | source |
