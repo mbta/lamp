@@ -87,7 +87,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | plan_travel_time_seconds | int64 | Planned seconds from previous stop to current stop based on GTFS static | LAMP Calculated |
 | plan_route_direction_headway_seconds	| int64 | Headways aggregated by direction and route | LAMP Calculated |
 | plan_direction_destination_headway_seconds | int64 | Headways aggregated by direction and ending station | LAMP Calculated |
-| stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) or last `arrival` timestamp from GTFS-RT [StopTimeUpdate](https://gtfs.org/realtime/reference/#message-stoptimeupdate) if VehiclePosition value is not available as an Eastern datetime | GTFS-RT
+| stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
 | stop_departure_dt | datetime | equivalent to `previous_stop_departure_datetime` for next stop on trip | GTFS-RT
 | gtfs_travel_to_seconds | int64 | `gtfs_travel_to_dt` field as seconds after midnight | GTFS (timestamp value from GTFS-RT)
 | stop_arrival_seconds | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated |
