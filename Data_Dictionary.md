@@ -63,7 +63,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
 | trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
 | start_time | int64 |  equivalent to GTFS-RT `start_time` value in [Trip Descriptor][gtfs-tripdescriptor] converted to seconds after midnight | GTFS-RT |
-| start_dt | datetime | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor]. Also includes time | GTFS-RT |
+| start_dt | datetime | equivalent to GTFS-RT `start_time` added to `start_date` from [Trip Descriptor](https://gtfs.org/realtime/reference/#message-tripdescriptor) | GTFS-RT |
 | stop_count | uint32 | number of stops recorded on trip | LAMP Calculated |
 | direction_id | int8 | equivalent to GTFS-RT `direction_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
 | stop_id | string | equivalent to GTFS-RT `stop_id` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)| GTFS-RT |
