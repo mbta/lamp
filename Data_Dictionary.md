@@ -94,7 +94,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | stop_departure_seconds | int64 | `stop_departure_datetime` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
 | dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
-| route_direction_headway_seconds	| int64 | Headway for this stop for all trips on this route in the same direction | LAMP Calculated |
+| route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | direction_destination_headway_seconds	| int64 | Headway for every vehicle in the same `direction_destination` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt)| LAMP Calculated |
 
 
