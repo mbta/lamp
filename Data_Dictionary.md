@@ -1,6 +1,7 @@
 # LAMP Data Exports
 
-LAMP provides public data exports to support transit performance analysis. [Access instructions for all LAMP public data exports](https://performancedata.mbta.com)\
+LAMP provides public data exports to support transit performance analysis.\
+[Access instructions for all LAMP public data exports](https://performancedata.mbta.com)\
 Some LAMP data exports are used by [OPMI](https://www.massdottracker.com/wp/about/what-is-opmi-2/) for Tableau dashboarding.
 
 LAMP currently produces the following sets of public data exports:
