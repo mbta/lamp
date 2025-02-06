@@ -74,7 +74,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | tm_stop_sequence | int64 | TransitMaster stop sequence | TransitMaster
 | plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
 | exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
-| block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | TransitMaster |
+| block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
 | service_id | string | `service_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
 | route_pattern_id | string | Database-unique identifier for the route pattern. For the MBTA, this will generally be a concatenation including the route_id and direction_id. Values from this field are referenced in trips.txt. [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md) | GTFS |
 | route_pattern_typicality | int64 | Explains how common the route pattern is. For the MBTA, this is within the context of the entire route. [route_patterns.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md) | GTFS |
