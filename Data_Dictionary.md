@@ -70,7 +70,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | stop_sequence | int64 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
 | vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
 | vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
-| gtfs_travel_to_dt | datetime | First recorded date time traveling to the `stop_id` | GTFS (timestamp value from GTFS-RT)
+| gtfs_travel_to_dt | datetime | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
 | tm_stop_sequence | int64 | TransitMaster stop sequence | TransitMaster
 | plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
 | exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
