@@ -83,7 +83,7 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | direction | string | equivalent to GTFS `direction` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
 | direction_destination | string | equivalent to GTFS `direction_destination` value from [directions.txt](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#directionstxt) for `route_id`-`direction_id` pair | GTFS |
 | plan_stop_count | uint32 | planned stop count from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) of `plan_trip_id` trip | LAMP Calculated |
-| plan_start_time	| int64 | Earliest arrival time from [stop_times.txt](https://gtfs.org/documentation/schedule/reference/#stop_timestxt) | GTFS |
+| plan_start_time	| int64 | Earliest `arrival_time` from [stop_times.txt](https://gtfs.org/documentation/schedule/reference/#stop_timestxt) for `plan_trip_id` | GTFS |
 | plan_start_dt	| datetime | equivalent to `start_datetime` if planned trip, otherwise GTFS-RT `start_date` added to `static_start_time` | LAMP Calculated |
 | stop_name | string | equivalent to GTFS `stop_name` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt) for `stop_id` | GTFS
 | plan_travel_time_seconds | int64 | Planned seconds from previous stop to current stop based on GTFS static | LAMP Calculated |
