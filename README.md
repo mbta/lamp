@@ -16,15 +16,40 @@ LAMP application architecture is managed and described using `Terraform` in the 
 
 # Developer Usage
 
+## Getting Started - Local Install Procedure (Mac)
+
+The  `bin/install.sh` script will run through the following commands for ease of use. 
+
+`brew install postgresql`
+
+- skip pinned tableauhyperapi dependency required due to tableau version used by stakeholders (?) 
+
+`poetry install --without tableau`
+
+run all local tests that don't require any database dependencies
+
+`poetry run pytest  --ignore=src/lamp_py/mssql/test_connect.py --ignore=tests/ingestion_tm/test_ingest.py --ignore=tests/aws/test_s3_utils.py --ignore=tests/performance_manager/test_performance_manager.py`
+
+run tests requiring no external dependencies
+
+## Getting Started - Database/AWS Configured (Docker) - WIP
+
+- follow Performance Manager [README.md - Developer Usage](src/lamp_py/performance_manager/README.md#developer-usage) instructions (WIP)
+
+
+- Execute tests requiring db dependencies
+
+`poetry run pytest  src/lamp_py/mssql/test_connect.py tests/ingestion_tm/test_ingest.py tests/aws/test_s3_utils.py tests/performance_manager/test_performance_manager.py `
+
 ## Dependencies
 
 LAMP uses [asdf](https://asdf-vm.com/) to mange runtime versions using the command line. Once installed, run the following in the root project directory:
 
 ```sh
 # add project plugins
-asdf plugin-add python
-asdf plugin-add direnv
-asdf plugin-add poetry
+asdf plugin add python
+asdf plugin add direnv
+asdf plugin add poetry
 
 # install versions of plugins specified in .tool-versions
 asdf install
@@ -39,6 +64,7 @@ asdf install
 LAMP applications require permissions to access MBTA/CTD AWS resources. 
 
 To get started with AWS, install the [AWS Command Line Interface](https://aws.amazon.com/cli/). Then, follow the instructions for [configuring the AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to associate a local machine with an AWS account.  Finally, associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
+
 
 ## Microsoft SQL
 
