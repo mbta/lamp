@@ -21,6 +21,7 @@ LAMP application architecture is managed and described using `Terraform` in the 
 The  `bin/install.sh` script will run through the following commands for ease of use. 
 
 `brew install postgresql`
+`brew install unixodbc`
 
 - skip pinned tableauhyperapi dependency required due to tableau version used by stakeholders (?) 
 
