@@ -5,6 +5,7 @@ from datetime import timezone
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+import pyarrow.compute as pc
 from pyarrow.fs import S3FileSystem
 
 import polars as pl
@@ -59,7 +60,6 @@ bus_schema = pyarrow.schema(
     ]
 )
 
-
 def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     """
     Join bus_events files into single parquet file for upload to Tableau
@@ -90,6 +90,7 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             )
 
             writer.write_table(polars_df.to_arrow())
+
 
 
 class HyperBusPerformanceAll(HyperJob):
