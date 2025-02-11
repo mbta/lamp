@@ -73,9 +73,8 @@ from lamp_py.performance_manager.gtfs_utils import (
 from ..test_resources import springboard_dir, test_files_dir, csv_to_vp_parquet
 
 
-@pytest.mark.skip("utility function, not a test")
 @lru_cache
-def test_files() -> List[str]:
+def get_all_test_files() -> List[str]:
     """
     collapse all of the files in the lamp test files dir into a list
     """
@@ -422,7 +421,7 @@ def test_static_tables(
     rpm_db_manager.truncate_table(StaticDirections, restart_identity=True)
     rpm_db_manager.truncate_table(StaticRoutePatterns, restart_identity=True)
 
-    paths = [file for file in test_files() if "FEED_INFO" in file]
+    paths = [file for file in get_all_test_files() if "FEED_INFO" in file]
     seed_metadata(md_db_manager, paths)
 
     unprocessed_static_schedules = md_db_manager.select_as_list(
@@ -507,7 +506,7 @@ def test_gtfs_rt_processing(
 
     paths = [
         file
-        for file in test_files()
+        for file in get_all_test_files()
         if ("RT_VEHICLE_POSITIONS" in file or "RT_TRIP_UPDATES" in file) and ("hour=12" in file or "hour=13" in file)
     ]
     seed_metadata(md_db_manager, paths)
@@ -614,7 +613,7 @@ def test_vp_only(
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
     md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [p for p in test_files() if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)]
+    paths = [p for p in get_all_test_files() if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)]
     seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
@@ -636,7 +635,7 @@ def test_tu_only(
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
     md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [p for p in test_files() if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)]
+    paths = [p for p in get_all_test_files() if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)]
     seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
@@ -658,7 +657,7 @@ def test_vp_and_tu(
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
     md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [p for p in test_files() if "hourt=12" in p or "hour=13" in p]
+    paths = [p for p in get_all_test_files() if "hourt=12" in p or "hour=13" in p]
     seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
