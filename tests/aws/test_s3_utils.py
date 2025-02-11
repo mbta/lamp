@@ -120,7 +120,7 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
 
     caplog.set_level(logging.WARNING)
     with s3_stub:
-        move_s3_objects(bad_file_list, dest_bucket)
+        move_s3_objects(bad_file_list, dest_bucket, retry_interval=1)
 
     log_lines = caplog.text.split("\n")
     found_error = False

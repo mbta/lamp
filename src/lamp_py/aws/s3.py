@@ -442,7 +442,7 @@ def _init_process_session() -> None:
 
 # pylint: disable=R0914
 # pylint too many local variables (more than 15)
-def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
+def move_s3_objects(files: List[str], to_bucket: str, retry_interval: int = 15) -> List[str]:
     """
     Move list of S3 objects to to_bucket bucket, retaining the object path.
 
@@ -468,6 +468,7 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         "move_s3_objects",
         to_bucket=to_bucket,
         file_count=len(files),
+        retry_interval=15
     )
     process_logger.log_start()
 
@@ -493,7 +494,7 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
             break
 
         # wait for gremlins to disappear
-        time.sleep(15)
+        time.sleep(retry_interval)
 
     process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
 
