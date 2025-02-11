@@ -5,7 +5,10 @@ from datetime import timezone
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+import pyarrow.compute as pc
 from pyarrow.fs import S3FileSystem
+
+import polars as pl
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.runtime_utils.remote_files import bus_events
@@ -57,7 +60,6 @@ bus_schema = pyarrow.schema(
     ]
 )
 
-
 def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     """
     Join bus_events files into single parquet file for upload to Tableau
@@ -76,7 +78,13 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
 
     with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
-            writer.write_batch(batch)
+            arrow_table = pyarrow.Table.from_batches([batch])
+            polars_df = pl.from_arrow(arrow_table)
+            polars_df.with_columns(pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").alias('US/Eastern'))
+            polars_df.with_columns(pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").alias('US/Eastern'))
+            table = polars_df.to_arrow()
+            writer.write_table(table)
+
 
 
 class HyperBusPerformanceAll(HyperJob):
@@ -114,7 +122,7 @@ class HyperBusPerformanceAll(HyperJob):
 
 
 class HyperBusPerformanceRecent(HyperJob):
-    """HyperJob for ALL LAMP RT Bus Data"""
+    """HyperJob for RECENT LAMP RT Bus Data"""
 
     def __init__(self) -> None:
         HyperJob.__init__(
