@@ -135,4 +135,3 @@ jobs:
           coverage-files: coverage/lcov.*.info
           artifact-name: python-code-coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
