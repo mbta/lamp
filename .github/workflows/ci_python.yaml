@@ -129,7 +129,7 @@ jobs:
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
       - name: Report code coverage
-        uses: mbta/github-actions-report-lcov@v3
+        uses: mbta/github-actions-report-lcov@v4
         with:
           coverage-files: coverage.info
           artifact-name: python-code-coverage
