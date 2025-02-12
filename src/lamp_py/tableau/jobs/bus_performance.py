@@ -93,6 +93,11 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
                 .dt.convert_time_zone(time_zone="US/Eastern")
                 .dt.replace_time_zone(None)
                 .alias("stop_departure_dt"),
+                pl.col("gtfs_travel_to_dt")
+                .dt.convert_time_zone(time_zone="US/Eastern")
+                .dt.replace_time_zone(None)
+                .alias("gtfs_travel_to_dt"),
+
             )
             table = polars_df.to_arrow()
 
