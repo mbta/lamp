@@ -125,13 +125,10 @@ jobs:
           --cov-branch \
           --cov=lamp_py
 
-      - name: Setup LCOV
-        uses: hrishikesh-kadam/setup-lcov@v1
-
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Report code coverage
         uses: mbta/github-actions-report-lcov@v4
         with:
-          coverage-files: coverage/lcov.*.info
+          coverage-files: coverage.info
           artifact-name: python-code-coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}
