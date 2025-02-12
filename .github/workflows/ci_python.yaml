@@ -127,7 +127,7 @@ jobs:
 
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Report code coverage
-        uses: mbta/github-actions-report-lcov@v1
+        uses: mbta/github-actions-report-lcov@v4
         with:
           coverage-files: coverage.info
           artifact-name: python-code-coverage
