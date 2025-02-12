@@ -124,8 +124,10 @@ jobs:
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
+
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
+        
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Report code coverage
         uses: mbta/github-actions-report-lcov@v4
