@@ -5,7 +5,6 @@ from datetime import timezone
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
-import pyarrow.compute as pc
 from pyarrow.fs import S3FileSystem
 
 import polars as pl
