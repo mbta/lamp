@@ -79,10 +79,16 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
             arrow_table = pyarrow.Table.from_batches([batch])
+            col_list = arrow_table.column("stop_arrival_dt").to_pylist()
+            col_list = arrow_table.column("stop_departure_dt").to_pylist()
+
             polars_df = pl.from_arrow(arrow_table)
-            polars_df.with_columns(pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").alias('US/Eastern'))
-            polars_df.with_columns(pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").alias('US/Eastern'))
+            polars_df = polars_df.with_columns(
+                pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None).alias("stop_arrival_dt"),
+                pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None).alias("stop_departure_dt")
+            )
             table = polars_df.to_arrow()
+
             writer.write_table(table)
 
 
