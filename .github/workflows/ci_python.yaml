@@ -127,7 +127,7 @@ jobs:
 
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
-        
+
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
