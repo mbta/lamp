@@ -82,6 +82,9 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             arrow_table = pyarrow.Table.from_batches([batch])
 
             polars_df = pl.from_arrow(arrow_table)
+            # convert to df if series
+            if isinstance(polars_df, pl.Series):
+                polars_df = polars_df.to_frame()
             polars_df = polars_df.with_columns(
                 pl.col("stop_arrival_dt")
                 .dt.convert_time_zone(time_zone="US/Eastern")
