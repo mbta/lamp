@@ -84,15 +84,9 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
             polars_df = polars_df.with_columns(
-                pl.col("stop_arrival_dt")
-                .dt.convert_time_zone(time_zone="US/Eastern")
-                .dt.replace_time_zone(None),
-                pl.col("stop_departure_dt")
-                .dt.convert_time_zone(time_zone="US/Eastern")
-                .dt.replace_time_zone(None),
-                pl.col("gtfs_travel_to_dt")
-                .dt.convert_time_zone(time_zone="US/Eastern")
-                .dt.replace_time_zone(None),
+                pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+                pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+                pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
             )
 
             writer.write_table(polars_df.to_arrow())
