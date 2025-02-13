@@ -7,6 +7,8 @@ import pyarrow.parquet as pq
 import pyarrow.dataset as pd
 from pyarrow.fs import S3FileSystem
 
+import polars as pl
+
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.runtime_utils.remote_files import bus_events
 from lamp_py.runtime_utils.remote_files import tableau_bus_all
@@ -76,7 +78,18 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
 
     with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
-            writer.write_batch(batch)
+            polars_df = pl.from_arrow(batch)
+
+            if not isinstance(polars_df, pl.DataFrame):
+                raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+
+            polars_df = polars_df.with_columns(
+                pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+                pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+                pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+            )
+
+            writer.write_table(polars_df.to_arrow())
 
 
 class HyperBusPerformanceAll(HyperJob):
@@ -114,7 +127,7 @@ class HyperBusPerformanceAll(HyperJob):
 
 
 class HyperBusPerformanceRecent(HyperJob):
-    """HyperJob for ALL LAMP RT Bus Data"""
+    """HyperJob for RECENT LAMP RT Bus Data"""
 
     def __init__(self) -> None:
         HyperJob.__init__(
