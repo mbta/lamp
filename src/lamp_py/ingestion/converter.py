@@ -35,17 +35,25 @@ class ConfigType(Enum):
 
     ERROR = auto()
 
+    # these two are from dev_green RTR source - this is a separate stream of GTFS-RT 
+    # used for testing purposes, and not to be published with the RT_TRIP_UPDATES or RT_VEHICLE_UPDATES
+    # this config will place them in a separate partition in the s3 bucket to ensure no mixing
+    DEV_GREEN_RT_TRIP_UPDATES = auto()
+    DEV_GREEN_RT_VEHICLE_POSITIONS = auto()
+
     def __str__(self) -> str:
         return self.name
 
     @classmethod
     def from_filename(cls, filename: str) -> ConfigType:
         """
-        Figure out which config type to use for a given filename. Raise a
-        ConfigTypeFromFilenameException if unable to determine.
+        Figure out which config type to use for a given filename. These ConfigTypes are also used to determine the partition in which 
+        the processed outputs are placed. 
+        Raise a ConfigTypeFromFilenameException if unable to determine. 
         """
         # pylint: disable-msg=R0911
         # disable too many returns error message
+        print(filename)
         if "mbta.com_realtime_Alerts_enhanced" in filename:
             return cls.RT_ALERTS
 
@@ -73,7 +81,12 @@ class ConfigType(Enum):
 
         if "LightRailRawGPS" in filename:
             return cls.LIGHT_RAIL
-
+        
+        if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_TripUpdates_enhanced" in filename:
+            return cls.DEV_GREEN_RT_TRIP_UPDATES
+        if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json" in filename:
+            return cls.DEV_GREEN_RT_VEHICLE_POSITIONS
+        
         raise ConfigTypeFromFilenameException(filename)
 
     def is_gtfs(self) -> bool:
@@ -90,6 +103,8 @@ class ConfigType(Enum):
             self.BUS_VEHICLE_POSITIONS,
             self.VEHICLE_COUNT,
             self.LIGHT_RAIL,
+            self.DEV_GREEN_RT_VEHICLE_POSITIONS,
+            self.DEV_GREEN_RT_TRIP_UPDATES
         ]
 
 
