@@ -101,6 +101,10 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
+            self.detail = RtTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
+            self.detail = RtVehicleDetail()
         elif config_type == ConfigType.LIGHT_RAIL:
             raise IgnoreIngestion("Ignore LIGHT_RAIL files")
         else:
