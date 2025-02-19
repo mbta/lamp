@@ -5,6 +5,7 @@ from datetime import timezone
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+import pyarrow.compute as pc
 from pyarrow.fs import S3FileSystem
 
 import polars as pl
@@ -103,7 +104,20 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
                 .alias("stop_departure_seconds"),
             )
 
-            writer.write_table(polars_df.to_arrow())
+            table = polars_df.to_arrow()
+
+            # Convert from string "YYYYMMDD" to timestamp (seconds) first
+            service_dates_timestamp = pc.strptime(table["service_date"], format="%Y%m%d", unit="s")
+
+            # Cast the timestamp to a date type (date32)
+            service_dates_date = pc.cast(service_dates_timestamp, pyarrow.date32())
+
+            # Replace the column in the PyArrow Table with the Date type
+            table = table.set_column(
+                table.schema.get_field_index("service_date"), "service_date", service_dates_date  # Updated as Date type
+            )
+
+            writer.write_table(table)
 
 
 class HyperBusPerformanceAll(HyperJob):
