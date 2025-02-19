@@ -167,7 +167,7 @@ class GtfsRtConverter(Converter):
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-        max_workers = 4
+        max_workers = 3
 
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
