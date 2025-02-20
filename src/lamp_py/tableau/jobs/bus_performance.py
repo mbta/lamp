@@ -5,6 +5,7 @@ from datetime import timezone
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+import pyarrow.compute as pc
 from pyarrow.fs import S3FileSystem
 
 import polars as pl
@@ -103,7 +104,11 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
                 .alias("stop_departure_seconds"),
             )
 
-            writer.write_table(polars_df.to_arrow())
+            polars_df = polars_df.with_columns(pl.col("service_date").str.strptime(pl.Date, "%Y%m%d", strict=False))
+
+            table = polars_df.to_arrow()
+
+            writer.write_table(table)
 
 
 class HyperBusPerformanceAll(HyperJob):
