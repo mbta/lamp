@@ -56,7 +56,15 @@ def main(config: Dict) -> None:
         time.sleep(30)
 
 
-def start( config: Dict ) -> None:
+def start(
+    config: Dict = {
+        "bucket_name": S3_INCOMING,
+        "file_prefix": LAMP,
+        "max_list_size": 250_000,
+        "in_filter": None,
+        "multiprocessing": True,
+    }
+) -> None:
     """configure and start the ingestion process"""
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
@@ -84,10 +92,11 @@ def start( config: Dict ) -> None:
 
 
 if __name__ == "__main__":
-    CONFIG_FILE_LIST_FROM_S3 = {"bucket_name" : S3_INCOMING, 
-                            "file_prefix" : LAMP, 
-                            "max_list_size" : 250_000, 
-                            "in_filter": None,
-                            "multiprocessing": True
-                            }
+    CONFIG_FILE_LIST_FROM_S3 = {
+        "bucket_name": S3_INCOMING,
+        "file_prefix": LAMP,
+        "max_list_size": 250_000,
+        "in_filter": None,
+        "multiprocessing": True,
+    }
     start(CONFIG_FILE_LIST_FROM_S3)
