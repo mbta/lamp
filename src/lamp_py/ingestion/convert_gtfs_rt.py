@@ -70,6 +70,7 @@ class TableData:
 
     table: Optional[pyarrow.Table] = None
     files: List[str] = field(default_factory=list)
+    nbytes: int
 
 
 class GtfsRtConverter(Converter):
@@ -181,6 +182,7 @@ class GtfsRtConverter(Converter):
             config_type=str(self.config_type),
         )
         process_logger.log_start()
+        # // check to see if rt_data nbytes == concattable nbytes. if not, then add together myself
         if multiprocess:
             with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
                 for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
@@ -205,22 +207,26 @@ class GtfsRtConverter(Converter):
                     if dt_part not in self.data_parts:
                         self.data_parts[dt_part] = TableData()
                         self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
+                        self.data_parts[dt_part].nbytes = rt_data.nbytes
                     else:
+                        self.data_parts[dt_part].nbytes += rt_data.nbytes
                         self.data_parts[dt_part].table = pyarrow.concat_tables(
                             [
                                 self.data_parts[dt_part].table,
                                 self.detail.transform_for_write(rt_data),
                             ]
                         )
+
                     self.data_parts[dt_part].files.append(result_filename)
                     process_logger.add_metadata(
                         fcn="HHH process_files",
                         file_count=len(self.data_parts[dt_part].files),
-                        num_bytes=self.data_parts[dt_part].table.nbytes,
+                        num_bytes_single=rt_data,
+                        num_bytes_concat=self.data_parts[dt_part].table.nbytes,
                         num_rows=self.data_parts[dt_part].table.num_rows,
                     )
-                    # yield if we exceed size (3GB)
-                    yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
+
+                    yield from self.yield_check(process_logger, self.data_parts[dt_part].nbytes)
         else:
             self.thread_init()
             idx = 0
@@ -270,7 +276,7 @@ class GtfsRtConverter(Converter):
         process_logger.log_complete()
 
     def yield_check(
-        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes=100 * 1024**2
+        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes = 100 * 1024**2
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -291,7 +297,8 @@ class GtfsRtConverter(Converter):
                 process_logger.add_metadata(
                     fcn="HHH yield_check",
                     file_count=len(self.data_parts[iter_ts].files),
-                    num_bytes=self.data_parts[iter_ts].table.nbytes,
+                    num_bytes_sum=self.data_parts[iter_ts].nbytes,
+                    num_bytes_concat=self.data_parts[iter_ts].table.nbytes,
                     num_rows=table.num_rows,
                 )
                 process_logger.log_complete()
