@@ -19,7 +19,7 @@ from lamp_py.aws.s3 import object_exists
 
 bus_schema = pyarrow.schema(
     [
-        ("service_date", pyarrow.large_string()),
+        ("service_date", pyarrow.date32()),  # change to date type
         ("route_id", pyarrow.large_string()),
         ("trip_id", pyarrow.large_string()),
         ("start_time", pyarrow.int64()),
