@@ -2,7 +2,7 @@
 
 LAMP provides public data exports to support transit performance analysis.\
 [Access instructions for all LAMP public data exports](https://performancedata.mbta.com)\
-Some LAMP data exports are used by [OPMI](https://www.massdottracker.com/wp/about/what-is-opmi-2/) for Tableau dashboarding.
+Some LAMP data exports are used by the MBTA departments Operations Analytics and [OPMI](https://www.massdottracker.com/about-opmi) for Tableau dashboarding.
 
 LAMP currently produces the following sets of public data exports:
 - [Subway Performance Data](#subway-performance-data)
@@ -158,7 +158,7 @@ LAMP calculated dataset containing planned `route_id` and `service_id` combinati
 | feed_start_date | date | `feed_start_date` from [feed_info.txt](https://gtfs.org/schedule/reference/#feed_infotxt)
 | feed_end_date | date | `feed_end_date` from [feed_info.txt](https://gtfs.org/schedule/reference/#feed_infotxt)
 | feed_version | string | `feed_version` from [feed_info.txt](https://gtfs.org/schedule/reference/#feed_infotxt)
-| feed_active_date | date | date extracted from `feed_version` 
+| feed_active_date | date | date extracted from `feed_version`
 | static_version_key | int64 | key used to link GTFS static schedule versions between tables |
 
 ## LAMP_static_routes
@@ -212,7 +212,7 @@ LAMP calculated dataset containing planned `route_id` and `service_id` combinati
 | pk_id | int64 | LAMP primary key |
 | route_id | string | `route_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | branch_route_id | string | `route_id` for lines with multiple routes, `NULL` if line has single route,  e.g. `Green-B` for `Green-B` route, `NULL` for `Blue` route. EXCEPTION: LAMP Inserts `Red-A` or `Red-B` to indicate `Red`-line Ashmont or Braintree branch if trip stops at station south of JFK/UMass.
-| trunk_route_id | string | line if multiple routes exist on line, otherwise `route_id`,  e.g. `Green` for `Green-B` route, `Blue` for `Blue` route_id 
+| trunk_route_id | string | line if multiple routes exist on line, otherwise `route_id`,  e.g. `Green` for `Green-B` route, `Blue` for `Blue` route_id
 | service_id | string | `service_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | trip_id | string | `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
 | direction_id | int8 | `direction_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt)
@@ -222,7 +222,7 @@ LAMP calculated dataset containing planned `route_id` and `service_id` combinati
 
 ## LAMP_RT_ALERTS
 
-The MBTA GTFS Realtime [Alerts](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md) feed is archived in this dataset. 
+The MBTA GTFS Realtime [Alerts](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md) feed is archived in this dataset.
 
 Each row of this dataset represents an entry from the [`informed_entity`](https://gtfs.org/realtime/reference/#message-entityselector) and [`active_period`](https://gtfs.org/realtime/reference/#message-timerange) fields of the Alert message being exploded.
 
@@ -258,9 +258,9 @@ In generating this dataset, translation string fields contain only the English t
 | active_period.end_timestamp | uint64 | Equivalent to `active_period[n][end]` in [Alert][gtfs-rt-alert] message as POSIX Timestamp. A record is produced for every index `n`.
 | informed_entity.route_id | string | Equivalent to `informed_entity[n][route_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
 | informed_entity.route_type | int8 | Equivalent to `informed_entity[n][route_type]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
-| informed_entity.direction_id | int8 | Equivalent to `informed_entity[n][direction_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
-| informed_entity.stop_id | string | Equivalent to `informed_entity[n][stop_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
-| informed_entity.facility_id | string | Equivalent to `informed_entity[n][faciliy_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`. 
+| informed_entity.direction_id | int8 | Equivalent to `informed_entity[n][direction_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
+| informed_entity.stop_id | string | Equivalent to `informed_entity[n][stop_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
+| informed_entity.facility_id | string | Equivalent to `informed_entity[n][faciliy_id]` in [Alert][gtfs-rt-alert]. A record is produced for every index `n`.
 | informed_entity.activities | string | Equivalent to `informed_entity[n][activities]` as a `\|` delimitated string. All potential values are defined in the [Activity](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enum-activity) enum.
 
 ## LAMP_Bus_Events
