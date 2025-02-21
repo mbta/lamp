@@ -63,7 +63,10 @@ def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_s3_files(
+    metadata_queue: Queue[Optional[str]],
+    config : Dict
+) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
@@ -73,13 +76,12 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     """
     logger = ProcessLogger(process_name="ingest_s3_files")
     logger.log_start()
-
     try:
         files = file_list_from_s3(
-            bucket_name=S3_INCOMING,
-            file_prefix=LAMP,
+            bucket_name=config['bucket_name'], file_prefix=config['file_prefix'], max_list_size=config['max_list_size'], in_filter=config['in_filter']
         )
 
+        # breakpoint()
         grouped_files = group_sort_file_list(files)
 
         # initialize with an error / no impl converter, the rest will be added in as
@@ -104,7 +106,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
 
         converters[ConfigType.ERROR] = NoImplConverter(ConfigType.ERROR, metadata_queue)
         converters[ConfigType.ERROR].add_files(error_files)
-
+        # breakpoint()
     except Exception as exception:
         logger.log_failure(exception)
 
@@ -122,10 +124,20 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
     if len(converters) > 0:
-        with get_context("spawn").Pool(processes=len(converters)) as pool:
-            pool.map_async(run_converter, converters.values())
-            pool.close()
-            pool.join()
+
+        if config['multiprocessing']:
+
+            with get_context("spawn").Pool(processes=len(converters)) as pool:
+                pool.map_async(run_converter, converters.values())
+                pool.close()
+                pool.join()
+        else:
+            for converter_key, converter_obj in converters.items():
+                # print(converter_key)
+                try:
+                    run_converter(converter_obj) 
+                except Exception as e:
+                    logger.log_failure(e)
 
     logger.log_complete()
 
