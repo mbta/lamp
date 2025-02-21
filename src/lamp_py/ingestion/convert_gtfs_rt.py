@@ -130,6 +130,7 @@ class GtfsRtConverter(Converter):
         table_count = 0
         try:
             for table in self.process_files():
+                process_logger.add_metadata(yielded_table_nbytes_HHHHH = table.nbytes)
                 if table.num_rows == 0:
                     continue
 
@@ -157,26 +158,66 @@ class GtfsRtConverter(Converter):
         """
         thread_data = current_thread()
         if self.files and self.files[0].startswith("s3://"):
-            thread_data.__dict__["file_system"] = fs.S3FileSystem()
+            # todo - this region is set for running locally so fs knows
+            # where to grab s3 files from. - don't want hardcoded when running in ECS
+            thread_data.__dict__["file_system"] = fs.S3FileSystem(region='us-east-1')
         else:
             thread_data.__dict__["file_system"] = fs.LocalFileSystem()
 
-    def process_files(self) -> Iterable[pyarrow.table]:
+    def process_files(self, multiprocess=True) -> Iterable[pyarrow.table]:
         """
         iterate through all of the files to be converted
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-        max_workers = 3
+        max_workers = 4
 
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
             config_type=str(self.config_type),
         )
         process_logger.log_start()
+        if multiprocess:
+            with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
+                for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
+                    # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
+                    # function. if one is encountered, the datetime will be none. log
+                    # the error and move on to the next file.
+                    if result_dt is None:
+                        self.error_files.append(result_filename)
+                        logging.error(
+                            "gz_to_pyarrow exception when loading: %s",
+                            result_filename,
+                        )
+                        continue
+                    # create key for self.data_parts dictionary
+                    dt_part = datetime(
+                        year=result_dt.year,
+                        month=result_dt.month,
+                        day=result_dt.day,
+                    )
+                    # if no error, append resultant table
+                    # create new self.table_groups entry for key if it doesn't exist
+                    if dt_part not in self.data_parts:
+                        self.data_parts[dt_part] = TableData()
+                        self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
+                    else:
+                        self.data_parts[dt_part].table = pyarrow.concat_tables(
+                            [
+                                self.data_parts[dt_part].table,
+                                self.detail.transform_for_write(rt_data),
+                            ]
+                        )
+                    self.data_parts[dt_part].files.append(result_filename)
+                    process_logger.add_metadata(file_count=len(self.data_parts[dt_part].files), file_nbytes = self.data_parts[dt_part].table.nbytes)
+                    # yield if we exceed size (3GB)
+                    yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
+        else:
+            self.thread_init()
+            idx = 0
+            for file in self.files:
+                result_dt, result_filename, rt_data = self.gz_to_pyarrow(file)
 
-        with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
-            for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
                 # the error and move on to the next file.
@@ -194,6 +235,7 @@ class GtfsRtConverter(Converter):
                     month=result_dt.month,
                     day=result_dt.day,
                 )
+                breakpoint()
 
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
@@ -206,18 +248,21 @@ class GtfsRtConverter(Converter):
                             self.detail.transform_for_write(rt_data),
                         ]
                     )
-
                 self.data_parts[dt_part].files.append(result_filename)
+                process_logger.add_metadata(HHHHH_idx = idx, file_nbytes_HHHHHHHHHH = self.data_parts[dt_part].table.nbytes)
+                # process_logger.add_metadata(table_sz_nbytes=self.data_parts[dt_part].table.nbytes)
+                idx = idx+1
+                yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
 
-                yield from self.yield_check(process_logger)
-
-        # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=-1)
+        # yield any remaining tables - nbytes > -1, so this will yield
+        yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes, max_bytes=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
+    def yield_check(
+        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes=3 * 1024**3
+    ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
         processed.
@@ -228,9 +273,10 @@ class GtfsRtConverter(Converter):
 
         @yield pyarrow.table - a concatenated table of gtfs realtime data.
         """
+        #  1kb  1mb  1gb
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
-            if table is not None and table.num_rows > min_rows:
+            if table is not None and nbytes_subtable > max_bytes:
                 self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
@@ -239,7 +285,7 @@ class GtfsRtConverter(Converter):
                 )
                 process_logger.log_complete()
                 # reset process logger
-                process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
+                process_logger.add_metadata(file_count=0, num_bytes=0, print_log=False)
                 process_logger.log_start()
 
                 yield table
@@ -261,10 +307,13 @@ class GtfsRtConverter(Converter):
             has been converted. (returns None if an Exception is thrown during
             conversion)
         """
+        # breakpoint()
+
         try:
             file_system = current_thread().__dict__["file_system"]
             filename = filename.replace("s3://", "")
-
+            # filename = filename.replace(".gz", "")
+            # breakpoint()
             # some of our older files are named incorrectly, with a simple
             # .json suffix rather than a .json.gz suffix. in those cases, the
             # s3 open_input_stream is unable to deduce the correct compression
@@ -273,10 +322,11 @@ class GtfsRtConverter(Converter):
             try:
                 with file_system.open_input_stream(filename) as file:
                     json_data = json.load(file)
+
             except UnicodeDecodeError as _:
                 with file_system.open_input_stream(filename, compression="gzip") as file:
                     json_data = json.load(file)
-
+            
             # parse timestamp info out of the header
             feed_timestamp = json_data["header"]["timestamp"]
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
@@ -398,6 +448,7 @@ class GtfsRtConverter(Converter):
 
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
+    # todo: improve this
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
@@ -483,6 +534,11 @@ class GtfsRtConverter(Converter):
             )
 
             table = table.drop_columns(["year", "month", "day"])
+            # are all of these columns the same YMD? Why do we concat the date to this to immediately drop it?
+            # can we just yield..the year/month/date as well,
+            # i think this is a gigantic copy...probably inefficient
+            # run this...are they the same python object? can't be....documentation says it returns a new table
+            # ...does 3 copies to remove 3 columns
 
             log.add_metadata(local_path=local_path)
 
