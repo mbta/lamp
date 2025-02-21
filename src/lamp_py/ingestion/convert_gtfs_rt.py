@@ -534,12 +534,6 @@ class GtfsRtConverter(Converter):
             )
 
             table = table.drop_columns(["year", "month", "day"])
-            # are all of these columns the same YMD? Why do we concat the date to this to immediately drop it?
-            # can we just yield..the year/month/date as well,
-            # i think this is a gigantic copy...probably inefficient
-            # run this...are they the same python object? can't be....documentation says it returns a new table
-            # ...does 3 copies to remove 3 columns
-
             log.add_metadata(local_path=local_path)
 
             self.write_local_pq(table, local_path)

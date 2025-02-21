@@ -142,7 +142,7 @@ def ingest_s3_files(
     logger.log_complete()
 
 
-def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_gtfs(metadata_queue: Queue[Optional[str]], config: Dict) -> None:
     """
     ingest all gtfs file types
 
@@ -150,4 +150,4 @@ def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
     """
     gtfs_to_parquet()
     ingest_gtfs_archive(metadata_queue)
-    ingest_s3_files(metadata_queue)
+    ingest_s3_files(metadata_queue, config)
