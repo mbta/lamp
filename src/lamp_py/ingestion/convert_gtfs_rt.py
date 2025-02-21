@@ -130,7 +130,7 @@ class GtfsRtConverter(Converter):
         table_count = 0
         try:
             for table in self.process_files():
-                process_logger.add_metadata(yielded_table_nbytes_HHHHH = table.nbytes)
+                process_logger.add_metadata(yielded_table_nbytes_HHHHH=table.nbytes)
                 if table.num_rows == 0:
                     continue
 
@@ -160,7 +160,7 @@ class GtfsRtConverter(Converter):
         if self.files and self.files[0].startswith("s3://"):
             # todo - this region is set for running locally so fs knows
             # where to grab s3 files from. - don't want hardcoded when running in ECS
-            thread_data.__dict__["file_system"] = fs.S3FileSystem(region='us-east-1')
+            thread_data.__dict__["file_system"] = fs.S3FileSystem(region="us-east-1")
         else:
             thread_data.__dict__["file_system"] = fs.LocalFileSystem()
 
@@ -209,7 +209,10 @@ class GtfsRtConverter(Converter):
                             ]
                         )
                     self.data_parts[dt_part].files.append(result_filename)
-                    process_logger.add_metadata(file_count=len(self.data_parts[dt_part].files), file_nbytes = self.data_parts[dt_part].table.nbytes)
+                    process_logger.add_metadata(
+                        file_count=len(self.data_parts[dt_part].files),
+                        file_nbytes=self.data_parts[dt_part].table.nbytes,
+                    )
                     # yield if we exceed size (3GB)
                     yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
         else:
@@ -249,9 +252,9 @@ class GtfsRtConverter(Converter):
                         ]
                     )
                 self.data_parts[dt_part].files.append(result_filename)
-                process_logger.add_metadata(HHHHH_idx = idx, file_nbytes_HHHHHHHHHH = self.data_parts[dt_part].table.nbytes)
+                process_logger.add_metadata(HHHHH_idx=idx, file_nbytes_HHHHHHHHHH=self.data_parts[dt_part].table.nbytes)
                 # process_logger.add_metadata(table_sz_nbytes=self.data_parts[dt_part].table.nbytes)
-                idx = idx+1
+                idx = idx + 1
                 yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
 
         # yield any remaining tables - nbytes > -1, so this will yield
@@ -326,7 +329,7 @@ class GtfsRtConverter(Converter):
             except UnicodeDecodeError as _:
                 with file_system.open_input_stream(filename, compression="gzip") as file:
                     json_data = json.load(file)
-            
+
             # parse timestamp info out of the header
             feed_timestamp = json_data["header"]["timestamp"]
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)

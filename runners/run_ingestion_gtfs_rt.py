@@ -56,7 +56,6 @@ def main(config: Dict) -> None:
         process_logger.log_complete()
 
         time.sleep(30)
-   
 
     process_logger.log_complete()
 
@@ -92,11 +91,11 @@ def start(config: Dict) -> None:
 
 if __name__ == "__main__":
 
-# hhuang@TID27670HHUANG test2 % cksum *
-# 3360086869 8083 dev.json.gz
-# 2311245126 110782 dev_console.json.gz
-# 3360086869 8083 prod.json.gz
-# 2311245126 110782 prod_console.json.gz
+    # hhuang@TID27670HHUANG test2 % cksum *
+    # 3360086869 8083 dev.json.gz
+    # 2311245126 110782 dev_console.json.gz
+    # 3360086869 8083 prod.json.gz
+    # 2311245126 110782 prod_console.json.gz
     # with open('/Users/hhuang/lamp/prod_incoming_data/2025-02-21T02_51_26Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json', 'r') as file:
     #     data = json.load(file)
     # print(data)
@@ -106,7 +105,6 @@ if __name__ == "__main__":
     # with open('/Users/hhuang/lamp/test/prod.json.gz', 'r') as file:
     #         # with open('/Users/hhuang/lamp/dev_incoming_data/2025-02-21T02:51:26Z_https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json.gz', 'r') as file:
     #     data2 = json.load(file)
-    
 
     # with open('/Users/hhuang/lamp/prod_incoming_data/2025-02-21T02_51_26Z_https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json.gz', 'r') as file:
     #     data2 = json.load(file)
@@ -148,13 +146,14 @@ if __name__ == "__main__":
     prefix = "lamp/delta/2025/02/20/"
     # in_filter = "https_cdn.mbta.com_realtime_TripUpdates"
     in_filter = "dev_green.s3.amazonaws.com_rtr_VehiclePositions"
-    CONFIG_FILE_LIST_FROM_S3 = {"bucket_name" : S3_INCOMING, 
-                                "file_prefix" : prefix, 
-                                "max_list_size" :100, 
-                                "in_filter": in_filter,
-                                "multiprocessing": True
-                                }
-    
+    CONFIG_FILE_LIST_FROM_S3 = {
+        "bucket_name": S3_INCOMING,
+        "file_prefix": prefix,
+        "max_list_size": 100,
+        "in_filter": in_filter,
+        "multiprocessing": True,
+    }
+
     start(CONFIG_FILE_LIST_FROM_S3)
     # mbta-ctd-dataplatform-dev-incoming
     # input args to start a specific runner
