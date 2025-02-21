@@ -70,7 +70,7 @@ class TableData:
 
     table: Optional[pyarrow.Table] = None
     files: List[str] = field(default_factory=list)
-    nbytes: int
+    nbytes: int = 0
 
 
 class GtfsRtConverter(Converter):
