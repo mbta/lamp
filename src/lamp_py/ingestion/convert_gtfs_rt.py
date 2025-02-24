@@ -221,7 +221,7 @@ class GtfsRtConverter(Converter):
                     process_logger.add_metadata(
                         fcn="HHH process_files",
                         file_count=len(self.data_parts[dt_part].files),
-                        num_bytes_single=rt_data,
+                        num_bytes_single=rt_data.nbytes,
                         num_bytes_concat=self.data_parts[dt_part].table.nbytes,
                         num_rows=self.data_parts[dt_part].table.num_rows,
                     )
