@@ -127,7 +127,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], config: Dict) -> None:
 
         if config["multiprocessing"]:
 
-            with get_context("spawn").Pool(processes=len(converters), maxtasksperchild=1) as pool:
+            with get_context("spawn").Pool(processes=4, maxtasksperchild=1) as pool:
                 pool.map_async(run_converter, converters.values())
                 pool.close()
                 pool.join()
