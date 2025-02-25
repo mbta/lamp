@@ -494,7 +494,7 @@ class GtfsRtConverter(Converter):
                             )
                         )
                     )
-                    # .sort(by=["feed_timestamp"])
+                    .sort(by=["feed_timestamp"])
                     .unique(subset=GTFS_RT_HASH_COL, keep="first")
                     .to_arrow()
                     .cast(out_ds.schema)
@@ -505,7 +505,7 @@ class GtfsRtConverter(Converter):
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
+                write_table = pyarrow.concat_tables([unique_table, ds_table])
                 logger.add_metadata(hhh_step=2.2)
                 hash_writer.write_table(write_table)
 
