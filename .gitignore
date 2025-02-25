@@ -24,3 +24,7 @@ dist
 *.sh
 .devcontainer/*
 .vscode/*
+
+# investigation/debug detritus
+*flamegraph*
+*.bin

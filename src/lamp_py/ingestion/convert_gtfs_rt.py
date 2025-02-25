@@ -151,6 +151,7 @@ class GtfsRtConverter(Converter):
         else:
             process_logger.log_complete()
         finally:
+            # self.finalize_pq_file()
             self.move_s3_files()
             self.clean_local_folders()
 
@@ -186,9 +187,6 @@ class GtfsRtConverter(Converter):
         if multiprocess:
             with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
                 for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
-                    # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
-                    # function. if one is encountered, the datetime will be none. log
-                    # the error and move on to the next file.
                     if result_dt is None:
                         self.error_files.append(result_filename)
                         logging.error(
@@ -196,35 +194,8 @@ class GtfsRtConverter(Converter):
                             result_filename,
                         )
                         continue
-                    # create key for self.data_parts dictionary
-                    dt_part = datetime(
-                        year=result_dt.year,
-                        month=result_dt.month,
-                        day=result_dt.day,
-                    )
-                    # if no error, append resultant table
-                    # create new self.table_groups entry for key if it doesn't exist
-                    if dt_part not in self.data_parts:
-                        self.data_parts[dt_part] = TableData()
-                        self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
-                        self.data_parts[dt_part].nbytes = rt_data.nbytes
                     else:
-                        self.data_parts[dt_part].nbytes += rt_data.nbytes
-                        self.data_parts[dt_part].table = pyarrow.concat_tables(
-                            [
-                                self.data_parts[dt_part].table,
-                                self.detail.transform_for_write(rt_data),
-                            ]
-                        )
-
-                    self.data_parts[dt_part].files.append(result_filename)
-                    process_logger.add_metadata(
-                        fcn="HHH process_files",
-                        file_count=len(self.data_parts[dt_part].files),
-                        num_bytes_single=rt_data.nbytes,
-                        num_bytes_concat=self.data_parts[dt_part].table.nbytes,
-                        num_rows=self.data_parts[dt_part].table.num_rows,
-                    )
+                        dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
 
                     yield from self.yield_check(process_logger, self.data_parts[dt_part].nbytes)
         else:
@@ -243,30 +214,11 @@ class GtfsRtConverter(Converter):
                         result_filename,
                     )
                     continue
+                
+                dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
 
-                # create key for self.data_parts dictionary
-                dt_part = datetime(
-                    year=result_dt.year,
-                    month=result_dt.month,
-                    day=result_dt.day,
-                )
-                breakpoint()
-
-                # create new self.table_groups entry for key if it doesn't exist
-                if dt_part not in self.data_parts:
-                    self.data_parts[dt_part] = TableData()
-                    self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
-                else:
-                    self.data_parts[dt_part].table = pyarrow.concat_tables(
-                        [
-                            self.data_parts[dt_part].table,
-                            self.detail.transform_for_write(rt_data),
-                        ]
-                    )
-                self.data_parts[dt_part].files.append(result_filename)
-                process_logger.add_metadata(HHHHH_idx=idx, file_nbytes_HHHHHHHHHH=self.data_parts[dt_part].table.nbytes)
-                # process_logger.add_metadata(table_sz_nbytes=self.data_parts[dt_part].table.nbytes)
                 idx = idx + 1
+                # breakpoint()
                 yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
 
         # yield any remaining tables - nbytes > -1, so this will yield
@@ -275,8 +227,45 @@ class GtfsRtConverter(Converter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
+    #todo
+    def update_table(self, process_logger, result_dt, result_filename, rt_data) -> datetime:
+        # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
+        # function. if one is encountered, the datetime will be none. log
+        # the error and move on to the next file.
+       
+        # create key for self.data_parts dictionary
+        dt_part = datetime(
+            year=result_dt.year,
+            month=result_dt.month,
+            day=result_dt.day,
+        )
+        # if no error, append resultant table
+        # create new self.table_groups entry for key if it doesn't exist
+        if dt_part not in self.data_parts:
+            self.data_parts[dt_part] = TableData()
+            self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
+            self.data_parts[dt_part].nbytes = rt_data.nbytes
+        else:
+            self.data_parts[dt_part].nbytes += rt_data.nbytes
+            self.data_parts[dt_part].table = pyarrow.concat_tables(
+                [
+                    self.data_parts[dt_part].table,
+                    self.detail.transform_for_write(rt_data),
+                ]
+            )
+
+        self.data_parts[dt_part].files.append(result_filename)
+        process_logger.add_metadata(
+            fcn="HHH process_files",
+            file_count=len(self.data_parts[dt_part].files),
+            num_bytes_single=rt_data.nbytes,
+            num_bytes_concat=self.data_parts[dt_part].table.nbytes,
+            num_rows=self.data_parts[dt_part].table.num_rows,
+        )
+        return dt_part
+
     def yield_check(
-        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes = 100 * 1024**2
+        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes = 64 * 1024**2
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -303,7 +292,7 @@ class GtfsRtConverter(Converter):
                 )
                 process_logger.log_complete()
                 # reset process logger
-                process_logger.add_metadata(fcn="yield_check", file_count=0, num_bytes=0, num_rows=0, print_log=False)
+                process_logger.add_metadata(fcn="yield_check", file_count=0, num_bytes_sum=0, num_bytes_concat=0, num_rows=0, print_log=False)
                 process_logger.log_start()
 
                 yield table
@@ -489,9 +478,12 @@ class GtfsRtConverter(Converter):
             hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema)
             upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
 
+            logger.add_metadata(hhh_step=0)
+            # breakpoint()
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
+            logger.add_metadata(hhh_step=1)
             for part in partitions:
                 unique_table = (
                     pl.DataFrame(
@@ -502,32 +494,34 @@ class GtfsRtConverter(Converter):
                             )
                         )
                     )
-                    .sort(by=["feed_timestamp"])
+                    # .sort(by=["feed_timestamp"])
                     .unique(subset=GTFS_RT_HASH_COL, keep="first")
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
+                logger.add_metadata(hhh_step=2.1)
                 ds_table = out_ds.to_table(
                     filter=(
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
                 write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
-
+                logger.add_metadata(hhh_step=2.2)
                 hash_writer.write_table(write_table)
 
                 # drop GTFS_RT_HASH_COL column for S3 upload
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                logger.add_metadata(hhh_step=2.3)
 
             hash_writer.close()
             upload_writer.close()
-
+            logger.add_metadata(hhh_step=3)
             os.replace(hash_pq_path, local_path)
             upload_file(
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
-
+            logger.add_metadata(hhh_step=4)
         logger.log_complete()
 
     # pylint: enable=R0914
@@ -571,6 +565,47 @@ class GtfsRtConverter(Converter):
             self.error_files += self.archive_files
             self.archive_files = []
             log.log_failure(exception)
+
+    # def finalize_pq_file(self, table: pyarrow.Table) -> None:
+    #     """
+    #     Final updating of local parquet files that are synced with S3 - process whole file
+    #     to remove duplicates via hash. sort the whole file. 
+    #     """
+    #     log = ProcessLogger("finalize_pq_update")
+    #     log.log_start()
+    #     try:
+    #         partition_dt = self.partition_dt(table)
+
+    #         local_path = os.path.join(
+    #             self.tmp_folder,
+    #             LAMP,
+    #             str(self.config_type),
+    #             f"year={partition_dt.year}",
+    #             f"month={partition_dt.month}",
+    #             f"day={partition_dt.day}",
+    #             f"{partition_dt.isoformat()}.parquet",
+    #         )
+
+    #         table = table.drop_columns(["year", "month", "day"])
+    #         log.add_metadata(local_path=local_path)
+
+    #         self.write_local_pq(table, local_path)
+    #         self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
+
+    #         log.log_complete()
+
+    #     except Exception as exception:
+    #         shutil.rmtree(
+    #             os.path.join(
+    #                 self.tmp_folder,
+    #                 LAMP,
+    #                 str(self.config_type),
+    #             ),
+    #             ignore_errors=True,
+    #         )
+    #         self.error_files += self.archive_files
+    #         self.archive_files = []
+    #         log.log_failure(exception)
 
     def clean_local_folders(self) -> None:
         """
