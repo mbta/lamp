@@ -98,3 +98,16 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
         | pl.col("trip_id").str.starts_with("0")
         | pl.col("stop_id").str.starts_with("0")
     ).is_empty()
+
+    # scheduled_time, actual_arrival_time, actual_departure_time - these are unprocessed straight from TM. 
+    # intended for comparison/data validation - use tm_arrival_dt or tm_departure_dt instead
+
+    # e.g.
+    # tm_departure_dt 2024-06-01 13:13:47 UTC - seconds after midnight = 47627
+    # actual_departure_time - 33227
+    # 47627-33227 = 14400 / 60 / 60 = 4 hrs - (UTC -> EDT (UTC-04:00))
+
+    assert not bus_events['scheduled_time'].has_nulls()
+    assert not bus_events['actual_arrival_time'].has_nulls()
+    assert not bus_events['actual_departure_time'].has_nulls()
+    assert(bus_events.select(pl.col("actual_departure_time").ge(pl.col("actual_arrival_time"))).filter(False).is_empty())

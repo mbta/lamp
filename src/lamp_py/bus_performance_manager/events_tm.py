@@ -27,6 +27,10 @@ def _empty_stop_crossing() -> pl.DataFrame:
         "tm_stop_sequence": pl.Int64,
         "tm_arrival_dt": pl.Datetime,
         "tm_departure_dt": pl.Datetime,
+        "scheduled_time": pl.Int64,
+        "actual_departure_time": pl.Int64,
+        "actual_arrival_time": pl.Int64,
+
     }
     return pl.DataFrame(schema=schema)
 
@@ -47,6 +51,9 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         tm_stop_sequence -> Int64
         tm_arrival_dt -> Datetime(time_unit='us', time_zone=None) as UTC
         tm_departure_dt -> Datetime(time_unit='us', time_zone=None) as UTC
+        scheduled_time -> Int64 (seconds after service_date midnight)
+        actual_departure_time -> Int64 (seconds after service_date midnight)
+        actual_arrival_time -> Int64 (seconds after service_date midnight)
     """
     logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
     logger.log_start()
@@ -116,6 +123,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 & pl.col("GEO_NODE_ID").is_not_null()
                 & pl.col("TRIP_ID").is_not_null()
                 & pl.col("VEHICLE_ID").is_not_null()
+                & pl.col("SCHEDULED_TIME").is_not_null()
                 & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
             )
             .join(
@@ -171,7 +179,10 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                     .dt.replace_time_zone(None)
                     .alias("tm_departure_dt")
                 ),
-            )
+                pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("scheduled_time"),
+                pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("actual_arrival_time"),
+                pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("actual_departure_time"),
+            )            
             .collect()
         )
 

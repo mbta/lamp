@@ -308,6 +308,9 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
 | route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
+| scheduled_time	| int64 | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
+| actual_arrival_time	| int64 | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
+| actual_departure_time	| int64 | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
 
 [gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
 [mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields
