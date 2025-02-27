@@ -267,7 +267,7 @@ In generating this dataset, translation string fields contain only the English t
 
 LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events have the same data dictionary.\
 Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.\
-Bus has additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
+The bus data incorporates an additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
 
 | field name | type | description | source |
 | ----------- | --------- | ----------- | ------------ |
@@ -302,8 +302,8 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
 | stop_departure_dt | datetime | equivalent to `gtfs_travel_to_dt` for next stop on trip | GTFS-RT
 | gtfs_travel_to_seconds | int64 | `gtfs_travel_to_dt` as seconds after midnight | LAMP Calculated
-| stop_arrival_seconds | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated |
-| stop_departure_seconds | int64 | `stop_departure_datetime` as seconds after midnight | LAMP Calculated |
+| stop_arrival_seconds | int64 | `stop_arrival_dt` as seconds after midnight | LAMP Calculated |
+| stop_departure_seconds | int64 | `stop_departure_dt` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
 | dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
 | route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
