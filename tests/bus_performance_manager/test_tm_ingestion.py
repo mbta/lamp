@@ -100,7 +100,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     ).is_empty()
 
     # scheduled_time, actual_arrival_time, actual_departure_time - these are unprocessed straight from TM. 
-    # intended for comparison/data validation - use tm_arrival_dt or tm_departure_dt instead
+    # intended for comparison/data validation
 
     # e.g.
     # tm_departure_dt 2024-06-01 13:13:47 UTC - seconds after midnight = 47627
