@@ -43,7 +43,7 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
-        # https://github.com/google/transit/blob/master/gtfs-realtime/spec/en/reference.md?plain=1#L270        
+        # https://github.com/google/transit/blob/master/gtfs-realtime/spec/en/reference.md?plain=1#L270
         .with_columns(
             pl.when(pl.col("current_status") == "INCOMING_AT")
             .then(pl.lit("IN_TRANSIT_TO"))

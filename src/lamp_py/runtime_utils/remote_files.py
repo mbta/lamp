@@ -106,11 +106,7 @@ tm_work_piece_file = S3Location(
 )
 
 # published by LAMP
-bus_events = S3Location(
-    bucket=S3_PUBLIC,
-    prefix=os.path.join(LAMP, "bus_vehicle_events"),
-    version="1.1"
-)
+bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.1")
 public_alerts_file = S3Location(
     bucket=S3_PUBLIC,
     prefix=os.path.join(TABLEAU, "alerts", "LAMP_RT_ALERTS.parquet"),
