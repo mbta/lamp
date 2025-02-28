@@ -217,7 +217,7 @@ def object_exists(obj: str) -> bool:
         raise exception
 
 
-def version_check(obj: str, version: str) -> bool:
+def version_check(obj: str, lamp_version: str) -> bool:
     """
     compare an s3 file's lamp version to a given version
 
@@ -227,7 +227,7 @@ def version_check(obj: str, version: str) -> bool:
     try:
         remote_version = object_metadata(obj).get("lamp_version", "")
 
-        return remote_version == version
+        return remote_version == lamp_version
 
     except ClientError as error:
         if error.response["Error"]["Code"] == "404":
@@ -345,7 +345,7 @@ def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[D
         return []
 
 
-def get_last_modified_object(bucket_name: str, file_prefix: str, version: Optional[str] = None) -> Optional[Dict]:
+def get_last_modified_object(bucket_name: str, file_prefix: str, lamp_version: Optional[str] = None) -> Optional[Dict]:
     """
     For a given bucket, find the last modified object that matches a prefix. If
     a version is passed, only return the newest object matching this version.
@@ -360,12 +360,12 @@ def get_last_modified_object(bucket_name: str, file_prefix: str, version: Option
         return None
 
     # if there is no version, the return the first object
-    if version is None:
+    if lamp_version is None:
         return files[0]
 
     # if there is a version, return the first object that matches the version
     for file in files:
-        if version_check(file["s3_obj_path"], version):
+        if version_check(file["s3_obj_path"], lamp_version):
             return file
 
     # if we were unable to match an object, return None

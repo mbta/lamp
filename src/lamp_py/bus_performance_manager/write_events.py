@@ -47,7 +47,7 @@ def write_bus_metrics() -> None:
                 upload_file(
                     file_name=os.path.join(tempdir, write_file),
                     object_path=os.path.join(bus_events.s3_uri, write_file),
-                    extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
+                    extra_args={"Metadata": {VERSION_KEY: bus_events.lamp_version}},
                 )
 
             day_logger.log_complete()

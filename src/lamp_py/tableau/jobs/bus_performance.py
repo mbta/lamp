@@ -116,7 +116,7 @@ class HyperBusPerformanceAll(HyperJob):
             self,
             hyper_file_name=tableau_bus_all.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
             remote_parquet_path=tableau_bus_all.s3_uri,
-            lamp_version=tableau_bus_all.version,
+            lamp_version=tableau_bus_all.lamp_version,
         )
 
     @property
@@ -150,7 +150,7 @@ class HyperBusPerformanceRecent(HyperJob):
             self,
             hyper_file_name=tableau_bus_recent.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
             remote_parquet_path=tableau_bus_recent.s3_uri,
-            lamp_version=tableau_bus_recent.version,
+            lamp_version=tableau_bus_recent.lamp_version,
         )
 
     @property

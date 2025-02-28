@@ -460,7 +460,7 @@ def process_alerts(md_db_manager: DatabaseManager) -> None:
     process_logger = ProcessLogger("process_alerts")
     process_logger.log_start()
 
-    version_match = version_check(obj=AlertsS3Info.s3_path, version=AlertsS3Info.file_version)
+    version_match = version_check(obj=AlertsS3Info.s3_path, lamp_version=AlertsS3Info.file_version)
 
     metadata_records = get_alert_files(
         md_db_manager=md_db_manager,
