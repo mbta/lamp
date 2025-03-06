@@ -135,9 +135,6 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
             [
                 "gtfs_departure_dt",
                 "gtfs_arrival_dt",
-                "tm_actual_arrival_time_sam",
-                "tm_actual_departure_time_sam",
-                "tm_scheduled_time_sam",
                 "gtfs_sort_dt",
             ]
         )

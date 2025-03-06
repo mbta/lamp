@@ -49,9 +49,13 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         trip_id -> String
         stop_id -> String
         tm_stop_sequence -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone=None) as UTC
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone=None) as UTC
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone=None) as UTC
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone=None) as EST
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone=None) as EST
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone=None) as EST
+        tm_scheduled_time_sam -> Int64
+        tm_actual_arrival_time_sam -> Int64
+        tm_actual_departure_time_sam -> Int64
+
     """
     logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
     logger.log_start()
@@ -121,7 +125,6 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 & pl.col("GEO_NODE_ID").is_not_null()
                 & pl.col("TRIP_ID").is_not_null()
                 & pl.col("VEHICLE_ID").is_not_null()
-                & pl.col("SCHEDULED_TIME").is_not_null()
                 & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
             )
             .join(
