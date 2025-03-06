@@ -38,6 +38,9 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         tm_scheduled_time_dt -> Datetime
         tm_actual_departure_dt -> Datetime
         tm_actual_arrival_dt -> Datetime
+        tm_scheduled_time_sam -> Int64
+        tm_actual_departure_time_sam -> Int64
+        tm_actual_arrival_time_sam -> Int64
         plan_trip_id -> String
         exact_plan_trip_match -> Bool
         block_id -> String

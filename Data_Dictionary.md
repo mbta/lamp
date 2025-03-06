@@ -311,6 +311,9 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | tm_scheduled_time_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
 | tm_actual_arrival_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
 | tm_actual_departure_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
+| tm_scheduled_time_sam	| Int64 | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
+| tm_actual_arrival_time_sam	| Datetime | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
+| tm_actual_departure_time_sam	| Datetime | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
 
 [gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
 [mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields

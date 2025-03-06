@@ -29,8 +29,8 @@ def _empty_stop_crossing() -> pl.DataFrame:
         "tm_actual_arrival_dt": pl.Datetime,
         "tm_actual_departure_dt": pl.Datetime,
         "tm_scheduled_time_sam": pl.Int64,
-        "tm_actual_departure_time_sam": pl.Int64,
         "tm_actual_arrival_time_sam": pl.Int64,
+        "tm_actual_departure_time_sam": pl.Int64,
     }
     return pl.DataFrame(schema=schema)
 
