@@ -161,6 +161,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         trip_id -> String
         stop_id -> String
         stop_sequence -> Int64
+        timepoint -> Int64
         block_id -> String
         route_id -> String
         service_id -> String
@@ -181,11 +182,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
     trips = trips_for_date(service_date)
 
     stop_times = gtfs_from_parquet("stop_times", service_date).select(
-        "trip_id",
-        "arrival_time",
-        "departure_time",
-        "stop_id",
-        "stop_sequence",
+        "trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"
     )
 
     stop_count = stop_times.group_by("trip_id").len("plan_stop_count")
