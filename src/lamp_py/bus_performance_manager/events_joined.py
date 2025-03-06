@@ -217,8 +217,12 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     Join gtfs-rt and transit master (tm) event dataframes
 
     :return added-columns:
-        tm_arrival_dt -> Datetime
-        tm_departure_dt -> Datetime
+        tm_scheduled_time_dt -> Datetime
+        tm_actual_arrival_dt -> Datetime
+        tm_actual_departure_dt -> Datetime
+        tm_scheduled_time_sam -> Int64
+        tm_actual_arrival_time_sam -> Int64
+        tm_actual_departure_time_sam -> Int64
     """
 
     # join gtfs and tm datasets using "asof" strategy for stop_sequence columns

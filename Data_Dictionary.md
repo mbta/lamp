@@ -267,7 +267,7 @@ In generating this dataset, translation string fields contain only the English t
 
 LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events have the same data dictionary.\
 Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.\
-Bus has additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
+The bus data incorporates an additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
 
 | field name | type | description | source |
 | ----------- | --------- | ----------- | ------------ |
@@ -302,12 +302,18 @@ Bus has additional data source: TransitMaster. Buses have TransitMaster devices 
 | stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
 | stop_departure_dt | datetime | equivalent to `gtfs_travel_to_dt` for next stop on trip | GTFS-RT
 | gtfs_travel_to_seconds | int64 | `gtfs_travel_to_dt` as seconds after midnight | LAMP Calculated
-| stop_arrival_seconds | int64 | `stop_arrival_datetime` as seconds after midnight | LAMP Calculated |
-| stop_departure_seconds | int64 | `stop_departure_datetime` as seconds after midnight | LAMP Calculated |
+| stop_arrival_seconds | int64 | `stop_arrival_dt` as seconds after midnight | LAMP Calculated |
+| stop_departure_seconds | int64 | `stop_departure_dt` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
 | dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
 | route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
+| tm_scheduled_time_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
+| tm_actual_arrival_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
+| tm_actual_departure_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
+| tm_scheduled_time_sam	| Int64 | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
+| tm_actual_arrival_time_sam	| Datetime | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
+| tm_actual_departure_time_sam	| Datetime | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
 
 [gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
 [mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields

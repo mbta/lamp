@@ -49,11 +49,11 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     run checks on the dataframes produced by running generate_tm_events on
     transit master stop crossing files.
     """
+    print(f"processing: {stop_crossings_filepath}")
     # Remove the .parquet extension and get the date
     filename = os.path.basename(stop_crossings_filepath)
     date_str = filename.replace(".parquet", "")[1:]
     service_date = datetime.strptime(date_str, "%Y%m%d").date()
-
     # this is the df of all useful records from the stop crossings files
     raw_stop_crossings = (
         pl.scan_parquet(stop_crossings_filepath)
@@ -84,13 +84,15 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     non_trip_events = bus_events.filter(pl.col("trip_id").is_null())
     assert set(non_trip_events["stop_id"]).issubset(bus_garages)
 
-    # check that all arrival and departure timestamps happen after the start of the service date
+    # check that all scheduled, arrival and departure timestamps happen after the start of the service date
     assert bus_events.filter(
-        (pl.col("tm_arrival_dt") < service_date) | (pl.col("tm_departure_dt") < service_date)
+        (pl.col("tm_actual_arrival_dt") < service_date)
+        | (pl.col("tm_actual_departure_dt") < service_date)
+        | (pl.col("tm_scheduled_time_dt") < service_date)
     ).is_empty()
 
     # check that all departure times are after the arrival times
-    assert bus_events.filter(pl.col("tm_arrival_dt") > pl.col("tm_departure_dt")).is_empty()
+    assert bus_events.filter(pl.col("tm_actual_arrival_dt") > pl.col("tm_actual_departure_dt")).is_empty()
 
     # check that there are no leading zeros on route ids
     assert bus_events.filter(
@@ -98,3 +100,37 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
         | pl.col("trip_id").str.starts_with("0")
         | pl.col("stop_id").str.starts_with("0")
     ).is_empty()
+
+    # scheduled_time_sam, actual_arrival_time_sam, actual_departure_time_sam - these are unprocessed straight from TM.
+    # sam = seconds after midnight
+    # intended for comparison/data validation
+
+    # e.g.
+    # tm_actual_departure_dt 2024-06-01 13:13:47 UTC - seconds after midnight = 47627
+    # actual_departure_time - 33227
+    # 47627-33227 = 14400 / 60 / 60 = 4 hrs - (UTC -> EDT (UTC-04:00))
+    assert not bus_events["tm_scheduled_time_sam"].has_nulls()
+    assert not bus_events["tm_actual_arrival_time_sam"].has_nulls()
+    assert not bus_events["tm_actual_departure_time_sam"].has_nulls()
+    assert (
+        bus_events.select(pl.col("tm_actual_departure_time_sam").ge(pl.col("tm_actual_arrival_time_sam")))
+        .filter(False)
+        .is_empty()
+    )
+
+    # check that scheduled/departure/arrival dt are equal to the seconds after midnight representation
+    # this also checks that all the Datetimes are in the same timezone as service_date e.g. EST
+    assert (
+        (bus_events["tm_actual_departure_dt"] - service_date).dt.total_seconds()
+        - bus_events["tm_actual_departure_time_sam"]
+        == 0
+    ).all()
+    assert (
+        (bus_events["tm_actual_arrival_dt"] - service_date).dt.total_seconds()
+        - bus_events["tm_actual_arrival_time_sam"]
+        == 0
+    ).all()
+    assert (
+        (bus_events["tm_scheduled_time_dt"] - service_date).dt.total_seconds() - bus_events["tm_scheduled_time_sam"]
+        == 0
+    ).all()
