@@ -86,9 +86,9 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
 
     # check that all scheduled, arrival and departure timestamps happen after the start of the service date
     assert bus_events.filter(
-        (pl.col("tm_actual_arrival_dt") < service_date) | 
-        (pl.col("tm_actual_departure_dt") < service_date) | 
-        (pl.col("tm_scheduled_time_dt") < service_date)
+        (pl.col("tm_actual_arrival_dt") < service_date)
+        | (pl.col("tm_actual_departure_dt") < service_date)
+        | (pl.col("tm_scheduled_time_dt") < service_date)
     ).is_empty()
 
     # check that all departure times are after the arrival times
@@ -112,10 +112,25 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     assert not bus_events["tm_scheduled_time_sam"].has_nulls()
     assert not bus_events["tm_actual_arrival_time_sam"].has_nulls()
     assert not bus_events["tm_actual_departure_time_sam"].has_nulls()
-    assert bus_events.select(pl.col("tm_actual_departure_time_sam").ge(pl.col("tm_actual_arrival_time_sam"))).filter(False).is_empty()
+    assert (
+        bus_events.select(pl.col("tm_actual_departure_time_sam").ge(pl.col("tm_actual_arrival_time_sam")))
+        .filter(False)
+        .is_empty()
+    )
 
     # check that scheduled/departure/arrival dt are equal to the seconds after midnight representation
     # this also checks that all the Datetimes are in the same timezone as service_date e.g. EST
-    assert ((bus_events['tm_actual_departure_dt'] - service_date).dt.total_seconds() - bus_events['tm_actual_departure_time_sam'] == 0).all()
-    assert ((bus_events['tm_actual_arrival_dt'] - service_date).dt.total_seconds() - bus_events['tm_actual_arrival_time_sam'] == 0).all()
-    assert ((bus_events['tm_scheduled_time_dt'] - service_date).dt.total_seconds() - bus_events['tm_scheduled_time_sam'] == 0).all()
+    assert (
+        (bus_events["tm_actual_departure_dt"] - service_date).dt.total_seconds()
+        - bus_events["tm_actual_departure_time_sam"]
+        == 0
+    ).all()
+    assert (
+        (bus_events["tm_actual_arrival_dt"] - service_date).dt.total_seconds()
+        - bus_events["tm_actual_arrival_time_sam"]
+        == 0
+    ).all()
+    assert (
+        (bus_events["tm_scheduled_time_dt"] - service_date).dt.total_seconds() - bus_events["tm_scheduled_time_sam"]
+        == 0
+    ).all()

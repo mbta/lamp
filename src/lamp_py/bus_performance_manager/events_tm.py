@@ -31,7 +31,7 @@ def _empty_stop_crossing() -> pl.DataFrame:
         "tm_scheduled_time_sam": pl.Int64,
         "tm_actual_departure_time_sam": pl.Int64,
         "tm_actual_arrival_time_sam": pl.Int64,
-            }
+    }
     return pl.DataFrame(schema=schema)
 
 
@@ -177,11 +177,10 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                     (pl.col("service_date") + pl.duration(seconds="ACT_DEPARTURE_TIME"))
                     .dt.replace_time_zone(None)
                     .alias("tm_actual_departure_dt")
-                ), 
+                ),
                 pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
                 pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
                 pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
-
             )
             .collect()
         )

@@ -66,8 +66,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     bus_df = join_schedule_to_rt(join_tm_to_rt(gtfs_df, tm_df))
 
     bus_df = (
-        bus_df.with_columns(pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"))
-        .with_columns(
+        bus_df.with_columns(pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt")).with_columns(
             (
                 pl.col("gtfs_travel_to_dt")
                 .shift(-1)
@@ -131,7 +130,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         )
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
-        # drop temp fields and dev validation fields 
+        # drop temp fields and dev validation fields
         .drop(
             [
                 "gtfs_departure_dt",
