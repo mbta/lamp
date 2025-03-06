@@ -35,6 +35,9 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         stop_arrival_seconds -> Int64
         stop_departure_dt -> Datetime
         stop_departure_seconds -> Int64
+        tm_scheduled_time_dt -> Datetime
+        tm_actual_departure_dt -> Datetime
+        tm_actual_arrival_dt -> Datetime
         plan_trip_id -> String
         exact_plan_trip_match -> Bool
         block_id -> String
@@ -73,15 +76,17 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
                     order_by="gtfs_sort_dt",
                 )
             ).alias("gtfs_departure_dt"),
+            # take the later of the two possible arrival times as the true arrival time
             (
-                pl.when(pl.col("tm_arrival_dt") > pl.col("gtfs_travel_to_dt"))
-                .then(pl.col("tm_arrival_dt"))
+                pl.when(pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
+                .then(pl.col("tm_actual_arrival_dt"))
                 .otherwise(pl.col("gtfs_arrival_dt"))
             ).alias("stop_arrival_dt"),
         )
+        # take the later of the two possible departure times as the true departure time
         .with_columns(
-            pl.when(pl.col("tm_departure_dt") >= pl.col("stop_arrival_dt"))
-            .then(pl.col("tm_departure_dt"))
+            pl.when(pl.col("tm_actual_departure_dt") >= pl.col("stop_arrival_dt"))
+            .then(pl.col("tm_actual_departure_dt"))
             .otherwise(pl.col("gtfs_departure_dt"))
             .alias("stop_departure_dt")
         )
@@ -126,12 +131,14 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         )
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
+        # drop temp fields and dev validation fields 
         .drop(
             [
                 "gtfs_departure_dt",
                 "gtfs_arrival_dt",
-                "tm_departure_dt",
-                "tm_arrival_dt",
+                "tm_actual_arrival_time_sam",
+                "tm_actual_departure_time_sam",
+                "tm_scheduled_time_sam",
                 "gtfs_sort_dt",
             ]
         )

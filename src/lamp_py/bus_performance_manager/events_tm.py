@@ -25,12 +25,13 @@ def _empty_stop_crossing() -> pl.DataFrame:
         "trip_id": pl.String,
         "stop_id": pl.String,
         "tm_stop_sequence": pl.Int64,
-        "tm_arrival_dt": pl.Datetime,
-        "tm_departure_dt": pl.Datetime,
-        "scheduled_time": pl.Int64,
-        "actual_departure_time": pl.Int64,
-        "actual_arrival_time": pl.Int64,
-    }
+        "tm_scheduled_time_dt": pl.Datetime,
+        "tm_actual_arrival_dt": pl.Datetime,
+        "tm_actual_departure_dt": pl.Datetime,
+        "tm_scheduled_time_sam": pl.Int64,
+        "tm_actual_departure_time_sam": pl.Int64,
+        "tm_actual_arrival_time_sam": pl.Int64,
+            }
     return pl.DataFrame(schema=schema)
 
 
@@ -48,11 +49,9 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         trip_id -> String
         stop_id -> String
         tm_stop_sequence -> Int64
-        tm_arrival_dt -> Datetime(time_unit='us', time_zone=None) as UTC
-        tm_departure_dt -> Datetime(time_unit='us', time_zone=None) as UTC
-        scheduled_time -> Int64 (seconds after service_date midnight)
-        actual_departure_time -> Int64 (seconds after service_date midnight)
-        actual_arrival_time -> Int64 (seconds after service_date midnight)
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone=None) as UTC
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone=None) as UTC
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone=None) as UTC
     """
     logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
     logger.log_start()
@@ -165,22 +164,24 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
                 pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
                 (
-                    (pl.col("service_date") + pl.duration(seconds="ACT_ARRIVAL_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
+                    (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
                     .dt.replace_time_zone(None)
-                    .alias("tm_arrival_dt")
+                    .alias("tm_scheduled_time_dt")
+                ),
+                (
+                    (pl.col("service_date") + pl.duration(seconds="ACT_ARRIVAL_TIME"))
+                    .dt.replace_time_zone(None)
+                    .alias("tm_actual_arrival_dt")
                 ),
                 (
                     (pl.col("service_date") + pl.duration(seconds="ACT_DEPARTURE_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
                     .dt.replace_time_zone(None)
-                    .alias("tm_departure_dt")
-                ),
-                pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("scheduled_time"),
-                pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("actual_arrival_time"),
-                pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("actual_departure_time"),
+                    .alias("tm_actual_departure_dt")
+                ), 
+                pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
+                pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
+                pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
+
             )
             .collect()
         )
