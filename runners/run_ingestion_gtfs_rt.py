@@ -144,19 +144,19 @@ if __name__ == "__main__":
 
     # # this works!
     # exit()
-    prefix = "lamp/delta/2025/02/21/"
-    in_filter = "https_cdn.mbta.com_realtime_TripUpdates"
+    prefix = "lamp/delta/2025/03/1/"
+    # in_filter = "https_cdn.mbta.com_realtime_TripUpdates"
     # in_filter = "dev_green.s3.amazonaws.com_rtr_VehiclePositions"
     # in_filter = "https_cdn.mbta.com_realtime_Alerts_enhanced"
     # in_filter = "https_cdn.mbta.com_realtime_TripUpdates_enhanced"
     # in_filter = "https_cdn.mbta.com_realtime_VehiclePositions_enhanced"
     # in_filter = "https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced" #ok
     # in_filter = "https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced" #ok
-    # in_filter = None
+    in_filter = None
     CONFIG_FILE_LIST_FROM_S3 = {
         "bucket_name": S3_INCOMING,
         "file_prefix": prefix,
-        "max_list_size": 200,
+        "max_list_size": 250000,
         "in_filter": in_filter,
         "multiprocessing": False,
     }
