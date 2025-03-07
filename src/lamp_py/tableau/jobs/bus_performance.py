@@ -18,6 +18,9 @@ from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
+# this schema and the order of this schema SHOULD match what comes out 
+# of the polars version from bus_performance_manager. 
+# see select() comment below..
 bus_schema = pyarrow.schema(
     [
         ("service_date", pyarrow.date32()),  # change to date type
@@ -33,6 +36,12 @@ bus_schema = pyarrow.schema(
         ("vehicle_label", pyarrow.large_string()),
         ("gtfs_travel_to_dt", pyarrow.timestamp("us")),
         ("tm_stop_sequence", pyarrow.int64()),
+        ("tm_scheduled_time_dt", pyarrow.timestamp("us")),
+        ("tm_actual_arrival_dt", pyarrow.timestamp("us")),
+        ("tm_actual_departure_dt", pyarrow.timestamp("us")),
+        ("tm_scheduled_time_sam", pyarrow.int64()),
+        ("tm_actual_arrival_time_sam", pyarrow.int64()),
+        ("tm_actual_departure_time_sam", pyarrow.int64()),
         ("plan_trip_id", pyarrow.large_string()),
         ("exact_plan_trip_match", pyarrow.bool_()),
         ("block_id", pyarrow.large_string()),
@@ -57,12 +66,6 @@ bus_schema = pyarrow.schema(
         ("dwell_time_seconds", pyarrow.int64()),
         ("route_direction_headway_seconds", pyarrow.int64()),
         ("direction_destination_headway_seconds", pyarrow.int64()),
-        ("tm_scheduled_time_dt", pyarrow.timestamp("us")),
-        ("tm_actual_arrival_dt", pyarrow.timestamp("us")),
-        ("tm_actual_departure_dt", pyarrow.timestamp("us")),
-        ("tm_scheduled_time_sam", pyarrow.int64()),
-        ("tm_actual_arrival_time_sam", pyarrow.int64()),
-        ("tm_actual_departure_time_sam", pyarrow.int64()),
     ]
 )
 
@@ -85,7 +88,13 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
 
     with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
-            polars_df = pl.from_arrow(batch)
+             # this select() is here to make sure the order of the polars_df
+            # schema is the same as the bus_schema above. 
+            # order of schema matters to the ParquetWriter
+
+            # if the bus_schema above is in the same order as the batch
+            # schema, then the select will do nothing - as expected
+            polars_df = pl.from_arrow(batch).select(bus_schema.names)
             
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
