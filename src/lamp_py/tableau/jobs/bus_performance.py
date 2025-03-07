@@ -18,8 +18,8 @@ from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
-# this schema and the order of this schema SHOULD match what comes out 
-# of the polars version from bus_performance_manager. 
+# this schema and the order of this schema SHOULD match what comes out
+# of the polars version from bus_performance_manager.
 # see select() comment below..
 bus_schema = pyarrow.schema(
     [
@@ -88,18 +88,19 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
 
     with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
-             # this select() is here to make sure the order of the polars_df
-            # schema is the same as the bus_schema above. 
+            # this select() is here to make sure the order of the polars_df
+            # schema is the same as the bus_schema above.
             # order of schema matters to the ParquetWriter
 
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
             polars_df = pl.from_arrow(batch).select(bus_schema.names)
-            
+
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
             writer.write_table(apply_bus_analysis_conversions(polars_df))
+
 
 class HyperBusPerformanceAll(HyperJob):
     """HyperJob for ALL LAMP RT Bus Data"""

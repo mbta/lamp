@@ -13,8 +13,8 @@ from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_a
 # NOTE: ensure .env PUBLIC_ARCHIVE_BUCKET is pointed to the right bucket
 ########################################################################
 
-# this schema and the order of this schema SHOULD match what comes out 
-# of the polars version out of bus_performance_manager. 
+# this schema and the order of this schema SHOULD match what comes out
+# of the polars version out of bus_performance_manager.
 bus_schema = pyarrow.schema(
     [
         ("service_date", pyarrow.date32()),  # change to date type
@@ -77,7 +77,7 @@ with pq.ParquetWriter("test.parquet", schema=bus_schema) as writer:
     for batch in ds.to_batches(batch_size=500_000):
         try:
             # this select() is here to make sure the order of the polars_df
-            # schema is the same as the bus_schema above. 
+            # schema is the same as the bus_schema above.
             # order of schema matters to the ParquetWriter
 
             # if the bus_schema above is in the same order as the batch

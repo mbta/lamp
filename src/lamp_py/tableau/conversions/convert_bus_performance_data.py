@@ -1,6 +1,6 @@
-
 import polars as pl
 from pyarrow import Table
+
 
 def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
     """

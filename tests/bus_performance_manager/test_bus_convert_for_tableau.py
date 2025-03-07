@@ -1,9 +1,9 @@
-
 #!/usr/bin/env python
 
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 
 import polars as pl
+
 
 # poetry run pytest -s tests/bus_performance_manager/test_bus_convert_for_tableau.py
 def test_apply_bus_analysis_conversions():

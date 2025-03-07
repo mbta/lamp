@@ -282,7 +282,11 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
                 remote_schema_match = self.parquet_schema.equals(remote_schema)
                 remote_version_match = self.remote_version_match()
-                process_log.add_metadata(stage="check_schema", remote_schema_match=remote_schema_match, remote_version_match=remote_version_match)
+                process_log.add_metadata(
+                    stage="check_schema",
+                    remote_schema_match=remote_schema_match,
+                    remote_version_match=remote_version_match,
+                )
 
             if remote_schema_match is False or remote_version_match is False:
                 # create new parquet if no remote parquet found or
