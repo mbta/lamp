@@ -1,8 +1,6 @@
 from typing import Optional
 from datetime import datetime
 from datetime import timezone
-
-from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -11,6 +9,8 @@ from pyarrow.fs import S3FileSystem
 import polars as pl
 
 from lamp_py.tableau.hyper import HyperJob
+from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
+
 from lamp_py.runtime_utils.remote_files import bus_events
 from lamp_py.runtime_utils.remote_files import tableau_bus_all
 from lamp_py.runtime_utils.remote_files import tableau_bus_recent
