@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime
 from datetime import timezone
 
+from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -85,34 +86,11 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
             polars_df = pl.from_arrow(batch)
-
+            
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-            # Convert datetime to Eastern Time
-            polars_df = polars_df.with_columns(
-                pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-                pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-                pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            )
-
-            # Convert seconds columns to be aligned with Eastern Time
-            polars_df = polars_df.with_columns(
-                (pl.col("gtfs_travel_to_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-                .dt.total_seconds()
-                .alias("gtfs_travel_to_seconds"),
-                (pl.col("stop_arrival_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-                .dt.total_seconds()
-                .alias("stop_arrival_seconds"),
-                (pl.col("stop_departure_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-                .dt.total_seconds()
-                .alias("stop_departure_seconds"),
-            )
-
-            polars_df = polars_df.with_columns(pl.col("service_date").str.strptime(pl.Date, "%Y%m%d", strict=False))
-
-            writer.write_table(polars_df.to_arrow())
-
+            writer.write_table(apply_bus_analysis_conversions(polars_df))
 
 class HyperBusPerformanceAll(HyperJob):
     """HyperJob for ALL LAMP RT Bus Data"""

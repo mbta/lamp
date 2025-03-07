@@ -1,0 +1,14 @@
+
+#!/usr/bin/env python
+
+from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
+
+import polars as pl
+
+# poetry run pytest -s tests/bus_performance_manager/test_bus_convert_for_tableau.py
+def test_apply_bus_analysis_conversions():
+    df = pl.read_parquet("tests/test_files/PUBLIC_ARCHIVE/lamp/bus_vehicle_events/20250306.parquet")
+    table = apply_bus_analysis_conversions(polars_df=df)
+    print(df)
+    print(table)
+    breakpoint()

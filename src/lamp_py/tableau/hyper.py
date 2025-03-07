@@ -282,15 +282,19 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
                 remote_schema_match = self.parquet_schema.equals(remote_schema)
                 remote_version_match = self.remote_version_match()
+                process_log.add_metadata(stage="check_schema", remote_schema_match=remote_schema_match, remote_version_match=remote_version_match)
 
             if remote_schema_match is False or remote_version_match is False:
                 # create new parquet if no remote parquet found or
                 # remote schema does not match expected local schema
                 run_action = "create"
                 upload_parquet = True
+                process_log.add_metadata(stage="create_parquet", run_action=run_action)
                 self.create_parquet(db_manager)
+
             else:
                 run_action = "update"
+                process_log.add_metadata(stage="update_parquet", run_action=run_action)
                 upload_parquet = self.update_parquet(db_manager)
 
             parquet_file_size_mb = 0.0
@@ -299,6 +303,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
             process_log.add_metadata(
                 remote_schema_match=remote_schema_match,
+                remote_version_match=remote_version_match,
                 run_action=run_action,
                 upload_parquet=upload_parquet,
                 parquet_file_size_mb=f"{parquet_file_size_mb:.2f}",
