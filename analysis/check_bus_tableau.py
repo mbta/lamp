@@ -82,7 +82,7 @@ with pq.ParquetWriter("test.parquet", schema=bus_schema) as writer:
 
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
-            polars_df = pl.from_arrow(batch).select(bus_schema.names)
+            polars_df = pl.from_arrow(batch).select(bus_schema.names)  # type: ignore[union-attr]
 
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
