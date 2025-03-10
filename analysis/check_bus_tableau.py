@@ -1,26 +1,20 @@
-from typing import Optional
-from datetime import datetime
-from datetime import timezone
+#!/usr/bin/env python
+from lamp_py.runtime_utils.remote_files import bus_events
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
 from pyarrow.fs import S3FileSystem
-
+from lamp_py.aws.s3 import file_list_from_s3
 import polars as pl
 
-from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 
-from lamp_py.runtime_utils.remote_files import bus_events
-from lamp_py.runtime_utils.remote_files import tableau_bus_all
-from lamp_py.runtime_utils.remote_files import tableau_bus_recent
-from lamp_py.aws.s3 import file_list_from_s3
-from lamp_py.aws.s3 import file_list_from_s3_with_details
-from lamp_py.aws.s3 import object_exists
+########################################################################
+# NOTE: ensure .env PUBLIC_ARCHIVE_BUCKET is pointed to the right bucket
+########################################################################
 
 # this schema and the order of this schema SHOULD match what comes out
-# of the polars version from bus_performance_manager.
-# see select() comment below..
+# of the polars version out of bus_performance_manager.
 bus_schema = pyarrow.schema(
     [
         ("service_date", pyarrow.date32()),  # change to date type
@@ -68,93 +62,31 @@ bus_schema = pyarrow.schema(
         ("direction_destination_headway_seconds", pyarrow.int64()),
     ]
 )
+s3_uris = file_list_from_s3(bucket_name=bus_events.bucket, file_prefix=bus_events.prefix)
+ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
+ds_paths = ds_paths[-5:]
 
-def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
-    """
-    Join bus_events files into single parquet file for upload to Tableau
-    """
-    s3_uris = file_list_from_s3(bucket_name=bus_events.bucket, file_prefix=bus_events.prefix)
-    ds_paths = [s.replace("s3://", "") for s in s3_uris]
+ds = pd.dataset(
+    ds_paths,
+    format="parquet",
+    filesystem=S3FileSystem(),
+)
 
-    if num_files is not None:
-        ds_paths = ds_paths[-num_files:]
-
-    ds = pd.dataset(
-        ds_paths,
-        format="parquet",
-        filesystem=S3FileSystem(),
-    )
-
-    with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
-        for batch in ds.to_batches(batch_size=500_000):
+with pq.ParquetWriter("test.parquet", schema=bus_schema) as writer:
+    for batch in ds.to_batches(batch_size=500_000):
+        try:
             # this select() is here to make sure the order of the polars_df
             # schema is the same as the bus_schema above.
             # order of schema matters to the ParquetWriter
 
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
-
             polars_df = pl.from_arrow(batch).select(bus_schema.names)  # type: ignore[union-attr]
 
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
             writer.write_table(apply_bus_analysis_conversions(polars_df))
-
-
-class HyperBusPerformanceAll(HyperJob):
-    """HyperJob for ALL LAMP RT Bus Data"""
-
-    def __init__(self) -> None:
-        HyperJob.__init__(
-            self,
-            hyper_file_name=tableau_bus_all.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
-            remote_parquet_path=tableau_bus_all.s3_uri,
-            lamp_version=tableau_bus_all.version,
-        )
-
-    @property
-    def parquet_schema(self) -> pyarrow.schema:
-        return bus_schema
-
-    def create_parquet(self, _: None) -> None:
-        self.update_parquet(None)
-
-    def update_parquet(self, _: None) -> bool:
-        # only run once per day after 11AM UTC
-        if object_exists(tableau_bus_all.s3_uri):
-            now_utc = datetime.now(tz=timezone.utc)
-            last_mod: datetime = file_list_from_s3_with_details(
-                bucket_name=tableau_bus_all.bucket,
-                file_prefix=tableau_bus_all.prefix,
-            )[0]["last_modified"]
-
-            if now_utc.day == last_mod.day or now_utc.hour < 11:
-                return False
-
-        create_bus_parquet(self, None)
-        return True
-
-
-class HyperBusPerformanceRecent(HyperJob):
-    """HyperJob for RECENT LAMP RT Bus Data"""
-
-    def __init__(self) -> None:
-        HyperJob.__init__(
-            self,
-            hyper_file_name=tableau_bus_recent.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
-            remote_parquet_path=tableau_bus_recent.s3_uri,
-            lamp_version=tableau_bus_recent.version,
-        )
-
-    @property
-    def parquet_schema(self) -> pyarrow.schema:
-        return bus_schema
-
-    def create_parquet(self, _: None) -> None:
-        self.update_parquet(None)
-
-    def update_parquet(self, _: None) -> bool:
-        create_bus_parquet(self, 7)
-        return True
+        except Exception as exception:
+            print(exception)
