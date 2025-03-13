@@ -517,7 +517,7 @@ class GtfsRtConverter(Converter):
                     hash_writer.write_batch(batch)
                     upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
                     logger.add_metadata(hhh_step=2.2, counter=counter)
-
+                    counter += 1
 
             hash_writer.close()
             upload_writer.close()
