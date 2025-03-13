@@ -126,7 +126,7 @@ class GtfsRtConverter(Converter):
             "parquet_table_creator",
             table_type="gtfs-rt",
             config_type=str(self.config_type),
-            file_count=len(self.files),
+            total_file_count=len(self.files),
         )
         process_logger.log_start()
 
@@ -142,8 +142,10 @@ class GtfsRtConverter(Converter):
                 )
                 if table.num_rows == 0:
                     continue
-
+                process_logger.add_metadata(tic="before_continuous_pq_update")
                 self.continuous_pq_update(table)
+                process_logger.add_metadata(toc="after_continuous_pq_update")
+
                 # limit number of tables produced on each event loop
                 process_used_mem_pct = psutil.Process(os.getpid()).memory_percent(memtype="rss")
 
@@ -522,7 +524,7 @@ class GtfsRtConverter(Converter):
                 )
                 counter = 0
                 for batch in out_ds.to_batches(
-                    batch_size=1024 * 128, filter=batch_filter, batch_readahead=1, fragment_readahead=0
+                    batch_size=1024 * 128, filter=batch_filter, batch_readahead=0, fragment_readahead=0
                 ):
                     hash_writer.write_batch(batch)
                     upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
