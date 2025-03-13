@@ -19,7 +19,10 @@ from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import GTFS_RT_HASH_COL, hash_gtfs_rt_parquet, hash_gtfs_rt_table
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
 
-def gz_to_pyarrow_local(filename: str, schema: pyarrow.schema) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
+
+def gz_to_pyarrow_local(
+    filename: str, schema: pyarrow.schema
+) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
     """
     Convert a gzipped json of gtfs realtime data into a pyarrow table. This
     function is executed inside of a thread, so all exceptions must be
@@ -36,7 +39,7 @@ def gz_to_pyarrow_local(filename: str, schema: pyarrow.schema) -> Tuple[Optional
         conversion)
     """
     # breakpoint()
-    file_system = fs.LocalFileSystem()    
+    file_system = fs.LocalFileSystem()
     try:
         with file_system.open_input_stream(filename) as file:
             json_data = json.load(file)
@@ -74,6 +77,7 @@ def gz_to_pyarrow_local(filename: str, schema: pyarrow.schema) -> Tuple[Optional
         table,
     )
 
+
 def make_hash_dataset(table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
     """
     create dataset, with hash column, that will be written to parquet file
@@ -86,25 +90,26 @@ def make_hash_dataset(table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
 
     if os.path.exists(local_path):
         hash_gtfs_rt_parquet(local_path)
-            # RT_ALERTS parquet files contain columns with nested structure types
-            # if a new nested field is ingested, combining of the new and existing nested column is not possible
-            # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
-            # RT_ALERTS updates are essentially the same throughout a service day so resetting the
-            # dataset will have minimal impact on archived data
-            # try:
+        # RT_ALERTS parquet files contain columns with nested structure types
+        # if a new nested field is ingested, combining of the new and existing nested column is not possible
+        # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
+        # RT_ALERTS updates are essentially the same throughout a service day so resetting the
+        # dataset will have minimal impact on archived data
+        # try:
         out_ds = pd.dataset(
             [
                 pd.dataset(table),
                 pd.dataset(local_path),
             ]
         )
-            # except pyarrow.ArrowTypeError as exception:
-            #     if self.config_type == ConfigType.RT_ALERTS:
-            #         out_ds = pd.dataset(table)
-            #     else:
-            #         raise exception
+        # except pyarrow.ArrowTypeError as exception:
+        #     if self.config_type == ConfigType.RT_ALERTS:
+        #         out_ds = pd.dataset(table)
+        #     else:
+        #         raise exception
 
     return out_ds
+
 
 def write_local_pq_v2(table: pyarrow.Table, local_path: str, config: GtfsRtConverter) -> None:
     """
@@ -168,25 +173,24 @@ def write_local_pq_v2(table: pyarrow.Table, local_path: str, config: GtfsRtConve
         #     local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
         # )
 
+
 def test_():
-    local_file_path = '/Users/hhuang/lamp/data_py/2025-02-20T00:00:32Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz'
+    local_file_path = "/Users/hhuang/lamp/data_py/2025-02-20T00:00:32Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_TripUpdates_enhanced.json.gz"
     # config_type = ConfigType()
     metadata_queue, rds_process = start_rds_writer_process()
     converter = GtfsRtConverter(config_type=ConfigType.RT_TRIP_UPDATES, metadata_queue=metadata_queue)
     # table = pyarrow.Table()
 
-    (date_str,table,rt_data)= gz_to_pyarrow_local(filename=local_file_path, schema=converter.detail.import_schema)
-    local_path = '/Users/hhuang/lamp/lamp/investigation/hash.parquet'
+    (date_str, table, rt_data) = gz_to_pyarrow_local(filename=local_file_path, schema=converter.detail.import_schema)
+    local_path = "/Users/hhuang/lamp/lamp/investigation/hash.parquet"
     # breakpoint()
     # converter.write_local_pq_v2(table, local_path)
     table = converter.detail.transform_for_write(rt_data)
-    for i in range(0,100):
+    for i in range(0, 100):
         # trip_update.trip.route_id
-        
-        rt_tmp = table['trip_update.trip.route_id'].apply(lambda x: x + i)
+
+        rt_tmp = table["trip_update.trip.route_id"].apply(lambda x: x + i)
         pyarrow.concat_tables([table, rt_tmp])
-    
 
     breakpoint()
     write_local_pq_v2(table, local_path, converter)
-

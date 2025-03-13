@@ -93,6 +93,7 @@ def start(config: Dict) -> None:
     # run the main method
     main(config)
 
+
 def download_s3(file):
     # for file in files:
     path = file.replace("s3://", "")
@@ -101,12 +102,13 @@ def download_s3(file):
     s3_bucket = s3_bucket.replace("/", "")
     # (drive, path) = os.path.splitdrive(files[0])
     # download_file(files[0], '/Users/hhuang/lamp/data_py/' + file)
-    local_file_path = '/Users/hhuang/lamp/data_py/' + s3_path
+    local_file_path = "/Users/hhuang/lamp/data_py/" + s3_path
     s3_object_path = prefix + s3_path
 
-    s3.download_file(s3_bucket, s3_object_path, local_file_path) 
+    s3.download_file(s3_bucket, s3_object_path, local_file_path)
 
-    print(f"File downloaded from S3 to: {local_file_path}") 
+    print(f"File downloaded from S3 to: {local_file_path}")
+
 
 if __name__ == "__main__":
 
@@ -120,15 +122,14 @@ if __name__ == "__main__":
         "multiprocessing": True,
     }
     files = file_list_from_s3(
-            bucket_name=config["bucket_name"],
-            file_prefix=config["file_prefix"],
-            # max_list_size=config["max_list_size"],
-            # in_filter=config["in_filter"],
-        )
-
+        bucket_name=config["bucket_name"],
+        file_prefix=config["file_prefix"],
+        # max_list_size=config["max_list_size"],
+        # in_filter=config["in_filter"],
+    )
 
     breakpoint()
-    s3 = boto3.client('s3')  
+    s3 = boto3.client("s3")
 
     with ThreadPoolExecutor(max_workers=10) as pool:
         pool.map(download_s3, files)
@@ -143,10 +144,9 @@ if __name__ == "__main__":
     #     local_file_path = '/Users/hhuang/lamp/data_py/' + s3_path
     #     s3_object_path = prefix + s3_path
 
-    #     s3.download_file(s3_bucket, s3_object_path, local_file_path) 
+    #     s3.download_file(s3_bucket, s3_object_path, local_file_path)
 
-    #     print(f"File downloaded from S3 to: {local_file_path}") 
-
+    #     print(f"File downloaded from S3 to: {local_file_path}")
 
     # mdq = Queue
     # # # filename='/Users/hhuang/lamp/data/2025-02-20T00_00_00Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz'
@@ -165,7 +165,7 @@ if __name__ == "__main__":
             pyarrow.Table: A pyarrow table representing the data in the JSON file.
         """
         try:
-            with gzip.open(file_path, 'r') as f:
+            with gzip.open(file_path, "r") as f:
                 table = pyarrow.json.read_json(f)
                 return table
         except FileNotFoundError:
@@ -174,6 +174,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"An error occurred: {e}")
             return None
+
     # table = read_compressed_json_to_pyarrow(local_file_path)
     # breakpoint()
 

@@ -46,7 +46,7 @@ def main(config: Dict) -> None:
 
     # run the event loop every 30 seconds
     # while True:
-    for i in range(0,5):
+    for i in range(0, 5):
         process_logger = ProcessLogger(process_name="run_ingestion_gtfs_rt_hhh")
         process_logger.log_start()
 
@@ -55,7 +55,7 @@ def main(config: Dict) -> None:
         check_for_sigterm(metadata_queue, rds_process)
 
         process_logger.log_complete()
-        
+
         time.sleep(30)
 
     process_logger.log_complete()

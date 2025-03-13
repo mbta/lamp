@@ -17,7 +17,7 @@
 #     try:
 #         response = s3.get_object(Bucket=bucket_name, Key=key)
 #         parquet_content = response['Body'].read()
-        
+
 #         df = pd.read_parquet(io.BytesIO(parquet_content))
 #         return df
 #     except Exception as e:
@@ -27,9 +27,7 @@
 import polars as pl
 from tests.bus_performance_manager.test_tm_ingestion import check_stop_crossings
 
-if __name__ == '__main__':
-
-
+if __name__ == "__main__":
 
     # Read a Parquet file into a DataFrame
     df = pl.read_parquet("/Users/hhuang/Downloads/20240104.parquet")
@@ -84,7 +82,7 @@ if __name__ == '__main__':
 #     # df.to_csv('out.csv', index=False)
 #     print(df.head())
 
-    
+
 #     # s3://mbta-ctd-dataplatform-springboard/lamp/TM/STOP_CROSSING/120240207.parquet
 
 #     row_count = len(df)

@@ -214,7 +214,7 @@ class GtfsRtConverter(Converter):
                         result_filename,
                     )
                     continue
-                
+
                 dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
 
                 idx = idx + 1
@@ -227,12 +227,12 @@ class GtfsRtConverter(Converter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    #todo
+    # todo
     def update_table(self, process_logger, result_dt, result_filename, rt_data) -> datetime:
         # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
         # function. if one is encountered, the datetime will be none. log
         # the error and move on to the next file.
-       
+
         # create key for self.data_parts dictionary
         dt_part = datetime(
             year=result_dt.year,
@@ -265,7 +265,7 @@ class GtfsRtConverter(Converter):
         return dt_part
 
     def yield_check(
-        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes = 16 * 1024**2
+        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes=16 * 1024**2
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -292,7 +292,9 @@ class GtfsRtConverter(Converter):
                 )
                 process_logger.log_complete()
                 # reset process logger
-                process_logger.add_metadata(fcn="yield_check", file_count=0, num_bytes_sum=0, num_bytes_concat=0, num_rows=0, print_log=False)
+                process_logger.add_metadata(
+                    fcn="yield_check", file_count=0, num_bytes_sum=0, num_bytes_concat=0, num_rows=0, print_log=False
+                )
                 process_logger.log_start()
 
                 yield table
@@ -510,10 +512,14 @@ class GtfsRtConverter(Converter):
                 # # drop GTFS_RT_HASH_COL column for S3 upload
                 hash_writer.write_table(unique_table)
                 upload_writer.write_table(unique_table.drop_columns(GTFS_RT_HASH_COL))
-              
-                batch_filter=((pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min))
+
+                batch_filter = (pc.field(self.detail.partition_column) == part) & (
+                    pc.field("feed_timestamp") < unique_ts_min
+                )
                 counter = 0
-                for batch in out_ds.to_batches(batch_size=1024 * 128, filter=batch_filter, batch_readahead=1, fragment_readahead=0):
+                for batch in out_ds.to_batches(
+                    batch_size=1024 * 128, filter=batch_filter, batch_readahead=1, fragment_readahead=0
+                ):
                     hash_writer.write_batch(batch)
                     upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
                     logger.add_metadata(hhh_step=2.2, counter=counter)
@@ -575,7 +581,7 @@ class GtfsRtConverter(Converter):
     # def finalize_pq_file(self, table: pyarrow.Table) -> None:
     #     """
     #     Final updating of local parquet files that are synced with S3 - process whole file
-    #     to remove duplicates via hash. sort the whole file. 
+    #     to remove duplicates via hash. sort the whole file.
     #     """
     #     log = ProcessLogger("finalize_pq_update")
     #     log.log_start()

@@ -6,8 +6,10 @@ from queue import Queue
 import time
 import logging
 import signal
+
 # import json
 import pyarrow.json
+
 # import gzip
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
@@ -28,6 +30,7 @@ import pyarrow
 from pyarrow import fs
 
 from dotenv import load_dotenv
+
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
 
@@ -61,7 +64,7 @@ def main(config: Dict) -> None:
 
     # process_logger.log_complete()
 
-        # time.sleep(30)
+    # time.sleep(30)
 
     process_logger.log_complete()
     metadata_queue.put(None)
@@ -108,7 +111,7 @@ if __name__ == "__main__":
     #     data = json.load(gzip_fd)
     # with open('/Users/hhuang/lamp/data/2025-02-20T00_00_00Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json', 'r') as file:
     #     data = json.load(file)
-  
+
     # with open('/Users/hhuang/lamp/test/dev.json.gz', 'r') as file:
     #         # with open('/Users/hhuang/lamp/dev_incoming_data/2025-02-21T02:51:26Z_https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json.gz', 'r') as file:
     #     data2 = json.load(file)
