@@ -265,7 +265,7 @@ class GtfsRtConverter(Converter):
         return dt_part
 
     def yield_check(
-        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes = 64 * 1024**2
+        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes = 16 * 1024**2
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently

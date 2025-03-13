@@ -53,7 +53,7 @@ class ProcessLogger:
         process_used_mem_pct = psutil.Process(os.getpid()).memory_percent(memtype="rss")
         self.default_data["free_disk_mb"] = int(free_disk_bytes / (1000 * 1000))
         self.default_data["free_mem_pct"] = int(100 - used_mem_pct)
-        self.default_data["ps_free_mem_pct"] = int(100 - process_used_mem_pct)
+        self.default_data["ps_used_mem_pct"] = int(process_used_mem_pct)
 
         logging_list = []
         # add default data to log output
