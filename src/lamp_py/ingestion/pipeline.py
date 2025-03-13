@@ -59,7 +59,8 @@ def main(config: Dict) -> None:
 def start(
     config: Dict = {
         "bucket_name": S3_INCOMING,
-        "file_prefix": LAMP,
+        # "file_prefix": LAMP, TODO..put back
+        "file_prefix": "lamp/delta/2025/03/",
         "max_list_size": 250_000,
         "in_filter": None,
         "multiprocessing": True,
