@@ -505,13 +505,17 @@ class GtfsRtConverter(Converter):
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                write_table = pyarrow.concat_tables([unique_table, ds_table])
                 logger.add_metadata(hhh_step=2.2)
-                hash_writer.write_table(write_table)
 
-                # drop GTFS_RT_HASH_COL column for S3 upload
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                logger.add_metadata(hhh_step=2.3)
+                # # drop GTFS_RT_HASH_COL column for S3 upload
+                hash_writer.write_table(unique_table)
+                upload_writer.write_table(unique_table.drop_columns(GTFS_RT_HASH_COL))
+              
+                batch_filter=((pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min))
+                for batch in out_ds.to_batches(batch_size=1024 * 1024, filter=batch_filter):
+                    hash_writer.write_batch(batch)
+                    upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
+                    logger.add_metadata(hhh_step=2.3)
 
             hash_writer.close()
             upload_writer.close()
