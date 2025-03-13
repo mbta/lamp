@@ -23,6 +23,7 @@ from typing import (
 )
 
 import polars as pl
+import psutil
 import pyarrow
 from pyarrow import fs
 import pyarrow.compute as pc
@@ -120,6 +121,7 @@ class GtfsRtConverter(Converter):
 
     def convert(self) -> None:
         max_tables_to_convert = 10
+        max_mem_usage_per_process_pct = 15
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -143,7 +145,9 @@ class GtfsRtConverter(Converter):
 
                 self.continuous_pq_update(table)
                 # limit number of tables produced on each event loop
-                if table_count >= max_tables_to_convert:
+                process_used_mem_pct = psutil.Process(os.getpid()).memory_percent(memtype="rss")
+
+                if table_count >= max_tables_to_convert or process_used_mem_pct >= max_mem_usage_per_process_pct:
                     break
 
         except Exception as exception:
