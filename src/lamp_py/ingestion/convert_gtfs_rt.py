@@ -170,9 +170,9 @@ class GtfsRtConverter(Converter):
                 if table_count >= max_tables_to_convert:
                     process_logger.add_metadata(reason="max tables to convert")
                     break
-                # if process_used_mem_pct >= max_mem_usage_per_process_pct:
-                #     process_logger.add_metadata(reason="approach allocated memory usage")
-                #     break
+                if process_used_mem_pct >= max_mem_usage_per_process_pct:
+                    process_logger.add_metadata(reason="approach allocated memory usage")
+                    break
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
