@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import shutil
 import tempfile
@@ -60,6 +61,19 @@ from lamp_py.runtime_utils.remote_files import (
 )
 
 
+def round_up_pow2(n):
+    if n <= 0:
+        return 0
+    exponent = math.ceil(math.log2(n))
+    return 2 ** exponent
+
+def round_down_pow2(n):
+    if n <= 0:
+        return 0
+    exponent = math.floor(math.log2(n))
+    return 2 ** exponent
+
+
 @dataclass
 class TableData:
     """
@@ -71,8 +85,8 @@ class TableData:
 
     table: Optional[pyarrow.Table] = None
     files: List[str] = field(default_factory=list)
-    nbytes: int = 0
-
+    nbytes_raw: int = 0
+    nrows_rounded_rowgroup: int = 0
 
 class GtfsRtConverter(Converter):
     """
@@ -133,25 +147,28 @@ class GtfsRtConverter(Converter):
         table_count = 0
         try:
             for table in self.process_files():
+                table.nrows_rounded_rowgroup = round_up_pow2(table.num_rows)
                 table_count += 1
                 process_logger.add_metadata(
                     fcn="HHH convert() - yield table",
                     num_bytes=table.nbytes,
                     num_rows=table.num_rows,
                     table_count=table_count,
+                    rowgroup_rows=table.nrows_rounded_rowgroup
                 )
                 if table.num_rows == 0:
                     continue
-                process_logger.add_metadata(tic="before_continuous_pq_update")
                 self.continuous_pq_update(table)
-                process_logger.add_metadata(toc="after_continuous_pq_update")
 
                 # limit number of tables produced on each event loop
                 process_used_mem_pct = psutil.Process(os.getpid()).memory_percent(memtype="rss")
 
-                if table_count >= max_tables_to_convert or process_used_mem_pct >= max_mem_usage_per_process_pct:
+                if table_count >= max_tables_to_convert:
+                    process_logger.add_metadata(reason="max tables to convert")
                     break
-
+                if process_used_mem_pct >= max_mem_usage_per_process_pct:
+                    process_logger.add_metadata(reason="approach allocated memory usage")
+                    break
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
@@ -203,7 +220,7 @@ class GtfsRtConverter(Converter):
                     else:
                         dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
 
-                    yield from self.yield_check(process_logger, self.data_parts[dt_part].nbytes)
+                    yield from self.yield_check(process_logger, self.data_parts[dt_part].nbytes_raw)
         else:
             self.thread_init()
             idx = 0
@@ -250,9 +267,9 @@ class GtfsRtConverter(Converter):
         if dt_part not in self.data_parts:
             self.data_parts[dt_part] = TableData()
             self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
-            self.data_parts[dt_part].nbytes = rt_data.nbytes
+            self.data_parts[dt_part].nbytes_raw = rt_data.nbytes
         else:
-            self.data_parts[dt_part].nbytes += rt_data.nbytes
+            self.data_parts[dt_part].nbytes_raw += rt_data.nbytes
             self.data_parts[dt_part].table = pyarrow.concat_tables(
                 [
                     self.data_parts[dt_part].table,
@@ -271,7 +288,7 @@ class GtfsRtConverter(Converter):
         return dt_part
 
     def yield_check(
-        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes=16 * 1024**2
+        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes=128 * 1024**2
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -292,7 +309,7 @@ class GtfsRtConverter(Converter):
                 process_logger.add_metadata(
                     fcn="HHH yield_check",
                     file_count=len(self.data_parts[iter_ts].files),
-                    num_bytes_sum=self.data_parts[iter_ts].nbytes,
+                    num_bytes_sum=self.data_parts[iter_ts].nbytes_raw,
                     num_bytes_concat=self.data_parts[iter_ts].table.nbytes,
                     num_rows=table.num_rows,
                 )
@@ -464,6 +481,7 @@ class GtfsRtConverter(Converter):
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
     # todo: improve this
+
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
@@ -471,6 +489,8 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+
+        
         logger = ProcessLogger("write_local_pq", local_path=local_path, table_rows=table.num_rows)
         logger.log_start()
 
@@ -523,8 +543,9 @@ class GtfsRtConverter(Converter):
                     pc.field("feed_timestamp") < unique_ts_min
                 )
                 counter = 0
+                # write out the row group thats exactly the number of rows that was yielded
                 for batch in out_ds.to_batches(
-                    batch_size=1024 * 128, filter=batch_filter, batch_readahead=0, fragment_readahead=0
+                    batch_size=table.nrows_rounded_rowgroup, filter=batch_filter, batch_readahead=0, fragment_readahead=0
                 ):
                     hash_writer.write_batch(batch)
                     upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
