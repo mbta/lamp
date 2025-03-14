@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     # # this works!
     # exit()
-    prefix = "lamp/delta/2025/03/1/"
+    prefix = "lamp/delta/2025/02/25/"
     # in_filter = "https_cdn.mbta.com_realtime_TripUpdates"
     # in_filter = "dev_green.s3.amazonaws.com_rtr_VehiclePositions"
     # in_filter = "https_cdn.mbta.com_realtime_Alerts_enhanced"
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     CONFIG_FILE_LIST_FROM_S3 = {
         "bucket_name": S3_INCOMING,
         "file_prefix": prefix,
-        "max_list_size": 250000,
+        "max_list_size": 20,
         "in_filter": in_filter,
         "multiprocessing": False,
     }
