@@ -136,7 +136,7 @@ class GtfsRtConverter(Converter):
         self.nrows_rounded_rowgroup: int
     def convert(self) -> None:
         max_tables_to_convert = 10
-        max_mem_usage_per_process_pct = 15
+        max_mem_usage_per_process_pct = 20
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -169,9 +169,9 @@ class GtfsRtConverter(Converter):
                 if table_count >= max_tables_to_convert:
                     process_logger.add_metadata(reason="max tables to convert")
                     break
-                if process_used_mem_pct >= max_mem_usage_per_process_pct:
-                    process_logger.add_metadata(reason="approach allocated memory usage")
-                    break
+                # if process_used_mem_pct >= max_mem_usage_per_process_pct:
+                #     process_logger.add_metadata(reason="approach allocated memory usage")
+                #     break
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
