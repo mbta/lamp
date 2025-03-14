@@ -2,6 +2,7 @@ import json
 import logging
 import math
 import os
+import gc
 import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -221,9 +222,9 @@ class GtfsRtConverter(Converter):
                         )
                         continue
                     else:
-                        dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
+                        dt_part = self.update_table(result_dt, result_filename, rt_data)
 
-                    yield from self.yield_check(process_logger, self.data_parts[dt_part].nbytes_raw)
+                    yield from self.yield_check(self.data_parts[dt_part].nbytes_raw)
         else:
             self.thread_init()
             idx = 0
@@ -241,20 +242,20 @@ class GtfsRtConverter(Converter):
                     )
                     continue
 
-                dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
+                dt_part = self.update_table(result_dt, result_filename, rt_data)
 
                 idx = idx + 1
                 # breakpoint()
-                yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes)
+                yield from self.yield_check(self.data_parts[dt_part].table.nbytes)
 
         # yield any remaining tables - nbytes > -1, so this will yield
-        yield from self.yield_check(process_logger, self.data_parts[dt_part].table.nbytes, max_bytes=-1)
+        yield from self.yield_check(self.data_parts[dt_part].table.nbytes, max_bytes=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
     # todo
-    def update_table(self, process_logger, result_dt, result_filename, rt_data) -> datetime:
+    def update_table(self, result_dt, result_filename, rt_data) -> datetime:
         # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
         # function. if one is encountered, the datetime will be none. log
         # the error and move on to the next file.
@@ -281,6 +282,9 @@ class GtfsRtConverter(Converter):
             )
 
         self.data_parts[dt_part].files.append(result_filename)
+        process_logger = ProcessLogger("update_table",
+            config_type=str(self.config_type),
+        )
         process_logger.add_metadata(
             fcn="HHH process_files",
             file_count=len(self.data_parts[dt_part].files),
@@ -288,10 +292,11 @@ class GtfsRtConverter(Converter):
             num_bytes_concat=self.data_parts[dt_part].table.nbytes,
             num_rows=self.data_parts[dt_part].table.num_rows,
         )
+        process_logger.log_complete()
         return dt_part
 
     def yield_check(
-        self, process_logger: ProcessLogger, nbytes_subtable, max_bytes=128 * 1024**2
+        self, nbytes_subtable, max_bytes=128 * 1024**2
     ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
@@ -303,28 +308,42 @@ class GtfsRtConverter(Converter):
 
         @yield pyarrow.table - a concatenated table of gtfs realtime data.
         """
+        process_logger = ProcessLogger(
+            "yield_check",
+            config_type=str(self.config_type),
+        )
+        process_logger.log_start()
         #  1kb  1mb  1gb
+
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
+
+            process_logger.add_metadata(
+                fcn="HHH yield_check - start",
+                file_count=len(self.data_parts[iter_ts].files),
+                num_bytes_sum=self.data_parts[iter_ts].nbytes_raw,
+                num_bytes_concat=self.data_parts[iter_ts].table.nbytes,
+                num_rows=table.num_rows,
+            )
+
             if table is not None and nbytes_subtable > max_bytes:
                 self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
-                    fcn="HHH yield_check",
+                    fcn="HHH yield_check table > max_bytes",
                     file_count=len(self.data_parts[iter_ts].files),
                     num_bytes_sum=self.data_parts[iter_ts].nbytes_raw,
                     num_bytes_concat=self.data_parts[iter_ts].table.nbytes,
                     num_rows=table.num_rows,
                 )
-                process_logger.log_complete()
-                # reset process logger
-                process_logger.add_metadata(
-                    fcn="yield_check", file_count=0, num_bytes_sum=0, num_bytes_concat=0, num_rows=0, print_log=False
-                )
-                process_logger.log_start()
 
                 yield table
                 del self.data_parts[iter_ts]
+                # force gc after del...try it. HHH
+                collected_objects = gc.collect()
+                process_logger.add_metadata(gc_del=collected_objects)
+        process_logger.log_complete()
+
 
     def gz_to_pyarrow(self, filename: str) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
         """
