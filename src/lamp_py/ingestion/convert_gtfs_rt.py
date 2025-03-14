@@ -133,6 +133,7 @@ class GtfsRtConverter(Converter):
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
 
+        self.nrows_rounded_rowgroup: int
     def convert(self) -> None:
         max_tables_to_convert = 10
         max_mem_usage_per_process_pct = 15
@@ -147,14 +148,16 @@ class GtfsRtConverter(Converter):
         table_count = 0
         try:
             for table in self.process_files():
-                table.nrows_rounded_rowgroup = round_up_pow2(table.num_rows)
+                # where to properly store row groups size?
                 table_count += 1
+
                 process_logger.add_metadata(
                     fcn="HHH convert() - yield table",
                     num_bytes=table.nbytes,
                     num_rows=table.num_rows,
                     table_count=table_count,
-                    rowgroup_rows=table.nrows_rounded_rowgroup
+                    pa_pool_bytes_alloc=pyarrow.default_memory_pool().bytes_allocated(),
+                    pa_pool_bytes_max=pyarrow.default_memory_pool().max_memory()
                 )
                 if table.num_rows == 0:
                     continue
@@ -543,9 +546,10 @@ class GtfsRtConverter(Converter):
                     pc.field("feed_timestamp") < unique_ts_min
                 )
                 counter = 0
+                
                 # write out the row group thats exactly the number of rows that was yielded
                 for batch in out_ds.to_batches(
-                    batch_size=table.nrows_rounded_rowgroup, filter=batch_filter, batch_readahead=0, fragment_readahead=0
+                    batch_size=round_up_pow2(table.num_rows), filter=batch_filter, batch_readahead=0, fragment_readahead=0
                 ):
                     hash_writer.write_batch(batch)
                     upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
