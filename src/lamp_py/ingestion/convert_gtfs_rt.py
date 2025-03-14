@@ -5,6 +5,7 @@ import os
 import gc
 import shutil
 import tempfile
+import tracemalloc
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import (
     dataclass,
@@ -145,6 +146,8 @@ class GtfsRtConverter(Converter):
             total_file_count=len(self.files),
         )
         process_logger.log_start()
+        
+        tracemalloc.start()
 
         table_count = 0
         try:
@@ -163,9 +166,23 @@ class GtfsRtConverter(Converter):
                 if table.num_rows == 0:
                     continue
                 self.continuous_pq_update(table)
-
+                # breakpoint()
                 # limit number of tables produced on each event loop
                 process_used_mem_pct = psutil.Process(os.getpid()).memory_percent(memtype="rss")
+
+                # memory tracing - DEV only
+                # memory tracing - DEV only
+                current, peak = tracemalloc.get_traced_memory()
+                print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+
+                snapshot = tracemalloc.take_snapshot()
+                top_stats = snapshot.statistics('lineno')
+
+                process_logger.add_metadata(trace="Top 10 lines allocating memory:")
+                for stat in top_stats[:10]:
+                    process_logger.add_metadata(traces=stat)
+                # memory tracing - DEV only
+                # memory tracing - DEV only
 
                 if table_count >= max_tables_to_convert:
                     process_logger.add_metadata(reason="max tables to convert")
@@ -178,6 +195,8 @@ class GtfsRtConverter(Converter):
         else:
             process_logger.log_complete()
         finally:
+            tracemalloc.stop()
+
             # self.finalize_pq_file()
             self.move_s3_files()
             self.clean_local_folders()
@@ -222,7 +241,7 @@ class GtfsRtConverter(Converter):
                         )
                         continue
                     else:
-                        dt_part = self.update_table(result_dt, result_filename, rt_data)
+                        dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
 
                     yield from self.yield_check(self.data_parts[dt_part].nbytes_raw)
         else:
@@ -255,7 +274,7 @@ class GtfsRtConverter(Converter):
         process_logger.log_complete()
 
     # todo
-    def update_table(self, result_dt, result_filename, rt_data) -> datetime:
+    def update_table(self, process_logger, result_dt, result_filename, rt_data) -> datetime:
         # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
         # function. if one is encountered, the datetime will be none. log
         # the error and move on to the next file.
@@ -282,9 +301,7 @@ class GtfsRtConverter(Converter):
             )
 
         self.data_parts[dt_part].files.append(result_filename)
-        process_logger = ProcessLogger("update_table",
-            config_type=str(self.config_type),
-        )
+
         process_logger.add_metadata(
             fcn="HHH process_files",
             file_count=len(self.data_parts[dt_part].files),
@@ -292,9 +309,9 @@ class GtfsRtConverter(Converter):
             num_bytes_concat=self.data_parts[dt_part].table.nbytes,
             num_rows=self.data_parts[dt_part].table.num_rows,
         )
-        process_logger.log_complete()
+        
         return dt_part
-
+    # 128 works with memory hatch
     def yield_check(
         self, nbytes_subtable, max_bytes=128 * 1024**2
     ) -> Iterable[pyarrow.table]:
@@ -564,16 +581,16 @@ class GtfsRtConverter(Converter):
                 batch_filter = (pc.field(self.detail.partition_column) == part) & (
                     pc.field("feed_timestamp") < unique_ts_min
                 )
-                counter = 0
-                
+                batch_read_counter = 0
+                batch_sz = round_up_pow2(table.num_rows)
                 # write out the row group thats exactly the number of rows that was yielded
                 for batch in out_ds.to_batches(
-                    batch_size=round_up_pow2(table.num_rows), filter=batch_filter, batch_readahead=0, fragment_readahead=0
+                    batch_size=batch_sz, filter=batch_filter, batch_readahead=0, fragment_readahead=0
                 ):
                     hash_writer.write_batch(batch)
                     upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
-                    logger.add_metadata(hhh_step=2.2, counter=counter)
-                    counter += 1
+                    logger.add_metadata(hhh_step=2.2, batch_size=batch_sz, counter=batch_read_counter)
+                    batch_read_counter += 1
 
             hash_writer.close()
             upload_writer.close()
