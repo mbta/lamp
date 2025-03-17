@@ -367,6 +367,8 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+        log = ProcessLogger("make_hash_datset")
+        log.log_start()
         table = hash_gtfs_rt_table(table)
         out_ds = pd.dataset(table)
 
@@ -389,7 +391,7 @@ class GtfsRtConverter(Converter):
                     out_ds = pd.dataset(table)
                 else:
                     raise exception
-
+        log.log_complete()
         return out_ds
 
     # pylint: disable=R0914
@@ -413,13 +415,14 @@ class GtfsRtConverter(Converter):
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema)
-            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
+            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
+            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema, compression="zstd", compression_level=3)
 
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
             for part in partitions:
+                logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
                 unique_table = (
                     pl.DataFrame(
                         out_ds.to_table(
@@ -439,7 +442,8 @@ class GtfsRtConverter(Converter):
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
+                write_table = pyarrow.concat_tables([unique_table, ds_table])
+                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
 
                 hash_writer.write_table(write_table)
 
