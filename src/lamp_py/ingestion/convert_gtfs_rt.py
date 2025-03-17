@@ -355,10 +355,9 @@ class GtfsRtConverter(Converter):
                 )
 
                 yield table
+                self.data_parts[iter_ts] = None
                 del self.data_parts[iter_ts]
-                # force gc after del...try it. HHH
-                collected_objects = gc.collect()
-                process_logger.add_metadata(gc_del=collected_objects)
+                
         process_logger.log_complete()
 
 
