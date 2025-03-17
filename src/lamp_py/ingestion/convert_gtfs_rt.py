@@ -542,8 +542,8 @@ class GtfsRtConverter(Converter):
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema)
-            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
+            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
+            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema, compression="zstd", compression_level=3)
 
             logger.add_metadata(hhh_step=0)
             # breakpoint()
