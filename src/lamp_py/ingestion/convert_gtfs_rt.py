@@ -217,7 +217,7 @@ class GtfsRtConverter(Converter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
+    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 1_000_000) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
         processed.
@@ -243,6 +243,7 @@ class GtfsRtConverter(Converter):
                 process_logger.log_start()
 
                 yield table
+                self.data_parts[iter_ts].table = None
                 del self.data_parts[iter_ts]
 
     def gz_to_pyarrow(self, filename: str) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
