@@ -252,7 +252,7 @@ def hash_gtfs_rt_parquet(path: str) -> None:
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = ds.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
+    hash_schema = ds.schema.to_arrow_schema().append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
 
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
