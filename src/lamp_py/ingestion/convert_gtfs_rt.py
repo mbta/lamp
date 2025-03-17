@@ -5,7 +5,7 @@ import os
 import gc
 import shutil
 import tempfile
-import tracemalloc
+# import tracemalloc
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import (
     dataclass,
@@ -147,7 +147,7 @@ class GtfsRtConverter(Converter):
         )
         process_logger.log_start()
         
-        tracemalloc.start()
+        # tracemalloc.start()
 
         table_count = 0
         try:
@@ -172,15 +172,15 @@ class GtfsRtConverter(Converter):
 
                 # memory tracing - DEV only
                 # memory tracing - DEV only
-                current, peak = tracemalloc.get_traced_memory()
-                print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
 
-                snapshot = tracemalloc.take_snapshot()
-                top_stats = snapshot.statistics('lineno')
+                # snapshot = tracemalloc.take_snapshot()
+                # top_stats = snapshot.statistics('lineno')
 
-                process_logger.add_metadata(trace="Top 10 lines allocating memory:")
-                for stat in top_stats[:10]:
-                    process_logger.add_metadata(traces=stat)
+                # process_logger.add_metadata(trace="Top 10 lines allocating memory:")
+                # for stat in top_stats[:10]:
+                #     process_logger.add_metadata(traces=stat)
                 # memory tracing - DEV only
                 # memory tracing - DEV only
 
@@ -195,7 +195,7 @@ class GtfsRtConverter(Converter):
         else:
             process_logger.log_complete()
         finally:
-            tracemalloc.stop()
+            # tracemalloc.stop()
 
             # self.finalize_pq_file()
             self.move_s3_files()
