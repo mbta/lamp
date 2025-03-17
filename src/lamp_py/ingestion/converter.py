@@ -27,6 +27,8 @@ class ConfigType(Enum):
     BUS_VEHICLE_POSITIONS = auto()
     VEHICLE_COUNT = auto()
     SCHEDULE = auto()
+    DEV_GREEN_RT_TRIP_UPDATES = auto()
+    DEV_GREEN_RT_VEHICLE_POSITIONS = auto()
 
     # this filetype is currently being added from delta into our incoming
     # bucket. we haven't looked into it yet, and its ingestion remains
@@ -73,6 +75,11 @@ class ConfigType(Enum):
 
         if "LightRailRawGPS" in filename:
             return cls.LIGHT_RAIL
+        
+        if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_TripUpdates_enhanced" in filename:
+            return cls.DEV_GREEN_RT_TRIP_UPDATES
+        if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json" in filename:
+            return cls.DEV_GREEN_RT_VEHICLE_POSITIONS
 
         raise ConfigTypeFromFilenameException(filename)
 
@@ -90,6 +97,8 @@ class ConfigType(Enum):
             self.BUS_VEHICLE_POSITIONS,
             self.VEHICLE_COUNT,
             self.LIGHT_RAIL,
+            self.DEV_GREEN_RT_VEHICLE_POSITIONS,
+            self.DEV_GREEN_RT_TRIP_UPDATES,
         ]
 
 
