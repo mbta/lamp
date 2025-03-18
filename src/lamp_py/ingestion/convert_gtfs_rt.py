@@ -134,6 +134,8 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
+                pool = pyarrow.default_memory_pool()
+                pool.release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
@@ -145,6 +147,7 @@ class GtfsRtConverter(Converter):
         else:
             process_logger.log_complete()
         finally:
+            self.data_parts = {}
             self.move_s3_files()
             self.clean_local_folders()
 
@@ -428,8 +431,16 @@ class GtfsRtConverter(Converter):
             )
             for part in partitions:
                 logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
-                unique_table = (
-                    pl.DataFrame(
+                write_table = out_ds.to_table(
+                    filter=(
+                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
+                    )
+                )
+                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+                hash_writer.write_table(write_table)
+                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                write_table = (
+                    pl.from_arrow(
                         out_ds.to_table(
                             filter=(
                                 (pc.field(self.detail.partition_column) == part)
@@ -442,17 +453,8 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
-                ds_table = out_ds.to_table(
-                    filter=(
-                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
-                    )
-                )
-                write_table = pyarrow.concat_tables([unique_table, ds_table])
                 logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
-
                 hash_writer.write_table(write_table)
-
-                # drop GTFS_RT_HASH_COL column for S3 upload
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
             hash_writer.close()
