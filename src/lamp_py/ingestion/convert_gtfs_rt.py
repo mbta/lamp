@@ -134,8 +134,6 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
-                pool = pyarrow.default_memory_pool()
-                pool.release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
@@ -220,7 +218,7 @@ class GtfsRtConverter(Converter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 1_000_000) -> Iterable[pyarrow.table]:
+    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
         processed.
