@@ -242,20 +242,21 @@ def hash_gtfs_rt_parquet(path: str) -> None:
     """
     add GTFS_RT_HASH_COL to local parquet file, if not already present
     """
-    ds = pd.dataset(path)
-    hash_columns = ds.schema.names
+    ds = pq.ParquetFile(path)
+    ds_schema = ds.schema.to_arrow_schema()
+    hash_columns = ds_schema.names
     if GTFS_RT_HASH_COL in hash_columns:
         return
 
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = ds.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
+    hash_schema = ds_schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
 
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
         with pq.ParquetWriter(tmp_pq, schema=hash_schema) as writer:
-            for batch in ds.to_batches(batch_size=1024 * 1024):
+            for batch in ds.iter_batches(batch_size=1024 * 1024):
                 batch = pl.from_arrow(batch)
                 batch = (
                     batch.with_columns(

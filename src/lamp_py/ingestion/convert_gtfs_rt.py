@@ -1,8 +1,11 @@
 import json
 import logging
+import math
 import os
+import gc
 import shutil
 import tempfile
+# import tracemalloc
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import (
     dataclass,
@@ -23,6 +26,7 @@ from typing import (
 )
 
 import polars as pl
+import psutil
 import pyarrow
 from pyarrow import fs
 import pyarrow.compute as pc
@@ -59,6 +63,19 @@ from lamp_py.runtime_utils.remote_files import (
 )
 
 
+def round_up_pow2(n):
+    if n <= 0:
+        return 0
+    exponent = math.ceil(math.log2(n))
+    return 2 ** exponent
+
+def round_down_pow2(n):
+    if n <= 0:
+        return 0
+    exponent = math.floor(math.log2(n))
+    return 2 ** exponent
+
+
 @dataclass
 class TableData:
     """
@@ -70,7 +87,8 @@ class TableData:
 
     table: Optional[pyarrow.Table] = None
     files: List[str] = field(default_factory=list)
-
+    nbytes_raw: int = 0
+    nrows_rounded_rowgroup: int = 0
 
 class GtfsRtConverter(Converter):
     """
@@ -101,6 +119,10 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
+            self.detail = RtTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
+            self.detail = RtVehicleDetail()
         elif config_type == ConfigType.LIGHT_RAIL:
             raise IgnoreIngestion("Ignore LIGHT_RAIL files")
         else:
@@ -113,34 +135,69 @@ class GtfsRtConverter(Converter):
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
 
+        self.nrows_rounded_rowgroup: int
     def convert(self) -> None:
-        max_tables_to_convert = 15
+        max_tables_to_convert = 10
+        max_mem_usage_per_process_pct = 20
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
             config_type=str(self.config_type),
-            file_count=len(self.files),
+            total_file_count=len(self.files),
         )
         process_logger.log_start()
+        
+        # tracemalloc.start()
 
         table_count = 0
         try:
             for table in self.process_files():
+                # where to properly store row groups size?
+                table_count += 1
+
+                process_logger.add_metadata(
+                    fcn="HHH convert() - yield table",
+                    num_bytes=table.nbytes,
+                    num_rows=table.num_rows,
+                    table_count=table_count,
+                    pa_pool_bytes_alloc=pyarrow.default_memory_pool().bytes_allocated(),
+                    pa_pool_bytes_max=pyarrow.default_memory_pool().max_memory()
+                )
                 if table.num_rows == 0:
                     continue
-
                 self.continuous_pq_update(table)
-                table_count += 1
-                process_logger.add_metadata(table_count=table_count)
+                # breakpoint()
                 # limit number of tables produced on each event loop
-                if table_count >= max_tables_to_convert:
-                    break
+                process_used_mem_pct = psutil.Process(os.getpid()).memory_percent(memtype="rss")
 
+                # memory tracing - DEV only
+                # memory tracing - DEV only
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+
+                # snapshot = tracemalloc.take_snapshot()
+                # top_stats = snapshot.statistics('lineno')
+
+                # process_logger.add_metadata(trace="Top 10 lines allocating memory:")
+                # for stat in top_stats[:10]:
+                #     process_logger.add_metadata(traces=stat)
+                # memory tracing - DEV only
+                # memory tracing - DEV only
+
+                if table_count >= max_tables_to_convert:
+                    process_logger.add_metadata(reason="max tables to convert")
+                    break
+                if process_used_mem_pct >= max_mem_usage_per_process_pct:
+                    process_logger.add_metadata(reason="approach allocated memory usage")
+                    break
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
         finally:
+            # tracemalloc.stop()
+
+            # self.finalize_pq_file()
             self.move_s3_files()
             self.clean_local_folders()
 
@@ -153,11 +210,13 @@ class GtfsRtConverter(Converter):
         """
         thread_data = current_thread()
         if self.files and self.files[0].startswith("s3://"):
-            thread_data.__dict__["file_system"] = fs.S3FileSystem()
+            # todo - this region is set for running locally so fs knows
+            # where to grab s3 files from. - don't want hardcoded when running in ECS
+            thread_data.__dict__["file_system"] = fs.S3FileSystem(region="us-east-1")
         else:
             thread_data.__dict__["file_system"] = fs.LocalFileSystem()
 
-    def process_files(self) -> Iterable[pyarrow.table]:
+    def process_files(self, multiprocess=True) -> Iterable[pyarrow.table]:
         """
         iterate through all of the files to be converted
 
@@ -170,9 +229,27 @@ class GtfsRtConverter(Converter):
             config_type=str(self.config_type),
         )
         process_logger.log_start()
+        # // check to see if rt_data nbytes == concattable nbytes. if not, then add together myself
+        if multiprocess:
+            with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
+                for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
+                    if result_dt is None:
+                        self.error_files.append(result_filename)
+                        logging.error(
+                            "gz_to_pyarrow exception when loading: %s",
+                            result_filename,
+                        )
+                        continue
+                    else:
+                        dt_part = self.update_table(process_logger, result_dt, result_filename, rt_data)
 
-        with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
-            for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
+                    yield from self.yield_check(self.data_parts[dt_part].nbytes_raw)
+        else:
+            self.thread_init()
+            idx = 0
+            for file in self.files:
+                result_dt, result_filename, rt_data = self.gz_to_pyarrow(file)
+
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
                 # the error and move on to the next file.
@@ -184,36 +261,60 @@ class GtfsRtConverter(Converter):
                     )
                     continue
 
-                # create key for self.data_parts dictionary
-                dt_part = datetime(
-                    year=result_dt.year,
-                    month=result_dt.month,
-                    day=result_dt.day,
-                )
+                dt_part = self.update_table(result_dt, result_filename, rt_data)
 
-                # create new self.table_groups entry for key if it doesn't exist
-                if dt_part not in self.data_parts:
-                    self.data_parts[dt_part] = TableData()
-                    self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
-                else:
-                    self.data_parts[dt_part].table = pyarrow.concat_tables(
-                        [
-                            self.data_parts[dt_part].table,
-                            self.detail.transform_for_write(rt_data),
-                        ]
-                    )
+                idx = idx + 1
+                # breakpoint()
+                yield from self.yield_check(self.data_parts[dt_part].table.nbytes)
 
-                self.data_parts[dt_part].files.append(result_filename)
-
-                yield from self.yield_check(process_logger)
-
-        # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=-1)
+        # yield any remaining tables - nbytes > -1, so this will yield
+        yield from self.yield_check(self.data_parts[dt_part].table.nbytes, max_bytes=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
+    # todo
+    def update_table(self, process_logger, result_dt, result_filename, rt_data) -> datetime:
+        # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
+        # function. if one is encountered, the datetime will be none. log
+        # the error and move on to the next file.
+
+        # create key for self.data_parts dictionary
+        dt_part = datetime(
+            year=result_dt.year,
+            month=result_dt.month,
+            day=result_dt.day,
+        )
+        # if no error, append resultant table
+        # create new self.table_groups entry for key if it doesn't exist
+        if dt_part not in self.data_parts:
+            self.data_parts[dt_part] = TableData()
+            self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
+            self.data_parts[dt_part].nbytes_raw = rt_data.nbytes
+        else:
+            self.data_parts[dt_part].nbytes_raw += rt_data.nbytes
+            self.data_parts[dt_part].table = pyarrow.concat_tables(
+                [
+                    self.data_parts[dt_part].table,
+                    self.detail.transform_for_write(rt_data),
+                ]
+            )
+
+        self.data_parts[dt_part].files.append(result_filename)
+
+        process_logger.add_metadata(
+            fcn="HHH process_files",
+            file_count=len(self.data_parts[dt_part].files),
+            num_bytes_single=rt_data.nbytes,
+            num_bytes_concat=self.data_parts[dt_part].table.nbytes,
+            num_rows=self.data_parts[dt_part].table.num_rows,
+        )
+        
+        return dt_part
+    # 128 works with memory hatch
+    def yield_check(
+        self, nbytes_subtable, max_bytes=128 * 1024**2
+    ) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
         processed.
@@ -224,22 +325,41 @@ class GtfsRtConverter(Converter):
 
         @yield pyarrow.table - a concatenated table of gtfs realtime data.
         """
+        process_logger = ProcessLogger(
+            "yield_check",
+            config_type=str(self.config_type),
+        )
+        process_logger.log_start()
+        #  1kb  1mb  1gb
+
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
-            if table is not None and table.num_rows > min_rows:
+
+            process_logger.add_metadata(
+                fcn="HHH yield_check - start",
+                file_count=len(self.data_parts[iter_ts].files),
+                num_bytes_sum=self.data_parts[iter_ts].nbytes_raw,
+                num_bytes_concat=self.data_parts[iter_ts].table.nbytes,
+                num_rows=table.num_rows,
+            )
+
+            if table is not None and nbytes_subtable > max_bytes:
                 self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
+                    fcn="HHH yield_check table > max_bytes",
                     file_count=len(self.data_parts[iter_ts].files),
-                    number_of_rows=table.num_rows,
+                    num_bytes_sum=self.data_parts[iter_ts].nbytes_raw,
+                    num_bytes_concat=self.data_parts[iter_ts].table.nbytes,
+                    num_rows=table.num_rows,
                 )
-                process_logger.log_complete()
-                # reset process logger
-                process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
-                process_logger.log_start()
 
                 yield table
+                self.data_parts[iter_ts] = None
                 del self.data_parts[iter_ts]
+                
+        process_logger.log_complete()
+
 
     def gz_to_pyarrow(self, filename: str) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
         """
@@ -257,10 +377,13 @@ class GtfsRtConverter(Converter):
             has been converted. (returns None if an Exception is thrown during
             conversion)
         """
+        # breakpoint()
+
         try:
             file_system = current_thread().__dict__["file_system"]
             filename = filename.replace("s3://", "")
-
+            # filename = filename.replace(".gz", "")
+            # breakpoint()
             # some of our older files are named incorrectly, with a simple
             # .json suffix rather than a .json.gz suffix. in those cases, the
             # s3 open_input_stream is unable to deduce the correct compression
@@ -269,6 +392,7 @@ class GtfsRtConverter(Converter):
             try:
                 with file_system.open_input_stream(filename) as file:
                     json_data = json.load(file)
+
             except UnicodeDecodeError as _:
                 with file_system.open_input_stream(filename, compression="gzip") as file:
                     json_data = json.load(file)
@@ -394,6 +518,8 @@ class GtfsRtConverter(Converter):
 
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
+    # todo: improve this
+
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
@@ -401,6 +527,8 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+
+        
         logger = ProcessLogger("write_local_pq", local_path=local_path, table_rows=table.num_rows)
         logger.log_start()
 
@@ -413,12 +541,15 @@ class GtfsRtConverter(Converter):
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema)
-            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
+            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
+            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema, compression="zstd", compression_level=3)
 
+            logger.add_metadata(hhh_step=0)
+            # breakpoint()
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
+            logger.add_metadata(hhh_step=1)
             for part in partitions:
                 unique_table = (
                     pl.DataFrame(
@@ -434,27 +565,41 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
+                logger.add_metadata(hhh_step=2.1)
                 ds_table = out_ds.to_table(
                     filter=(
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
+                logger.add_metadata(hhh_step=2.2)
 
-                hash_writer.write_table(write_table)
+                # # drop GTFS_RT_HASH_COL column for S3 upload
+                hash_writer.write_table(unique_table)
+                upload_writer.write_table(unique_table.drop_columns(GTFS_RT_HASH_COL))
 
-                # drop GTFS_RT_HASH_COL column for S3 upload
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                batch_filter = (pc.field(self.detail.partition_column) == part) & (
+                    pc.field("feed_timestamp") < unique_ts_min
+                )
+                batch_read_counter = 0
+                batch_sz = round_up_pow2(table.num_rows)
+                # write out the row group thats exactly the number of rows that was yielded
+                for batch in out_ds.to_batches(
+                    batch_size=batch_sz, filter=batch_filter, batch_readahead=0, fragment_readahead=0
+                ):
+                    hash_writer.write_batch(batch)
+                    upload_writer.write_batch(batch.drop_columns(GTFS_RT_HASH_COL))
+                    logger.add_metadata(hhh_step=2.2, batch_size=batch_sz, counter=batch_read_counter)
+                    batch_read_counter += 1
 
             hash_writer.close()
             upload_writer.close()
-
+            logger.add_metadata(hhh_step=3)
             os.replace(hash_pq_path, local_path)
             upload_file(
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
-
+            logger.add_metadata(hhh_step=4)
         logger.log_complete()
 
     # pylint: enable=R0914
@@ -479,7 +624,6 @@ class GtfsRtConverter(Converter):
             )
 
             table = table.drop_columns(["year", "month", "day"])
-
             log.add_metadata(local_path=local_path)
 
             self.write_local_pq(table, local_path)
@@ -499,6 +643,47 @@ class GtfsRtConverter(Converter):
             self.error_files += self.archive_files
             self.archive_files = []
             log.log_failure(exception)
+
+    # def finalize_pq_file(self, table: pyarrow.Table) -> None:
+    #     """
+    #     Final updating of local parquet files that are synced with S3 - process whole file
+    #     to remove duplicates via hash. sort the whole file.
+    #     """
+    #     log = ProcessLogger("finalize_pq_update")
+    #     log.log_start()
+    #     try:
+    #         partition_dt = self.partition_dt(table)
+
+    #         local_path = os.path.join(
+    #             self.tmp_folder,
+    #             LAMP,
+    #             str(self.config_type),
+    #             f"year={partition_dt.year}",
+    #             f"month={partition_dt.month}",
+    #             f"day={partition_dt.day}",
+    #             f"{partition_dt.isoformat()}.parquet",
+    #         )
+
+    #         table = table.drop_columns(["year", "month", "day"])
+    #         log.add_metadata(local_path=local_path)
+
+    #         self.write_local_pq(table, local_path)
+    #         self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
+
+    #         log.log_complete()
+
+    #     except Exception as exception:
+    #         shutil.rmtree(
+    #             os.path.join(
+    #                 self.tmp_folder,
+    #                 LAMP,
+    #                 str(self.config_type),
+    #             ),
+    #             ignore_errors=True,
+    #         )
+    #         self.error_files += self.archive_files
+    #         self.archive_files = []
+    #         log.log_failure(exception)
 
     def clean_local_folders(self) -> None:
         """
