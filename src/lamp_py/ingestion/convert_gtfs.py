@@ -57,7 +57,7 @@ class GtfsConverter(Converter):
     Converter for GTFS Schedule Data
     """
 
-    def convert(self) -> None:
+    def convert(self, multiprocess: bool = True) -> None:
         for url, version_key in gtfs_files_to_convert():
             process_logger = ProcessLogger(
                 "parquet_table_creator",
