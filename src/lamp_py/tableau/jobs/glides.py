@@ -41,8 +41,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startTime", pyarrow.time32()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.previousTripKey.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.previousTripKey.startTime", pyarrow.time32("s")),  # HH:MM:SS str -> time
+        ("data.tripUpdates.previousTripKey.endTime", pyarrow.time32("s")),  # HH:MM:SS str -> time
         ("data.tripUpdates.previousTripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.type", pyarrow.large_string()),
@@ -52,8 +52,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.time32()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.tripKey.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.tripKey.startTime", pyarrow.time32("s")),  # HH:MM:SS str -> time
+        ("data.tripUpdates.tripKey.endTime", pyarrow.time32("s")),  # HH:MM:SS str -> time
         ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.comment", pyarrow.large_string()),
@@ -61,8 +61,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.startTime", pyarrow.time32()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.startTime", pyarrow.time32("s")),  # HH:MM:SS str -> time
+        ("data.tripUpdates.endTime", pyarrow.time32("s")),  # HH:MM:SS str -> time
         ("data.tripUpdates.cars", pyarrow.large_string()),
         ("data.tripUpdates.revenue", pyarrow.large_string()),
         ("data.tripUpdates.dropped", pyarrow.large_string()),
