@@ -28,32 +28,32 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.metadata.author.emailAddress", pyarrow.large_string()),
         ("data.metadata.author.badgeNumber", pyarrow.large_string()),
         ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.large_string()), # probably this one
+        ("data.metadata.inputTimestamp", pyarrow.date32()),  # probably this one ymd hms Z str->Datetime
         ("id", pyarrow.large_string()),
-        ("type", pyarrow.large_string()), # probably this one
-        ("time", pyarrow.timestamp("ms")), # probably this one
+        ("type", pyarrow.large_string()),
+        ("time", pyarrow.date32()),  # probably this one ymd hms .123 maybe
         ("source", pyarrow.large_string()),
         ("specversion", pyarrow.large_string()),
         ("dataschema", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.serviceDate", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.previousTripKey.serviceDate", pyarrow.date32()),  # YYYY-MM-DD str -> date
         ("data.tripUpdates.previousTripKey.tripId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.startLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startTime", pyarrow.large_string()), # probably this one
-        ("data.tripUpdates.previousTripKey.endTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.previousTripKey.startTime", pyarrow.time32()),  # probably this one - all NULL can't be sure
+        ("data.tripUpdates.previousTripKey.endTime", pyarrow.time32()),  # probably this one - all NULL can't be sure
         ("data.tripUpdates.previousTripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.type", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.serviceDate", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.tripKey.serviceDate", pyarrow.date32()),  # probably this one  #YYYY-MM-DD
         ("data.tripUpdates.tripKey.tripId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.startLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.large_string()), # probably this one
-        ("data.tripUpdates.tripKey.endTime", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.startTime", pyarrow.time32()),  # probably this one HH:MM:SS
+        ("data.tripUpdates.tripKey.endTime", pyarrow.time32()),  # probably this one HH:MM:SS
         ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.comment", pyarrow.large_string()),
@@ -61,8 +61,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.startTime", pyarrow.large_string()), # probably this one
-        ("data.tripUpdates.endTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.startTime", pyarrow.time32()),  # probably this one HH:MM:SS
+        ("data.tripUpdates.endTime", pyarrow.time32()),  # probably this one HH:MM:SS
         ("data.tripUpdates.cars", pyarrow.large_string()),
         ("data.tripUpdates.revenue", pyarrow.large_string()),
         ("data.tripUpdates.dropped", pyarrow.large_string()),
@@ -70,21 +70,21 @@ glides_trips_updated_schema = pyarrow.schema(
     ]
 )
 
-glides_operator_signed_in_schema = pyarrow.schema(s
+glides_operator_signed_in_schema = pyarrow.schema(
     [
         ("data.metadata.location.gtfsId", pyarrow.large_string()),
         ("data.metadata.location.todsId", pyarrow.large_string()),
         ("data.metadata.author.emailAddress", pyarrow.large_string()),
         ("data.metadata.author.badgeNumber", pyarrow.large_string()),
         ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.large_string()), # probably this one
+        ("data.metadata.inputTimestamp", pyarrow.date32()),  # probably this one
         ("data.operator.badgeNumber", pyarrow.large_string()),
-        ("data.signedInAt", pyarrow.large_string()), # probably this one
+        ("data.signedInAt", pyarrow.date32()),  # probably this one
         ("data.signature.type", pyarrow.large_string()),
         ("data.signature.version", pyarrow.int16()),
         ("id", pyarrow.large_string()),
         ("type", pyarrow.large_string()),
-        ("time", pyarrow.timestamp("ms")), # this one
+        ("time", pyarrow.timestamp("ms")),  # this one
         ("source", pyarrow.large_string()),
         ("specversion", pyarrow.large_string()),
         ("dataschema", pyarrow.large_string()),
@@ -115,27 +115,25 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-            # # Convert datetime to Eastern Time
-            # polars_df = polars_df.with_columns(
-            #     pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            #     pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            #     pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            # )
+            # convert all string dates, times, and datetimes to Dates, Times, and Datetimes
+            # setting strict=False because there many nulls in this glides data at the moment. 
+            polars_df = polars_df.with_columns(
+                pl.col("data.metadata.inputTimestamp")
+                .str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ", strict=False)
+                .dt.convert_time_zone(time_zone="US/Eastern")
+                .dt.replace_time_zone(None),
+                pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+                pl.col("data.tripUpdates.previousTripKey.serviceDate").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
+                pl.col("data.tripUpdates.previousTripKey.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
+                pl.col("data.tripUpdates.previousTripKey.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
 
-            # # Convert seconds columns to be aligned with Eastern Time
-            # polars_df = polars_df.with_columns(
-            #     (pl.col("gtfs_travel_to_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            #     .dt.total_seconds()
-            #     .alias("gtfs_travel_to_seconds"),
-            #     (pl.col("stop_arrival_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            #     .dt.total_seconds()
-            #     .alias("stop_arrival_seconds"),
-            #     (pl.col("stop_departure_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            #     .dt.total_seconds()
-            #     .alias("stop_departure_seconds"),
-            # )
+                pl.col("data.tripUpdates.tripKey.serviceDate").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
+                pl.col("data.tripUpdates.tripKey.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
+                pl.col("data.tripUpdates.tripKey.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
 
-            # polars_df = polars_df.with_columns(pl.col("service_date").str.strptime(pl.Date, "%Y%m%d", strict=False))
+                pl.col("data.tripUpdates.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
+                pl.col("data.tripUpdates.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
+            )
 
             writer.write_table(polars_df.to_arrow())
 
@@ -144,7 +142,9 @@ def create_operator_signed_in_glides_parquet(job: HyperJob, num_files: Optional[
     """
     Grab the glides_events files and process
     """
-    s3_uris = file_list_from_s3(bucket_name=glides_operator_signed_in.bucket, file_prefix=glides_operator_signed_in.prefix)
+    s3_uris = file_list_from_s3(
+        bucket_name=glides_operator_signed_in.bucket, file_prefix=glides_operator_signed_in.prefix
+    )
     ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
     if num_files is not None:
@@ -162,29 +162,17 @@ def create_operator_signed_in_glides_parquet(job: HyperJob, num_files: Optional[
 
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-
-            # # Convert datetime to Eastern Time
-            # polars_df = polars_df.with_columns(
-            #     pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            #     pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            #     pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-            # )
-
-            # # Convert seconds columns to be aligned with Eastern Time
-            # polars_df = polars_df.with_columns(
-            #     (pl.col("gtfs_travel_to_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            #     .dt.total_seconds()
-            #     .alias("gtfs_travel_to_seconds"),
-            #     (pl.col("stop_arrival_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            #     .dt.total_seconds()
-            #     .alias("stop_arrival_seconds"),
-            #     (pl.col("stop_departure_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            #     .dt.total_seconds()
-            #     .alias("stop_departure_seconds"),
-            # )
-
-            # polars_df = polars_df.with_columns(pl.col("service_date").str.strptime(pl.Date, "%Y%m%d", strict=False))
-
+            polars_df = polars_df.with_columns(
+                pl.col("data.metadata.inputTimestamp")
+                .str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ", strict=False)
+                .dt.convert_time_zone(time_zone="US/Eastern")
+                .dt.replace_time_zone(None),
+                pl.col("data.signedInAt")
+                .str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ", strict=False)
+                .dt.convert_time_zone(time_zone="US/Eastern")
+                .dt.replace_time_zone(None),
+                pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+            )
             writer.write_table(polars_df.to_arrow())
 
 
