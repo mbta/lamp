@@ -28,10 +28,10 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.metadata.author.emailAddress", pyarrow.large_string()),
         ("data.metadata.author.badgeNumber", pyarrow.large_string()),
         ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.date32()),  # probably this one ymd hms Z str->Datetime
+        ("data.metadata.inputTimestamp", pyarrow.date32()),  # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
         ("id", pyarrow.large_string()),
         ("type", pyarrow.large_string()),
-        ("time", pyarrow.date32()),  # probably this one ymd hms .123 maybe
+        ("time", pyarrow.date32()),  # yyyy-mm-ddT hh:mm:ssZ timestamp (UTC) -> Datetime (EST)
         ("source", pyarrow.large_string()),
         ("specversion", pyarrow.large_string()),
         ("dataschema", pyarrow.large_string()),
@@ -41,19 +41,19 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startTime", pyarrow.time32()),  # probably this one - all NULL can't be sure
-        ("data.tripUpdates.previousTripKey.endTime", pyarrow.time32()),  # probably this one - all NULL can't be sure
+        ("data.tripUpdates.previousTripKey.startTime", pyarrow.time32()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.previousTripKey.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
         ("data.tripUpdates.previousTripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.type", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.serviceDate", pyarrow.date32()),  # probably this one  #YYYY-MM-DD
+        ("data.tripUpdates.tripKey.serviceDate", pyarrow.date32()),  # YYYY-MM-DD str -> date
         ("data.tripUpdates.tripKey.tripId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.startLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.time32()),  # probably this one HH:MM:SS
-        ("data.tripUpdates.tripKey.endTime", pyarrow.time32()),  # probably this one HH:MM:SS
+        ("data.tripUpdates.tripKey.startTime", pyarrow.time32()), # HH:MM:SS str -> time
+        ("data.tripUpdates.tripKey.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
         ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.comment", pyarrow.large_string()),
@@ -61,8 +61,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.startTime", pyarrow.time32()),  # probably this one HH:MM:SS
-        ("data.tripUpdates.endTime", pyarrow.time32()),  # probably this one HH:MM:SS
+        ("data.tripUpdates.startTime", pyarrow.time32()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
         ("data.tripUpdates.cars", pyarrow.large_string()),
         ("data.tripUpdates.revenue", pyarrow.large_string()),
         ("data.tripUpdates.dropped", pyarrow.large_string()),
@@ -77,14 +77,14 @@ glides_operator_signed_in_schema = pyarrow.schema(
         ("data.metadata.author.emailAddress", pyarrow.large_string()),
         ("data.metadata.author.badgeNumber", pyarrow.large_string()),
         ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.date32()),  # probably this one
+        ("data.metadata.inputTimestamp", pyarrow.date32()), # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
         ("data.operator.badgeNumber", pyarrow.large_string()),
-        ("data.signedInAt", pyarrow.date32()),  # probably this one
+        ("data.signedInAt", pyarrow.date32()), # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
         ("data.signature.type", pyarrow.large_string()),
         ("data.signature.version", pyarrow.int16()),
         ("id", pyarrow.large_string()),
         ("type", pyarrow.large_string()),
-        ("time", pyarrow.timestamp("ms")),  # this one
+        ("time", pyarrow.date32()),  # yyyy-mm-ddT hh:mm:ssZ timestamp (UTC) -> Datetime (EST)
         ("source", pyarrow.large_string()),
         ("specversion", pyarrow.large_string()),
         ("dataschema", pyarrow.large_string()),
@@ -123,6 +123,8 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
                 .dt.convert_time_zone(time_zone="US/Eastern")
                 .dt.replace_time_zone(None),
                 pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+
+                # all of these service dates and start/end times are already EST - don't do any conversions
                 pl.col("data.tripUpdates.previousTripKey.serviceDate").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
                 pl.col("data.tripUpdates.previousTripKey.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
                 pl.col("data.tripUpdates.previousTripKey.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
