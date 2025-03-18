@@ -23,71 +23,71 @@ from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_with_details, ob
 # these are re-defined here for clarity. These will be asserted against
 glides_trip_updates_schema = pyarrow.schema(
     [
-        ("data.metadata.location.gtfsId", pyarrow.string()),
-        ("data.metadata.location.todsId", pyarrow.string()),
-        ("data.metadata.author.emailAddress", pyarrow.string()),
-        ("data.metadata.author.badgeNumber", pyarrow.string()),
-        ("data.metadata.inputType", pyarrow.string()),
-        ("data.metadata.inputTimestamp", pyarrow.string()), # probably this one
-        ("id", pyarrow.string()),
-        ("type", pyarrow.string()), # probably this one
+        ("data.metadata.location.gtfsId", pyarrow.large_string()),
+        ("data.metadata.location.todsId", pyarrow.large_string()),
+        ("data.metadata.author.emailAddress", pyarrow.large_string()),
+        ("data.metadata.author.badgeNumber", pyarrow.large_string()),
+        ("data.metadata.inputType", pyarrow.large_string()),
+        ("data.metadata.inputTimestamp", pyarrow.large_string()), # probably this one
+        ("id", pyarrow.large_string()),
+        ("type", pyarrow.large_string()), # probably this one
         ("time", pyarrow.timestamp("ms")), # probably this one
-        ("source", pyarrow.string()),
-        ("specversion", pyarrow.string()),
-        ("dataschema", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.serviceDate", pyarrow.string()), # probably this one
-        ("data.tripUpdates.previousTripKey.tripId", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.startLocation.gtfsId", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.startTime", pyarrow.string()), # probably this one
-        ("data.tripUpdates.previousTripKey.endTime", pyarrow.string()), # probably this one
-        ("data.tripUpdates.previousTripKey.revenue", pyarrow.string()),
-        ("data.tripUpdates.previousTripKey.glidesId", pyarrow.string()),
-        ("data.tripUpdates.type", pyarrow.string()),
-        ("data.tripUpdates.tripKey.serviceDate", pyarrow.string()), # probably this one
-        ("data.tripUpdates.tripKey.tripId", pyarrow.string()),
-        ("data.tripUpdates.tripKey.startLocation.gtfsId", pyarrow.string()),
-        ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.string()),
-        ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.string()),
-        ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.string()), # probably this one
-        ("data.tripUpdates.tripKey.endTime", pyarrow.string()),
-        ("data.tripUpdates.tripKey.revenue", pyarrow.string()),
-        ("data.tripUpdates.tripKey.glidesId", pyarrow.string()),
-        ("data.tripUpdates.comment", pyarrow.string()),
-        ("data.tripUpdates.startLocation.gtfsId", pyarrow.string()),
-        ("data.tripUpdates.startLocation.todsId", pyarrow.string()),
-        ("data.tripUpdates.endLocation.gtfsId", pyarrow.string()),
-        ("data.tripUpdates.endLocation.todsId", pyarrow.string()),
-        ("data.tripUpdates.startTime", pyarrow.string()), # probably this one
-        ("data.tripUpdates.endTime", pyarrow.string()), # probably this one
-        ("data.tripUpdates.cars", pyarrow.string()),
-        ("data.tripUpdates.revenue", pyarrow.string()),
-        ("data.tripUpdates.dropped", pyarrow.string()),
-        ("data.tripUpdates.scheduled", pyarrow.string()),
+        ("source", pyarrow.large_string()),
+        ("specversion", pyarrow.large_string()),
+        ("dataschema", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.serviceDate", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.previousTripKey.tripId", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.startLocation.gtfsId", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.startTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.previousTripKey.endTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.previousTripKey.revenue", pyarrow.large_string()),
+        ("data.tripUpdates.previousTripKey.glidesId", pyarrow.large_string()),
+        ("data.tripUpdates.type", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.serviceDate", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.tripKey.tripId", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.startLocation.gtfsId", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.startTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.tripKey.endTime", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
+        ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
+        ("data.tripUpdates.comment", pyarrow.large_string()),
+        ("data.tripUpdates.startLocation.gtfsId", pyarrow.large_string()),
+        ("data.tripUpdates.startLocation.todsId", pyarrow.large_string()),
+        ("data.tripUpdates.endLocation.gtfsId", pyarrow.large_string()),
+        ("data.tripUpdates.endLocation.todsId", pyarrow.large_string()),
+        ("data.tripUpdates.startTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.endTime", pyarrow.large_string()), # probably this one
+        ("data.tripUpdates.cars", pyarrow.large_string()),
+        ("data.tripUpdates.revenue", pyarrow.large_string()),
+        ("data.tripUpdates.dropped", pyarrow.large_string()),
+        ("data.tripUpdates.scheduled", pyarrow.large_string()),
     ]
 )
 
 glides_operator_sign_ins_schema = pyarrow.schema(
     [
-        ("data.metadata.location.gtfsId", pyarrow.string()),
-        ("data.metadata.location.todsId", pyarrow.string()),
-        ("data.metadata.author.emailAddress", pyarrow.string()),
-        ("data.metadata.author.badgeNumber", pyarrow.string()),
-        ("data.metadata.inputType", pyarrow.string()),
-        ("data.metadata.inputTimestamp", pyarrow.string()), # probably this one
-        ("data.operator.badgeNumber", pyarrow.string()),
-        ("data.signedInAt", pyarrow.string()), # probably this one
-        ("data.signature.type", pyarrow.string()),
+        ("data.metadata.location.gtfsId", pyarrow.large_string()),
+        ("data.metadata.location.todsId", pyarrow.large_string()),
+        ("data.metadata.author.emailAddress", pyarrow.large_string()),
+        ("data.metadata.author.badgeNumber", pyarrow.large_string()),
+        ("data.metadata.inputType", pyarrow.large_string()),
+        ("data.metadata.inputTimestamp", pyarrow.large_string()), # probably this one
+        ("data.operator.badgeNumber", pyarrow.large_string()),
+        ("data.signedInAt", pyarrow.large_string()), # probably this one
+        ("data.signature.type", pyarrow.large_string()),
         ("data.signature.version", pyarrow.int16()),
-        ("id", pyarrow.string()),
-        ("type", pyarrow.string()),
+        ("id", pyarrow.large_string()),
+        ("type", pyarrow.large_string()),
         ("time", pyarrow.timestamp("ms")),
-        ("source", pyarrow.string()),
-        ("specversion", pyarrow.string()),
-        ("dataschema", pyarrow.string()),
+        ("source", pyarrow.large_string()),
+        ("specversion", pyarrow.large_string()),
+        ("dataschema", pyarrow.large_string()),
     ]
 )
 
