@@ -257,7 +257,7 @@ def hash_gtfs_rt_parquet(path: str) -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
         with pq.ParquetWriter(tmp_pq, schema=hash_schema) as writer:
-            for batch in ds.iter_batches(batch_size=1024 * 1024):
+            for batch in ds.iter_batches(batch_size=512 * 1024):
                 batch = pl.from_arrow(batch)
                 batch = (
                     batch.with_columns(
