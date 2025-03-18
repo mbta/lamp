@@ -368,7 +368,7 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
+    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> None:
         """
         create dataset, with hash column, that will be written to parquet file
 
@@ -378,7 +378,7 @@ class GtfsRtConverter(Converter):
         log = ProcessLogger("make_hash_datset")
         log.log_start()
         table = hash_gtfs_rt_table(table)
-        out_ds = pd.dataset(table)
+        self.out_ds = pd.dataset(table)
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
@@ -388,7 +388,7 @@ class GtfsRtConverter(Converter):
             # RT_ALERTS updates are essentially the same throughout a service day so resetting the
             # dataset will have minimal impact on archived data
             try:
-                out_ds = pd.dataset(
+                self.out_ds = pd.dataset(
                     [
                         pd.dataset(table),
                         pd.dataset(local_path),
@@ -396,11 +396,10 @@ class GtfsRtConverter(Converter):
                 )
             except pyarrow.ArrowTypeError as exception:
                 if self.config_type == ConfigType.RT_ALERTS:
-                    out_ds = pd.dataset(table)
+                    self.out_ds = pd.dataset(table)
                 else:
                     raise exception
         log.log_complete()
-        return out_ds
 
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
@@ -414,34 +413,26 @@ class GtfsRtConverter(Converter):
         logger = ProcessLogger("write_local_pq", local_path=local_path, table_rows=table.num_rows)
         logger.log_start()
 
-        out_ds = self.make_hash_dataset(table, local_path)
+        self.make_hash_dataset(table, local_path)
 
         unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
 
-        no_hash_schema = out_ds.schema.remove(out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
+        no_hash_schema = self.out_ds.schema.remove(self.out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
 
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
+            hash_writer = pq.ParquetWriter(hash_pq_path, schema=self.out_ds.schema, compression="zstd", compression_level=3)
             upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema, compression="zstd", compression_level=3)
 
             partitions = pc.unique(
-                out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
+                self.out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
             for part in partitions:
                 logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
-                write_table = out_ds.to_table(
-                    filter=(
-                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
-                    )
-                )
-                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
-                hash_writer.write_table(write_table)
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                write_table = (
-                    pl.from_arrow(
-                        out_ds.to_table(
+                unique_table = (
+                    pl.DataFrame(
+                        self.out_ds.to_table(
                             filter=(
                                 (pc.field(self.detail.partition_column) == part)
                                 & (pc.field("feed_timestamp") >= unique_ts_min)
@@ -451,9 +442,16 @@ class GtfsRtConverter(Converter):
                     .sort(by=["feed_timestamp"])
                     .unique(subset=GTFS_RT_HASH_COL, keep="first")
                     .to_arrow()
-                    .cast(out_ds.schema)
+                    .cast(self.out_ds.schema)
                 )
+                ds_table = self.out_ds.to_table(
+                    filter=(
+                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
+                    )
+                )
+                write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
                 logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
