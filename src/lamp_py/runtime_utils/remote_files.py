@@ -109,8 +109,8 @@ tm_work_piece_file = S3Location(
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.1")
 
 # Kinesis stream glides events
-glides_trip_updates = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES"), version="1.0")
-glides_operator_sign_ins = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES"), version="1.0")
+glides_trips_updated = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/trip_updates.parquet"), version="1.0")
+glides_operator_signed_in = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/operator_sign_ins.parquet"), version="1.0")
 
 public_alerts_file = S3Location(
     bucket=S3_PUBLIC,
@@ -123,8 +123,9 @@ tableau_rail = S3Location(
 tableau_bus_recent = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_RECENT_Bus_Events.parquet"))
 tableau_bus_all = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_ALL_Bus_Events.parquet"))
 
-tableau_glides_operator_sign_ins = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "glides", "LAMP_Glides_operator_sign_ins.parquet"))
-tableau_glides_trip_updates = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "glides", "LAMP_Glides_trip_updates.parquet"))
+
+tableau_glides_all_operator_signed_in = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_operator_sign_ins.parquet"))
+tableau_glides_all_trips_updated = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_trip_updates.parquet"))
 
 
 class GTFSArchive(S3Location):

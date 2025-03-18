@@ -11,17 +11,17 @@ import polars as pl
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.runtime_utils.remote_files import (
-    glides_trip_updates,
-    glides_operator_sign_ins,
-    tableau_glides_trip_updates,
-    tableau_glides_operator_sign_ins,
+    glides_trips_updated,
+    glides_operator_signed_in,
+    tableau_glides_all_trips_updated,
+    tableau_glides_all_operator_signed_in,
 )
 from lamp_py.ingestion.glides import TripUpdates, OperatorSignIns
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_with_details, object_exists
 
 
 # these are re-defined here for clarity. These will be asserted against
-glides_trip_updates_schema = pyarrow.schema(
+glides_trips_updated_schema = pyarrow.schema(
     [
         ("data.metadata.location.gtfsId", pyarrow.large_string()),
         ("data.metadata.location.todsId", pyarrow.large_string()),
@@ -70,7 +70,7 @@ glides_trip_updates_schema = pyarrow.schema(
     ]
 )
 
-glides_operator_sign_ins_schema = pyarrow.schema(
+glides_operator_signed_in_schema = pyarrow.schema(s
     [
         ("data.metadata.location.gtfsId", pyarrow.large_string()),
         ("data.metadata.location.todsId", pyarrow.large_string()),
@@ -84,7 +84,7 @@ glides_operator_sign_ins_schema = pyarrow.schema(
         ("data.signature.version", pyarrow.int16()),
         ("id", pyarrow.large_string()),
         ("type", pyarrow.large_string()),
-        ("time", pyarrow.timestamp("ms")),
+        ("time", pyarrow.timestamp("ms")), # this one
         ("source", pyarrow.large_string()),
         ("specversion", pyarrow.large_string()),
         ("dataschema", pyarrow.large_string()),
@@ -92,11 +92,11 @@ glides_operator_sign_ins_schema = pyarrow.schema(
 )
 
 
-def create_trip_updates_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
+def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     """
     Grab the glides_events files and process
     """
-    s3_uris = file_list_from_s3(bucket_name=glides_trip_updates.bucket, file_prefix=glides_trip_updates.prefix)
+    s3_uris = file_list_from_s3(bucket_name=glides_trips_updated.bucket, file_prefix=glides_trips_updated.prefix)
     ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
     if num_files is not None:
@@ -140,11 +140,11 @@ def create_trip_updates_glides_parquet(job: HyperJob, num_files: Optional[int]) 
             writer.write_table(polars_df.to_arrow())
 
 
-def create_operator_signins_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
+def create_operator_signed_in_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     """
     Grab the glides_events files and process
     """
-    s3_uris = file_list_from_s3(bucket_name=glides_operator_sign_ins.bucket, file_prefix=glides_operator_sign_ins.prefix)
+    s3_uris = file_list_from_s3(bucket_name=glides_operator_signed_in.bucket, file_prefix=glides_operator_signed_in.prefix)
     ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
     if num_files is not None:
@@ -194,34 +194,34 @@ class HyperGlidesTripUpdates(HyperJob):
     def __init__(self) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name=tableau_glides_trip_updates.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
-            remote_parquet_path=tableau_glides_trip_updates.s3_uri,
-            lamp_version=tableau_glides_trip_updates.version,
+            hyper_file_name=tableau_glides_all_trips_updated.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
+            remote_parquet_path=tableau_glides_all_trips_updated.s3_uri,
+            lamp_version=tableau_glides_all_trips_updated.version,
         )
 
         tu = TripUpdates()
-        assert glides_trip_updates_schema == tu.event_schema
+        assert glides_trips_updated_schema == tu.event_schema
 
     @property
     def parquet_schema(self) -> pyarrow.schema:
-        return glides_trip_updates_schema
+        return glides_trips_updated_schema
 
     def create_parquet(self, _: None) -> None:
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
         # only run once per day after 11AM UTC - 6 or 7 AM EST
-        if object_exists(tableau_glides_trip_updates.s3_uri):
+        if object_exists(tableau_glides_all_trips_updated.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
             last_mod: datetime = file_list_from_s3_with_details(
-                bucket_name=tableau_glides_trip_updates.bucket,
-                file_prefix=tableau_glides_trip_updates.prefix,
+                bucket_name=tableau_glides_all_trips_updated.bucket,
+                file_prefix=tableau_glides_all_trips_updated.prefix,
             )[0]["last_modified"]
 
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        create_trip_updates_glides_parquet(self, None)
+        create_trips_updated_glides_parquet(self, None)
         return True
 
 
@@ -231,32 +231,32 @@ class HyperGlidesOperatorSignIns(HyperJob):
     def __init__(self) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name=tableau_glides_operator_sign_ins.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
-            remote_parquet_path=tableau_glides_operator_sign_ins.s3_uri,
-            lamp_version=tableau_glides_operator_sign_ins.version,
+            hyper_file_name=tableau_glides_all_operator_signed_in.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
+            remote_parquet_path=tableau_glides_all_operator_signed_in.s3_uri,
+            lamp_version=tableau_glides_all_operator_signed_in.version,
         )
 
         osi = OperatorSignIns()
-        assert glides_operator_sign_ins_schema == osi.event_schema
+        assert glides_operator_signed_in_schema == osi.event_schema
 
     @property
     def parquet_schema(self) -> pyarrow.schema:
-        return glides_operator_sign_ins_schema
+        return glides_operator_signed_in_schema
 
     def create_parquet(self, _: None) -> None:
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
         # only run once per day after 11AM UTC - 6 or 7 AM EST
-        if object_exists(tableau_glides_operator_sign_ins.s3_uri):
+        if object_exists(tableau_glides_all_operator_signed_in.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
             last_mod: datetime = file_list_from_s3_with_details(
-                bucket_name=tableau_glides_operator_sign_ins.bucket,
-                file_prefix=tableau_glides_operator_sign_ins.prefix,
+                bucket_name=tableau_glides_all_operator_signed_in.bucket,
+                file_prefix=tableau_glides_all_operator_signed_in.prefix,
             )[0]["last_modified"]
 
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        create_operator_signins_glides_parquet(self, None)
+        create_operator_signed_in_glides_parquet(self, None)
         return True
