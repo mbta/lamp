@@ -73,6 +73,7 @@ pretty = true
 python_version = "3.10"
 warn_unreachable = true
 warn_unused_ignores = true
+exclude = ["investigation/", "runners"]
 
 [tool.pytest]
 log_cli = true
