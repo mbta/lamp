@@ -52,7 +52,7 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.time32()), # HH:MM:SS str -> time
+        ("data.tripUpdates.tripKey.startTime", pyarrow.time32()),  # HH:MM:SS str -> time
         ("data.tripUpdates.tripKey.endTime", pyarrow.time32()),  # HH:MM:SS str -> time
         ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
@@ -77,9 +77,9 @@ glides_operator_signed_in_schema = pyarrow.schema(
         ("data.metadata.author.emailAddress", pyarrow.large_string()),
         ("data.metadata.author.badgeNumber", pyarrow.large_string()),
         ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.date32()), # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
+        ("data.metadata.inputTimestamp", pyarrow.date32()),  # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
         ("data.operator.badgeNumber", pyarrow.large_string()),
-        ("data.signedInAt", pyarrow.date32()), # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
+        ("data.signedInAt", pyarrow.date32()),  # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
         ("data.signature.type", pyarrow.large_string()),
         ("data.signature.version", pyarrow.int16()),
         ("id", pyarrow.large_string()),
@@ -116,23 +116,20 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
             # convert all string dates, times, and datetimes to Dates, Times, and Datetimes
-            # setting strict=False because there many nulls in this glides data at the moment. 
+            # setting strict=False because there many nulls in this glides data at the moment.
             polars_df = polars_df.with_columns(
                 pl.col("data.metadata.inputTimestamp")
                 .str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ", strict=False)
                 .dt.convert_time_zone(time_zone="US/Eastern")
                 .dt.replace_time_zone(None),
                 pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
-
                 # all of these service dates and start/end times are already EST - don't do any conversions
                 pl.col("data.tripUpdates.previousTripKey.serviceDate").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
                 pl.col("data.tripUpdates.previousTripKey.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
                 pl.col("data.tripUpdates.previousTripKey.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
-
                 pl.col("data.tripUpdates.tripKey.serviceDate").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
                 pl.col("data.tripUpdates.tripKey.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
                 pl.col("data.tripUpdates.tripKey.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
-
                 pl.col("data.tripUpdates.startTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
                 pl.col("data.tripUpdates.endTime").str.strptime(pl.Time, "%H:%M:%S", strict=False),
             )
