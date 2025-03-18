@@ -134,6 +134,8 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
+                pool = pyarrow.default_memory_pool()
+                pool.release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
