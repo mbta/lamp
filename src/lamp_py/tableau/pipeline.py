@@ -19,6 +19,9 @@ from lamp_py.tableau.jobs.gtfs_rail import (
 )
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
+from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
+from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
+
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
 
@@ -58,6 +61,8 @@ def start_hyper_updates() -> None:
         HyperRtAlerts(),
         HyperBusPerformanceAll(),
         HyperBusPerformanceRecent(),
+        HyperGlidesTripUpdates(),
+        HyperGlidesOperatorSignIns(),
     ]
 
     for job in hyper_jobs:
