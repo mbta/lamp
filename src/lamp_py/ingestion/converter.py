@@ -113,7 +113,7 @@ class Converter(ABC):
         self.metadata_queue.put(written_file)
 
     @abstractmethod
-    def convert(self, multiprocess: bool = True) -> None:
+    def convert(self) -> None:
         """
         convert files to pyarrow tables, write them to s3 as parquete, and move
         files from incoming to archive (or error)
