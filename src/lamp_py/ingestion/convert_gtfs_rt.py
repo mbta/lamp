@@ -114,7 +114,7 @@ class GtfsRtConverter(Converter):
         self.archive_files: List[str] = []
 
     def convert(self) -> None:
-        max_tables_to_convert = 15
+        max_tables_to_convert = 2
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -211,12 +211,12 @@ class GtfsRtConverter(Converter):
                 yield from self.yield_check(process_logger)
 
         # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=-1)
+        yield from self.yield_check(process_logger, min_bytes=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
+    def yield_check(self, process_logger: ProcessLogger, min_bytes: int = 1000*1024*1024) -> Iterable[pyarrow.table]:
         """
         yield all tables in the data_parts map that have been sufficiently
         processed.
@@ -229,12 +229,13 @@ class GtfsRtConverter(Converter):
         """
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
-            if table is not None and table.num_rows > min_rows:
+            if table is not None and table.nbytes > min_bytes:
                 self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
                     file_count=len(self.data_parts[iter_ts].files),
                     number_of_rows=table.num_rows,
+                    table_mbs=round(table.nbytes/(1024*1024), 2)
                 )
                 process_logger.log_complete()
                 # reset process logger
@@ -448,6 +449,12 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
+                ds_table = self.out_ds.to_table(
+                    filter=(
+                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
+                    )
+                )
+                write_table = pyarrow.concat_tables([unique_table, ds_table])
                 logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
