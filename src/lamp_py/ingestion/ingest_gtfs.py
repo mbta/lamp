@@ -122,8 +122,10 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
 
-    for converter in converters.values():
+    for k in converters.keys():
+        converter = converters.pop(k)
         converter.convert()
+        del converter
 
     logger.log_complete()
 
