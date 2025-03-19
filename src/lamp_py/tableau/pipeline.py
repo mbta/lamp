@@ -3,7 +3,8 @@ from typing import List
 
 from lamp_py.runtime_utils.env_validation import validate_environment
 
-from lamp_py.tableau.hyper import HyperJob
+# from lamp_py.tableau.hyper import HyperJob
+from lamp_py.tableau.conversions.converter import Converter
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
@@ -83,7 +84,7 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         HyperStaticStopTimes(),
         HyperStaticTrips(),
         HyperGlidesTripUpdates(),
-        HyperGlidesOperatorSignIns(),        
+        HyperGlidesOperatorSignIns(),
     ]
 
     for job in parquet_update_jobs:
