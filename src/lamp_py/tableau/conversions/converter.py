@@ -109,7 +109,7 @@ class Converter(ABC):  # pylint: disable=R0902
             remote_path=self.remote_parquet_path,
         )
         process_log.log_start()
-
+        breakpoint()
         try:
             remote_schema_match = False
             remote_version_match = False
