@@ -16,7 +16,6 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_glides_all_trips_updated,
     tableau_glides_all_operator_signed_in,
 )
-from lamp_py.ingestion.glides import TripUpdates, OperatorSignIns
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_with_details, object_exists
 
 glides_trips_updated_schema = pyarrow.schema(
