@@ -17,6 +17,7 @@ from lamp_py.aws.s3 import (
     object_metadata,
 )
 
+
 class Converter(ABC):  # pylint: disable=R0902
     """
     Abstract Base Class for Parquet jobs

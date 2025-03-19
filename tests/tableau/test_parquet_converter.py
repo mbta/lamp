@@ -16,6 +16,7 @@ def start_glides_parquet_updates() -> None:
     for job in parquet_update_jobs:
         job.run_parquet(None)
 
+
 @pytest.mark.tableau
 def test_glides_parquet_updates():
     start_glides_parquet_updates()
