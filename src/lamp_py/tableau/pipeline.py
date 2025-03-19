@@ -82,6 +82,8 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         HyperStaticStops(),
         HyperStaticStopTimes(),
         HyperStaticTrips(),
+        HyperGlidesTripUpdates(),
+        HyperGlidesOperatorSignIns(),        
     ]
 
     for job in parquet_update_jobs:
