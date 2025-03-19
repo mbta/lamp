@@ -1,10 +1,11 @@
 from typing import List
-import pytest
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns, HyperGlidesTripUpdates
 
 
+# don't run this in pytest - environment variables in pyproject.toml point to local SPRINGBOARD/ARCHIVE
+# need the .env values to run
 def start_glides_parquet_updates() -> None:
     """Run all Glides Parquet Update jobs"""
 
@@ -16,11 +17,6 @@ def start_glides_parquet_updates() -> None:
     for job in parquet_update_jobs:
         breakpoint()
         job.run_parquet(None)
-
-
-# @pytest.mark.tableau
-def test_glides_parquet_updates() -> None:
-    start_glides_parquet_updates()
 
 
 if __name__ == "__main__":
