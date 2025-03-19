@@ -18,10 +18,10 @@ def start_glides_parquet_updates() -> None:
         job.run_parquet(None)
 
 
-#@pytest.mark.tableau
+# @pytest.mark.tableau
 def test_glides_parquet_updates() -> None:
     start_glides_parquet_updates()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     start_glides_parquet_updates()
