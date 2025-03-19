@@ -18,5 +18,5 @@ def start_glides_parquet_updates() -> None:
 
 
 @pytest.mark.tableau
-def test_glides_parquet_updates():
+def test_glides_parquet_updates() -> None:
     start_glides_parquet_updates()
