@@ -431,7 +431,7 @@ class GtfsRtConverter(Converter):
             )
             for part in partitions:
                 logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
-                unique_table = (
+                write_table = (
                     pl.DataFrame(
                         self.out_ds.to_table(
                             filter=(
@@ -445,16 +445,20 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(self.out_ds.schema)
                 )
-                ds_table = self.out_ds.to_table(
+                if write_table.num_rows > 0:
+                    hash_writer.write_table(write_table)
+                    upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                    logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+
+                write_table = self.out_ds.to_table(
                     filter=(
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                write_table = pyarrow.concat_tables([unique_table, ds_table])
-                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
-
-                hash_writer.write_table(write_table)
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                if write_table.num_rows > 0:
+                    hash_writer.write_table(write_table)
+                    upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                    logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
 
             hash_writer.close()
             upload_writer.close()
