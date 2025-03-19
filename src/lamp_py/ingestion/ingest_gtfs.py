@@ -121,14 +121,9 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
-    process_count = os.cpu_count()
-    if process_count is None:
-        process_count = 4
-    if len(converters) > 0:
-        with get_context("spawn").Pool(processes=process_count, maxtasksperchild=1) as pool:
-            pool.map_async(run_converter, converters.values())
-            pool.close()
-            pool.join()
+
+    for converter in converters.values():
+        converter.convert()
 
     logger.log_complete()
 
