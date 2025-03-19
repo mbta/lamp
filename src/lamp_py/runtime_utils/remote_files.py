@@ -129,10 +129,10 @@ tableau_bus_all = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus
 
 
 tableau_glides_all_operator_signed_in = S3Location(
-    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_operator_sign_ins.parquet")
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_operator_sign_ins.parquet")
 )
 tableau_glides_all_trips_updated = S3Location(
-    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_trip_updates.parquet")
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_trip_updates.parquet")
 )
 
 
