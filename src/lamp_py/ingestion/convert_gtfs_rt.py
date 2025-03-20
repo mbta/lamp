@@ -193,8 +193,6 @@ class GtfsRtConverter(Converter):
                     month=result_dt.month,
                     day=result_dt.day,
                 )
-                file_log = ProcessLogger("gz_to_pyarrow", table_mbs=round(rt_data.nbytes/(1024*1024),2))
-                file_log.log_start()
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
@@ -209,7 +207,6 @@ class GtfsRtConverter(Converter):
                 
 
                 self.data_parts[dt_part].files.append(result_filename)
-                file_log.log_complete()
                 yield from self.yield_check(process_logger)
 
         # yield any remaining tables
@@ -231,7 +228,7 @@ class GtfsRtConverter(Converter):
         """
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
-            if table is not None and table.nbytes > min_bytes:
+            if table is not None and (table.nbytes > min_bytes or table.num_rows > 2_000_000):
                 self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
@@ -429,7 +426,7 @@ class GtfsRtConverter(Converter):
             )
             for part in partitions:
                 logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
-                write_table = (
+                unique_table = (
                     pl.DataFrame(
                         self.out_ds.to_table(
                             filter=(
@@ -443,20 +440,15 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
-                if write_table.num_rows > 0:
-                    hash_writer.write_table(write_table)
-                    upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                    logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
-
-                write_table = self.out_ds.to_table(
+                ds_table = self.out_ds.to_table(
                     filter=(
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                if write_table.num_rows > 0:
-                    hash_writer.write_table(write_table)
-                    upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                    logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+                write_table = pyarrow.concat_tables([ds_table, unique_table])
+                hash_writer.write(write_table, row_group_size=write_table.num_rows)
+                upload_writer.write(write_table.drop_columns(GTFS_RT_HASH_COL), row_group_size=write_table.num_rows)
+                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
 
             hash_writer.close()
             upload_writer.close()
