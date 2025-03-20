@@ -197,7 +197,8 @@ class GtfsRtConverter(Converter):
                     month=result_dt.month,
                     day=result_dt.day,
                 )
-
+                file_log = ProcessLogger("gz_to_pyarrow", table_mbs=round(rt_data.nbytes/(1024*1024),2))
+                file_log.log_start()
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
@@ -209,9 +210,10 @@ class GtfsRtConverter(Converter):
                             self.detail.transform_for_write(rt_data),
                         ]
                     )
+                
 
                 self.data_parts[dt_part].files.append(result_filename)
-
+                file_log.log_complete()
                 yield from self.yield_check(process_logger)
 
         # yield any remaining tables
