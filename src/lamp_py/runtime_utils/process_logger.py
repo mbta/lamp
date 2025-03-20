@@ -9,6 +9,7 @@ import psutil
 
 MdValues = Optional[Union[str, int, float, bool]]
 
+_PROC = psutil.Process(os.getpid())
 
 class ProcessLogger:
     """
@@ -52,6 +53,8 @@ class ProcessLogger:
         used_mem_pct = psutil.virtual_memory().percent
         self.default_data["free_disk_mb"] = int(free_disk_bytes / (1000 * 1000))
         self.default_data["free_mem_pct"] = int(100 - used_mem_pct)
+        self.default_data["proc_mem_used_mb"] = int(_PROC.memory_info().rss / (1024 * 1024))
+
         logging_list = []
         # add default data to log output
         for key, value in self.default_data.items():
