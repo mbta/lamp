@@ -377,11 +377,10 @@ class GtfsRtConverter(Converter):
         """
         log = ProcessLogger("make_hash_datset")
         log.log_start()
-        table = hash_gtfs_rt_table(table)
         self.out_ds = pd.dataset(table)
 
         if self.sync_with_s3(local_path):
-            hash_gtfs_rt_parquet(local_path)
+            # hash_gtfs_rt_parquet(local_path)
             # RT_ALERTS parquet files contain columns with nested structure types
             # if a new nested field is ingested, combining of the new and existing nested column is not possible
             # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
@@ -415,51 +414,31 @@ class GtfsRtConverter(Converter):
 
         self.make_hash_dataset(table, local_path)
 
-        unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
-
-        no_hash_schema = self.out_ds.schema.remove(self.out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
-
         with tempfile.TemporaryDirectory() as temp_dir:
-            hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=self.out_ds.schema, compression="zstd", compression_level=3)
-            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema, compression="zstd", compression_level=3)
-
+            upload_writer = pq.ParquetWriter(upload_path, schema=self.out_ds.schema, compression="zstd", compression_level=3)
             partitions = pc.unique(
                 self.out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
             for part in partitions:
                 logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
-                unique_table = (
-                    pl.DataFrame(
-                        self.out_ds.to_table(
-                            filter=(
-                                (pc.field(self.detail.partition_column) == part)
-                                & (pc.field("feed_timestamp") >= unique_ts_min)
-                            )
-                        )
-                    )
+                part_df = hash_gtfs_rt_table(self.out_ds.to_table(filter=(pc.field(self.detail.partition_column) == part)))
+                part_df = (
+                    part_df
                     .sort(by=["feed_timestamp"])
                     .unique(subset=GTFS_RT_HASH_COL, keep="first")
+                    .drop(GTFS_RT_HASH_COL)
                     .to_arrow()
                     .cast(self.out_ds.schema)
                 )
-                ds_table = self.out_ds.to_table(
-                    filter=(
-                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
-                    )
-                )
-                write_table = pyarrow.concat_tables([ds_table, unique_table])
-                hash_writer.write(write_table, row_group_size=write_table.num_rows)
-                upload_writer.write(write_table.drop_columns(GTFS_RT_HASH_COL), row_group_size=write_table.num_rows)
-                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+                upload_writer.write(part_df, row_group_size=part_df.num_rows)
+                logger.add_metadata(part_rows=part_df.num_rows, part_mbs=round(part_df.nbytes/(1024*1024),2))
 
-            hash_writer.close()
             upload_writer.close()
 
-            os.replace(hash_pq_path, local_path)
+            os.replace(upload_path, local_path)
             upload_file(
-                upload_path,
+                local_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
 
