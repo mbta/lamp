@@ -11,11 +11,6 @@ MdValues = Optional[Union[str, int, float, bool]]
 
 _PROC = psutil.Process(os.getpid())
 
-def read_cache_pressure()->str:
-    with open("/proc/sys/vm/vfs_cache_pressure", "r") as reader:
-        cache_pressure = reader.read()
-    return cache_pressure
-
 class ProcessLogger:
     """
     Class to help with logging events that happen inside of a function.
@@ -59,7 +54,6 @@ class ProcessLogger:
         self.default_data["free_disk_mb"] = int(free_disk_bytes / (1000 * 1000))
         self.default_data["free_mem_pct"] = int(100 - used_mem_pct)
         self.default_data["proc_mem_used_mb"] = int(_PROC.memory_info().rss / (1024 * 1024))
-        self.default_data["cache_pressure"] = read_cache_pressure()
 
         logging_list = []
         # add default data to log output

@@ -211,7 +211,7 @@ def hash_gtfs_rt_row(row: Any) -> Tuple[bytes]:
     return (hashlib.md5(pickle.dumps(row), usedforsecurity=False).digest(),)
 
 
-def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
+def hash_gtfs_rt_table(table: pyarrow.Table) -> pl.DataFrame:
     """
     add GTFS_RT_HASH_COL column to pyarrow table, if not already present
     """
@@ -235,8 +235,6 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
             .to_series(0)
             .alias(GTFS_RT_HASH_COL)
         )
-        .to_arrow()
-        .cast(hash_schema)
     )
 
 
