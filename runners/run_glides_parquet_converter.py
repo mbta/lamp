@@ -17,7 +17,8 @@ def start_glides_parquet_updates() -> None:
     for job in parquet_update_jobs:
         breakpoint()
         job.run_parquet(None)
-
+        outs = job.create_local_hyper()
+        print(outs)
 
 if __name__ == "__main__":
     start_glides_parquet_updates()

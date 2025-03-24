@@ -38,8 +38,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startTime", pyarrow.time64("ns")),  # HH:MM:SS str -> time
-        ("data.tripUpdates.previousTripKey.endTime", pyarrow.time64("ns")),  # HH:MM:SS str -> time
+        ("data.tripUpdates.previousTripKey.startTime", pyarrow.large_string()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.previousTripKey.endTime", pyarrow.large_string()),  # HH:MM:SS str -> time
         ("data.tripUpdates.previousTripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.previousTripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.type", pyarrow.large_string()),
@@ -49,8 +49,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.time64("ns")),  # HH:MM:SS str -> time
-        ("data.tripUpdates.tripKey.endTime", pyarrow.time64("ns")),  # HH:MM:SS str -> time
+        ("data.tripUpdates.tripKey.startTime", pyarrow.large_string()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.tripKey.endTime", pyarrow.large_string()),  # HH:MM:SS str -> time
         ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
         ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
         ("data.tripUpdates.comment", pyarrow.large_string()),
@@ -58,8 +58,8 @@ glides_trips_updated_schema = pyarrow.schema(
         ("data.tripUpdates.startLocation.todsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.gtfsId", pyarrow.large_string()),
         ("data.tripUpdates.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.startTime", pyarrow.time64("ns")),  # HH:MM:SS str -> time
-        ("data.tripUpdates.endTime", pyarrow.time64("ns")),  # HH:MM:SS str -> time
+        ("data.tripUpdates.startTime", pyarrow.large_string()),  # HH:MM:SS str -> time
+        ("data.tripUpdates.endTime", pyarrow.large_string()),  # HH:MM:SS str -> time
         ("data.tripUpdates.cars", pyarrow.large_string()),
         ("data.tripUpdates.revenue", pyarrow.large_string()),
         ("data.tripUpdates.dropped", pyarrow.large_string()),
@@ -118,13 +118,13 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
                 pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
                 # all of these service dates and start/end times are already EST - don't do any conversions
                 pl.col("data.tripUpdates.previousTripKey.serviceDate").str.to_date("%Y-%m-%d", strict=False),
-                pl.col("data.tripUpdates.previousTripKey.startTime").str.to_time("%H:%M:%S", strict=False),
-                pl.col("data.tripUpdates.previousTripKey.endTime").str.to_time("%H:%M:%S", strict=False),
+                # pl.col("data.tripUpdates.previousTripKey.startTime").str.to_time("%H:%M:%S", strict=False),
+                # pl.col("data.tripUpdates.previousTripKey.endTime").str.to_time("%H:%M:%S", strict=False),
                 pl.col("data.tripUpdates.tripKey.serviceDate").str.to_date("%Y-%m-%d", strict=False),
-                pl.col("data.tripUpdates.tripKey.startTime").str.to_time("%H:%M:%S", strict=False),
-                pl.col("data.tripUpdates.tripKey.endTime").str.to_time("%H:%M:%S", strict=False),
-                pl.col("data.tripUpdates.startTime").str.to_time("%H:%M:%S", strict=False),
-                pl.col("data.tripUpdates.endTime").str.to_time("%H:%M:%S", strict=False),
+                # pl.col("data.tripUpdates.tripKey.startTime").str.to_time("%H:%M:%S", strict=False),
+                # pl.col("data.tripUpdates.tripKey.endTime").str.to_time("%H:%M:%S", strict=False),
+                # pl.col("data.tripUpdates.startTime").str.to_time("%H:%M:%S", strict=False),
+                # pl.col("data.tripUpdates.endTime").str.to_time("%H:%M:%S", strict=False),
             )
 
             writer.write_table(polars_df.to_arrow())
