@@ -18,6 +18,8 @@ from lamp_py.runtime_utils.remote_files import (
 )
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_with_details, object_exists
 
+GLIDES_TABLEAU_PROJECT = "Glides"
+
 glides_trips_updated_schema = pyarrow.schema(
     [
         ("data.metadata.location.gtfsId", pyarrow.large_string()),
@@ -177,6 +179,7 @@ class HyperGlidesTripUpdates(HyperJob):
             hyper_file_name=tableau_glides_all_trips_updated.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
             remote_parquet_path=tableau_glides_all_trips_updated.s3_uri,
             lamp_version=tableau_glides_all_trips_updated.version,
+            project_name=GLIDES_TABLEAU_PROJECT
         )
 
     @property
@@ -211,6 +214,7 @@ class HyperGlidesOperatorSignIns(HyperJob):
             hyper_file_name=tableau_glides_all_operator_signed_in.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
             remote_parquet_path=tableau_glides_all_operator_signed_in.s3_uri,
             lamp_version=tableau_glides_all_operator_signed_in.version,
+            project_name=GLIDES_TABLEAU_PROJECT
         )
 
     @property
