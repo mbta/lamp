@@ -54,4 +54,8 @@ COPY alembic.ini alembic.ini
 ARG VERSION="v0.0.0-unknown"
 RUN echo "VERSION = '${VERSION}'" > src/lamp_py/__version__.py
 
+# Mount /tmp volume to test mem leak bug
+RUN mkdir -p /tmp && chmod 777 /tmp
+VOLUME ["/tmp"]
+
 RUN poetry install --only main --no-interaction --no-ansi -v
