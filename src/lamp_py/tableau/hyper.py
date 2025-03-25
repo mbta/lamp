@@ -8,7 +8,7 @@ from typing import Optional
 import pyarrow
 from pyarrow import fs
 import pyarrow.parquet as pq
-
+import pyarrow.compute as pc
 from tableauhyperapi import (
     TableDefinition,
     SqlType,
@@ -56,7 +56,6 @@ class HyperJob(ABC):  # pylint: disable=R0902
         self.project_name = project_name
         self.local_parquet_path = "/tmp/local.parquet"
         self.local_hyper_path = f"/tmp/{hyper_file_name}"
-
         self.remote_fs = fs.LocalFileSystem()
         if remote_parquet_path.startswith("s3://"):
             self.remote_fs = fs.S3FileSystem()

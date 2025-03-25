@@ -3,6 +3,7 @@ from typing import List
 
 from lamp_py.runtime_utils.env_validation import validate_environment
 
+from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
@@ -21,8 +22,45 @@ from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
+from lamp_py.tableau.jobs.gtfs_rt_preprocessor import FilteredHyperJob
 
 from lamp_py.aws.ecs import check_for_parallel_tasks
+
+from lamp_py.runtime_utils.remote_files import (
+    rt_vehicle_positions,
+    rt_trip_updates,
+    devgreen_rt_vehicle_positions,
+    devgreen_rt_trip_updates,
+    tableau_rt_vehicle_positions_lightrail_30day,
+    tableau_rt_trip_updates_lightrail_30day,
+    tableau_devgreen_rt_vehicle_positions_lightrail_30day,
+    tableau_devgreen_rt_trip_updates_lightrail_30day,
+)
+
+HyperGtfsRtVehiclePositions = FilteredHyperJob(
+    remote_input_location=rt_vehicle_positions,
+    remote_output_location=tableau_rt_vehicle_positions_lightrail_30day,
+    dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
+    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
+)
+HyperGtfsRtTripUpdates = FilteredHyperJob(
+    remote_input_location=rt_trip_updates,
+    remote_output_location=tableau_rt_trip_updates_lightrail_30day,
+    dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
+    processed_schema=convert_gtfs_rt_trip_updates.schema(),
+)
+HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
+    remote_input_location=devgreen_rt_vehicle_positions,
+    remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_30day,
+    dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
+    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
+)
+HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
+    remote_input_location=devgreen_rt_trip_updates,
+    remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_30day,
+    dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
+    processed_schema=convert_gtfs_rt_trip_updates.schema(),
+)
 
 
 def start_hyper_updates() -> None:
@@ -63,6 +101,10 @@ def start_hyper_updates() -> None:
         HyperBusPerformanceRecent(),
         HyperGlidesTripUpdates(),
         HyperGlidesOperatorSignIns(),
+        HyperGtfsRtVehiclePositions,
+        HyperGtfsRtTripUpdates,
+        HyperDevGreenGtfsRtVehiclePositions,
+        HyperDevGreenGtfsRtTripUpdates,
     ]
 
     for job in hyper_jobs:
@@ -84,6 +126,10 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         HyperStaticTrips(),
         HyperGlidesTripUpdates(),
         HyperGlidesOperatorSignIns(),
+        HyperGtfsRtVehiclePositions,
+        HyperGtfsRtTripUpdates,
+        HyperDevGreenGtfsRtVehiclePositions,
+        HyperDevGreenGtfsRtTripUpdates,
     ]
 
     for job in parquet_update_jobs:
@@ -97,6 +143,24 @@ def start_bus_parquet_updates() -> None:
         HyperBusPerformanceRecent(),
         HyperBusPerformanceAll(),
     ]
+
+    for job in parquet_update_jobs:
+        job.run_parquet(None)
+
+
+def start_devgreen_gtfs_rt_parquet_updates() -> None:
+    """Run all DevGreen GtfsRt Parquet Update jobs"""
+
+    parquet_update_jobs: List[HyperJob] = [HyperGtfsRtVehiclePositions, HyperGtfsRtTripUpdates]
+
+    for job in parquet_update_jobs:
+        job.run_parquet(None)
+
+
+def start_gtfs_rt_parquet_updates() -> None:
+    """Run all GtfsRt Parquet Update jobs"""
+
+    parquet_update_jobs: List[HyperJob] = [HyperDevGreenGtfsRtVehiclePositions, HyperDevGreenGtfsRtTripUpdates]
 
     for job in parquet_update_jobs:
         job.run_parquet(None)

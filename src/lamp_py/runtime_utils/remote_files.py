@@ -43,6 +43,20 @@ rt_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_TRIP_UPDATES"),
 )
+########################################################
+########################################################
+# files ingested from delta - DEVGREEN
+devgreen_rt_vehicle_positions = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "DEV_GREEN_RT_VEHICLE_POSITIONS"),
+)
+
+devgreen_rt_trip_updates = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "DEV_GREEN_RT_TRIP_UPDATES"),
+)
+########################################################
+########################################################
 
 rt_alerts = S3Location(
     bucket=S3_SPRINGBOARD,
@@ -105,8 +119,27 @@ tm_work_piece_file = S3Location(
     prefix=os.path.join(TM, "TMMAIN_WORK_PIECE.parquet"),
 )
 
+
 # published by LAMP
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.1")
+
+
+# GTFS-RT feed filtered down by LAMP
+# intermediate location
+light_rail_events_dev_green_vehicle_pos = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/DEV_GREEN_RT_VEHICLE_POSITION")
+)
+light_rail_events_dev_green_trip_updates = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/DEV_GREEN_RT_TRIP_UPDATES")
+)
+
+light_rail_events_vehicle_pos = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/RT_VEHICLE_POSITIONS")
+)
+light_rail_events_trip_updates = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/RT_TRIP_UPDATES")
+)
+
 
 # Kinesis stream glides events
 glides_trips_updated = S3Location(
@@ -135,7 +168,31 @@ tableau_glides_all_trips_updated = S3Location(
     bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_trip_updates.parquet")
 )
 
+#### GTFS-RT TO TABLEAU
+# all of these files will contain up to the past 30 days of VehiclePosition or TripUpdates GTFS-RT data.
+# This is updated once daily on a rolling basis
+#
+# light rail output file - to be converted to .hyper
+tableau_rt_vehicle_positions_lightrail_30day = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_LR_30day.parquet")
+)
+# light rail output file - to be converted to .hyper
+tableau_rt_trip_updates_lightrail_30day = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_LR_30day.parquet")
+)
 
+# DEVGREEN
+tableau_devgreen_rt_vehicle_positions_lightrail_30day = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_VehiclePositions_LR_30day.parquet"),
+)
+# light rail output file - to be converted to .hyper
+tableau_devgreen_rt_trip_updates_lightrail_30day = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_30day.parquet")
+)
+
+
+#### GTFS-RT TO TABLEAU
 class GTFSArchive(S3Location):
     """S3Location for Compressed GTFS Archive"""
 
