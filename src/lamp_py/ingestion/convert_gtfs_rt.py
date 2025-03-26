@@ -245,7 +245,7 @@ class GtfsRtConverter(Converter):
                 process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
                 process_logger.log_start()
 
-                yield table
+                yield self.detail.transform_for_write(table)
                 self.data_parts[iter_ts].table = None
                 del self.data_parts[iter_ts]
 
@@ -313,7 +313,7 @@ class GtfsRtConverter(Converter):
         return (
             timestamp,
             filename,
-            self.detail.transform_for_write(table),
+            table,
         )
 
     def partition_dt(self, table: pyarrow.Table) -> datetime:
