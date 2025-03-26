@@ -11,7 +11,8 @@ erl_crash.dump
 /performance_manager/test.db
 /notebook
 /investigation
-
+# this is for per-user overwriting of paths - Tableau username, etc
+.envrc.lamp_private
 
 __pycache__
 venv
