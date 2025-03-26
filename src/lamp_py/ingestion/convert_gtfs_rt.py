@@ -200,12 +200,12 @@ class GtfsRtConverter(Converter):
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
-                    self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
+                    self.data_parts[dt_part].table = rt_data
                 else:
                     self.data_parts[dt_part].table = pyarrow.concat_tables(
                         [
                             self.data_parts[dt_part].table,
-                            self.detail.transform_for_write(rt_data),
+                            rt_data,
                         ]
                     )
                 
@@ -313,7 +313,7 @@ class GtfsRtConverter(Converter):
         return (
             timestamp,
             filename,
-            table,
+            self.detail.transform_for_write(table),
         )
 
     def partition_dt(self, table: pyarrow.Table) -> datetime:
