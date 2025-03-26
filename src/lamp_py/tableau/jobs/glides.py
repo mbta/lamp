@@ -18,7 +18,7 @@ from lamp_py.runtime_utils.remote_files import (
 )
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_with_details, object_exists
 
-GLIDES_TABLEAU_PROJECT = "Glides"
+GLIDES_TABLEAU_PROJECT = "LAMP Data"
 
 glides_trips_updated_schema = pyarrow.schema(
     [
