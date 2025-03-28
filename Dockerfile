@@ -27,6 +27,14 @@ RUN mkdir -m 0755 -p /etc/apt/keyrings/ \
 RUN sed -i 's/\[openssl_init\]/# [openssl_init]/' /etc/ssl/openssl.cnf \
     && echo '\n\n[openssl_init]\nssl_conf = ssl_sect\n\n[ssl_sect]\nsystem_default = ssl_default_sect\n\n[ssl_default_sect]\nMinProtocol = TLSv1\nCipherString = DEFAULT@SECLEVEL=0\n' >> /etc/ssl/openssl.cnf
 
+# Create tmp directory that will mount to the ephemeral storage on ECS
+# Implemented to solve this problem: https://github.com/aws/amazon-ecs-agent/issues/3594
+# Where the reported memory usage reported up to ECS far exceeds the actual memory usage
+# when many reads/writes occur on a temp directory. 
+# Related terraform changes are here: https://github.com/mbta/devops/pull/2727 
+RUN mkdir -m 1777 -p /tmp
+VOLUME ["/tmp"]
+
 # Install poetry
 RUN pip install -U pip
 RUN pip install "poetry==1.7.1"
