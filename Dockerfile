@@ -31,7 +31,7 @@ RUN sed -i 's/\[openssl_init\]/# [openssl_init]/' /etc/ssl/openssl.cnf \
 # Implemented to solve this problem: https://github.com/aws/amazon-ecs-agent/issues/3594
 # Where the reported memory usage reported up to ECS far exceeds the actual memory usage
 # when many reads/writes occur on a temp directory. 
-# Related terraform changes are here: https://github.com/mbta/devops/pull/2719 
+# Related terraform changes are here: https://github.com/mbta/devops/pull/2727 
 RUN mkdir -m 1777 -p /tmp
 VOLUME ["/tmp"]
 
