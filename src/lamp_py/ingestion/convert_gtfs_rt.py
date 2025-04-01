@@ -514,6 +514,9 @@ class GtfsRtConverter(Converter):
         """
         clean local temp folders
         """
+        # this is causing us to download s3 files
+        # over and over again, and hash the whole thing
+        # hashing is done by batch...over and over again?
         days_to_keep = 2
         root_folder = os.path.join(
             self.tmp_folder,
