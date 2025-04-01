@@ -77,8 +77,9 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     try:
         files = file_list_from_s3(
             bucket_name=S3_INCOMING,
-            file_prefix=LAMP,
+            file_prefix="lamp/delta/2025/03/1",
         )
+
 
         grouped_files = group_sort_file_list(files)
         
