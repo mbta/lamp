@@ -101,9 +101,9 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
-        elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
-            self.detail = RtTripDetail()
-        elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
+        # elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
+        #     self.detail = RtTripDetail()
+        # elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
             self.detail = RtVehicleDetail()
         elif config_type == ConfigType.LIGHT_RAIL:
             raise IgnoreIngestion("Ignore LIGHT_RAIL files")
@@ -118,7 +118,7 @@ class GtfsRtConverter(Converter):
         self.archive_files: List[str] = []
 
     def convert(self) -> None:
-        max_tables_to_convert = 5
+        max_tables_to_convert = 10
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -528,9 +528,11 @@ class GtfsRtConverter(Converter):
             if len(files) == 0:
                 continue
             paths[datetime.strptime(w_dir, f"{root_folder}/year=%Y/month=%m/day=%d")] = w_dir
-
+        
+        log = ProcessLogger("clean_local_folders")
         # remove all local day folders except two most recent
         for key in sorted(paths.keys())[:-days_to_keep]:
+            log.add_metadata(cleaned_file=paths[key])
             shutil.rmtree(paths[key])
 
     def move_s3_files(self) -> None:
