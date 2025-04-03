@@ -520,9 +520,6 @@ class GtfsRtConverter(Converter):
         """
         clean local temp folders
         """
-        # this is causing us to download s3 files
-        # over and over again, and hash the whole thing
-        # hashing is done by batch...over and over again?
         days_to_keep = 2
         root_folder = os.path.join(
             self.tmp_folder,
@@ -535,10 +532,8 @@ class GtfsRtConverter(Converter):
                 continue
             paths[datetime.strptime(w_dir, f"{root_folder}/year=%Y/month=%m/day=%d")] = w_dir
 
-        log = ProcessLogger("clean_local_folders")
         # remove all local day folders except two most recent
         for key in sorted(paths.keys())[:-days_to_keep]:
-            log.add_metadata(cleaned_file=paths[key])
             shutil.rmtree(paths[key])
 
     def move_s3_files(self) -> None:
