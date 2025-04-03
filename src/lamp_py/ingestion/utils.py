@@ -13,7 +13,6 @@ from urllib import request
 from io import BytesIO
 
 import pyarrow
-import pyarrow.dataset as pd
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import polars as pl

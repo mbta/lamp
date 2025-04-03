@@ -63,7 +63,7 @@ def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_s3_files(metadata_queue: Queue[Optional[str]], filter: str = LAMP) -> None:
+def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
@@ -75,7 +75,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], filter: str = LAMP) ->
     logger.log_start()
 
     try:
-        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=filter, max_list_size=50000)
+        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=50000)
 
         grouped_files = group_sort_file_list(files)
 
@@ -132,7 +132,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], filter: str = LAMP) ->
     logger.log_complete()
 
 
-def ingest_gtfs(metadata_queue: Queue[Optional[str]], filter: str = LAMP) -> None:
+def ingest_gtfs(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
     """
     ingest all gtfs file types
 
@@ -140,4 +140,4 @@ def ingest_gtfs(metadata_queue: Queue[Optional[str]], filter: str = LAMP) -> Non
     """
     gtfs_to_parquet()
     ingest_gtfs_archive(metadata_queue)
-    ingest_s3_files(metadata_queue, filter=filter)
+    ingest_s3_files(metadata_queue, bucket_filter=bucket_filter)
