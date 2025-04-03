@@ -75,16 +75,11 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], filter: str = LAMP) ->
     logger.log_start()
 
     try:
-        files = file_list_from_s3(
-            bucket_name=S3_INCOMING,
-            file_prefix=filter,
-            max_list_size=10000
-        )
-
+        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=filter, max_list_size=50000)
 
         grouped_files = group_sort_file_list(files)
-        
-        for k,v in grouped_files.items():
+
+        for k, v in grouped_files.items():
             logger.add_metadata(ingest_config_type=k, ingest_number_of_files=len(v))
         # initialize with an error / no impl converter, the rest will be added in as
         # the appear.

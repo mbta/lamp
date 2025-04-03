@@ -215,7 +215,9 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     """
     add GTFS_RT_HASH_COL column to pyarrow table, if not already present
     """
-    log = ProcessLogger("hash_gtfs_rt_table", table_rows=table.num_rows, table_mbs=round(table.nbytes/(1024*1024), 2))
+    log = ProcessLogger(
+        "hash_gtfs_rt_table", table_rows=table.num_rows, table_mbs=round(table.nbytes / (1024 * 1024), 2)
+    )
     log.log_start()
     hash_columns = table.column_names
     if GTFS_RT_HASH_COL in hash_columns:

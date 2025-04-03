@@ -75,7 +75,7 @@ class ConfigType(Enum):
 
         if "LightRailRawGPS" in filename:
             return cls.LIGHT_RAIL
-        
+
         if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_TripUpdates_enhanced" in filename:
             return cls.DEV_GREEN_RT_TRIP_UPDATES
         if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json" in filename:

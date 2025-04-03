@@ -20,6 +20,7 @@ from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
 
+
 def clear_folder(folder: str) -> None:
     """
     Delete contents of entire folder.
@@ -33,6 +34,7 @@ def clear_folder(folder: str) -> None:
                 shutil.rmtree(file_path)
         except Exception as _:
             pass
+
 
 def main() -> None:
     """

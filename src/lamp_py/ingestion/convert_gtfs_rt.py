@@ -423,7 +423,9 @@ class GtfsRtConverter(Converter):
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
             hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
-            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema, compression="zstd", compression_level=3)
+            upload_writer = pq.ParquetWriter(
+                upload_path, schema=no_hash_schema, compression="zstd", compression_level=3
+            )
 
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
@@ -435,7 +437,9 @@ class GtfsRtConverter(Converter):
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
-                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+                logger.add_metadata(
+                    part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes / (1024 * 1024), 2)
+                )
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
                 write_table = (
@@ -452,7 +456,9 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
-                logger.add_metadata(part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes/(1024*1024),2))
+                logger.add_metadata(
+                    part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes / (1024 * 1024), 2)
+                )
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
@@ -528,7 +534,7 @@ class GtfsRtConverter(Converter):
             if len(files) == 0:
                 continue
             paths[datetime.strptime(w_dir, f"{root_folder}/year=%Y/month=%m/day=%d")] = w_dir
-        
+
         log = ProcessLogger("clean_local_folders")
         # remove all local day folders except two most recent
         for key in sorted(paths.keys())[:-days_to_keep]:
