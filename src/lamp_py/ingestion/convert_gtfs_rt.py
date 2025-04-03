@@ -451,7 +451,7 @@ class GtfsRtConverter(Converter):
                             )
                         )
                     )
-                    .sort(by=["feed_timestamp"]) # type: ignore
+                    .sort(by=["feed_timestamp"])  # type: ignore
                     .unique(subset=GTFS_RT_HASH_COL, keep="first")
                     .to_arrow()
                     .cast(out_ds.schema)
