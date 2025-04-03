@@ -16,6 +16,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.ingestion.ingest_gtfs import ingest_gtfs
 from lamp_py.ingestion.glides import ingest_glides_events
 from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
+from lamp_py.runtime_utils.remote_files import LAMP
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
@@ -58,7 +59,7 @@ def main() -> None:
     while True:
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
-        bucket_filter = "lamp/delta/2025/03/2"
+        bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
         ingest_light_rail_gps(bucket_filter=bucket_filter)
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
