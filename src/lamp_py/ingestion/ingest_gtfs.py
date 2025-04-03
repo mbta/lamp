@@ -63,7 +63,7 @@ def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_s3_files(metadata_queue: Queue[Optional[str]], filter: str = LAMP) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
@@ -77,7 +77,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     try:
         files = file_list_from_s3(
             bucket_name=S3_INCOMING,
-            file_prefix="lamp/delta/2025/03/16",
+            file_prefix=filter,
             max_list_size=10000
         )
 
@@ -137,7 +137,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_gtfs(metadata_queue: Queue[Optional[str]], filter: str = LAMP) -> None:
     """
     ingest all gtfs file types
 
@@ -145,4 +145,4 @@ def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
     """
     gtfs_to_parquet()
     ingest_gtfs_archive(metadata_queue)
-    ingest_s3_files(metadata_queue)
+    ingest_s3_files(metadata_queue, filter=filter)

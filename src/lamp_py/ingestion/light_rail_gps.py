@@ -174,7 +174,7 @@ def write_parquet(dataframe: pl.DataFrame) -> None:
         logger.log_complete()
 
 
-def ingest_light_rail_gps() -> None:
+def ingest_light_rail_gps(filter: str = LAMP) -> None:
     """
     retrieve group of LightRailRawGPS gz files from INCOMING bucket
 
@@ -189,7 +189,7 @@ def ingest_light_rail_gps() -> None:
     try:
         s3_files = file_list_from_s3(
             bucket_name=os.environ["INCOMING_BUCKET"],
-            file_prefix=LAMP,
+            file_prefix=filter,
             max_list_size=5_000,
         )
 

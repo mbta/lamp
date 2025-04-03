@@ -56,10 +56,10 @@ def main() -> None:
     while True:
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
-
+        bucket_filter = "lamp/delta/2025/03/17"
         check_for_sigterm(metadata_queue, rds_process)
-        ingest_light_rail_gps()
-        ingest_gtfs(metadata_queue)
+        ingest_light_rail_gps(filter=bucket_filter)
+        ingest_gtfs(metadata_queue, filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue)
         check_for_sigterm(metadata_queue, rds_process)
 
