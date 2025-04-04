@@ -13,7 +13,6 @@ from urllib import request
 from io import BytesIO
 
 import pyarrow
-import pyarrow.dataset as pd
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import polars as pl
@@ -215,6 +214,10 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     """
     add GTFS_RT_HASH_COL column to pyarrow table, if not already present
     """
+    log = ProcessLogger(
+        "hash_gtfs_rt_table", table_rows=table.num_rows, table_mbs=round(table.nbytes / (1024 * 1024), 2)
+    )
+    log.log_start()
     hash_columns = table.column_names
     if GTFS_RT_HASH_COL in hash_columns:
         return table
@@ -225,7 +228,7 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     hash_schema = table.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
 
     table = pl.from_arrow(table)
-
+    log.log_complete()
     return (
         table.with_columns(
             table.select(hash_columns)
@@ -242,20 +245,21 @@ def hash_gtfs_rt_parquet(path: str) -> None:
     """
     add GTFS_RT_HASH_COL to local parquet file, if not already present
     """
-    ds = pd.dataset(path)
-    hash_columns = ds.schema.names
+    ds = pq.ParquetFile(path)
+    ds_schema = ds.schema.to_arrow_schema()
+    hash_columns = ds_schema.names
     if GTFS_RT_HASH_COL in hash_columns:
         return
 
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = ds.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
+    hash_schema = ds_schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
 
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
         with pq.ParquetWriter(tmp_pq, schema=hash_schema) as writer:
-            for batch in ds.to_batches(batch_size=1024 * 1024):
+            for batch in ds.iter_batches(batch_size=512 * 1024):
                 batch = pl.from_arrow(batch)
                 batch = (
                     batch.with_columns(

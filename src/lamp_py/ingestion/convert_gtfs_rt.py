@@ -101,6 +101,10 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
+            self.detail = RtTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
+            self.detail = RtVehicleDetail()
         elif config_type == ConfigType.LIGHT_RAIL:
             raise IgnoreIngestion("Ignore LIGHT_RAIL files")
         else:
@@ -130,6 +134,8 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
+                pool = pyarrow.default_memory_pool()
+                pool.release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
@@ -141,6 +147,7 @@ class GtfsRtConverter(Converter):
         else:
             process_logger.log_complete()
         finally:
+            self.data_parts = {}
             self.move_s3_files()
             self.clean_local_folders()
 
@@ -367,6 +374,8 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+        log = ProcessLogger("make_hash_datset")
+        log.log_start()
         table = hash_gtfs_rt_table(table)
         out_ds = pd.dataset(table)
 
@@ -389,7 +398,7 @@ class GtfsRtConverter(Converter):
                     out_ds = pd.dataset(table)
                 else:
                     raise exception
-
+        log.log_complete()
         return out_ds
 
     # pylint: disable=R0914
@@ -413,15 +422,28 @@ class GtfsRtConverter(Converter):
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema)
-            upload_writer = pq.ParquetWriter(upload_path, schema=no_hash_schema)
+            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
+            upload_writer = pq.ParquetWriter(
+                upload_path, schema=no_hash_schema, compression="zstd", compression_level=3
+            )
 
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
             for part in partitions:
-                unique_table = (
-                    pl.DataFrame(
+                logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
+                write_table = out_ds.to_table(
+                    filter=(
+                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
+                    )
+                )
+                logger.add_metadata(
+                    part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes / (1024 * 1024), 2)
+                )
+                hash_writer.write_table(write_table)
+                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                write_table = (
+                    pl.from_arrow(
                         out_ds.to_table(
                             filter=(
                                 (pc.field(self.detail.partition_column) == part)
@@ -429,21 +451,15 @@ class GtfsRtConverter(Converter):
                             )
                         )
                     )
-                    .sort(by=["feed_timestamp"])
+                    .sort(by=["feed_timestamp"])  # type: ignore
                     .unique(subset=GTFS_RT_HASH_COL, keep="first")
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
-                ds_table = out_ds.to_table(
-                    filter=(
-                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
-                    )
+                logger.add_metadata(
+                    part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes / (1024 * 1024), 2)
                 )
-                write_table = pyarrow.concat_tables([unique_table, ds_table]).sort_by(self.detail.table_sort_order)
-
                 hash_writer.write_table(write_table)
-
-                # drop GTFS_RT_HASH_COL column for S3 upload
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
             hash_writer.close()

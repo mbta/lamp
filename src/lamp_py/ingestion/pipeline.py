@@ -4,6 +4,7 @@ import os
 import time
 import logging
 import signal
+import shutil
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
@@ -15,9 +16,25 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.ingestion.ingest_gtfs import ingest_gtfs
 from lamp_py.ingestion.glides import ingest_glides_events
 from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
+from lamp_py.runtime_utils.remote_files import LAMP
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
+
+
+def clear_folder(folder: str) -> None:
+    """
+    Delete contents of entire folder.
+    """
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as _:
+            pass
 
 
 def main() -> None:
@@ -42,10 +59,10 @@ def main() -> None:
     while True:
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
-
+        bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
-        ingest_light_rail_gps()
-        ingest_gtfs(metadata_queue)
+        ingest_light_rail_gps(bucket_filter=bucket_filter)
+        ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue)
         check_for_sigterm(metadata_queue, rds_process)
 
@@ -56,6 +73,7 @@ def main() -> None:
 
 def start() -> None:
     """configure and start the ingestion process"""
+    clear_folder("/tmp")
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
 

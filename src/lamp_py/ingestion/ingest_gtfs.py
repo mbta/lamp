@@ -63,7 +63,7 @@ def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
     """
     get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
@@ -75,13 +75,12 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_start()
 
     try:
-        files = file_list_from_s3(
-            bucket_name=S3_INCOMING,
-            file_prefix=LAMP,
-        )
+        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=50000)
 
         grouped_files = group_sort_file_list(files)
 
+        for k, v in grouped_files.items():
+            logger.add_metadata(ingest_config_type=k, ingest_number_of_files=len(v))
         # initialize with an error / no impl converter, the rest will be added in as
         # the appear.
         converters: Dict[ConfigType, Converter] = {}
@@ -121,8 +120,11 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
+    process_count = os.cpu_count()
+    if process_count is None:
+        process_count = 4
     if len(converters) > 0:
-        with get_context("spawn").Pool(processes=len(converters)) as pool:
+        with get_context("spawn").Pool(processes=process_count, maxtasksperchild=1) as pool:
             pool.map_async(run_converter, converters.values())
             pool.close()
             pool.join()
@@ -130,7 +132,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_gtfs(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
     """
     ingest all gtfs file types
 
@@ -138,4 +140,4 @@ def ingest_gtfs(metadata_queue: Queue[Optional[str]]) -> None:
     """
     gtfs_to_parquet()
     ingest_gtfs_archive(metadata_queue)
-    ingest_s3_files(metadata_queue)
+    ingest_s3_files(metadata_queue, bucket_filter=bucket_filter)
