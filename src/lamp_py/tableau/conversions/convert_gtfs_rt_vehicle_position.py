@@ -1,3 +1,4 @@
+import polars as pl
 import pyarrow
 
 gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
@@ -13,8 +14,8 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
         ("vehicle.trip.tm_trip_id", pyarrow.large_string()),
         ("vehicle.trip.overload_id", pyarrow.int64()),
         ("vehicle.trip.overload_offset", pyarrow.int64()),
-        ("vehicle.trip.revenue", pyarrow.bool()),
-        ("vehicle.trip.last_trip", pyarrow.bool()),
+        ("vehicle.trip.revenue", pyarrow.bool_()),
+        ("vehicle.trip.last_trip", pyarrow.bool_()),
         ("vehicle.vehicle.id", pyarrow.large_string()),
         ("vehicle.vehicle.label", pyarrow.large_string()),
         ("vehicle.vehicle.license_plate", pyarrow.large_string()),
@@ -23,10 +24,10 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
         #       child 0, label: string
         ("vehicle.vehicle.assignment_status", pyarrow.large_string()),
         ("vehicle.position.bearing", pyarrow.uint16()),
-        ("vehicle.position.latitude", pyarrow.double()),
-        ("vehicle.position.longitude", pyarrow.double()),
-        ("vehicle.position.speed", pyarrow.double()),
-        ("vehicle.position.odometer", pyarrow.double()),
+        ("vehicle.position.latitude", pyarrow.float64()),
+        ("vehicle.position.longitude", pyarrow.float64()),
+        ("vehicle.position.speed", pyarrow.float64()),
+        ("vehicle.position.odometer", pyarrow.float64()),
         ("vehicle.current_stop_sequence", pyarrow.uint32()),
         ("vehicle.stop_id", pyarrow.large_string()),
         ("vehicle.current_status", pyarrow.large_string()),
@@ -66,8 +67,12 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
 #         filesystem=S3FileSystem(),
 #     )
 
-def apply_gtfs_rt_vehicle_positions_conversions() -> None:
-    return
+def apply_gtfs_rt_vehicle_positions_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply final conversions to lamp data before outputting for tableau consumption
+    """
+
+    return polars_df
 
 
 def schema() -> pyarrow.schema:

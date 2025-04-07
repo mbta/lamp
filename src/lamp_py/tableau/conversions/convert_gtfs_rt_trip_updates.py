@@ -1,3 +1,4 @@
+from polars import DataFrame
 import pyarrow
 
 gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
@@ -13,8 +14,8 @@ gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
         ("trip_update.trip.tm_trip_id", pyarrow.large_string()),
         ("trip_update.trip.overload_id", pyarrow.int64()),
         ("trip_update.trip.overload_offset", pyarrow.int64()),
-        ("trip_update.trip.revenue", pyarrow.bool()),
-        ("trip_update.trip.last_trip", pyarrow.bool()),
+        ("trip_update.trip.revenue", pyarrow.bool_()),
+        ("trip_update.trip.last_trip", pyarrow.bool_()),
         ("trip_update.vehicle.id", pyarrow.large_string()),
         ("trip_update.vehicle.label", pyarrow.large_string()),
         ("trip_update.vehicle.license_plate", pyarrow.large_string()),
@@ -60,9 +61,34 @@ gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
 #     )
 
 
-def apply_gtfs_rt_trip_updates_conversions() -> None:
-    return
+def apply_gtfs_rt_trip_updates_conversions(polars_df: DataFrame) -> DataFrame:
+    """
+    Function to apply final conversions to lamp data before outputting for tableau consumption
+    """
+    # # Convert datetime to Eastern Time
+    # polars_df = polars_df.with_columns(
+    #     pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+    #     pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+    #     pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
+    # )
+
+    # # Convert seconds columns to be aligned with Eastern Time
+    # polars_df = polars_df.with_columns(
+    #     (pl.col("gtfs_travel_to_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
+    #     .dt.total_seconds()
+    #     .alias("gtfs_travel_to_seconds"),
+    #     (pl.col("stop_arrival_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
+    #     .dt.total_seconds()
+    #     .alias("stop_arrival_seconds"),
+    #     (pl.col("stop_departure_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
+    #     .dt.total_seconds()
+    #     .alias("stop_departure_seconds"),
+    # )
+
+    # polars_df = polars_df.with_columns(pl.col("service_date").str.strptime(pl.Date, "%Y%m%d", strict=False))
+
+    return polars_df
 
 
-def rt_trip_schema_processed() -> pyarrow.schema:
+def schema() -> pyarrow.schema:
     return gtfs_rt_trip_updates_processed_schema
