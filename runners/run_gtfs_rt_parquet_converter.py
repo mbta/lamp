@@ -12,11 +12,12 @@ from lamp_py.tableau.pipeline import (
     HyperDevGreenGtfsRtTripUpdates,
     rt_vehicle_positions,
     rt_trip_updates,
-    tableau_rt_vehicle_positions_lightrail_30day
+    tableau_rt_vehicle_positions_lightrail_30day,
 )
 
 
 from lamp_py.utils.filter_bank import FilterBank_RtTripUpdates, FilterBank_RtVehiclePositions
+
 
 # don't run this in pytest - environment variables in pyproject.toml point to local SPRINGBOARD/ARCHIVE
 # need the .env values to run
@@ -47,6 +48,3 @@ def start_gtfs_rt_parquet_updates_local() -> None:
 if __name__ == "__main__":
     start_gtfs_rt_parquet_updates_local()
     start_devgreen_gtfs_rt_parquet_updates_local()
-
-    # start_gtfs_rt_parquet_updates()
-    # start_devgreen_gtfs_rt_parquet_updates()

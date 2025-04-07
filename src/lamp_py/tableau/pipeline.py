@@ -43,28 +43,28 @@ HyperGtfsRtVehiclePositions = FilteredHyperJob(
     remote_output_location=tableau_rt_vehicle_positions_lightrail_30day,
     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
-    parquet_filter=FilterBank_RtVehiclePositions.light_rail
+    parquet_filter=FilterBank_RtVehiclePositions.light_rail,
 )
 HyperGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=rt_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_30day,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
-    parquet_filter=FilterBank_RtTripUpdates.light_rail
+    parquet_filter=FilterBank_RtTripUpdates.light_rail,
 )
 HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_30day,
     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
-    parquet_filter=FilterBank_RtVehiclePositions.light_rail
+    parquet_filter=FilterBank_RtVehiclePositions.light_rail,
 )
 HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=devgreen_rt_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_30day,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
-    parquet_filter=FilterBank_RtTripUpdates.light_rail
+    parquet_filter=FilterBank_RtTripUpdates.light_rail,
 )
 
 

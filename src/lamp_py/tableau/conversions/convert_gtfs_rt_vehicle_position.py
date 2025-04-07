@@ -67,6 +67,7 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
 #         filesystem=S3FileSystem(),
 #     )
 
+
 def apply_gtfs_rt_vehicle_positions_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
