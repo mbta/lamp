@@ -39,27 +39,6 @@ gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
     ]
 )
 
-# light_rail_events_dev_green_vehicle_pos = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/DEV_GREEN_RT_VEHICLE_POSITION"))
-# light_rail_events_dev_green_trip_updates = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/DEV_GREEN_RT_TRIP_UPDATES"))
-
-# light_rail_events_vehicle_pos = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/RT_VEHICLE_POSITIONS"))
-# light_rail_events_trip_updates = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/RT_TRIP_UPDATES"))
-
-#     # filter=FilterBank_RtTripUpdates.light_rail,
-
-
-#   s3_uris = file_list_from_s3(bucket_name=bus_events.bucket, file_prefix=bus_events.prefix)
-#     ds_paths = [s.replace("s3://", "") for s in s3_uris]
-
-#     if num_files is not None:
-#         ds_paths = ds_paths[-num_files:]
-
-#     ds = pd.dataset(
-#         ds_paths,
-#         format="parquet",
-#         filesystem=S3FileSystem(),
-#     )
-
 
 def apply_gtfs_rt_trip_updates_conversions(polars_df: DataFrame) -> DataFrame:
     """
@@ -91,4 +70,7 @@ def apply_gtfs_rt_trip_updates_conversions(polars_df: DataFrame) -> DataFrame:
 
 
 def schema() -> pyarrow.schema:
+    """
+    Function returns schema of the processed gtfs-rt trip updates
+    """
     return gtfs_rt_trip_updates_processed_schema

@@ -19,6 +19,8 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
 
+# pylint: disable=R0913
+# pylint too many local variables (more than 15)
 class FilteredHyperJob(HyperJob):
     """HyperJob for Generic GTFS RT conversion - Converting from OOP to Composition"""
 
@@ -27,6 +29,7 @@ class FilteredHyperJob(HyperJob):
         remote_input_location: S3Location,
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
+        rollup_num_days: int,
         bucket_filter: str | None = None,
         object_filter: str | None = None,
         parquet_filter: pc.Expression | None = None,
@@ -41,6 +44,7 @@ class FilteredHyperJob(HyperJob):
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema
+        self.rollup_num_days = rollup_num_days
         self.bucket_filter = bucket_filter
         self.object_filter = object_filter
         self.parquet_filter = parquet_filter
@@ -65,7 +69,7 @@ class FilteredHyperJob(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        self.create_tableau_parquet(num_files=1)
+        self.create_tableau_parquet(num_files=self.rollup_num_days)
         return True
 
     def create_tableau_parquet(self, num_files: Optional[int]) -> None:

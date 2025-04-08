@@ -8,7 +8,6 @@ from typing import Optional
 import pyarrow
 from pyarrow import fs
 import pyarrow.parquet as pq
-import pyarrow.compute as pc
 from tableauhyperapi import (
     TableDefinition,
     SqlType,
