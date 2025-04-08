@@ -1,12 +1,10 @@
-import pyarrow as pa
 import pyarrow.compute as pc
-
-from dataclasses import dataclass
+import pyarrow as pa
 
 lrtp_terminals = pa.array([70110, 70162, 70236, 70274, 70502, 70510])
 
 
-class FilterBank_RtVehiclePositions:
+class FilterBankRtVehiclePositions:
     """
     Data-only class for pyarrow compute Expressions to filter Vehicle Positions
     """
@@ -23,14 +21,14 @@ class FilterBank_RtVehiclePositions:
     # todo - implement tags to filter all classes for specific sets
     tags = ["green", "light_rail"]
 
-    revenue_true = pc.field("vehicle.trip.revenue") == True
+    revenue_true = pc.field("vehicle.trip.revenue") is True
     timestamp_non_null = pc.field("vehicle.timestamp").true_unless_null().all()
     terminal_stop_lr = pc.is_in(pc.field("vehicle.stop_id"), lrtp_terminals)
 
     light_rail_terminal_prediction_filter = revenue_true & timestamp_non_null & terminal_stop_lr
 
 
-class FilterBank_RtTripUpdates:
+class FilterBankRtTripUpdates:
     """
     Data-only class for pyarrow compute Expressions to filter Vehicle Positions
     """
@@ -45,7 +43,7 @@ class FilterBank_RtTripUpdates:
     green = green_b | green_c | green_d | green_e
 
     schedule_relationship_not_skipped = pc.field("trip_update.trip.schedule_relationship").not_equal("CANCELED")
-    revenue_true = pc.field("trip_update.trip.revenue") == True
+    revenue_true = pc.field("trip_update.trip.revenue") is True
     stop_time_update_schedule_relationship_not_skipped = pc.field(
         "trip_update.stop_time_update.schedule_relationship"
     ).not_equal("SKIPPED")

@@ -19,7 +19,7 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
 
-# pylint: disable=R0913
+# pylint: disable=R0913,R0902
 # pylint too many local variables (more than 15)
 class FilteredHyperJob(HyperJob):
     """HyperJob for Generic GTFS RT conversion - Converting from OOP to Composition"""
