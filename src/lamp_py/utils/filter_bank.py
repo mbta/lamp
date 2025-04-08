@@ -1,8 +1,16 @@
+import pyarrow as pa
 import pyarrow.compute as pc
+
 from dataclasses import dataclass
+
+lrtp_terminals = pa.array([70110, 70162, 70236, 70274, 70502, 70510])
 
 
 class FilterBank_RtVehiclePositions:
+    """
+    Data-only class for pyarrow compute Expressions to filter Vehicle Positions
+    """
+
     green_b = pc.field("vehicle.trip.route_id") == "Green-B"
     green_c = pc.field("vehicle.trip.route_id") == "Green-C"
     green_d = pc.field("vehicle.trip.route_id") == "Green-D"
@@ -12,17 +20,21 @@ class FilterBank_RtVehiclePositions:
     light_rail = green_b | green_c | green_d | green_e | mattapan
     green = green_b | green_c | green_d | green_e
 
+    # todo - implement tags to filter all classes for specific sets
     tags = ["green", "light_rail"]
 
+    revenue_true = pc.field("vehicle.trip.revenue") == True
+    timestamp_non_null = pc.field("vehicle.timestamp").true_unless_null().all()
+    terminal_stop_lr = pc.is_in(pc.field("vehicle.stop_id"), lrtp_terminals)
 
-# filter = filter1 | filter2 | filter3| filter4|filter5
-
-# vpf = Rt_VehiclePositionFilters()
-
-# filter3  = vpf.filter1 | vpf.filter2
+    light_rail_terminal_prediction_filter = revenue_true & timestamp_non_null & terminal_stop_lr
 
 
 class FilterBank_RtTripUpdates:
+    """
+    Data-only class for pyarrow compute Expressions to filter Vehicle Positions
+    """
+
     green_b = pc.field("trip_update.trip.route_id") == "Green-B"
     green_c = pc.field("trip_update.trip.route_id") == "Green-C"
     green_d = pc.field("trip_update.trip.route_id") == "Green-D"
@@ -31,32 +43,25 @@ class FilterBank_RtTripUpdates:
 
     light_rail = green_b | green_c | green_d | green_e | mattapan
     green = green_b | green_c | green_d | green_e
+
+    schedule_relationship_not_skipped = pc.field("trip_update.trip.schedule_relationship").not_equal("CANCELED")
+    revenue_true = pc.field("trip_update.trip.revenue") == True
+    stop_time_update_schedule_relationship_not_skipped = pc.field(
+        "trip_update.stop_time_update.schedule_relationship"
+    ).not_equal("SKIPPED")
+    timestamp_non_null = pc.field("trip_update.stop_time_update.schedule_relationship").not_equal("SKIPPED")
+    stop_time_update_departure_time_non_null = (
+        pc.field("trip_update.stop_time_update.departure.time").true_unless_null().all()
+    )
+    terminal_stop_lr = pc.is_in(pc.field("trip_update.stop_time_update.stop_id"), lrtp_terminals)
+
+    light_rail_terminal_prediction_filter = (
+        schedule_relationship_not_skipped
+        & revenue_true
+        & stop_time_update_schedule_relationship_not_skipped
+        & timestamp_non_null
+        & stop_time_update_departure_time_non_null
+        & terminal_stop_lr
+    )
+    # todo - implement tags to filter all classes for specific sets
     tags = ["green", "light_rail"]
-
-
-# filter = filter1 | filter2 | filter3| filter4|filter5
-
-# vpf = Rt_VehiclePositionFilters()
-
-# green(vehicle_positions : Optional[RtVehiclePositions])
-
-#     return( vehicle_positions.filter(vpf.green)
-#     out_tu = trip_updates.filter(tuf.green)
-#     etc
-#     etc
-# grab all
-
-# # polars stored procedures..
-# filters()
-
-# gr = filters.tag("green")
-
-# gr.all_filters()
-# # b,c,e
-# gr.add_filter("bce", gr.green_b, gr.green_c, gr.green_e)
-
-
-# pl.filter_by(gr.b | gr.c | gr.e)
-
-
-# filter3  = vpf.filter1 | vpf.filter2
