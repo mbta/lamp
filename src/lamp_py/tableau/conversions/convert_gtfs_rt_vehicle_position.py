@@ -31,7 +31,7 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
         ("vehicle.current_stop_sequence", pyarrow.uint32()),
         ("vehicle.stop_id", pyarrow.large_string()),
         ("vehicle.current_status", pyarrow.large_string()),
-        ("vehicle.timestamp", pyarrow.uint64()),
+        ("vehicle.timestamp", pyarrow.timestamp("ms")),
         ("vehicle.congestion_level", pyarrow.large_string()),
         ("vehicle.occupancy_status", pyarrow.large_string()),
         ("vehicle.occupancy_percentage", pyarrow.uint32()),
@@ -42,7 +42,7 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
         #       child 2, occupancy_status: string
         #       child 3, occupancy_percentage: int32
         #       child 4, carriage_sequence: uint32
-        ("feed_timestamp", pyarrow.uint64()),
+        ("feed_timestamp", pyarrow.timestamp("ms")),
     ]
 )
 
@@ -51,6 +51,16 @@ def apply_gtfs_rt_vehicle_positions_conversions(polars_df: pl.DataFrame) -> pl.D
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    polars_df = polars_df.with_columns(
+        pl.col("vehicle.timestamp")
+        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+        pl.col("feed_timestamp")
+        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+    )
     return polars_df
 
 
