@@ -10,6 +10,7 @@ from pyarrow.fs import S3FileSystem
 
 import polars as pl
 
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
@@ -114,7 +115,8 @@ class FilteredHyperJob(HyperJob):
             format="parquet",
             filesystem=S3FileSystem(),
         )
-
+        process_logger = ProcessLogger("filtered_hyper_create", file_prefix=file_prefix)
+        process_logger.log_start()
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000, columns=self.processed_schema.names, filter=self.parquet_filter
@@ -126,10 +128,11 @@ class FilteredHyperJob(HyperJob):
                     polars_df = pl.from_arrow(batch)
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-
+                    print(".")
                     polars_df = self.dataframe_filter(polars_df)
                     # filtered on columns of interest and dataframe_filter
                     writer.write_table(polars_df.to_arrow())
                 else:
                     # just write the batch out - filtered on columns of interest
                     writer.write_table(batch)
+        process_logger.log_complete()

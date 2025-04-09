@@ -170,21 +170,3 @@ def start_bus_parquet_updates() -> None:
 
     for job in parquet_update_jobs:
         job.run_parquet(None)
-
-
-def start_devgreen_gtfs_rt_parquet_updates() -> None:
-    """Run all DevGreen GtfsRt Parquet Update jobs"""
-
-    parquet_update_jobs: List[HyperJob] = [HyperGtfsRtVehiclePositions, HyperGtfsRtTripUpdates]
-
-    for job in parquet_update_jobs:
-        job.run_parquet(None)
-
-
-def start_gtfs_rt_parquet_updates() -> None:
-    """Run all GtfsRt Parquet Update jobs"""
-
-    parquet_update_jobs: List[HyperJob] = [HyperDevGreenGtfsRtVehiclePositions, HyperDevGreenGtfsRtTripUpdates]
-
-    for job in parquet_update_jobs:
-        job.run_parquet(None)
