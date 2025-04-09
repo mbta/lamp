@@ -23,19 +23,19 @@ gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
         #   child 0, element: struct<label: string>
         #       child 0, label: string
         ("trip_update.vehicle.assignment_status", pyarrow.large_string()),
-        ("trip_update.timestamp", pyarrow.timestamp("ms")),
+        ("trip_update.timestamp", pyarrow.timestamp("us")),
         ("trip_update.delay", pyarrow.int32()),
-        ("feed_timestamp", pyarrow.timestamp("ms")),
+        ("feed_timestamp", pyarrow.timestamp("us")),
         ("trip_update.stop_time_update.stop_sequence", pyarrow.uint32()),
         ("trip_update.stop_time_update.stop_id", pyarrow.large_string()),
         ("trip_update.stop_time_update.arrival.delay", pyarrow.int32()),
-        ("trip_update.stop_time_update.arrival.time", pyarrow.timestamp("ms")),
+        ("trip_update.stop_time_update.arrival.time", pyarrow.timestamp("us")),
         ("trip_update.stop_time_update.arrival.uncertainty", pyarrow.int32()),
         ("trip_update.stop_time_update.departure.delay", pyarrow.int32()),
         (
             "trip_update.stop_time_update.departure.time",
-            pyarrow.timestamp("ms"),
-        ),  # timestamp sec1970 -> timestamp yymmdd
+            pyarrow.timestamp("us"),
+        ),
         ("trip_update.stop_time_update.departure.uncertainty", pyarrow.int32()),
         ("trip_update.stop_time_update.schedule_relationship", pyarrow.large_string()),
         ("trip_update.stop_time_update.boarding_status", pyarrow.large_string()),

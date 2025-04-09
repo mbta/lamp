@@ -31,7 +31,7 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
         ("vehicle.current_stop_sequence", pyarrow.uint32()),
         ("vehicle.stop_id", pyarrow.large_string()),
         ("vehicle.current_status", pyarrow.large_string()),
-        ("vehicle.timestamp", pyarrow.timestamp("ms")),
+        ("vehicle.timestamp", pyarrow.timestamp("us")),
         ("vehicle.congestion_level", pyarrow.large_string()),
         ("vehicle.occupancy_status", pyarrow.large_string()),
         ("vehicle.occupancy_percentage", pyarrow.uint32()),
@@ -42,7 +42,7 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
         #       child 2, occupancy_status: string
         #       child 3, occupancy_percentage: int32
         #       child 4, carriage_sequence: uint32
-        ("feed_timestamp", pyarrow.timestamp("ms")),
+        ("feed_timestamp", pyarrow.timestamp("us")),
     ]
 )
 
