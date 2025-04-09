@@ -29,8 +29,8 @@ class FilteredHyperJob(HyperJob):
         remote_input_location: S3Location,
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
-        rollup_num_days: int,
         tableau_project_name: str,
+        rollup_num_days: int = 7, # default this to a week of data
         bucket_filter: str | None = None,
         object_filter: str | None = None,
         parquet_filter: pc.Expression | None = None,
