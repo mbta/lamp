@@ -16,7 +16,7 @@ from lamp_py.tableau.pipeline import (
 )
 
 
-from lamp_py.utils.filter_bank import FilterBank_RtTripUpdates, FilterBank_RtVehiclePositions
+from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
 
 # don't run this in pytest - environment variables in pyproject.toml point to local SPRINGBOARD/ARCHIVE

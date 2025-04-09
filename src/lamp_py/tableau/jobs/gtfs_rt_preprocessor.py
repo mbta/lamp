@@ -45,10 +45,10 @@ class FilteredHyperJob(HyperJob):
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema
         self.rollup_num_days = rollup_num_days
-        self.bucket_filter = bucket_filter
-        self.object_filter = object_filter
-        self.parquet_filter = parquet_filter
-        self.dataframe_filter = dataframe_filter
+        self.bucket_filter = bucket_filter  # level 0 | by day
+        self.object_filter = object_filter  # level 1 | by type
+        self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
+        self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
     @property
     def parquet_schema(self) -> pyarrow.schema:
