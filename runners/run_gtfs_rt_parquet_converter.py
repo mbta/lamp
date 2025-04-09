@@ -2,17 +2,12 @@ from typing import List
 
 from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
-from lamp_py.tableau.jobs.gtfs_rt_preprocessor import FilteredHyperJob
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.tableau.pipeline import (
-    start_devgreen_gtfs_rt_parquet_updates,
-    start_gtfs_rt_parquet_updates,
     HyperGtfsRtVehiclePositions,
     HyperGtfsRtTripUpdates,
     HyperDevGreenGtfsRtVehiclePositions,
     HyperDevGreenGtfsRtTripUpdates,
-    rt_vehicle_positions,
-    rt_trip_updates,
-    tableau_rt_vehicle_positions_lightrail_30day,
 )
 
 
