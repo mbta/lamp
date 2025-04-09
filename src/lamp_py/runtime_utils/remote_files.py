@@ -173,22 +173,22 @@ tableau_glides_all_trips_updated = S3Location(
 # This is updated once daily on a rolling basis
 #
 # light rail output file - to be converted to .hyper
-tableau_rt_vehicle_positions_lightrail_30day = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_LR_30day.parquet")
+tableau_rt_vehicle_positions_lightrail_60_day = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_LR_60_day.parquet")
 )
 # light rail output file - to be converted to .hyper
-tableau_rt_trip_updates_lightrail_30day = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_LR_30day.parquet")
+tableau_rt_trip_updates_lightrail_60_day = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_LR_60_day.parquet")
 )
 
 # DEVGREEN
-tableau_devgreen_rt_vehicle_positions_lightrail_30day = S3Location(
+tableau_devgreen_rt_vehicle_positions_lightrail_60_day = S3Location(
     bucket=S3_ARCHIVE,
-    prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_VehiclePositions_LR_30day.parquet"),
+    prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_VehiclePositions_LR_60_day.parquet"),
 )
 # light rail output file - to be converted to .hyper
-tableau_devgreen_rt_trip_updates_lightrail_30day = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_30day.parquet")
+tableau_devgreen_rt_trip_updates_lightrail_60_day = S3Location(
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_60_day.parquet")
 )
 
 
