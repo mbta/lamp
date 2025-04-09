@@ -39,6 +39,13 @@ from lamp_py.runtime_utils.remote_files import (
 
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
 
+
+# the first_run flag used in FilteredHyperJob is entirely a developer nice to have. This will ensure that 
+# the hyper job will run immediately when the tableau job is called, and will
+# process and upload a hyper file now, rather than on the hour or after 7am   
+# this relies on the FilteredHyperJob persisting across runs - currently it is 
+# constructed on library load (here), but if it is ever moved or reconstructed on each run_hyper() invocation, 
+# this will no longer hold.   
 HyperGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_lightrail_60_day,

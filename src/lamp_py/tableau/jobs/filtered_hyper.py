@@ -52,6 +52,12 @@ class FilteredHyperJob(HyperJob):
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
+        # this flag is entirely a developer nice to have. This will ensure that 
+        # the hyper job will run immediately when the tableau job is called, and will
+        # process and upload a hyper file now, rather than on the hour or after 7am
+        # this relies on the FilteredHyperJob persisting across runs - currently it is 
+        # constructed on library load, but if it is reconstructed on each run_hyper() invocation, 
+        # this will no longer hold. 
         self.first_run = True
 
     @property
@@ -62,6 +68,13 @@ class FilteredHyperJob(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
+
+        # this flag is entirely a developer nice to have. This will ensure that 
+        # the hyper job will run immediately when the tableau job is called, and will
+        # process and upload a hyper file now, rather than on the hour or after 7am   
+        # this relies on the FilteredHyperJob persisting across runs - currently it is 
+        # constructed on library load, but if it is reconstructed on each run_hyper() invocation, 
+        # this will no longer hold.      
         if self.first_run:
             self.create_tableau_parquet(num_files=self.rollup_num_days)
             self.first_run = False
