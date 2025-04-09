@@ -30,6 +30,7 @@ class FilteredHyperJob(HyperJob):
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
         rollup_num_days: int,
+        tableau_project_name: str,
         bucket_filter: str | None = None,
         object_filter: str | None = None,
         parquet_filter: pc.Expression | None = None,
@@ -40,6 +41,7 @@ class FilteredHyperJob(HyperJob):
             hyper_file_name=remote_output_location.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
             remote_parquet_path=remote_output_location.s3_uri,
             lamp_version=remote_output_location.version,
+            project_name=tableau_project_name,
         )
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location

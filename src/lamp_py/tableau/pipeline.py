@@ -22,7 +22,7 @@ from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
-from lamp_py.tableau.jobs.gtfs_rt_preprocessor import FilteredHyperJob
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
@@ -37,6 +37,7 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_devgreen_rt_trip_updates_lightrail_30day,
 )
 
+GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
 
 HyperGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=rt_vehicle_positions,
@@ -45,7 +46,9 @@ HyperGtfsRtVehiclePositions = FilteredHyperJob(
     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
+    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
+
 HyperGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=rt_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_30day,
@@ -53,7 +56,9 @@ HyperGtfsRtTripUpdates = FilteredHyperJob(
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
+    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
+
 HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_30day,
@@ -61,7 +66,9 @@ HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
+    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
+
 HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=devgreen_rt_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_30day,
@@ -69,6 +76,7 @@ HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
+    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
 
