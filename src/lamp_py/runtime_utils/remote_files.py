@@ -188,7 +188,8 @@ tableau_devgreen_rt_vehicle_positions_lightrail_60_day = S3Location(
 )
 # light rail output file - to be converted to .hyper
 tableau_devgreen_rt_trip_updates_lightrail_60_day = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_60_day.parquet")
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_60_day.parquet"),
 )
 
 
