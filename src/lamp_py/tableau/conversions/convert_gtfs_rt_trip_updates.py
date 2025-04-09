@@ -32,7 +32,10 @@ gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
         ("trip_update.stop_time_update.arrival.time", pyarrow.timestamp("ms")),
         ("trip_update.stop_time_update.arrival.uncertainty", pyarrow.int32()),
         ("trip_update.stop_time_update.departure.delay", pyarrow.int32()),
-        ("trip_update.stop_time_update.departure.time", pyarrow.timestamp("ms")),
+        (
+            "trip_update.stop_time_update.departure.time",
+            pyarrow.timestamp("ms"),
+        ),  # timestamp sec1970 -> timestamp yymmdd
         ("trip_update.stop_time_update.departure.uncertainty", pyarrow.int32()),
         ("trip_update.stop_time_update.schedule_relationship", pyarrow.large_string()),
         ("trip_update.stop_time_update.boarding_status", pyarrow.large_string()),
@@ -44,23 +47,47 @@ def apply_gtfs_rt_trip_updates_conversions(polars_df: pl.DataFrame) -> pl.DataFr
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    polars_df = apply_timezone_conversions(polars_df)
+    polars_df = apply_gtfs_rt_trip_updates_conversions_lrtp(polars_df)
+
+    return polars_df
+
+
+def apply_timezone_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply timezone conversions to lamp data before outputting for tableau consumption
+    """
     polars_df = polars_df.with_columns(
-        pl.col("trip_update.stop_time_update.departure.time")
-        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        pl.from_epoch(pl.col("trip_update.stop_time_update.departure.time"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
-        pl.col("trip_update.stop_time_update.arrival.time")
-        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        pl.from_epoch(pl.col("trip_update.stop_time_update.arrival.time"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
-        pl.col("trip_update.timestamp")
-        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        pl.from_epoch(pl.col("trip_update.timestamp"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
-        pl.col("feed_timestamp")
-        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        pl.from_epoch(pl.col("feed_timestamp"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
+    )
+    return polars_df
+
+
+def apply_gtfs_rt_trip_updates_conversions_lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply LRTP conversions to lamp data before outputting for tableau consumption
+    """
+    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
+
+    polars_df = polars_df.filter(
+        ~pl.col("trip_update.stop_time_update.departure.time").is_null()
+        & pl.col("trip_update.stop_time_update.stop_id").is_in(terminal_stop_ids)
+        & pl.col("trip_update.trip.revenue")
+        == True & ~pl.col("trip_update.trip.schedule_relationship").str.contains("CANCELLED")
+        | (pl.col("trip_update.trip.schedule_relationship").is_null())
+        & (~pl.col("trip_update.stop_time_update.schedule_relationship").str.contains("SKIPPED"))
+        | (pl.col("trip_update.stop_time_update.schedule_relationship").is_null())
     )
     return polars_df
 
