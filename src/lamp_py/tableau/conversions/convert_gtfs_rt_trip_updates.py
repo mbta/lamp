@@ -83,11 +83,6 @@ def apply_gtfs_rt_trip_updates_conversions_lrtp(polars_df: pl.DataFrame) -> pl.D
     polars_df = polars_df.filter(
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
         & pl.col("trip_update.stop_time_update.stop_id").is_in(terminal_stop_ids)
-        & pl.col("trip_update.trip.revenue")
-        == True & ~pl.col("trip_update.trip.schedule_relationship").str.contains("CANCELLED")
-        | (pl.col("trip_update.trip.schedule_relationship").is_null())
-        & (~pl.col("trip_update.stop_time_update.schedule_relationship").str.contains("SKIPPED"))
-        | (pl.col("trip_update.stop_time_update.schedule_relationship").is_null())
     )
     return polars_df
 

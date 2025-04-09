@@ -30,7 +30,7 @@ class FilteredHyperJob(HyperJob):
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
-        rollup_num_days: int = 7, # default this to a week of data
+        rollup_num_days: int = 7,  # default this to a week of data
         bucket_filter: str | None = None,
         object_filter: str | None = None,
         parquet_filter: pc.Expression | None = None,
@@ -52,12 +52,12 @@ class FilteredHyperJob(HyperJob):
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
-        # this flag is entirely a developer nice to have. This will ensure that 
+        # this flag is entirely a developer nice to have. This will ensure that
         # the hyper job will run immediately when the tableau job is called, and will
         # process and upload a hyper file now, rather than on the hour or after 7am
-        # this relies on the FilteredHyperJob persisting across runs - currently it is 
-        # constructed on library load, but if it is reconstructed on each run_hyper() invocation, 
-        # this will no longer hold. 
+        # this relies on the FilteredHyperJob persisting across runs - currently it is
+        # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
+        # this will no longer hold.
         self.first_run = True
 
     @property
@@ -69,12 +69,12 @@ class FilteredHyperJob(HyperJob):
 
     def update_parquet(self, _: None) -> bool:
 
-        # this flag is entirely a developer nice to have. This will ensure that 
+        # this flag is entirely a developer nice to have. This will ensure that
         # the hyper job will run immediately when the tableau job is called, and will
-        # process and upload a hyper file now, rather than on the hour or after 7am   
-        # this relies on the FilteredHyperJob persisting across runs - currently it is 
-        # constructed on library load, but if it is reconstructed on each run_hyper() invocation, 
-        # this will no longer hold.      
+        # process and upload a hyper file now, rather than on the hour or after 7am
+        # this relies on the FilteredHyperJob persisting across runs - currently it is
+        # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
+        # this will no longer hold.
         if self.first_run:
             self.create_tableau_parquet(num_files=self.rollup_num_days)
             self.first_run = False
@@ -119,10 +119,10 @@ class FilteredHyperJob(HyperJob):
             for batch in ds.to_batches(
                 batch_size=500_000, columns=self.processed_schema.names, filter=self.parquet_filter
             ):
-                
+
                 if self.dataframe_filter is not None:
                     # apply transformations if function passed in
-                
+
                     polars_df = pl.from_arrow(batch)
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
@@ -130,7 +130,6 @@ class FilteredHyperJob(HyperJob):
                     polars_df = self.dataframe_filter(polars_df)
                     # filtered on columns of interest and dataframe_filter
                     writer.write_table(polars_df.to_arrow())
-                else:    
+                else:
                     # just write the batch out - filtered on columns of interest
                     writer.write_table(batch)
-                  

@@ -61,15 +61,10 @@ def apply_gtfs_vehicle_positions_lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
     """
-    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
+    stop_ids = list(map(str, [70110, 70162, 70236, 70274, 70502, 70510]))
 
     #    pylint: disable=singleton-comparison
-    polars_df = polars_df.filter(
-        ~pl.col("vehicle.timestamp").is_null()
-        & pl.col("vehicle.stop_id").is_in(terminal_stop_ids)
-        & pl.col("vehicle.trip.revenue")
-        == True
-    )
+    polars_df = polars_df.filter(~pl.col("vehicle.timestamp").is_null() & pl.col("vehicle.stop_id").is_in(stop_ids))
     return polars_df
 
 
