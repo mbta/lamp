@@ -119,13 +119,18 @@ class FilteredHyperJob(HyperJob):
             for batch in ds.to_batches(
                 batch_size=500_000, columns=self.processed_schema.names, filter=self.parquet_filter
             ):
-
-                polars_df = pl.from_arrow(batch)
-                if not isinstance(polars_df, pl.DataFrame):
-                    raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-
-                # apply transformations if function passed in
+                
                 if self.dataframe_filter is not None:
-                    polars_df = self.dataframe_filter(polars_df)
+                    # apply transformations if function passed in
+                
+                    polars_df = pl.from_arrow(batch)
+                    if not isinstance(polars_df, pl.DataFrame):
+                        raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-                writer.write_table(polars_df.to_arrow())
+                    polars_df = self.dataframe_filter(polars_df)
+                    # filtered on columns of interest and dataframe_filter
+                    writer.write_table(polars_df.to_arrow())
+                else:    
+                    # just write the batch out - filtered on columns of interest
+                    writer.write_table(batch)
+                  
