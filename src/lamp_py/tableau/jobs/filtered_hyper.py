@@ -52,6 +52,8 @@ class FilteredHyperJob(HyperJob):
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
+        self.first_run = True
+
     @property
     def parquet_schema(self) -> pyarrow.schema:
         return self.processed_schema
@@ -60,6 +62,10 @@ class FilteredHyperJob(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
+        if self.first_run:
+            self.create_tableau_parquet(num_files=self.rollup_num_days)
+            self.first_run = False
+
         # only run once per day after 11AM UTC
         if object_exists(self.remote_input_location.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
@@ -87,7 +93,6 @@ class FilteredHyperJob(HyperJob):
             bucket_name=self.remote_input_location.bucket, file_prefix=file_prefix, in_filter=self.object_filter
         )
         ds_paths = [s.replace("s3://", "") for s in s3_uris]
-
         if num_files is not None:
             ds_paths = ds_paths[-num_files:]
 
