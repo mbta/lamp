@@ -51,13 +51,37 @@ def apply_gtfs_rt_vehicle_positions_conversions(polars_df: pl.DataFrame) -> pl.D
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
+    polars_df = apply_gtfs_vehicle_positions_lrtp(polars_df)
+
+    return polars_df
+
+
+def apply_gtfs_vehicle_positions_lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
+    """
+    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
+
+    #    pylint: disable=singleton-comparison
+    polars_df = polars_df.filter(
+        ~pl.col("vehicle.timestamp").is_null()
+        & pl.col("vehicle.stop_id").is_in(terminal_stop_ids)
+        & pl.col("vehicle.trip.revenue")
+        == True
+    )
+    return polars_df
+
+
+def apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply final conversions to lamp data before outputting for tableau consumption
+    """
     polars_df = polars_df.with_columns(
-        pl.col("vehicle.timestamp")
-        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        pl.from_epoch(pl.col("vehicle.timestamp"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
-        pl.col("feed_timestamp")
-        .str.strptime(pl.Datetime("ms"), "%Y-%m-%dT%H:%M:%SZ", strict=False)
+        pl.from_epoch(pl.col("feed_timestamp"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
     )
