@@ -123,24 +123,6 @@ tm_work_piece_file = S3Location(
 # published by LAMP
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.1")
 
-
-# GTFS-RT feed filtered down by LAMP
-# intermediate location
-light_rail_events_dev_green_vehicle_pos = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/DEV_GREEN_RT_VEHICLE_POSITION")
-)
-light_rail_events_dev_green_trip_updates = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/DEV_GREEN_RT_TRIP_UPDATES")
-)
-
-light_rail_events_vehicle_pos = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/RT_VEHICLE_POSITIONS")
-)
-light_rail_events_trip_updates = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "light_rail_events/RT_TRIP_UPDATES")
-)
-
-
 # Kinesis stream glides events
 glides_trips_updated = S3Location(
     bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/trip_updates.parquet"), version="1.0"
@@ -169,7 +151,7 @@ tableau_glides_all_trips_updated = S3Location(
 )
 
 #### GTFS-RT TO TABLEAU
-# all of these files will contain up to the past 30 days of VehiclePosition or TripUpdates GTFS-RT data.
+# all of these files will contain up to the past 60 days of VehiclePosition or TripUpdates GTFS-RT data.
 # This is updated once daily on a rolling basis
 #
 # light rail output file - to be converted to .hyper
