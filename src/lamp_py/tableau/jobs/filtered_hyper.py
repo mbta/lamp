@@ -128,7 +128,6 @@ class FilteredHyperJob(HyperJob):
                     polars_df = pl.from_arrow(batch)
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-                    print(".")
                     polars_df = self.dataframe_filter(polars_df)
                     # filtered on columns of interest and dataframe_filter
                     writer.write_table(polars_df.to_arrow())
