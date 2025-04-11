@@ -26,15 +26,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create pgstattubple extension to monitor index health
-    try:
-        log = ProcessLogger("create_pgstattuple_extension")
-        log.log_start()
-        op.execute("CREATE EXTENSION pgstattuple;")
-        log.log_complete()
-    except Exception as e:
-        log.log_failure(e)
-
     # REINDEX all tables
     tables = [
         "vehicle_events",
@@ -53,7 +44,7 @@ def upgrade() -> None:
         try:
             log = ProcessLogger(f"reindex_{table}")
             log.log_start()
-            op.execute(f"REINDEX TABLE {table};")
+            op.execute(sa.text(f"REINDEX TABLE {table};"))
             log.log_complete()
         except Exception as e:
             log.log_failure(e)
