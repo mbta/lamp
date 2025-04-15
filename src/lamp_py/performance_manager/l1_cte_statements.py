@@ -13,7 +13,7 @@ import polars as pl
 from datetime import datetime
 
 
-def static_trips_subquery_pq(service_date: int):
+def static_trips_subquery_pq(service_date: int) -> pl.DataFrame:
     service_year = str(service_date)[:4]
     static_prefix = f"s3://mbta-performance/lamp/gtfs_archive/{service_year}"
 
@@ -119,9 +119,6 @@ def static_trips_subquery_pq(service_date: int):
         .drop("t_route_id")
         .collect()
     )
-
-
-static_trips_subquery_pq(20250414)
 
 def static_trips_subquery(static_version_key: int, service_date: int) -> sa.sql.selectable.Subquery:
     """
