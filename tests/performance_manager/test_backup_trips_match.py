@@ -2,6 +2,7 @@ import polars as pl
 from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
 from lamp_py.performance_manager.l1_rt_trips import backup_trips_match_pl
 
+
 def test_backup_trips_match() -> None:
     """
     test backup_trips_match

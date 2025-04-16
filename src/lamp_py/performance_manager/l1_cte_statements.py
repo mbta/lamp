@@ -1,6 +1,6 @@
+from datetime import datetime
 import sqlalchemy as sa
 import polars as pl
-from datetime import datetime
 from sqlalchemy.sql.functions import rank
 from lamp_py.postgres.rail_performance_manager_schema import (
     ServiceIdDates,
@@ -11,8 +11,6 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleTrips,
     StaticRoutes,
 )
-
-
 
 
 def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
@@ -73,7 +71,10 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
         pl.col("route_type") != 3,
     )
 
-    def get_red_branch(trip_stop_ids) -> str:
+    def get_red_branch(trip_stop_ids: set) -> str:
+        """
+        Return special redline branch names - helper
+        """
         ashmont_stop_ids = {
             "70087",
             "70088",
@@ -90,7 +91,10 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
             return "Red-A"
         return "Red-B"
 
-    def apply_branch_route_id(series_list) -> str:
+    def apply_branch_route_id(series_list) -> str:  # type: ignore
+        """
+        Return special redline branch names
+        """
         if str(series_list[0][0]) == "Red":
             return get_red_branch(set(series_list[1]))
         return series_list[0][0]

@@ -6,7 +6,10 @@ from polars.testing import assert_frame_equal, assert_series_equal
 from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
 
 
-def test_static_trips_subquery_pq():
+def test_static_trips_subquery_pl() -> None:
+    """
+    Passing unit test for static_trips_subquery implementation in polars/parquet
+    """
     # ┌─────────────────────────┬──────────────┬───────────────────┬───────────────────┬────────────────┐
     # │ static_trip_id          ┆ direction_id ┆ static_stop_count ┆ static_start_time ┆ route_id       │
     # │ ---                     ┆ ---          ┆ ---               ┆ ---               ┆ ---            │
