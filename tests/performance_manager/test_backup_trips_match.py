@@ -1,34 +1,9 @@
 import sqlalchemy as sa
 import polars as pl
 from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pq
+from lamp_py.performance_manager.l1_rt_trips import backup_trips_match_pq
 from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 from lamp_py.postgres.rail_performance_manager_schema import TempEventCompare, VehicleTrips
-
-
-def backup_trips_match_pq(rt_backup_trips: pl.DataFrame, static_trips: pl.DataFrame) -> pl.DataFrame:
-    static_trips = static_trips.with_columns(
-        pl.col("static_start_time")
-        .str.splitn(":", 3)
-        .struct.rename_fields(["hour", "minute", "second"])
-        .alias("fields")
-    ).unnest("fields")
-
-    static_trips = static_trips.with_columns(
-        pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second")).alias("static_start_time")
-    )
-
-    return (
-        rt_backup_trips.join(static_trips, on=["direction_id", "route_id"], how="inner", coalesce=True)
-        .select(("start_time", "static_trip_id", "static_start_time", "static_stop_count", "pm_trip_id"))
-        .unique("pm_trip_id")
-        .with_columns(
-            pl.lit(False).alias("first_last_station_match"),
-            (pl.col("start_time") - pl.col("static_start_time")).abs().alias("diff_time"),
-        )
-        .sort(by=["pm_trip_id", "diff_time"])
-        .drop(["start_time", "diff_time"])
-    )
-
 
 # # backup matching logic, should match all remaining RT trips to static trips,
 # # assuming that the route_id exists in the static schedule data
@@ -99,7 +74,6 @@ def test_backup_trips_match():
     # breakpoint()
     backup_matched_trips = backup_trips_match_pq(rt_trips, static_trips)
 
-    breakpoint()
     # is it going to be strings IRL? What is the datatype of this stuff when it comes back
 
 

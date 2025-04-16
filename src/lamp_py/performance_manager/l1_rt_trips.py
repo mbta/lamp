@@ -2,6 +2,7 @@ from typing import Optional
 
 import pandas
 import sqlalchemy as sa
+import polars as pl
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.expression import bindparam
 from sqlalchemy.sql.functions import count
@@ -917,6 +918,31 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         process_logger.log_start()
         db_manager.execute(update_rt_sync)
         process_logger.log_complete()
+
+
+def backup_trips_match_pq(rt_backup_trips: pl.DataFrame, static_trips: pl.DataFrame) -> pl.DataFrame:
+    static_trips = static_trips.with_columns(
+        pl.col("static_start_time")
+        .str.splitn(":", 3)
+        .struct.rename_fields(["hour", "minute", "second"])
+        .alias("fields")
+    ).unnest("fields")
+
+    static_trips = static_trips.with_columns(
+        pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second")).alias("static_start_time")
+    )
+
+    return (
+        rt_backup_trips.join(static_trips, on=["direction_id", "route_id"], how="inner", coalesce=True)
+        .select(("start_time", "static_trip_id", "static_start_time", "static_stop_count", "pm_trip_id"))
+        .unique("pm_trip_id")
+        .with_columns(
+            pl.lit(False).alias("first_last_station_match"),
+            (pl.col("start_time") - pl.col("static_start_time")).abs().alias("diff_time"),
+        )
+        .sort(by=["pm_trip_id", "diff_time"])
+        .drop(["start_time", "diff_time"])
+    )
 
 
 # pylint: disable=R0914
