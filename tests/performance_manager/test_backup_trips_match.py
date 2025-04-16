@@ -12,17 +12,21 @@ def backup_trips_match_pq(rt_backup_trips: pl.DataFrame, static_trips: pl.DataFr
         .struct.rename_fields(["hour", "minute", "second"])
         .alias("fields")
     ).unnest("fields")
-    rt_backup_trips = rt_backup_trips.with_columns(
-        pl.col("start_time").str.splitn(":", 3).struct.rename_fields(["hour", "minute", "second"]).alias("fields")
-    ).unnest("fields")
+
+    static_trips = static_trips.with_columns(
+        pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second")).alias("static_start_time")
+    )
 
     return (
         rt_backup_trips.join(static_trips, on=["direction_id", "route_id"], how="inner", coalesce=True)
         .select(("start_time", "static_trip_id", "static_start_time", "static_stop_count", "pm_trip_id"))
         .unique("pm_trip_id")
-        # sa.func.abs(rt_trips_summary_sub.c.start_time - static_trips_summary_sub.c.static_start_time), NOT OK TODO FIX THIS
-        .sort(by=["pm_trip_id", "start_time"])
-        .with_columns(pl.lit(False).alias("first_last_station_match"))
+        .with_columns(
+            pl.lit(False).alias("first_last_station_match"),
+            (pl.col("start_time") - pl.col("static_start_time")).abs().alias("diff_time"),
+        )
+        .sort(by=["pm_trip_id", "diff_time"])
+        .drop(["start_time", "diff_time"])
     )
 
 
@@ -71,12 +75,18 @@ def test_backup_trips_match():
         .otherwise(pl.lit(1))
         .alias("direction_id")
         .cast(pl.Int64),
-        pl.col("start_time").cast(pl.String).alias("start_time_int"),
+        pl.col("start_time").cast(pl.Int64).alias("start_time_int"),
     )
-    # rt_trips = rt_trips.with_columns((pl.col("start_time_int")/(60*60)).floor().cast(pl.Int64).cast(pl.String).alias("hh"),
-    #                                   (pl.col("start_time_int").mod(3600)/60).floor().cast(pl.Int64).cast(pl.String).alias("mm"),
-    #                                   (pl.col("start_time_int").mod(3600).mod(60)).floor().cast(pl.Int64).cast(pl.String).alias("ss"))
-
+    rt_trips = rt_trips.with_columns(
+        (pl.col("start_time_int") / (60 * 60)).floor().cast(pl.Int64).alias("hh"),
+        (pl.col("start_time_int").mod(3600) / 60).floor().cast(pl.Int64).alias("mm"),
+        (pl.col("start_time_int").mod(3600).mod(60)).floor().cast(pl.Int64).alias("ss"),
+    )
+    # breakpoint()
+    rt_trips = rt_trips.with_columns(
+        pl.duration(hours=pl.col("hh"), minutes=pl.col("mm"), seconds=pl.col("ss")).alias("start_time")
+    )
+    # breakpoint()
     # rt_trips = rt_trips.with_columns()
     # rt_trips = rt_trips.with_columns((pl.col("start_time_int")/(60*60)).floor().cast(pl.Int64).cast(pl.String).alias("hh"))
     # rt_trips2 = rt_trips.with_columns((pl.col("start_time_int").mod(3600)/60).floor().cast(pl.Int64).cast(pl.String).alias("mm"))
@@ -86,8 +96,10 @@ def test_backup_trips_match():
     #                             (((pl.col("start_time_int").mod(3600)/60).mod(60)).floor().cast(pl.Int64).cast(pl.String).alias("ss"))
 
     static_trips = static_trips_subquery_pq(20250415)
-    backup_matched_trips = backup_trips_match_pq(rt_trips, static_trips)
     # breakpoint()
+    backup_matched_trips = backup_trips_match_pq(rt_trips, static_trips)
+
+    breakpoint()
     # is it going to be strings IRL? What is the datatype of this stuff when it comes back
 
 
