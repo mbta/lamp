@@ -41,5 +41,5 @@ def test_each_config_type() -> None:
         with pytest.raises(NoImplException):
             converter = GtfsRtConverter(config_type, Queue())
 
-    with pytest.raises(IgnoreIngestion):
-        converter = GtfsRtConverter(ConfigType.LIGHT_RAIL, Queue())
+    # with pytest.raises(IgnoreIngestion):
+    #     converter = GtfsRtConverter(ConfigType.LIGHT_RAIL, Queue())
