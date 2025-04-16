@@ -23,6 +23,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import start_timestamp_to_seconds
 from .l1_cte_statements import (
     static_trips_subquery,
+    static_trips_subquery_pl,
 )
 
 
@@ -924,27 +925,20 @@ def backup_trips_match_pl(rt_backup_trips: pl.DataFrame, static_trips: pl.DataFr
     """
     Polars implementation of backup_trips_match subquery in backup_rt_static_trip_match
     """
-    static_trips = static_trips.with_columns(
-        pl.col("static_start_time")
-        .str.splitn(":", 3)
-        .struct.rename_fields(["hour", "minute", "second"])
-        .alias("fields")
-    ).unnest("fields")
 
-    static_trips = static_trips.with_columns(
-        pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second")).alias("static_start_time")
-    )
-
-    return (
-        rt_backup_trips.join(static_trips, on=["direction_id", "route_id"], how="inner", coalesce=True)
-        .select(("start_time", "static_trip_id", "static_start_time", "static_stop_count", "pm_trip_id"))
-        .unique("pm_trip_id")
-        .with_columns(
-            pl.lit(False).alias("first_last_station_match"),
-            (pl.col("start_time") - pl.col("static_start_time")).abs().alias("diff_time"),
-        )
-        .sort(by=["pm_trip_id", "diff_time"])
-        .drop(["start_time", "diff_time"])
+    return rt_backup_trips.join_asof(
+        static_trips,
+        left_on="start_time",
+        right_on="static_start_time",
+        by=["direction_id", "route_id"],
+        strategy="nearest",
+        coalesce=True,
+    ).select(
+        "static_trip_id",
+        "static_start_time",
+        "static_stop_count",
+        "pm_trip_id",
+        pl.lit(False).alias("first_last_station_match"),
     )
 
 
@@ -961,40 +955,7 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_sub = static_trips_subquery(static_version_key, seed_service_date)
-
-    # to build a 'summary' trips table only the first and last records for each
-    # static trip are needed.
-    first_stop_static_sub = (
-        sa.select(
-            static_trips_sub.c.static_trip_id,
-            static_trips_sub.c.static_stop_timestamp.label("static_start_time"),
-        )
-        .select_from(static_trips_sub)
-        .where(static_trips_sub.c.static_trip_first_stop == sa.true())
-        .subquery(name="first_stop_static_sub")
-    )
-
-    # join first_stop_static_sub with last stop records to create trip summary records
-    static_trips_summary_sub = (
-        sa.select(
-            static_trips_sub.c.static_trip_id,
-            sa.func.coalesce(
-                static_trips_sub.c.branch_route_id,
-                static_trips_sub.c.trunk_route_id,
-            ).label("route_id"),
-            static_trips_sub.c.direction_id,
-            first_stop_static_sub.c.static_start_time,
-            static_trips_sub.c.static_trip_stop_rank.label("static_stop_count"),
-        )
-        .select_from(static_trips_sub)
-        .join(
-            first_stop_static_sub,
-            static_trips_sub.c.static_trip_id == first_stop_static_sub.c.static_trip_id,
-        )
-        .where(static_trips_sub.c.static_trip_last_stop == sa.true())
-        .subquery(name="static_trips_summary_sub")
-    )
+    static_trips_df = static_trips_subquery_pl(seed_service_date)
 
     # pull RT trips records that are candidates for backup matching to static trips
     temp_trips = (
@@ -1005,7 +966,7 @@ def backup_rt_static_trip_match(
         .subquery()
     )
 
-    rt_trips_summary_sub = (
+    rt_trips_summary = (
         sa.select(
             VehicleTrips.pm_trip_id,
             VehicleTrips.direction_id,
@@ -1022,35 +983,17 @@ def backup_rt_static_trip_match(
             VehicleTrips.static_version_key == int(static_version_key),
             VehicleTrips.first_last_station_match == sa.false(),
         )
-        .subquery("rt_trips_for_backup_match")
+    )
+
+    rt_schema = {"pm_trip_id": pl.Int64, "direction_id": pl.Boolean, "route_id": pl.String, "start_time": pl.Int64}
+
+    rt_trips_summary_df = pl.DataFrame(
+        db_manager.select_as_list(rt_trips_summary, disable_trip_tigger=True), schema=rt_schema
     )
 
     # backup matching logic, should match all remaining RT trips to static trips,
     # assuming that the route_id exists in the static schedule data
-    backup_trips_match = (
-        sa.select(
-            rt_trips_summary_sub.c.pm_trip_id,
-            static_trips_summary_sub.c.static_trip_id,
-            static_trips_summary_sub.c.static_start_time,
-            static_trips_summary_sub.c.static_stop_count,
-            sa.literal(False).label("first_last_station_match"),
-        )
-        .distinct(
-            rt_trips_summary_sub.c.pm_trip_id,
-        )
-        .select_from(rt_trips_summary_sub)
-        .join(
-            static_trips_summary_sub,
-            sa.and_(
-                rt_trips_summary_sub.c.direction_id == static_trips_summary_sub.c.direction_id,
-                rt_trips_summary_sub.c.route_id == static_trips_summary_sub.c.route_id,
-            ),
-        )
-        .order_by(
-            rt_trips_summary_sub.c.pm_trip_id,
-            sa.func.abs(rt_trips_summary_sub.c.start_time - static_trips_summary_sub.c.static_start_time),
-        )
-    ).subquery(name="backup_trips_match")
+    backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df)
 
     update_query = (
         sa.update(VehicleTrips.__table__)

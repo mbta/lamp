@@ -9,7 +9,7 @@ from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_
 def test_static_trips_subquery_pl() -> None:
     """
     Passing unit test for static_trips_subquery implementation in polars/parquet
-    """    
+    """
     # ┌─────────────────────────┬──────────────┬───────────────────┬───────────────────┬────────────────┐
     # │ static_trip_id          ┆ direction_id ┆ static_stop_count ┆ static_start_time ┆ route_id       │
     # │ ---                     ┆ ---          ┆ ---               ┆ ---               ┆ ---            │
@@ -35,7 +35,7 @@ def test_static_trips_subquery_pl() -> None:
     ).unnest("fields")
     static_trips_sql = compare_sql.with_columns(
         pl.col("static_stop_count").cast(pl.UInt32),
-        pl.col("static_start_time").cast(pl.UInt32),
+        pl.col("static_start_time").cast(pl.Int32),
         pl.when(pl.col("direction_id") == "f")
         .then(pl.lit(0))
         .otherwise(pl.lit(1))

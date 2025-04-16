@@ -19,21 +19,20 @@ def test_backup_trips_match() -> None:
     # static_trips = pl.read_csv('tests/test_files/replace_perf_mgr_query_test_data/20250415_static_trips_subquery.csv', infer_schema=False)
     rt_trips = rt_trips_raw.with_columns(
         pl.when(pl.col("direction_id") == "f")
-        .then(pl.lit(0))
-        .otherwise(pl.lit(1))
-        .alias("direction_id")
-        .cast(pl.Int64),
-        pl.col("start_time").cast(pl.Int64).alias("start_time_int"),
+        .then(pl.lit(False))
+        .otherwise(pl.lit(True))
+        .alias("direction_id"),
+        pl.col("start_time").cast(pl.Int64).alias("start_time"),
     )
-    rt_trips = rt_trips.with_columns(
-        (pl.col("start_time_int") / (60 * 60)).floor().cast(pl.Int64).alias("hh"),
-        (pl.col("start_time_int").mod(3600) / 60).floor().cast(pl.Int64).alias("mm"),
-        (pl.col("start_time_int").mod(3600).mod(60)).floor().cast(pl.Int64).alias("ss"),
-    )
-    # breakpoint()
-    rt_trips = rt_trips.with_columns(
-        pl.duration(hours=pl.col("hh"), minutes=pl.col("mm"), seconds=pl.col("ss")).alias("start_time")
-    )
+    # rt_trips = rt_trips.with_columns(
+    #     (pl.col("start_time_int") / (60 * 60)).floor().cast(pl.Int64).alias("hh"),
+    #     (pl.col("start_time_int").mod(3600) / 60).floor().cast(pl.Int64).alias("mm"),
+    #     (pl.col("start_time_int").mod(3600).mod(60)).floor().cast(pl.Int64).alias("ss"),
+    # )
+    # # breakpoint()
+    # rt_trips = rt_trips.with_columns(
+    #     pl.duration(hours=pl.col("hh"), minutes=pl.col("mm"), seconds=pl.col("ss")).alias("start_time")
+    # )
     # breakpoint()
     # rt_trips = rt_trips.with_columns()
     # rt_trips = rt_trips.with_columns((pl.col("start_time_int")/(60*60)).floor().cast(pl.Int64).cast(pl.String).alias("hh"))
@@ -44,9 +43,10 @@ def test_backup_trips_match() -> None:
     #                             (((pl.col("start_time_int").mod(3600)/60).mod(60)).floor().cast(pl.Int64).cast(pl.String).alias("ss"))
 
     static_trips = static_trips_subquery_pl(20250415)
-    # breakpoint()
+    breakpoint()
     backup_matched_trips = backup_trips_match_pl(rt_trips, static_trips)
 
+    breakpoint()
     print(backup_matched_trips)
     # is it going to be strings IRL? What is the datatype of this stuff when it comes back
 

@@ -99,7 +99,7 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
             return get_red_branch(set(series_list[1]))
         return series_list[0][0]
 
-    return (
+    static_trips = (
         stop_times_lf.join(
             trips_lf.select("trip_id", "route_id", "service_id", "direction_id"),
             on="trip_id",
@@ -111,7 +111,7 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
         .select(
             pl.col("trip_id").alias("static_trip_id"),
             pl.col("route_id").alias("t_route_id"),
-            pl.col("direction_id"),
+            pl.col("direction_id").cast(pl.Boolean),
             pl.col("arrival_time"),
             pl.col("stop_id"),
         )
@@ -126,6 +126,21 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
         .drop("t_route_id")
         .collect()
     )
+
+    static_trips = static_trips.with_columns(
+        pl.col("static_start_time")
+        .str.splitn(":", 3)
+        .struct.rename_fields(["hour", "minute", "second"])
+        .alias("fields")
+    ).unnest("fields")
+
+    static_trips = static_trips.with_columns(
+        pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second"))
+        .dt.total_seconds()
+        .alias("static_start_time")
+    ).drop(["hour", "minute", "second"])
+
+    return static_trips
 
 
 def static_trips_subquery(static_version_key: int, service_date: int) -> sa.sql.selectable.Subquery:
