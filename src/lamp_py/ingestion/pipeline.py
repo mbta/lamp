@@ -15,7 +15,8 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from lamp_py.ingestion.ingest_gtfs import ingest_gtfs
 from lamp_py.ingestion.glides import ingest_glides_events
-from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
+
+# from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
 from lamp_py.runtime_utils.remote_files import LAMP
 
 logging.getLogger().setLevel("INFO")
