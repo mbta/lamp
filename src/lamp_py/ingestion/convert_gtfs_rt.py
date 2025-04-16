@@ -44,7 +44,6 @@ from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
 from lamp_py.ingestion.converter import ConfigType, Converter
 from lamp_py.ingestion.error import NoImplException
-from lamp_py.ingestion.error import IgnoreIngestion
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
 from lamp_py.ingestion.utils import (
     GTFS_RT_HASH_COL,
