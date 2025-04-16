@@ -43,9 +43,7 @@ def static_trips_subquery_pq(service_date: int) -> pl.DataFrame:
     )
 
     service_ids = (
-        calendar_lf.join(
-            calendar_dates_lf.filter(pl.col("exception_type") == 2), on="service_id", how="anti"
-        )
+        calendar_lf.join(calendar_dates_lf.filter(pl.col("exception_type") == 2), on="service_id", how="anti")
         .join(
             calendar_dates_lf.filter(pl.col("exception_type") == 1),
             on="service_id",
@@ -112,13 +110,14 @@ def static_trips_subquery_pq(service_date: int) -> pl.DataFrame:
         .agg(
             pl.len().alias("static_stop_count"),
             pl.min("arrival_time").alias("static_start_time"),
-            pl.map_groups(
-                ["t_route_id", "stop_id"], function=apply_branch_route_id, returns_scalar=True
-            ).alias("route_id"),
+            pl.map_groups(["t_route_id", "stop_id"], function=apply_branch_route_id, returns_scalar=True).alias(
+                "route_id"
+            ),
         )
         .drop("t_route_id")
         .collect()
     )
+
 
 def static_trips_subquery(static_version_key: int, service_date: int) -> sa.sql.selectable.Subquery:
     """

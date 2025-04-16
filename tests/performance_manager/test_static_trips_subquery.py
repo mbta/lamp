@@ -11,7 +11,7 @@ def test_static_trips_subquery_pq():
     # │ static_trip_id          ┆ direction_id ┆ static_stop_count ┆ static_start_time ┆ route_id       │
     # │ ---                     ┆ ---          ┆ ---               ┆ ---               ┆ ---            │
     # │ str                     ┆ i64          ┆ u32               ┆ str               ┆ str            │
-    # ╞═════════════════════════╪══════════════╪═══════════════════╪═══════════════════╪════════════════╡    
+    # ╞═════════════════════════╪══════════════╪═══════════════════╪═══════════════════╪════════════════╡
     static_trips_sub_res = static_trips_subquery_pq(20250410).sort(by="static_trip_id")
 
     # ┌─────────────────────────┬────────────────┬──────────────┬───────────────────┬───────────────────┐
@@ -19,19 +19,42 @@ def test_static_trips_subquery_pq():
     # │ ---                     ┆ ---            ┆ ---          ┆ ---               ┆ ---               │
     # │ str                     ┆ str            ┆ str          ┆ str               ┆ str               │
     # ╞═════════════════════════╪════════════════╪══════════════╪═══════════════════╪═══════════════════╡
-    compare_sql = pl.read_csv('tests/test_files/replace_perf_mgr_query_test_data/staging_test_summary_sub.csv', infer_schema=False) 
+    compare_sql = pl.read_csv(
+        "tests/test_files/replace_perf_mgr_query_test_data/staging_test_summary_sub.csv", infer_schema=False
+    )
 
     # line up the types - convert the 24+ hour timestamp to math-able values
-    static_trips_pl = static_trips_sub_res.with_columns(pl.col('static_start_time').str.splitn(":", 3).struct.rename_fields(["hour", "minute", "second"]).alias("fields")).unnest("fields")
-    static_trips_sql = compare_sql.with_columns(pl.col("static_stop_count").cast(pl.UInt32), pl.col("static_start_time").cast(pl.Int32), pl.when(pl.col("direction_id") == "f").then(pl.lit(0)).otherwise(pl.lit(1)).alias("direction_id").cast(pl.Int64))
+    static_trips_pl = static_trips_sub_res.with_columns(
+        pl.col("static_start_time")
+        .str.splitn(":", 3)
+        .struct.rename_fields(["hour", "minute", "second"])
+        .alias("fields")
+    ).unnest("fields")
+    static_trips_sql = compare_sql.with_columns(
+        pl.col("static_stop_count").cast(pl.UInt32),
+        pl.col("static_start_time").cast(pl.Int32),
+        pl.when(pl.col("direction_id") == "f")
+        .then(pl.lit(0))
+        .otherwise(pl.lit(1))
+        .alias("direction_id")
+        .cast(pl.Int64),
+    )
 
-    # assert against test csv for all rows 
+    # assert against test csv for all rows
     # all the easy ones
-    assert_frame_equal(static_trips_pl.select(["static_trip_id", "direction_id", "static_stop_count", "route_id"]), static_trips_sql.select(["static_trip_id", "direction_id", "static_stop_count", "route_id"]))
-    
+    assert_frame_equal(
+        static_trips_pl.select(["static_trip_id", "direction_id", "static_stop_count", "route_id"]),
+        static_trips_sql.select(["static_trip_id", "direction_id", "static_stop_count", "route_id"]),
+    )
+
     # now the timestamp...
     tmp = static_trips_pl.select(["hour", "minute", "second"]).cast(pl.Int32)
-    assert_series_equal(tmp['hour'] * 60 * 60 + tmp['minute'] * 60 + tmp['second'], static_trips_sql['static_start_time'], check_names=False)
+    assert_series_equal(
+        tmp["hour"] * 60 * 60 + tmp["minute"] * 60 + tmp["second"],
+        static_trips_sql["static_start_time"],
+        check_names=False,
+    )
+
 
 # def insert_dataframe(self, dataframe: pandas.DataFrame, insert_table: Any) -> None:
 # """
