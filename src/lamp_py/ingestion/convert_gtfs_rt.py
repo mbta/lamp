@@ -105,8 +105,6 @@ class GtfsRtConverter(Converter):
             self.detail = RtTripDetail()
         elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
             self.detail = RtVehicleDetail()
-        elif config_type == ConfigType.LIGHT_RAIL:
-            raise IgnoreIngestion("Ignore LIGHT_RAIL files")
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 
