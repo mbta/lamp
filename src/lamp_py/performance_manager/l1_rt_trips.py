@@ -22,7 +22,6 @@ from lamp_py.postgres.rail_performance_manager_schema import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from .gtfs_utils import start_timestamp_to_seconds
 from .l1_cte_statements import (
-    static_trips_subquery,
     static_trips_subquery_pl,
 )
 
@@ -381,6 +380,7 @@ def update_branch_trunk_route_id(db_manager: DatabaseManager) -> None:
     trips_df = db_manager.select_as_dataframe(distinct_trips)
     red_events_df = db_manager.select_as_dataframe(red_events)
 
+    # pylint:disable=R0801
     def get_red_branch(pm_trip_id: int) -> Optional[str]:
         ashmont_stop_ids = {
             "70087",
@@ -413,6 +413,8 @@ def update_branch_trunk_route_id(db_manager: DatabaseManager) -> None:
         if trip_stop_ids & braintree_stop_ids:
             return "Red-B"
         return None
+
+    # pylint:enable=R0801
 
     def map_trunk_route_id(route_id: str) -> str:
         if str(route_id).startswith("Green"):
@@ -986,6 +988,13 @@ def backup_rt_static_trip_match(
     )
 
     rt_schema = {"pm_trip_id": pl.Int64, "direction_id": pl.Boolean, "route_id": pl.String, "start_time": pl.Int64}
+    rt_rename_dict = {
+        "pm_trip_id": "b_pm_trip_id",
+        "static_trip_id": "b_static_trip_id",
+        "static_start_time": "b_static_start_time",
+        "static_stop_count": "b_static_stop_count",
+        "first_last_station_match": "b_first_last_station_match",
+    }
 
     rt_trips_summary_df = pl.DataFrame(
         db_manager.select_as_list(rt_trips_summary, disable_trip_tigger=True), schema=rt_schema
@@ -993,22 +1002,24 @@ def backup_rt_static_trip_match(
 
     # backup matching logic, should match all remaining RT trips to static trips,
     # assuming that the route_id exists in the static schedule data
-    backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df)
+    backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df).rename(rt_rename_dict)
 
     update_query = (
         sa.update(VehicleTrips.__table__)
-        .where(
-            VehicleTrips.pm_trip_id == backup_trips_match.c.pm_trip_id,
-        )
+        .where(VehicleTrips.pm_trip_id == bindparam("b_pm_trip_id"))
         .values(
-            static_trip_id_guess=backup_trips_match.c.static_trip_id,
-            static_start_time=backup_trips_match.c.static_start_time,
-            static_stop_count=backup_trips_match.c.static_stop_count,
-            first_last_station_match=backup_trips_match.c.first_last_station_match,
+            static_trip_id_guess=bindparam("b_static_trip_id"),
+            static_start_time=bindparam("b_static_start_time"),
+            static_stop_count=bindparam("b_static_stop_count"),
+            first_last_station_match=bindparam("b_first_last_station_match"),
         )
     )
 
-    db_manager.execute(update_query, disable_trip_tigger=True)
+    db_manager.execute_with_data(
+        update_query,
+        backup_trips_match_df.to_pandas(),  # we'll have to clean up the execute_with_data method
+        disable_trip_tigger=True,
+    )
 
 
 def update_backup_static_trip_id(db_manager: DatabaseManager) -> None:
