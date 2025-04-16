@@ -3,7 +3,7 @@
 # )
 import polars as pl
 from polars.testing import assert_frame_equal, assert_series_equal
-from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pq
+from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
 
 
 def test_static_trips_subquery_pq():
@@ -12,7 +12,7 @@ def test_static_trips_subquery_pq():
     # │ ---                     ┆ ---          ┆ ---               ┆ ---               ┆ ---            │
     # │ str                     ┆ i64          ┆ u32               ┆ str               ┆ str            │
     # ╞═════════════════════════╪══════════════╪═══════════════════╪═══════════════════╪════════════════╡
-    static_trips_sub_res = static_trips_subquery_pq(20250410).sort(by="static_trip_id")
+    static_trips_sub_res = static_trips_subquery_pl(20250410).sort(by="static_trip_id")
 
     # ┌─────────────────────────┬────────────────┬──────────────┬───────────────────┬───────────────────┐
     # │ static_trip_id          ┆ route_id       ┆ direction_id ┆ static_start_time ┆ static_stop_count │

@@ -1,39 +1,11 @@
-import sqlalchemy as sa
 import polars as pl
-from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pq
-from lamp_py.performance_manager.l1_rt_trips import backup_trips_match_pq
-from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
-from lamp_py.postgres.rail_performance_manager_schema import TempEventCompare, VehicleTrips
+from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
+from lamp_py.performance_manager.l1_rt_trips import backup_trips_match_pl
 
-# # backup matching logic, should match all remaining RT trips to static trips,
-# # assuming that the route_id exists in the static schedule data
-# backup_trips_match = (
-#     sa.select(
-#         rt_trips_summary_sub.c.pm_trip_id,
-#         static_trips_summary_sub.c.static_trip_id,
-#         static_trips_summary_sub.c.static_start_time,
-#         static_trips_summary_sub.c.static_stop_count,
-#         sa.literal(False).label("first_last_station_match"),
-#     )
-#     .distinct(
-#         rt_trips_summary_sub.c.pm_trip_id, OK
-#     )
-#     .select_from(rt_trips_summary_sub)
-#     .join(
-#         static_trips_summary_sub,
-#         sa.and_(
-#             rt_trips_summary_sub.c.direction_id == static_trips_summary_sub.c.direction_id, OK
-#             rt_trips_summary_sub.c.route_id == static_trips_summary_sub.c.route_id,
-#         ),
-#     )
-#     .order_by(
-#         rt_trips_summary_sub.c.pm_trip_id,
-#         sa.func.abs(rt_trips_summary_sub.c.start_time - static_trips_summary_sub.c.static_start_time), NOT OK
-#     )
-# ).subquery(name="backup_trips_match")
-
-
-def test_backup_trips_match():
+def test_backup_trips_match() -> None:
+    """
+    test backup_trips_match
+    """
     # ┌─────────────────────────┬──────────────┬───────────────────┬───────────────────┬────────────────┐
     # │ static_trip_id          ┆ direction_id ┆ static_stop_count ┆ static_start_time ┆ route_id       │
     # │ ---                     ┆ ---          ┆ ---               ┆ ---               ┆ ---            │
@@ -70,10 +42,11 @@ def test_backup_trips_match():
     #  ((pl.col("start_time_int").mod(3600)/60).floor().cast(pl.Int64).cast(pl.String).alias("mm")),
     #                             (((pl.col("start_time_int").mod(3600)/60).mod(60)).floor().cast(pl.Int64).cast(pl.String).alias("ss"))
 
-    static_trips = static_trips_subquery_pq(20250415)
+    static_trips = static_trips_subquery_pl(20250415)
     # breakpoint()
-    backup_matched_trips = backup_trips_match_pq(rt_trips, static_trips)
+    backup_matched_trips = backup_trips_match_pl(rt_trips, static_trips)
 
+    print(backup_matched_trips)
     # is it going to be strings IRL? What is the datatype of this stuff when it comes back
 
 

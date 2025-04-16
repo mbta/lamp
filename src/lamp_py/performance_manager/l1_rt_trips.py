@@ -920,7 +920,10 @@ def update_stop_sequence(db_manager: DatabaseManager) -> None:
         process_logger.log_complete()
 
 
-def backup_trips_match_pq(rt_backup_trips: pl.DataFrame, static_trips: pl.DataFrame) -> pl.DataFrame:
+def backup_trips_match_pl(rt_backup_trips: pl.DataFrame, static_trips: pl.DataFrame) -> pl.DataFrame:
+    """
+    Polars implementation of backup_trips_match subquery in backup_rt_static_trip_match
+    """
     static_trips = static_trips.with_columns(
         pl.col("static_start_time")
         .str.splitn(":", 3)

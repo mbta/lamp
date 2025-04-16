@@ -1,4 +1,6 @@
 import sqlalchemy as sa
+import polars as pl
+from datetime import datetime
 from sqlalchemy.sql.functions import rank
 from lamp_py.postgres.rail_performance_manager_schema import (
     ServiceIdDates,
@@ -9,11 +11,14 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleTrips,
     StaticRoutes,
 )
-import polars as pl
-from datetime import datetime
 
 
-def static_trips_subquery_pq(service_date: int) -> pl.DataFrame:
+
+
+def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
+    """
+    Polars implementation of static_trips_subquery in backup_rt_static_trip_match
+    """
     service_year = str(service_date)[:4]
     static_prefix = f"s3://mbta-performance/lamp/gtfs_archive/{service_year}"
 
