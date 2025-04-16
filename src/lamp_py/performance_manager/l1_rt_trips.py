@@ -1002,6 +1002,9 @@ def backup_rt_static_trip_match(
 
     # backup matching logic, should match all remaining RT trips to static trips,
     # assuming that the route_id exists in the static schedule data
+    if rt_trips_summary_df.height == 0:
+        return
+
     backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df).rename(rt_rename_dict)
 
     update_query = (
