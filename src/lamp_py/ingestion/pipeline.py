@@ -61,7 +61,7 @@ def main() -> None:
         process_logger.log_start()
         bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
-        ingest_light_rail_gps(bucket_filter=bucket_filter)
+        # ingest_light_rail_gps(bucket_filter=bucket_filter)
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue)
         check_for_sigterm(metadata_queue, rds_process)
