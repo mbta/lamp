@@ -996,9 +996,7 @@ def backup_rt_static_trip_match(
         "first_last_station_match": "b_first_last_station_match",
     }
 
-    rt_trips_summary_df = pl.DataFrame(
-        db_manager.select_as_list(rt_trips_summary, disable_trip_tigger=True), schema=rt_schema
-    )
+    rt_trips_summary_df = pl.DataFrame(db_manager.select_as_list(rt_trips_summary), schema=rt_schema)
 
     # backup matching logic, should match all remaining RT trips to static trips,
     # assuming that the route_id exists in the static schedule data
