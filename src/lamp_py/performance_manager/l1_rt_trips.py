@@ -997,7 +997,7 @@ def backup_rt_static_trip_match(
     }
 
     rt_trips_summary_df = pl.DataFrame(
-        db_manager.select_as_list(rt_trips_summary, disable_trip_tigger=True), schema=rt_schema
+        db_manager.select_as_list(rt_trips_summary), schema=rt_schema
     )
 
     # backup matching logic, should match all remaining RT trips to static trips,
