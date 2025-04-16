@@ -599,6 +599,7 @@ def test_gtfs_rt_processing(
 
 # pylint: enable=R0915
 
+
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
 def test_vp_only(
     rpm_db_manager: DatabaseManager,
@@ -620,6 +621,7 @@ def test_vp_only(
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     check_logs(caplog)
+
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
 def test_tu_only(
@@ -643,6 +645,7 @@ def test_tu_only(
 
     check_logs(caplog)
 
+
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
 def test_vp_and_tu(
     rpm_db_manager: DatabaseManager,
@@ -664,6 +667,7 @@ def test_vp_and_tu(
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
 
     check_logs(caplog)
+
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
 def test_missing_start_time(
@@ -786,6 +790,7 @@ def test_process_vp_files(
         raise column_exceptions[0]
 
     check_logs(caplog)
+
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
 def test_whole_table(
