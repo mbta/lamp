@@ -1,4 +1,6 @@
+from datetime import datetime
 import sqlalchemy as sa
+import polars as pl
 from sqlalchemy.sql.functions import rank
 from lamp_py.postgres.rail_performance_manager_schema import (
     ServiceIdDates,
@@ -9,6 +11,136 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleTrips,
     StaticRoutes,
 )
+
+
+def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
+    """
+    Polars implementation of static_trips_subquery in backup_rt_static_trip_match
+    """
+    service_year = str(service_date)[:4]
+    static_prefix = f"s3://mbta-performance/lamp/gtfs_archive/{service_year}"
+
+    service_dt = datetime.strptime(str(service_date), "%Y%m%d")
+    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+    calendar_lf = (
+        pl.scan_parquet(f"{static_prefix}/calendar.parquet")
+        .filter(
+            pl.col("gtfs_active_date") <= service_date,
+            pl.col("gtfs_end_date") >= service_date,
+            pl.col("start_date") <= service_date,
+            pl.col("end_date") >= service_date,
+            pl.col(days[service_dt.weekday()]) == 1,
+        )
+        .select("service_id")
+    )
+
+    calendar_dates_lf = (
+        pl.scan_parquet(f"{static_prefix}/calendar_dates.parquet")
+        .filter(
+            pl.col("gtfs_active_date") <= service_date,
+            pl.col("gtfs_end_date") >= service_date,
+            pl.col("date") == service_date,
+        )
+        .select("service_id", "exception_type")
+    )
+
+    service_ids = (
+        calendar_lf.join(calendar_dates_lf.filter(pl.col("exception_type") == 2), on="service_id", how="anti")
+        .join(
+            calendar_dates_lf.filter(pl.col("exception_type") == 1),
+            on="service_id",
+            how="full",
+            coalesce=True,
+        )
+        .drop("exception_type")
+        .unique()
+    )
+
+    stop_times_lf = pl.scan_parquet(f"{static_prefix}/stop_times.parquet").filter(
+        pl.col("gtfs_active_date") <= service_date,
+        pl.col("gtfs_end_date") >= service_date,
+    )
+    trips_lf = pl.scan_parquet(f"{static_prefix}/trips.parquet").filter(
+        pl.col("gtfs_active_date") <= service_date,
+        pl.col("gtfs_end_date") >= service_date,
+    )
+    routes_lf = pl.scan_parquet(f"{static_prefix}/routes.parquet").filter(
+        pl.col("gtfs_active_date") <= service_date,
+        pl.col("gtfs_end_date") >= service_date,
+        pl.col("route_type") != 3,
+    )
+
+    def get_red_branch(trip_stop_ids: set) -> str:
+        """
+        Return special redline branch names - helper
+        """
+        ashmont_stop_ids = {
+            "70087",
+            "70088",
+            "70089",
+            "70090",
+            "70091",
+            "70092",
+            "70093",
+            "70094",
+            "70085",
+            "70086",
+        }
+        if trip_stop_ids & ashmont_stop_ids:
+            return "Red-A"
+        return "Red-B"
+
+    def apply_branch_route_id(series_list) -> str:  # type: ignore
+        """
+        Return special redline branch names
+        """
+        if str(series_list[0][0]) == "Red":
+            return get_red_branch(set(series_list[1]))
+        return series_list[0][0]
+
+    static_trips = (
+        stop_times_lf.join(
+            trips_lf.select("trip_id", "route_id", "service_id", "direction_id"),
+            on="trip_id",
+            how="inner",
+            coalesce=True,
+        )
+        .join(routes_lf.select("route_id"), on="route_id", how="inner", coalesce=True)
+        .join(service_ids, on="service_id", how="inner", coalesce=True)
+        .select(
+            pl.col("trip_id").alias("static_trip_id"),
+            pl.col("route_id").alias("t_route_id"),
+            pl.col("direction_id").cast(pl.Boolean),
+            pl.col("arrival_time"),
+            pl.col("stop_id"),
+        )
+        .group_by(["static_trip_id", "t_route_id", "direction_id"])
+        .agg(
+            pl.len().alias("static_stop_count"),
+            pl.min("arrival_time").alias("static_start_time"),
+            pl.map_groups(["t_route_id", "stop_id"], function=apply_branch_route_id, returns_scalar=True).alias(
+                "route_id"
+            ),
+        )
+        .drop("t_route_id")
+        .collect()
+    )
+
+    static_trips = static_trips.with_columns(
+        pl.col("static_start_time")
+        .str.splitn(":", 3)
+        .struct.rename_fields(["hour", "minute", "second"])
+        .alias("fields")
+    ).unnest("fields")
+
+    static_trips = static_trips.with_columns(
+        pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second"))
+        .dt.total_seconds()
+        .alias("static_start_time")
+    ).drop(["hour", "minute", "second"])
+
+    return static_trips
 
 
 def static_trips_subquery(static_version_key: int, service_date: int) -> sa.sql.selectable.Subquery:
