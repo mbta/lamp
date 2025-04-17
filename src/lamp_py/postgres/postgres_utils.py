@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 import boto3
 import pandas
 import sqlalchemy as sa
+import polars as pl
 from sqlalchemy.sql.functions import now
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import sessionmaker
@@ -320,7 +321,7 @@ class DatabaseManager:
             sa.sql.dml.Delete,
             sa.sql.dml.Insert,
         ],
-        data: pandas.DataFrame,
+        data: pandas.DataFrame | pl.DataFrame = pandas.Dataframe,
         disable_trip_tigger: bool = False,
     ) -> sa.engine.CursorResult:
         """
@@ -332,7 +333,7 @@ class DatabaseManager:
             self._disable_trip_trigger()
 
         with self.session.begin() as cursor:
-            result = cursor.execute(statement, data.to_dict(orient="records"))
+            result = cursor.execute(statement, data.to_dict(orient="records"))  # type: ignore
 
         if disable_trip_tigger:
             self._enable_trip_trigger()
