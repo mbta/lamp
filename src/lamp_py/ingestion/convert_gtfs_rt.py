@@ -407,9 +407,6 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
-        logger = ProcessLogger("write_local_pq", local_path=local_path, table_rows=table.num_rows)
-        logger.log_start()
-
         out_ds = self.make_hash_dataset(table, local_path)
 
         unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
@@ -428,14 +425,10 @@ class GtfsRtConverter(Converter):
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
             for part in partitions:
-                logger.add_metadata(table_part=str(part), part_rows=0, part_mbs=0)
                 write_table = out_ds.to_table(
                     filter=(
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
-                )
-                logger.add_metadata(
-                    part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes / (1024 * 1024), 2)
                 )
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
@@ -453,9 +446,6 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
-                logger.add_metadata(
-                    part_rows=write_table.num_rows, part_mbs=round(write_table.nbytes / (1024 * 1024), 2)
-                )
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
@@ -467,8 +457,6 @@ class GtfsRtConverter(Converter):
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
-
-        logger.log_complete()
 
     # pylint: enable=R0914
 
