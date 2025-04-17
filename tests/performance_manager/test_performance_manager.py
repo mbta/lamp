@@ -11,12 +11,14 @@ from typing import (
     List,
     Optional,
 )
+from unittest.mock import patch
 
 import pandas
 import pyarrow
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
+
 
 from lamp_py.performance_manager.flat_file import write_flat_files, S3Archive
 from lamp_py.performance_manager.l0_gtfs_static_load import (
@@ -601,6 +603,9 @@ def test_gtfs_rt_processing(
 
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
+@patch(
+    "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
+)
 def test_vp_only(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -624,6 +629,9 @@ def test_vp_only(
 
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
+@patch(
+    "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
+)
 def test_tu_only(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -647,6 +655,9 @@ def test_tu_only(
 
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
+@patch(
+    "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
+)
 def test_vp_and_tu(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -670,6 +681,9 @@ def test_vp_and_tu(
 
 
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
+@patch(
+    "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
+)
 def test_missing_start_time(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,

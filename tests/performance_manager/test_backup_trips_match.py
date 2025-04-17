@@ -1,6 +1,5 @@
-import pytest
-import polars as pl
 from unittest.mock import patch
+import polars as pl
 from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
 from lamp_py.performance_manager.l1_rt_trips import backup_trips_match_pl
 
@@ -28,3 +27,5 @@ def test_backup_trips_match() -> None:
 
     static_trips = static_trips_subquery_pl(20250415)
     backup_matched_trips = backup_trips_match_pl(rt_trips, static_trips)
+
+    assert backup_matched_trips.height == 1299

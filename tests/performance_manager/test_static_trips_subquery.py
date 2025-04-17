@@ -1,6 +1,5 @@
-import pytest
-import polars as pl
 from unittest.mock import patch
+import polars as pl
 from polars.testing import assert_frame_equal
 from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
 
