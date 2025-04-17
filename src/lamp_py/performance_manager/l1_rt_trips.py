@@ -1005,10 +1005,11 @@ def backup_rt_static_trip_match(
         return
 
     backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df).rename(rt_rename_dict)
+
     logger.add_metadata(
         backup_trips_match_df_schema=backup_trips_match_df.schema,
         backup_trips_match_df_n_rows=backup_trips_match_df.height,
-        backup_trips_match_df_row_0=str(backup_trips_match_df.head(1).to_dict()),
+        backup_trips_match_df_row_0=str(backup_trips_match_df.head(1).to_dicts()),
     )
 
     update_query = (
