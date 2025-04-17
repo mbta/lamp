@@ -957,8 +957,12 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_df = static_trips_subquery_pl(seed_service_date)
 
+    logger = ProcessLogger("backup_rt_static_trip_match_pl")
+    logger.log_start()
+
+    static_trips_df = static_trips_subquery_pl(seed_service_date)
+    logger.add_metadata(static_trips_df_schema=static_trips_df.schema, static_trips_df_n_rows=static_trips_df.height)
     # pull RT trips records that are candidates for backup matching to static trips
     temp_trips = (
         sa.select(
@@ -987,7 +991,7 @@ def backup_rt_static_trip_match(
         )
     )
 
-    rt_schema = {"pm_trip_id": pl.Int64, "direction_id": pl.Boolean, "route_id": pl.String, "start_time": pl.Int64}
+    rt_schema = {"pm_trip_id": pl.Int32, "direction_id": pl.Boolean, "route_id": pl.String, "start_time": pl.Int32}
     rt_rename_dict = {
         "pm_trip_id": "b_pm_trip_id",
         "static_trip_id": "b_static_trip_id",
@@ -997,6 +1001,9 @@ def backup_rt_static_trip_match(
     }
 
     rt_trips_summary_df = pl.DataFrame(db_manager.select_as_list(rt_trips_summary), schema=rt_schema)
+    logger.add_metadata(
+        rt_trips_summary_df_schema=rt_trips_summary_df.schema, rt_trips_summary_df_n_rows=rt_trips_summary_df.height
+    )
 
     # backup matching logic, should match all remaining RT trips to static trips,
     # assuming that the route_id exists in the static schedule data
@@ -1004,6 +1011,10 @@ def backup_rt_static_trip_match(
         return
 
     backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df).rename(rt_rename_dict)
+    logger.add_metadata(
+        backup_trips_match_df_schema=backup_trips_match_df.schema,
+        backup_trips_match_df_n_rows=backup_trips_match_df.height,
+    )
 
     update_query = (
         sa.update(VehicleTrips.__table__)
@@ -1021,6 +1032,7 @@ def backup_rt_static_trip_match(
         backup_trips_match_df.to_pandas(),  # we'll have to clean up the execute_with_data method
         disable_trip_tigger=True,
     )
+    logger.log_complete()
 
 
 def update_backup_static_trip_id(db_manager: DatabaseManager) -> None:
