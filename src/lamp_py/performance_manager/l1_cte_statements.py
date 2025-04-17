@@ -139,8 +139,7 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
         .dt.total_seconds()
         .cast(pl.Int32)
         .alias("static_start_time"),
-        pl.col("static_stop_count")
-        .cast(pl.Int16)
+        pl.col("static_stop_count").cast(pl.Int16),
     ).drop(["hour", "minute", "second"])
 
     return static_trips
