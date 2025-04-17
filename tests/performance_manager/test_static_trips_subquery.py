@@ -3,6 +3,7 @@ import polars as pl
 from polars.testing import assert_frame_equal
 from lamp_py.performance_manager.l1_cte_statements import static_trips_subquery_pl
 
+
 # look at bus performance to get a monkeypatch/thing to read from bucket from ci/cd
 @pytest.mark.skip(reason="Temporarily disabled: PR #500")
 def test_static_trips_subquery_pl() -> None:
@@ -30,10 +31,7 @@ def test_static_trips_subquery_pl() -> None:
     static_trips_sql = compare_sql.with_columns(
         pl.col("static_stop_count").cast(pl.UInt32),
         pl.col("static_start_time").cast(pl.Int32),
-        pl.when(pl.col("direction_id") == "f")
-        .then(pl.lit(False))
-        .otherwise(pl.lit(True))
-        .alias("direction_id")
+        pl.when(pl.col("direction_id") == "f").then(pl.lit(False)).otherwise(pl.lit(True)).alias("direction_id"),
     )
 
     # assert against test csv for all rows
