@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 import sqlalchemy as sa
 import polars as pl
 from sqlalchemy.sql.functions import rank
@@ -12,13 +13,21 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     StaticRoutes,
 )
 
+GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
+
 
 def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
     """
+    input:
+        service_date: int - YYYYMMDD format service_date e.g. 20250410
+
+    output:
+        static_trips_subquery: pl.DataFrame of the joined result. column dtype match RDS db dtypes
+
     Polars implementation of static_trips_subquery in backup_rt_static_trip_match
     """
     service_year = str(service_date)[:4]
-    static_prefix = f"s3://mbta-performance/lamp/gtfs_archive/{service_year}"
+    static_prefix = os.path.join(GTFS_ARCHIVE, service_year)
 
     service_dt = datetime.strptime(str(service_date), "%Y%m%d")
     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
