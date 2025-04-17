@@ -108,6 +108,15 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
             return get_red_branch(set(series_list[1]))
         return series_list[0][0]
 
+    # developer note: the casts are not necessary.
+    #
+    # static_trips columns are set to the same datatypes/schema as the database
+    # representation for these columns this is not strictly necessary, as the call
+    # to execute_with_data_pl() calls polars.to_dicts(), which converts everything
+    # to native python types (Int16, Int32 --> Int) before updating the database.
+    # We choose to maintain the correct types here to ensure overflows or other
+    # dtype issues can be discovered in the python processing
+
     static_trips = (
         stop_times_lf.join(
             trips_lf.select("trip_id", "route_id", "service_id", "direction_id"),
