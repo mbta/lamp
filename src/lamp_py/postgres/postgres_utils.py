@@ -313,7 +313,7 @@ class DatabaseManager:
 
         return result  # type: ignore
 
-    def execute_with_data(
+    def execute_with_data_pl(
         self,
         statement: Union[
             sa.sql.selectable.Select,
@@ -321,7 +321,7 @@ class DatabaseManager:
             sa.sql.dml.Delete,
             sa.sql.dml.Insert,
         ],
-        data: pandas.DataFrame | pl.DataFrame = pandas.DataFrame,
+        data: pl.DataFrame,
         disable_trip_tigger: bool = False,
     ) -> sa.engine.CursorResult:
         """
@@ -333,7 +333,34 @@ class DatabaseManager:
             self._disable_trip_trigger()
 
         with self.session.begin() as cursor:
-            result = cursor.execute(statement, data.to_dict(orient="records"))  # type: ignore
+            result = cursor.execute(statement, data.to_dicts())
+
+        if disable_trip_tigger:
+            self._enable_trip_trigger()
+
+        return result  # type: ignore
+
+    def execute_with_data(
+        self,
+        statement: Union[
+            sa.sql.selectable.Select,
+            sa.sql.dml.Update,
+            sa.sql.dml.Delete,
+            sa.sql.dml.Insert,
+        ],
+        data: pandas.DataFrame,
+        disable_trip_tigger: bool = False,
+    ) -> sa.engine.CursorResult:
+        """
+        execute db action WITH data as pandas dataframe
+
+        :param disable_trip_trigger if True, will disable rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
+        """
+        if disable_trip_tigger:
+            self._disable_trip_trigger()
+
+        with self.session.begin() as cursor:
+            result = cursor.execute(statement, data.to_dict(orient="records"))
 
         if disable_trip_tigger:
             self._enable_trip_trigger()
