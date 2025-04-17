@@ -323,7 +323,6 @@ def update_start_times(db_manager: DatabaseManager) -> None:
         db_manager.execute_with_data(
             start_times_update_query,
             unscheduled_start_times,
-            disable_trip_tigger=True,
         )
 
 
@@ -454,11 +453,7 @@ def update_branch_trunk_route_id(db_manager: DatabaseManager) -> None:
         )
     )
 
-    db_manager.execute_with_data(
-        start_times_update_query,
-        trips_df,
-        disable_trip_tigger=True,
-    )
+    db_manager.execute_with_data(start_times_update_query, trips_df)
     process_logger.log_complete()
 
 
@@ -957,8 +952,10 @@ def backup_rt_static_trip_match(
     this matches an RT trip to a static trip with the same branch_route_id or trunk_route_id if branch is null
     and direction with the closest start_time
     """
-    static_trips_df = static_trips_subquery_pl(seed_service_date)
 
+    logger = ProcessLogger("backup_rt_static_trip_match_pl")
+    logger.log_start()
+    static_trips_df = static_trips_subquery_pl(seed_service_date)
     # pull RT trips records that are candidates for backup matching to static trips
     temp_trips = (
         sa.select(
@@ -987,7 +984,7 @@ def backup_rt_static_trip_match(
         )
     )
 
-    rt_schema = {"pm_trip_id": pl.Int64, "direction_id": pl.Boolean, "route_id": pl.String, "start_time": pl.Int64}
+    rt_schema = {"pm_trip_id": pl.Int32, "direction_id": pl.Boolean, "route_id": pl.String, "start_time": pl.Int32}
     rt_rename_dict = {
         "pm_trip_id": "b_pm_trip_id",
         "static_trip_id": "b_static_trip_id",
@@ -1016,11 +1013,8 @@ def backup_rt_static_trip_match(
         )
     )
 
-    db_manager.execute_with_data(
-        update_query,
-        backup_trips_match_df.to_pandas(),  # we'll have to clean up the execute_with_data method
-        disable_trip_tigger=True,
-    )
+    db_manager.execute_with_data_pl(update_query, backup_trips_match_df)
+    logger.log_complete()
 
 
 def update_backup_static_trip_id(db_manager: DatabaseManager) -> None:

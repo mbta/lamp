@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 import sqlalchemy as sa
 import polars as pl
 from sqlalchemy.sql.functions import rank
@@ -12,13 +13,21 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     StaticRoutes,
 )
 
+GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
+
 
 def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
     """
+    input:
+        service_date: int - YYYYMMDD format service_date e.g. 20250410
+
+    output:
+        static_trips_subquery: pl.DataFrame of the joined result. column dtype match RDS db dtypes
+
     Polars implementation of static_trips_subquery in backup_rt_static_trip_match
     """
     service_year = str(service_date)[:4]
-    static_prefix = f"s3://mbta-performance/lamp/gtfs_archive/{service_year}"
+    static_prefix = os.path.join(GTFS_ARCHIVE, service_year)
 
     service_dt = datetime.strptime(str(service_date), "%Y%m%d")
     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -99,6 +108,15 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
             return get_red_branch(set(series_list[1]))
         return series_list[0][0]
 
+    # developer note: the casts are not necessary.
+    #
+    # static_trips columns are set to the same datatypes/schema as the database
+    # representation for these columns this is not strictly necessary, as the call
+    # to execute_with_data_pl() calls polars.to_dicts(), which converts everything
+    # to native python types (Int16, Int32 --> Int) before updating the database.
+    # We choose to maintain the correct types here to ensure overflows or other
+    # dtype issues can be discovered in the python processing
+
     static_trips = (
         stop_times_lf.join(
             trips_lf.select("trip_id", "route_id", "service_id", "direction_id"),
@@ -137,7 +155,9 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
     static_trips = static_trips.with_columns(
         pl.duration(hours=pl.col("hour"), minutes=pl.col("minute"), seconds=pl.col("second"))
         .dt.total_seconds()
-        .alias("static_start_time")
+        .cast(pl.Int32)
+        .alias("static_start_time"),
+        pl.col("static_stop_count").cast(pl.Int16),
     ).drop(["hour", "minute", "second"])
 
     return static_trips
