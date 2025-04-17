@@ -1014,6 +1014,7 @@ def backup_rt_static_trip_match(
     logger.add_metadata(
         backup_trips_match_df_schema=backup_trips_match_df.schema,
         backup_trips_match_df_n_rows=backup_trips_match_df.height,
+        backup_trips_match_df_row_0=str(backup_trips_match_df.head(0).to_dict()),
     )
 
     update_query = (
@@ -1029,7 +1030,7 @@ def backup_rt_static_trip_match(
 
     db_manager.execute_with_data(
         update_query,
-        backup_trips_match_df.to_pandas(),  # we'll have to clean up the execute_with_data method
+        backup_trips_match_df,  # we'll have to clean up the execute_with_data method
         disable_trip_tigger=True,
     )
     logger.log_complete()
