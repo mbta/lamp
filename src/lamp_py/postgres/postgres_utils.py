@@ -321,7 +321,7 @@ class DatabaseManager:
             sa.sql.dml.Delete,
             sa.sql.dml.Insert,
         ],
-        data: pandas.DataFrame | pl.DataFrame = pandas.Dataframe,
+        data: pandas.DataFrame | pl.DataFrame = pandas.DataFrame,
         disable_trip_tigger: bool = False,
     ) -> sa.engine.CursorResult:
         """
