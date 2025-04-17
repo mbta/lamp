@@ -282,10 +282,7 @@ def build_temp_events(events: pandas.DataFrame, db_manager: DatabaseManager) -> 
 
     # truncate temp_event_compare table and insert all event records
     db_manager.truncate_table(TempEventCompare, restart_identity=True)
-    db_manager.execute_with_data(
-        sa.insert(TempEventCompare.__table__),
-        events,
-    )
+    db_manager.execute_with_data(sa.insert(TempEventCompare.__table__), events, disable_trip_tigger=False)
 
     # make sure vehicle_trips has trips for all events in temp_event_compare
     load_new_trip_data(db_manager=db_manager)

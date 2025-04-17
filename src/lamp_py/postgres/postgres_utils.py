@@ -322,10 +322,10 @@ class DatabaseManager:
             sa.sql.dml.Insert,
         ],
         data: pl.DataFrame,
-        disable_trip_tigger: bool = False,
+        disable_trip_tigger: bool = True,
     ) -> sa.engine.CursorResult:
         """
-        execute db action WITH data as pandas dataframe
+        execute db action WITH data as polars dataframe
 
         :param disable_trip_trigger if True, will disable rt_trips_update_branch_trunk TRIGGER on vehicle_trips table
         """
@@ -349,7 +349,7 @@ class DatabaseManager:
             sa.sql.dml.Insert,
         ],
         data: pandas.DataFrame,
-        disable_trip_tigger: bool = False,
+        disable_trip_tigger: bool = True,
     ) -> sa.engine.CursorResult:
         """
         execute db action WITH data as pandas dataframe
