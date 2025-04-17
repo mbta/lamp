@@ -118,7 +118,7 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
         .group_by(["static_trip_id", "t_route_id", "direction_id"])
         .agg(
             pl.len().alias("static_stop_count"),
-            pl.min("arrival_time").alias("static_start_time"),
+            pl.min("arrival_time").cast(pl.Int32).alias("static_start_time"),
             pl.map_groups(["t_route_id", "stop_id"], function=apply_branch_route_id, returns_scalar=True).alias(
                 "route_id"
             ),
