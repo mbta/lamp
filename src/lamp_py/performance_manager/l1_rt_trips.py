@@ -956,7 +956,6 @@ def backup_rt_static_trip_match(
     logger = ProcessLogger("backup_rt_static_trip_match_pl")
     logger.log_start()
     static_trips_df = static_trips_subquery_pl(seed_service_date)
-    logger.add_metadata(static_trips_df_schema=static_trips_df.schema, static_trips_df_n_rows=static_trips_df.height)
     # pull RT trips records that are candidates for backup matching to static trips
     temp_trips = (
         sa.select(
@@ -995,9 +994,6 @@ def backup_rt_static_trip_match(
     }
 
     rt_trips_summary_df = pl.DataFrame(db_manager.select_as_list(rt_trips_summary), schema=rt_schema)
-    logger.add_metadata(
-        rt_trips_summary_df_schema=rt_trips_summary_df.schema, rt_trips_summary_df_n_rows=rt_trips_summary_df.height
-    )
 
     # backup matching logic, should match all remaining RT trips to static trips,
     # assuming that the route_id exists in the static schedule data
@@ -1005,12 +1001,6 @@ def backup_rt_static_trip_match(
         return
 
     backup_trips_match_df = backup_trips_match_pl(rt_trips_summary_df, static_trips_df).rename(rt_rename_dict)
-
-    logger.add_metadata(
-        backup_trips_match_df_schema=backup_trips_match_df.schema,
-        backup_trips_match_df_n_rows=backup_trips_match_df.height,
-        backup_trips_match_df_row_0=str(backup_trips_match_df.head(1).to_dicts()),
-    )
 
     update_query = (
         sa.update(VehicleTrips.__table__)

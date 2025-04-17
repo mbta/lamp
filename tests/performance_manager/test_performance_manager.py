@@ -602,7 +602,6 @@ def test_gtfs_rt_processing(
 # pylint: enable=R0915
 
 
-@pytest.mark.skip(reason="Temporarily disabled: PR #500")
 @patch(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
@@ -628,7 +627,6 @@ def test_vp_only(
     check_logs(caplog)
 
 
-@pytest.mark.skip(reason="Temporarily disabled: PR #500")
 @patch(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
@@ -654,7 +652,6 @@ def test_tu_only(
     check_logs(caplog)
 
 
-@pytest.mark.skip(reason="Temporarily disabled: PR #500")
 @patch(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
@@ -680,7 +677,6 @@ def test_vp_and_tu(
     check_logs(caplog)
 
 
-@pytest.mark.skip(reason="Temporarily disabled: PR #500")
 @patch(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
