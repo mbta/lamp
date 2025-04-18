@@ -513,8 +513,7 @@ def seed_metadata(md_db_manager: DatabaseManager, paths: List[str]) -> None:
 def get_unprocessed_files(
     path_contains: str,
     db_manager: DatabaseManager,
-    file_limit: Optional[int] = None,
-    path_excludes: str = "DEV_GREEN",  # need to instead update "path contains" because we should know it is all in springboard
+    file_limit: Optional[int] = None
 ) -> List[Dict[str, List]]:
     """
     check metadata table for unprocessed parquet files
@@ -535,7 +534,6 @@ def get_unprocessed_files(
         read_md_log = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
             (MetadataLog.rail_pm_processed == sa.false())
             & (MetadataLog.path.contains(path_contains))
-            & (~MetadataLog.path.contains(path_excludes))
         )
         print_count = 5
         for path_record in db_manager.select_as_list(read_md_log):
