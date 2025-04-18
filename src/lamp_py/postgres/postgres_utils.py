@@ -511,7 +511,9 @@ def seed_metadata(md_db_manager: DatabaseManager, paths: List[str]) -> None:
 
 
 def get_unprocessed_files(
-    path_contains: str, db_manager: DatabaseManager, file_limit: Optional[int] = None
+    path_contains: str,
+    db_manager: DatabaseManager,
+    file_limit: Optional[int] = None,
 ) -> List[Dict[str, List]]:
     """
     check metadata table for unprocessed parquet files
