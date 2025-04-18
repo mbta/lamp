@@ -429,7 +429,7 @@ def process_static_tables(
     process_logger.log_start()
 
     # pull list of objects that need processing from metadata table
-    paths_to_load = get_unprocessed_files("FEED_INFO", md_db_manager)
+    paths_to_load = get_unprocessed_files("/FEED_INFO/", md_db_manager)
     process_logger.add_metadata(count_of_paths=len(paths_to_load))
 
     for folder_data in paths_to_load:
