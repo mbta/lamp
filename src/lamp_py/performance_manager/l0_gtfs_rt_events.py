@@ -44,7 +44,7 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> D
 
     grouped_files = {}
 
-    vp_files = get_unprocessed_files("RT_VEHICLE_POSITIONS", md_db_manager)
+    vp_files = get_unprocessed_files("/RT_VEHICLE_POSITIONS/", md_db_manager)
     for record in vp_files:
         timestamp = dt_from_obj_path(record["paths"][0]).timestamp()
 
@@ -54,7 +54,7 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> D
             "tu_paths": [],
         }
 
-    tu_files = get_unprocessed_files("RT_TRIP_UPDATES", md_db_manager)
+    tu_files = get_unprocessed_files("/RT_TRIP_UPDATES/", md_db_manager)
     for record in tu_files:
         timestamp = dt_from_obj_path(record["paths"][0]).timestamp()
         if timestamp in grouped_files:
