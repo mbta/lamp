@@ -514,6 +514,7 @@ def get_unprocessed_files(
     path_contains: str,
     db_manager: DatabaseManager,
     file_limit: Optional[int] = None,
+    path_excludes: str = "DEV_GREEN",  # need to instead update "path contains" because we should know it is all in springboard
 ) -> List[Dict[str, List]]:
     """
     check metadata table for unprocessed parquet files
@@ -532,12 +533,19 @@ def get_unprocessed_files(
     paths_to_load: Dict[float, Dict[str, List]] = {}
     try:
         read_md_log = sa.select(MetadataLog.pk_id, MetadataLog.path).where(
-            (MetadataLog.rail_pm_processed == sa.false()) & (MetadataLog.path.contains(path_contains))
+            (MetadataLog.rail_pm_processed == sa.false())
+            & (MetadataLog.path.contains(path_contains))
+            & (~MetadataLog.path.contains(path_excludes))
         )
+        print_count = 5
         for path_record in db_manager.select_as_list(read_md_log):
             path_id = path_record.get("pk_id")
             path = str(path_record.get("path"))
             path_timestamp = dt_from_obj_path(path).timestamp()
+
+            if print_count > 0:  # print some paths so we can see...debuggin
+                process_logger.add_metadata(path=path)
+                print_count -= 1
 
             if path_timestamp not in paths_to_load:
                 paths_to_load[path_timestamp] = {"ids": [], "paths": []}
