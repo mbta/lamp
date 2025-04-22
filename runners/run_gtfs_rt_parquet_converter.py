@@ -22,10 +22,18 @@ def start_devgreen_gtfs_rt_parquet_updates_local() -> None:
     parquet_update_jobs: List[HyperJob] = [HyperDevGreenGtfsRtVehiclePositions, HyperDevGreenGtfsRtTripUpdates]
 
     for job in parquet_update_jobs:
-        # breakpoint()
         job.run_parquet(None)
-        # outs = job.create_local_hyper()
-        # print(outs)
+
+
+def start_devgreen_gtfs_rt_parquet_updates_local_hyper() -> None:
+    """Run all gtfs_rt Parquet Update jobs"""
+
+    parquet_update_jobs: List[HyperJob] = [HyperDevGreenGtfsRtVehiclePositions, HyperDevGreenGtfsRtTripUpdates]
+
+    for job in parquet_update_jobs:
+        job.run_parquet(None)
+        outs = job.create_local_hyper()
+        print(outs)
 
 
 def start_gtfs_rt_parquet_updates_local() -> None:
@@ -41,5 +49,6 @@ def start_gtfs_rt_parquet_updates_local() -> None:
 
 
 if __name__ == "__main__":
-    start_gtfs_rt_parquet_updates_local()
-    start_devgreen_gtfs_rt_parquet_updates_local()
+    # start_gtfs_rt_parquet_updates_local()
+    # start_devgreen_gtfs_rt_parquet_updates_local()
+    start_devgreen_gtfs_rt_parquet_updates_local_hyper()

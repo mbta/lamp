@@ -95,14 +95,16 @@ class HyperJob(ABC):  # pylint: disable=R0902
         dtype = str(dtype)
         dtype_map = {
             "int8": SqlType.small_int(),
+            "uint8": SqlType.small_int(),
             "int16": SqlType.small_int(),
+            "uint16": SqlType.int(),
             "int32": SqlType.int(),
             "uint32": SqlType.big_int(),
             "int64": SqlType.big_int(),
             "bool": SqlType.bool(),
-            "float16": SqlType.double(),
-            "float32": SqlType.double(),
-            "float64": SqlType.double(),
+            "halffloat": SqlType.double(),
+            "float": SqlType.double(),
+            "double": SqlType.double(),
         }
 
         map_check = dtype_map.get(dtype)
