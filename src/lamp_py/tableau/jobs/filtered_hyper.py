@@ -79,6 +79,7 @@ class FilteredHyperJob(HyperJob):
         if self.first_run:
             self.create_tableau_parquet(num_files=self.rollup_num_days)
             self.first_run = False
+            return True
 
         # only run once per day after 11AM UTC
         if object_exists(self.remote_input_location.s3_uri):
@@ -106,7 +107,15 @@ class FilteredHyperJob(HyperJob):
         s3_uris = file_list_from_s3(
             bucket_name=self.remote_input_location.bucket, file_prefix=file_prefix, in_filter=self.object_filter
         )
+
         ds_paths = [s.replace("s3://", "") for s in s3_uris]
+
+        # s3 list returns in lexicographical order,
+        # so month=4/day=4 comes after month=4/day=30. This sort grabs the last part,
+        # e.g. 2025-04-22T00:00:00.parquet as the sort key, and re-orders by that instead
+        # to get it in date order
+        ds_paths = sorted(ds_paths, key=lambda x: os.path.split(x)[1])
+
         if num_files is not None:
             ds_paths = ds_paths[-num_files:]
 
@@ -115,8 +124,9 @@ class FilteredHyperJob(HyperJob):
             format="parquet",
             filesystem=S3FileSystem(),
         )
-        process_logger = ProcessLogger("filtered_hyper_create", file_prefix=file_prefix)
+        process_logger = ProcessLogger("filtered_hyper_create", file_prefix=file_prefix, num_days=num_files)
         process_logger.log_start()
+        process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000, columns=self.processed_schema.names, filter=self.parquet_filter
