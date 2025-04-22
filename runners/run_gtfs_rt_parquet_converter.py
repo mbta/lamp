@@ -24,6 +24,7 @@ def start_devgreen_gtfs_rt_parquet_updates_local() -> None:
     for job in parquet_update_jobs:
         job.run_parquet(None)
 
+
 def start_devgreen_gtfs_rt_parquet_updates_local_hyper() -> None:
     """Run all gtfs_rt Parquet Update jobs"""
 
@@ -33,6 +34,7 @@ def start_devgreen_gtfs_rt_parquet_updates_local_hyper() -> None:
         job.run_parquet(None)
         outs = job.create_local_hyper()
         print(outs)
+
 
 def start_gtfs_rt_parquet_updates_local() -> None:
     """Run all gtfs_rt Parquet Update jobs"""
