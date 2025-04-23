@@ -5,8 +5,11 @@ Revises: da8f80a3dd90
 Create Date: Wed Apr 23 11:16:12 EDT 2025
 
 Details
-* upgrade -> Delete all records from 4/4 to 4/18 in vehicle events and vehicle_trips
-          -> Set all flags to "unprocessed" in metadata log from 4/4 to 4/18
+This will clean up missing data from RDS performance issues/outage from 4/14-4/17
+This will also clean up duplication of data in prod from 4/17-4/22
+
+* upgrade -> Delete all records from 4/4 to 4/23 in vehicle events and vehicle_trips
+          -> Set all flags to "unprocessed" in metadata log from 4/4 to 4/22
 * downgrade -> Nothing
 """
 
@@ -32,19 +35,19 @@ depends_on = None
 
 def upgrade() -> None:
 
-    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250418;"
+    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250423;"
 
-    clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250418;"
+    clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250422;"
     op.execute(clear_events)
 
-    clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250418;"
+    clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250422;"
     op.execute(clear_trips)
 
     # Query to Check
     # SELECT created_on, rail_pm_processed, rail_pm_process_fail
     # FROM public.metadata_log
-    # WHERE created_on > '2025-04-04' and created_on < '2025-04-18'
-    # AMD (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
+    # WHERE created_on > '2025-04-04' and created_on < '2025-04-22 23:59:59'
+    # AND (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
     # ORDER BY created_on;
 
     update_md_query = """
@@ -55,7 +58,7 @@ def upgrade() -> None:
         , rail_pm_processed = false
     WHERE
         created_on > '2025-04-04 00:00:00'
-        and created_on < '2024-04-18 00:00:00'
+        and created_on < '2024-04-22 23:59:59'
         and (
             path LIKE '%/RT_TRIP_UPDATES/%'
             or path LIKE '%/RT_VEHICLE_POSITION/x%'
