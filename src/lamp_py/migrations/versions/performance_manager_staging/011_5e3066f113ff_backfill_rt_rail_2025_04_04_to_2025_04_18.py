@@ -44,31 +44,6 @@ def upgrade() -> None:
     clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250422;"
     op.execute(clear_trips)
 
-    # Query to Check
-    # SELECT created_on, rail_pm_processed, rail_pm_process_fail
-    # FROM public.metadata_log
-    # WHERE created_on > '2025-04-04' and created_on < '2025-04-22 23:59:59'
-    # AND (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
-    # ORDER BY created_on;
-
-    update_md_query = """
-    UPDATE
-        public.metadata_log
-    SET
-        rail_pm_process_fail = false
-        , rail_pm_processed = false
-    WHERE
-        created_on > '2025-04-04 00:00:00'
-        and created_on < '2024-04-22 23:59:59'
-        and (
-            path LIKE '%/RT_TRIP_UPDATES/%'
-            or path LIKE '%/RT_VEHICLE_POSITION/%'
-        )
-    ;
-    """
-    md_manager = DatabaseManager(DatabaseIndex.METADATA)
-    md_manager.execute(sa.text(update_md_query))
-
 
 def downgrade() -> None:
     pass

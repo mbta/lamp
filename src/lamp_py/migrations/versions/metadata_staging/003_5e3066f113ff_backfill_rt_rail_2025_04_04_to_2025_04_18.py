@@ -1,7 +1,7 @@
 """update_glides_location_column_names
 
 Revision ID: 5e3066f113ff
-Revises: da8f80a3dd90
+Revises: 26db393ea854
 Create Date: Wed Apr 23 11:16:12 EDT 2025
 
 Details
@@ -28,20 +28,37 @@ from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 
 # revision identifiers, used by Alembic.
 revision = "5e3066f113ff"
-down_revision = "da8f80a3dd90"
+down_revision = "26db393ea854"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
 
-    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250423;"
+    # Query to Check
+    # SELECT created_on, rail_pm_processed, rail_pm_process_fail
+    # FROM public.metadata_log
+    # WHERE created_on > '2025-04-04' and created_on < '2025-04-22 23:59:59'
+    # AND (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
+    # ORDER BY created_on;
 
-    clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250422;"
-    op.execute(clear_events)
+    update_query = """
+    UPDATE
+        metadata_log
+    SET
+        rail_pm_process_fail = false
+        , rail_pm_processed = false
+    WHERE
+        created_on > '2025-04-04 00:00:00'
+        and created_on < '2024-04-22 23:59:59'
+        and (
+            path LIKE '%/RT_TRIP_UPDATES/%'
+            or path LIKE '%/RT_VEHICLE_POSITION/%'
+        )
+    ;
+    """
+    op.execute(update_query)
 
-    clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250422;"
-    op.execute(clear_trips)
 
 
 def downgrade() -> None:
