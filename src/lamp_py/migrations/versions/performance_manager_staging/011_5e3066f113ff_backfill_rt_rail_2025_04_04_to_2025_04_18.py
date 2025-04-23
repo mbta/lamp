@@ -32,15 +32,25 @@ depends_on = None
 
 def upgrade() -> None:
 
+    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250418;"
+    # ~ (974142 rows)
     clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250418;"
     op.execute(clear_events)
 
+    # ~ (75788 rows)
     clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250418;"
     op.execute(clear_trips)
 
+    # Query to Check
+    # SELECT created_on, rail_pm_processed, rail_pm_process_fail
+    # FROM public.metadata_log
+    # WHERE created_on > '2025-04-04' and created_on < '2025-04-18'
+    # AMD (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
+    # ORDER BY created_on;
+
     update_md_query = """
     UPDATE
-        metadata_log
+        public.metadata_log
     SET
         rail_pm_process_fail = false
         , rail_pm_processed = false
@@ -48,8 +58,8 @@ def upgrade() -> None:
         created_on > '2025-04-04 00:00:00'
         and created_on < '2024-04-18 00:00:00'
         and (
-            path LIKE '%RT_TRIP_UPDATES%'
-            or path LIKE '%RT_VEHICLE_POSITION%'
+            path LIKE '%/RT_TRIP_UPDATES/%'
+            or path LIKE '%/RT_VEHICLE_POSITION/%'
         )
     ;
     """
