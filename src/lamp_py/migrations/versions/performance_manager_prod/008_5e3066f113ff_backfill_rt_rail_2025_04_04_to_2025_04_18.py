@@ -1,0 +1,61 @@
+"""update_glides_location_column_names
+
+Revision ID: 5e3066f113ff
+Revises: da8f80a3dd90
+Create Date: Wed Apr 23 11:16:12 EDT 2025
+
+Details
+* upgrade -> Delete all records from 4/4 to 4/18 in vehicle events and vehicle_trips
+          -> Set all flags to "unprocessed" in metadata log from 4/4 to 4/18
+* downgrade -> Nothing
+"""
+
+import os
+import tempfile
+import polars as pl
+import pyarrow as pa
+import pyarrow.parquet as pq
+from typing import List
+
+from alembic import op
+import sqlalchemy as sa
+
+from lamp_py.aws.s3 import download_file, upload_file
+from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
+
+# revision identifiers, used by Alembic.
+revision = "5e3066f113ff"
+down_revision = "da8f80a3dd90"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+
+    clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250418;"
+    op.execute(clear_events)
+
+    clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250418;"
+    op.execute(clear_trips)
+
+    update_md_query = """
+    UPDATE
+        metadata_log
+    SET
+        rail_pm_process_fail = false
+        , rail_pm_processed = false
+    WHERE
+        created_on > '2025-04-04 00:00:00'
+        and created_on < '2024-04-18 00:00:00'
+        and (
+            path LIKE '%RT_TRIP_UPDATES%'
+            or path LIKE '%RT_VEHICLE_POSITION%'
+        )
+    ;
+    """
+    md_manager = DatabaseManager(DatabaseIndex.METADATA)
+    md_manager.execute(sa.text(update_md_query))
+
+
+def downgrade() -> None:
+    pass
