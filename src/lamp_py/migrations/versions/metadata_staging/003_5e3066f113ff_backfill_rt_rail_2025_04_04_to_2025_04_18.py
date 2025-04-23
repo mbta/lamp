@@ -60,6 +60,5 @@ def upgrade() -> None:
     op.execute(update_query)
 
 
-
 def downgrade() -> None:
     pass
