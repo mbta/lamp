@@ -1,24 +1,24 @@
 """backfill_rt_rail_data_0404_to_0422
 
-Revision ID: 5e3066f113ff
-Revises: da8f80a3dd90
+Revision ID: 9b461d7aa53a
+Revises: 5e3066f113ff
 Create Date: Wed Apr 23 11:16:12 EDT 2025
 
 Details
 This will clean up missing data from RDS performance issues/outage from 4/14-4/17
 This will also clean up duplication of data in prod from 4/17-4/22
 
-This is the same as staging/012_9b461d7aa53a_backfill_rt_rail_2025_04_04_to_2025_04_22.py
+This is a rerun due to incorrectly specified query in 5e3066f113ff for the metadata query.
+We are correcting that error and rerunning the whole migration again.
 
 * upgrade -> Delete all records from 4/4 to 4/23 in vehicle events and vehicle_trips
           -> Set all flags to "unprocessed" in metadata log from 4/4 to 4/22
 * downgrade -> Nothing
 """
 
+import logging
 import os
 import tempfile
-import logging
-
 import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -32,28 +32,37 @@ from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 
 # revision identifiers, used by Alembic.
-revision = "5e3066f113ff"
-down_revision = "da8f80a3dd90"
+revision = "9b461d7aa53a"
+down_revision = "5e3066f113ff"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
 
-    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250423;"
-
+    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250422;"
+    # ~ (974142 rows)
     clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250422;"
     op.execute(clear_events)
 
+    # ~ (75788 rows)
     clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250422;"
     op.execute(clear_trips)
 
     # Query to Check
-    # SELECT created_on, rail_pm_processed, rail_pm_process_fail
+    # SELECT
+    #     created_on,
+    #     rail_pm_process_fail,
+    #     rail_pm_processed
     # FROM public.metadata_log
-    # WHERE created_on > '2025-04-04' and created_on < '2025-04-22 23:59:59'
-    # AND (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
-    # ORDER BY created_on;
+    # WHERE
+    #     created_on > '2025-04-04 00:00:00'
+    #     and created_on < '2025-04-22 23:59:59'
+    #     and (
+    #         path LIKE '%/RT_TRIP_UPDATES/%'
+    #         or path LIKE '%/RT_VEHICLE_POSITIONS/%'
+    #     )
+    # ;
 
     try:
         update_md_query = """

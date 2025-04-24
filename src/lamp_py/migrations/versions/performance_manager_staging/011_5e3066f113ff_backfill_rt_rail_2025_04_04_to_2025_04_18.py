@@ -47,11 +47,19 @@ def upgrade() -> None:
     op.execute(clear_trips)
 
     # Query to Check
-    # SELECT created_on, rail_pm_processed, rail_pm_process_fail
+    # SELECT
+    #     created_on,
+    #     rail_pm_process_fail,
+    #     rail_pm_processed
     # FROM public.metadata_log
-    # WHERE created_on > '2025-04-04' and created_on < '2025-04-22 23:59:59'
-    # AND (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
-    # ORDER BY created_on;
+    # WHERE
+    #     created_on > '2025-04-04 00:00:00'
+    #     and created_on < '2025-04-22 23:59:59'
+    #     and (
+    #         path LIKE '%/RT_TRIP_UPDATES/%'
+    #         or path LIKE '%/RT_VEHICLE_POSITIONS/%'
+    #     )
+    # ;
 
     try:
         update_md_query = """
@@ -62,10 +70,10 @@ def upgrade() -> None:
             , rail_pm_processed = false
         WHERE
             created_on > '2025-04-04 00:00:00'
-            and created_on < '2024-04-22 23:59:59'
+            and created_on < '2025-04-22 23:59:59'
             and (
                 path LIKE '%/RT_TRIP_UPDATES/%'
-                or path LIKE '%/RT_VEHICLE_POSITION/%'
+                or path LIKE '%/RT_VEHICLE_POSITIONS/%'
             )
         ;
         """
