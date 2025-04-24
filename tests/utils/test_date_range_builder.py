@@ -2,7 +2,7 @@ from datetime import datetime
 from lamp_py.utils.date_range_builder import build_data_range_paths
 
 
-def test_simple_case():
+def test_simple_case() -> None:
     template = "year={yy}/month={mm}/day={dd}/{yy}-{mm:02d}-{dd:02d}T00:00:00.parquet"
 
     out = build_data_range_paths(template, start_date=datetime(2025, 4, 1), end_date=datetime(2025, 4, 20))
@@ -32,7 +32,7 @@ def test_simple_case():
     ]
 
 
-def test_year_crossing():
+def test_year_crossing() -> None:
     template = "year={yy}/month={mm}/day={dd}/{yy}-{mm:02d}-{dd:02d}T00:00:00.parquet"
 
     out = build_data_range_paths(template, start_date=datetime(2024, 12, 30), end_date=datetime(2025, 1, 2))
@@ -46,7 +46,7 @@ def test_year_crossing():
     ]
 
 
-def test_next_leap_year_2028():
+def test_next_leap_year_2028() -> None:
     template = "year={yy}/month={mm}/day={dd}/{yy}-{mm:02d}-{dd:02d}T00:00:00.parquet"
 
     out = build_data_range_paths(template, start_date=datetime(2028, 2, 26), end_date=datetime(2028, 3, 2))
