@@ -371,11 +371,7 @@ def file_list_from_s3_date_range(
     paths = build_data_range_paths(path_template, start_date, end_date)
     full_list = []
     for search_path in paths:
-        full_list.extend(
-            file_list_from_s3(
-                bucket_name=bucket_name, file_prefix=os.path.join(file_prefix, search_path)
-            )
-        )
+        full_list.extend(file_list_from_s3(bucket_name=bucket_name, file_prefix=os.path.join(file_prefix, search_path)))
     return full_list
 
 
