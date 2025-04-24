@@ -32,11 +32,13 @@ def s3_stub():  # type: ignore
         stubber.assert_no_pending_responses()
 
 
-@pytest.skip("this wont work without mock...TODO")
-def test_file_list_from_s3_date_range():
+@pytest.mark.skip("this wont work in CI without mock...TODO")
+def test_file_list_from_s3_date_range() -> None:
+    """test for s3 date range call - query for all files within a range of dates"""
+
     template = "year={yy}/month={mm}/day={dd}/"
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=10)  # type: ignore
+    start_date = end_date - timedelta(days=10)
 
     s3_uris = file_list_from_s3_date_range(
         bucket_name=S3_SPRINGBOARD,

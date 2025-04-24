@@ -1,4 +1,3 @@
-import os
 from typing import Optional, Callable
 from datetime import datetime, timezone, timedelta
 import pyarrow
@@ -14,7 +13,6 @@ from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
 
-from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import file_list_from_s3_date_range
 from lamp_py.aws.s3 import object_exists
@@ -99,7 +97,6 @@ class FilteredHyperJob(HyperJob):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=num_days)  # type: ignore
         bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
-        breakpoint()
         # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
         s3_uris = file_list_from_s3_date_range(
             bucket_name=self.remote_input_location.bucket,
@@ -108,8 +105,6 @@ class FilteredHyperJob(HyperJob):
             end_date=end_date,
             start_date=start_date,
         )
-
-        breakpoint()
 
         ds_paths = [s.replace("s3://", "") for s in s3_uris]
 

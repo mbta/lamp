@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
-import polars as pl
 
 
 # Create a DataFrame with two date columns
 def build_data_range_paths(template_string: str, start_date: datetime, end_date: datetime) -> list[str]:
+    """
+    Given an f-string template, fill in the {} in template with all the days between
+    start_date and end_date (inclusive) and return the result as a list of strings
+    """
 
     # add 1 for inclusive
     date_diff_days = (start_date - end_date).days * -1 + 1
