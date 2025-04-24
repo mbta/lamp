@@ -29,6 +29,7 @@ from pyarrow import Table, fs
 from pyarrow.util import guid
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.utils.date_range_builder import build_data_range_paths
 
 
 def get_s3_client() -> boto3.client:
@@ -343,6 +344,39 @@ def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[D
     except Exception as exception:
         process_logger.log_failure(exception)
         return []
+
+
+def file_list_from_s3_date_range(
+    bucket_name: str,
+    file_prefix: str,
+    path_template: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> List[str]:
+    """
+    get a list of s3 objects between two dates
+
+    :param bucket_name: the name of the bucket to look inside of
+    :param path_template: prefix template string for object keys - will be populated with dates
+    :param max_list_size: max number of objects to return
+    :param in_filter: arbirtary sub-string filter on the full object path
+    :param start_date: datetime object with day/month/year
+    :param end_date: datetime object with day/month/year
+
+    :return List[
+        object path as s3://bucket-name/object-key
+    ]
+    """
+
+    paths = build_data_range_paths(path_template, start_date, end_date)
+    full_list = []
+    for search_path in paths:
+        full_list.extend(
+            file_list_from_s3(
+                bucket_name=bucket_name, file_prefix=os.path.join(file_prefix, search_path)
+            )
+        )
+    return full_list
 
 
 def get_last_modified_object(bucket_name: str, file_prefix: str, version: Optional[str] = None) -> Optional[Dict]:
