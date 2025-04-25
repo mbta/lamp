@@ -4,7 +4,6 @@ import os
 import time
 import logging
 import signal
-import shutil
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
