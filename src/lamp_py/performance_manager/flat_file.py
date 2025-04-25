@@ -43,7 +43,7 @@ class S3Archive:
     RAIL_PERFORMANCE_PREFIX = os.path.join(LAMP, "subway-on-time-performance-v1")
     INDEX_FILENAME = "index.csv"
     VERSION_KEY = "rpm_version"
-    RPM_VERSION = "1.2.0"
+    RPM_VERSION = "1.2.1"
 
 
 def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
