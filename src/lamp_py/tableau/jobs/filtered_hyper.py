@@ -116,9 +116,14 @@ class FilteredHyperJob(HyperJob):
         process_logger = ProcessLogger("filtered_hyper_create", num_days=num_days)
         process_logger.log_start()
         process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
+        max_alloc = 0
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
             for batch in ds.to_batches(
-                batch_size=500_000, columns=self.processed_schema.names, filter=self.parquet_filter
+                batch_size=500_000,
+                columns=self.processed_schema.names,
+                filter=self.parquet_filter,
+                batch_readahead=1,
+                fragment_readahead=0,
             ):
 
                 if self.dataframe_filter is not None:
@@ -133,4 +138,10 @@ class FilteredHyperJob(HyperJob):
                 else:
                     # just write the batch out - filtered on columns of interest
                     writer.write_table(batch)
+
+                alloc = pyarrow.total_allocated_bytes()
+                if alloc > max_alloc:
+                    max_alloc = alloc
+                    process_logger.add_metadata(alloc_bytes=max_alloc)
+
         process_logger.log_complete()

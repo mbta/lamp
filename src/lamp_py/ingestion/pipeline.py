@@ -4,7 +4,6 @@ import os
 import time
 import logging
 import signal
-import shutil
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
@@ -18,24 +17,10 @@ from lamp_py.ingestion.glides import ingest_glides_events
 
 # from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
 from lamp_py.runtime_utils.remote_files import LAMP
+from lamp_py.utils.clear_folder import clear_folder
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
-
-
-def clear_folder(folder: str) -> None:
-    """
-    Delete contents of entire folder.
-    """
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as _:
-            pass
 
 
 def main() -> None:
