@@ -1,7 +1,5 @@
-import os
 from typing import Optional, Callable
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -15,8 +13,8 @@ from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
 
-from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.aws.s3 import file_list_from_s3_with_details
+from lamp_py.aws.s3 import file_list_from_s3_date_range
 from lamp_py.aws.s3 import object_exists
 
 
@@ -32,8 +30,6 @@ class FilteredHyperJob(HyperJob):
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
         rollup_num_days: int = 7,  # default this to a week of data
-        bucket_filter: str | None = None,
-        object_filter: str | None = None,
         parquet_filter: pc.Expression | None = None,
         dataframe_filter: Callable[[pl.DataFrame], pl.DataFrame] | None = None,
     ) -> None:
@@ -48,8 +44,6 @@ class FilteredHyperJob(HyperJob):
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema
         self.rollup_num_days = rollup_num_days
-        self.bucket_filter = bucket_filter  # level 0 | by day
-        self.object_filter = object_filter  # level 1 | by type
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
@@ -77,7 +71,7 @@ class FilteredHyperJob(HyperJob):
         # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
         # this will no longer hold.
         if self.first_run:
-            self.create_tableau_parquet(num_files=self.rollup_num_days)
+            self.create_tableau_parquet(num_days=self.rollup_num_days)
             self.first_run = False
             return True
 
@@ -92,39 +86,34 @@ class FilteredHyperJob(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        self.create_tableau_parquet(num_files=self.rollup_num_days)
+        self.create_tableau_parquet(num_days=self.rollup_num_days)
         return True
 
-    def create_tableau_parquet(self, num_files: Optional[int]) -> None:
+    def create_tableau_parquet(self, num_days: Optional[int]) -> None:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
         """
-        if self.bucket_filter is not None:
-            file_prefix = os.path.join(self.remote_input_location.prefix, self.bucket_filter)
-        else:
-            file_prefix = self.remote_input_location.prefix
 
-        s3_uris = file_list_from_s3(
-            bucket_name=self.remote_input_location.bucket, file_prefix=file_prefix, in_filter=self.object_filter
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=num_days)  # type: ignore
+        bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
+        # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
+        s3_uris = file_list_from_s3_date_range(
+            bucket_name=self.remote_input_location.bucket,
+            file_prefix=self.remote_input_location.prefix,
+            path_template=bucket_filter_template,
+            end_date=end_date,
+            start_date=start_date,
         )
 
         ds_paths = [s.replace("s3://", "") for s in s3_uris]
-
-        # s3 list returns in lexicographical order,
-        # so month=4/day=4 comes after month=4/day=30. This sort grabs the last part,
-        # e.g. 2025-04-22T00:00:00.parquet as the sort key, and re-orders by that instead
-        # to get it in date order
-        ds_paths = sorted(ds_paths, key=lambda x: os.path.split(x)[1])
-
-        if num_files is not None:
-            ds_paths = ds_paths[-num_files:]
 
         ds = pd.dataset(
             ds_paths,
             format="parquet",
             filesystem=S3FileSystem(),
         )
-        process_logger = ProcessLogger("filtered_hyper_create", file_prefix=file_prefix, num_days=num_files)
+        process_logger = ProcessLogger("filtered_hyper_create", num_days=num_days)
         process_logger.log_start()
         process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:

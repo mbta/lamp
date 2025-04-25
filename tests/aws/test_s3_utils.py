@@ -6,6 +6,7 @@ import json
 import logging
 import os
 
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import boto3
@@ -14,8 +15,9 @@ import pytest
 from botocore.stub import Stubber
 from botocore.stub import ANY
 
-from lamp_py.aws.s3 import file_list_from_s3
+from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 from lamp_py.aws.s3 import move_s3_objects
+from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
 
 from ..test_resources import incoming_dir
 
@@ -28,6 +30,25 @@ def s3_stub():  # type: ignore
         with patch("lamp_py.aws.s3.get_s3_client", return_value=s3_stub):
             yield stubber
         stubber.assert_no_pending_responses()
+
+
+@pytest.mark.skip("this wont work in CI without mock...TODO")
+def test_file_list_from_s3_date_range() -> None:
+    """test for s3 date range call - query for all files within a range of dates"""
+
+    template = "year={yy}/month={mm}/day={dd}/"
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=10)
+
+    s3_uris = file_list_from_s3_date_range(
+        bucket_name=S3_SPRINGBOARD,
+        file_prefix="LAMP/RT_VEHICLE_POSITIONS/",
+        path_template=template,
+        end_date=end_date,
+        start_date=start_date,
+    )
+
+    print(s3_uris)
 
 
 def test_file_list_s3(s3_stub):  # type: ignore
