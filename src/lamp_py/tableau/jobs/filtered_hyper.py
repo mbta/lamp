@@ -98,7 +98,7 @@ class FilteredHyperJob(HyperJob):
         start_date = end_date - timedelta(days=num_days)  # type: ignore
         bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
         # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
-        ds_paths = file_list_from_s3_date_range(
+        s3_uris = file_list_from_s3_date_range(
             bucket_name=self.remote_input_location.bucket,
             file_prefix=self.remote_input_location.prefix,
             path_template=bucket_filter_template,
@@ -106,41 +106,42 @@ class FilteredHyperJob(HyperJob):
             start_date=start_date,
         )
 
-        # ds_paths = [s.replace("s3://", "") for s in s3_uris]
+        ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
-        # ds = pd.dataset(
-        #     ds_paths,
-        #     format="parquet",
-        #     filesystem=S3FileSystem(),
-        # )
+        ds = pd.dataset(
+            ds_paths,
+            format="parquet",
+            filesystem=S3FileSystem(),
+        )
         process_logger = ProcessLogger("filtered_hyper_create", num_days=num_days)
         process_logger.log_start()
         process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         max_alloc = 0
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
-            for path in ds_paths:
-                for batch in pq.ParquetFile(path).iter_batches(
-                    batch_size=1_000_000, columns=self.processed_schema.names
-                ):
-                    try:
-                        batch = batch.filter(self.parquet_filter)
-                    except IndexError:
-                        continue
+            for batch in ds.to_batches(
+                batch_size=500_000,
+                columns=self.processed_schema.names,
+                filter=self.parquet_filter,
+                batch_readahead=1,
+                fragment_readahead=0,
+            ):
 
-                    if self.dataframe_filter is not None:
-                        # apply transformations if function passed in
+                if self.dataframe_filter is not None:
+                    # apply transformations if function passed in
 
-                        polars_df = pl.from_arrow(batch)
-                        if not isinstance(polars_df, pl.DataFrame):
-                            raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-                        polars_df = self.dataframe_filter(polars_df)
-                        # filtered on columns of interest and dataframe_filter
-                        writer.write_table(polars_df.to_arrow())
-                    else:
-                        # just write the batch out - filtered on columns of interest
-                        writer.write_table(batch)
-                    alloc = pyarrow.total_allocated_bytes()
-                    if alloc > max_alloc:
-                        max_alloc = alloc
-                        process_logger.add_metadata(alloc_bytes=max_alloc)
+                    polars_df = pl.from_arrow(batch)
+                    if not isinstance(polars_df, pl.DataFrame):
+                        raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+                    polars_df = self.dataframe_filter(polars_df)
+                    # filtered on columns of interest and dataframe_filter
+                    writer.write_table(polars_df.to_arrow())
+                else:
+                    # just write the batch out - filtered on columns of interest
+                    writer.write_table(batch)
+
+                alloc = pyarrow.total_allocated_bytes()
+                if alloc > max_alloc:
+                    max_alloc = alloc
+                    process_logger.add_metadata(alloc_bytes=max_alloc)
+
         process_logger.log_complete()
