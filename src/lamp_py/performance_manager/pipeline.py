@@ -18,6 +18,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.tableau import start_parquet_updates
 
 from lamp_py.publishing.performancedata import publish_performance_index
+from lamp_py.utils.clear_folder import clear_folder
 
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
@@ -113,6 +114,8 @@ def start() -> None:
     """configure and start the performance manager process"""
     # parse arguments from the command line
     parsed_args = parse_args(sys.argv[1:])
+
+    clear_folder("/tmp")
 
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
