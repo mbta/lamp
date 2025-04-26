@@ -225,7 +225,12 @@ class HyperRtRail(HyperJob):
 
         # update downloaded parquet file with filtered service_date
         old_filter = pc.field("service_date") < max_start_date
-        old_batches = pd.dataset(self.local_parquet_path).to_batches(filter=old_filter, batch_size=self.ds_batch_size)
+        old_batches = pd.dataset(self.local_parquet_path).to_batches(
+            filter=old_filter,
+            batch_size=self.ds_batch_size,
+            batch_readahead=1,
+            fragment_readahead=0,
+        )
         filter_path = "/tmp/filter_local.parquet"
 
         old_batch_count = 0
@@ -255,7 +260,11 @@ class HyperRtRail(HyperJob):
         combine_batches = pd.dataset(
             joined_dataset,
             schema=self.parquet_schema,
-        ).to_batches(batch_size=self.ds_batch_size)
+        ).to_batches(
+            batch_size=self.ds_batch_size,
+            batch_readahead=1,
+            fragment_readahead=0,
+        )
 
         combine_batch_count = 0
         combine_batch_rows = 0

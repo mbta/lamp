@@ -98,7 +98,11 @@ class HyperGTFS(HyperJob):
         combine_batches = pd.dataset(
             [old_ds, new_ds],
             schema=self.parquet_schema,
-        ).to_batches(batch_size=self.ds_batch_size)
+        ).to_batches(
+            batch_size=self.ds_batch_size,
+            batch_readahead=1,
+            fragment_readahead=0,
+        )
 
         with pq.ParquetWriter(combine_parquet_path, schema=self.parquet_schema) as writer:
             for batch in combine_batches:
