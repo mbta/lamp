@@ -115,6 +115,9 @@ class FilteredHyperJob(HyperJob):
         )
         process_logger = ProcessLogger("filtered_hyper_create", num_days=num_days)
         process_logger.log_start()
+        if len(ds_paths) == 0:
+            process_logger.add_metadata(n_paths_zero=len(ds_paths))
+            return
         process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         max_alloc = 0
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
