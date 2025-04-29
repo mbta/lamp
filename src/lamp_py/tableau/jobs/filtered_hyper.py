@@ -74,7 +74,6 @@ class FilteredHyperJob(HyperJob):
             self.create_tableau_parquet(num_days=self.rollup_num_days)
             self.first_run = False
             return True
-
         # only run once per day after 11AM UTC
         if object_exists(self.remote_input_location.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
@@ -94,7 +93,7 @@ class FilteredHyperJob(HyperJob):
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
         """
 
-        end_date = datetime.now()
+        end_date = datetime.now() - timedelta(days=1)
         start_date = end_date - timedelta(days=num_days)  # type: ignore
         bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
         # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
@@ -128,6 +127,9 @@ class FilteredHyperJob(HyperJob):
                 batch_readahead=1,
                 fragment_readahead=0,
             ):
+                # don't write empty batch if no rows
+                if batch.num_rows == 0:
+                    continue
 
                 if self.dataframe_filter is not None:
                     # apply transformations if function passed in
