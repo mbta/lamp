@@ -47,7 +47,7 @@ gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
 )
 
 
-def apply_gtfs_rt_vehicle_positions_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
+def lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
@@ -57,11 +57,32 @@ def apply_gtfs_rt_vehicle_positions_conversions(polars_df: pl.DataFrame) -> pl.D
     return polars_df
 
 
+def heavyrail(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply final conversions to lamp data before outputting for tableau consumption
+    """
+    polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
+    polars_df = apply_gtfs_vehicle_positions_heavy(polars_df)
+
+    return polars_df
+
+
 def apply_gtfs_vehicle_positions_lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
     """
     stop_ids = list(map(str, [70110, 70162, 70236, 70274, 70502, 70510]))
+
+    #    pylint: disable=singleton-comparison
+    polars_df = polars_df.filter(~pl.col("vehicle.timestamp").is_null() & pl.col("vehicle.stop_id").is_in(stop_ids))
+    return polars_df
+
+
+def apply_gtfs_vehicle_positions_heavy(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
+    """
+    stop_ids = list(map(str, [70003, 70034, 70040, 70057, 70063, 70092, 70104]))
 
     #    pylint: disable=singleton-comparison
     polars_df = polars_df.filter(~pl.col("vehicle.timestamp").is_null() & pl.col("vehicle.stop_id").is_in(stop_ids))

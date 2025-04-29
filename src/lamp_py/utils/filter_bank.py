@@ -27,12 +27,8 @@ class FilterBankRtVehiclePositions:
         # this is significantly slower
         light_rail_terminal_stop_ids = pa.array(list(map(str, [70110, 70162, 70236, 70274, 70502, 70510])))
         heavy_rail_terminal_stop_ids = pa.array(list(map(str, [70003, 70034, 70040, 70057, 70063, 70092, 70104])))
-        light_rail_terminal_by_stop_id = pc.is_in(
-            pc.field("vehicle.stop_id"), light_rail_terminal_stop_ids
-        )
-        heavy_rail_terminal_by_stop_id = pc.is_in(
-            pc.field("vehicle.stop_id"), heavy_rail_terminal_stop_ids
-        )
+        light_rail_terminal_by_stop_id = pc.is_in(pc.field("vehicle.stop_id"), light_rail_terminal_stop_ids)
+        heavy_rail_terminal_by_stop_id = pc.is_in(pc.field("vehicle.stop_id"), heavy_rail_terminal_stop_ids)
 
         light_rail = green_b | green_c | green_d | green_e | mattapan
         heavy_rail = orange | red | blue
@@ -58,7 +54,6 @@ class FilterBankRtTripUpdates:
         orange = pc.field("trip_update.trip.route_id") == "Orange"
         blue = pc.field("trip_update.trip.route_id") == "Blue"
         red = pc.field("trip_update.trip.route_id") == "Red"
-
 
         # don't filter with these IDs - do this in Polars.
         # this is significantly slower

@@ -163,6 +163,15 @@ tableau_rt_trip_updates_lightrail_60_day = S3Location(
     bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_LR_60_day.parquet")
 )
 
+# heavy rail output file - to be converted to .hyper
+tableau_rt_vehicle_positions_heavyrail_30_day = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_HR_30_day.parquet")
+)
+# heavy rail output file - to be converted to .hyper
+tableau_rt_trip_updates_heavyrail_30_day = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_HR_30_day.parquet")
+)
+
 # DEVGREEN
 tableau_devgreen_rt_vehicle_positions_lightrail_60_day = S3Location(
     bucket=S3_ARCHIVE,
