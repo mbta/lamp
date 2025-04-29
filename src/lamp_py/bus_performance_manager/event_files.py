@@ -10,7 +10,7 @@ import polars as pl
 from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.aws.s3 import get_last_modified_object
-from lamp_py.runtime_utils.remote_files import rt_vehicle_positions
+from lamp_py.runtime_utils.remote_files import springboard_rt_vehicle_positions
 from lamp_py.runtime_utils.remote_files import tm_stop_crossing
 from lamp_py.runtime_utils.remote_files import bus_events
 
@@ -46,8 +46,8 @@ def vehicle_position_files_as_frame() -> pl.DataFrame:
     # modified datetime. convert to a dataframe and generate a service date
     # from the partition paths. add a source column for later merging.
     vp_objects = file_list_from_s3_with_details(
-        bucket_name=rt_vehicle_positions.bucket,
-        file_prefix=rt_vehicle_positions.prefix,
+        bucket_name=springboard_rt_vehicle_positions.bucket,
+        file_prefix=springboard_rt_vehicle_positions.prefix,
     )
     vp_df = pl.DataFrame(vp_objects).with_columns(
         (pl.col("s3_obj_path").map_elements(lambda x: dt_from_obj_path(x).date(), return_dtype=pl.Date)).alias(

@@ -34,24 +34,24 @@ class S3Location:
 
 
 # files ingested from delta
-rt_vehicle_positions = S3Location(
+springboard_rt_vehicle_positions = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_VEHICLE_POSITIONS"),
 )
 
-rt_trip_updates = S3Location(
+springboard_rt_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_TRIP_UPDATES"),
 )
 ########################################################
 ########################################################
 # files ingested from delta - DEVGREEN
-devgreen_rt_vehicle_positions = S3Location(
+springboard_devgreen_rt_vehicle_positions = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "DEV_GREEN_RT_VEHICLE_POSITIONS"),
 )
 
-devgreen_rt_trip_updates = S3Location(
+springboard_devgreen_rt_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "DEV_GREEN_RT_TRIP_UPDATES"),
 )
