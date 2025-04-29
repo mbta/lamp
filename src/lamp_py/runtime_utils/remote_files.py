@@ -34,24 +34,24 @@ class S3Location:
 
 
 # files ingested from delta
-rt_vehicle_positions = S3Location(
+springboard_rt_vehicle_positions = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_VEHICLE_POSITIONS"),
 )
 
-rt_trip_updates = S3Location(
+springboard_rt_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_TRIP_UPDATES"),
 )
 ########################################################
 ########################################################
 # files ingested from delta - DEVGREEN
-devgreen_rt_vehicle_positions = S3Location(
+springboard_devgreen_rt_vehicle_positions = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "DEV_GREEN_RT_VEHICLE_POSITIONS"),
 )
 
-devgreen_rt_trip_updates = S3Location(
+springboard_devgreen_rt_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "DEV_GREEN_RT_TRIP_UPDATES"),
 )
@@ -161,6 +161,15 @@ tableau_rt_vehicle_positions_lightrail_60_day = S3Location(
 # light rail output file - to be converted to .hyper
 tableau_rt_trip_updates_lightrail_60_day = S3Location(
     bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_LR_60_day.parquet")
+)
+
+# heavy rail output file - to be converted to .hyper
+tableau_rt_vehicle_positions_heavyrail_30_day = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_HR_30_day.parquet")
+)
+# heavy rail output file - to be converted to .hyper
+tableau_rt_trip_updates_heavyrail_30_day = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_HR_30_day.parquet")
 )
 
 # DEVGREEN

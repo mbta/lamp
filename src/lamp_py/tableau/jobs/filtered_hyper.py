@@ -71,10 +71,8 @@ class FilteredHyperJob(HyperJob):
         # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
         # this will no longer hold.
         if self.first_run:
-            self.create_tableau_parquet(num_days=self.rollup_num_days)
             self.first_run = False
-            return True
-
+            return self.create_tableau_parquet(num_days=self.rollup_num_days)
         # only run once per day after 11AM UTC
         if object_exists(self.remote_input_location.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
@@ -86,15 +84,14 @@ class FilteredHyperJob(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        self.create_tableau_parquet(num_days=self.rollup_num_days)
-        return True
+        return self.create_tableau_parquet(num_days=self.rollup_num_days)
 
-    def create_tableau_parquet(self, num_days: Optional[int]) -> None:
+    def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
         """
 
-        end_date = datetime.now()
+        end_date = datetime.now() - timedelta(days=1)
         start_date = end_date - timedelta(days=num_days)  # type: ignore
         bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
         # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
@@ -115,6 +112,9 @@ class FilteredHyperJob(HyperJob):
         )
         process_logger = ProcessLogger("filtered_hyper_create", num_days=num_days)
         process_logger.log_start()
+        if len(ds_paths) == 0:
+            process_logger.add_metadata(n_paths_zero=len(ds_paths))
+            return False
         process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         max_alloc = 0
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
@@ -125,6 +125,9 @@ class FilteredHyperJob(HyperJob):
                 batch_readahead=1,
                 fragment_readahead=0,
             ):
+                # don't write empty batch if no rows
+                if batch.num_rows == 0:
+                    continue
 
                 if self.dataframe_filter is not None:
                     # apply transformations if function passed in
@@ -145,3 +148,4 @@ class FilteredHyperJob(HyperJob):
                     process_logger.add_metadata(alloc_bytes=max_alloc)
 
         process_logger.log_complete()
+        return True

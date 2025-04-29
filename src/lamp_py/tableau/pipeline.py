@@ -27,12 +27,14 @@ from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehic
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
 from lamp_py.runtime_utils.remote_files import (
-    rt_vehicle_positions,
-    rt_trip_updates,
-    devgreen_rt_vehicle_positions,
-    devgreen_rt_trip_updates,
+    springboard_rt_vehicle_positions,
+    springboard_rt_trip_updates,
+    springboard_devgreen_rt_vehicle_positions,
+    springboard_devgreen_rt_trip_updates,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
+    tableau_rt_vehicle_positions_heavyrail_30_day,
+    tableau_rt_trip_updates_heavyrail_30_day,
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
 )
@@ -47,41 +49,61 @@ GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
 # constructed on library load (here), but if it is ever moved or reconstructed on each run_hyper() invocation,
 # this will no longer hold.
 HyperGtfsRtVehiclePositions = FilteredHyperJob(
-    remote_input_location=rt_vehicle_positions,
+    remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_lightrail_60_day,
     rollup_num_days=60,
     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-    dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
+    dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
 HyperGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=rt_trip_updates,
+    remote_input_location=springboard_rt_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_60_day,
     rollup_num_days=60,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
+    dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_prod,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
+HyperGtfsRtVehiclePositionsHeavyRail = FilteredHyperJob(
+    remote_input_location=springboard_rt_vehicle_positions,
+    remote_output_location=tableau_rt_vehicle_positions_heavyrail_30_day,
+    rollup_num_days=30,
+    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
+    dataframe_filter=convert_gtfs_rt_vehicle_position.heavyrail,
+    parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.heavy_rail,
+    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
+)
+
+HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
+    remote_input_location=springboard_rt_trip_updates,
+    remote_output_location=tableau_rt_trip_updates_heavyrail_30_day,
+    rollup_num_days=30,
+    processed_schema=convert_gtfs_rt_trip_updates.schema(),
+    dataframe_filter=convert_gtfs_rt_trip_updates.heavyrail,
+    parquet_filter=FilterBankRtTripUpdates.ParquetFilter.heavy_rail,
+    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
+)
+
 HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
-    remote_input_location=devgreen_rt_vehicle_positions,
+    remote_input_location=springboard_devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     rollup_num_days=60,
     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-    dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_conversions,
+    dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
 HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=devgreen_rt_trip_updates,
+    remote_input_location=springboard_devgreen_rt_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_60_day,
     rollup_num_days=60,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.apply_gtfs_rt_trip_updates_conversions,
+    dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_devgreen,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
@@ -129,6 +151,8 @@ def start_hyper_updates() -> None:
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
         HyperDevGreenGtfsRtTripUpdates,
+        HyperGtfsRtVehiclePositionsHeavyRail,
+        HyperGtfsRtTripUpdatesHeavyRail,
     ]
 
     for job in hyper_jobs:
@@ -154,6 +178,8 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
         HyperDevGreenGtfsRtTripUpdates,
+        HyperGtfsRtVehiclePositionsHeavyRail,
+        HyperGtfsRtTripUpdatesHeavyRail,
     ]
 
     for job in parquet_update_jobs:
