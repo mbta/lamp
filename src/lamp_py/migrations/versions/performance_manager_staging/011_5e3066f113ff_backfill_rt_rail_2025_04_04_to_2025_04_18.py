@@ -36,6 +36,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # this migration partially failed due to a typo in the date range -
+    # deleting the contents to make clear this was NOT successfully run
+    # this job was rerun in the subsequent migration
     pass
 
 
