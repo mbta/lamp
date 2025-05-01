@@ -2,7 +2,7 @@ import os
 import datetime
 
 
-def pick_n_directories(options):
+def pick_n_directories(options: list[str]) -> list[str]:
     """
     Given a list of directories, show them to user to select the set of directories to return as a list
     """
@@ -22,8 +22,19 @@ def pick_n_directories(options):
             print("Invalid input. Please enter numbers separated by spaces, corresponding to the options.")
 
 
-def migration_template(current_id, previous_id, date_string, alembic_string, detail_desc, upgrade_desc, downgrade_desc):
-
+def migration_template(
+    current_id: str,
+    previous_id: str,
+    date_string: str,
+    alembic_string: str,
+    detail_desc: str,
+    upgrade_desc: str,
+    downgrade_desc: str,
+) -> str:
+    """
+    Fillable template for a generic migration. This gets populated and
+    filled out with directory dependent curr/prev id and data. WIP
+    """
     return f'''"""{alembic_string}
 
     Revision ID: {current_id}
