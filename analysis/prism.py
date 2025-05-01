@@ -3,8 +3,11 @@ import os
 from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD
 
-# prism - WIP entry point to analysis suite to organize tools for looking
-# at LAMP data products..inputs and outputs
+# Problem: Looking into data quality issues is a very adhoc process right now. Expertise/knowledge
+# not centralized in code that is easily runnable (it's mostly in the app itself)
+
+# Solution: # Prism.py (working name...) "See the Rainbow" - WIP entry point to analysis suite to
+# organize tools for looking at LAMP data products inputs and outputs
 
 files = file_list_from_s3_with_details(bucket_name="mbta-ctd-dataplatform-staging-archive", file_prefix="lamp/tableau/")
 
