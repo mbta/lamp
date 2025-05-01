@@ -6,6 +6,7 @@ authors = [
   "MBTA CTD <developer@mbta.com>",
   "Ryan Rymarczyk <rrymarczyk@mbta.com>",
   "Mike Zappitello <mzappitello@mbta.com>",
+  "Henry Huang <hhuang@mbta.com>",
 ]
 
 [tool.poetry.scripts]
