@@ -3,9 +3,9 @@ import datetime
 
 
 def pick_n_directories(options):
-    '''
+    """
     Given a list of directories, show them to user to select the set of directories to return as a list
-    '''
+    """
 
     print("Select options (enter numbers separated by spaces):")
     for i, option in enumerate(options):
