@@ -32,6 +32,7 @@ alembic = "^1.10.2"
 types-pytz = "^2024.1.0.20240203"
 pyodbc = "^5.1.0"
 polars = "^1.3.0"
+plotly = "^6.0.1"
 
 [tool.poetry.group.tableau]
 optional = false
