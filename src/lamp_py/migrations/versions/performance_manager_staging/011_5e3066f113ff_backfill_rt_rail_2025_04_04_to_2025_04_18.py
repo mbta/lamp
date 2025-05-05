@@ -36,60 +36,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-
-    # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250422;"
-    # ~ (974142 rows)
-    clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250422;"
-    op.execute(clear_events)
-
-    # ~ (75788 rows)
-    clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20250404 AND service_date <= 20250422;"
-    op.execute(clear_trips)
-
-    # Query to Check
-    # SELECT
-    #     created_on,
-    #     rail_pm_process_fail,
-    #     rail_pm_processed
-    # FROM public.metadata_log
-    # WHERE
-    #     created_on > '2025-04-04 00:00:00'
-    #     and created_on < '2025-04-22 23:59:59'
-    #     and (
-    #         path LIKE '%/RT_TRIP_UPDATES/%'
-    #         or path LIKE '%/RT_VEHICLE_POSITIONS/%'
-    #     )
-    # ;
-
-    try:
-        update_md_query = """
-        UPDATE
-            metadata_log
-        SET
-            rail_pm_process_fail = false
-            , rail_pm_processed = false
-        WHERE
-            created_on > '2025-04-04 00:00:00'
-            and created_on < '2025-04-22 23:59:59'
-            and (
-                path LIKE '%/RT_TRIP_UPDATES/%'
-                or path LIKE '%/RT_VEHICLE_POSITIONS/%'
-            )
-        ;
-        """
-        md_manager = DatabaseManager(DatabaseIndex.METADATA)
-        md_manager.execute(sa.text(update_md_query))
-
-    except ProgrammingError as error:
-        # Error 42P01 is an 'Undefined Table' error. This occurs when there is
-        # no metadata_log table in the rail performance manager database
-        #
-        # Raise all other sql errors
-        original_error = error.orig
-        if original_error is not None and hasattr(original_error, "pgcode") and original_error.pgcode == "42P01":
-            logging.info("No Metadata Table in Rail Performance Manager")
-        else:
-            raise
+    # this migration partially failed due to a typo in the date range -
+    # deleting the contents to make clear this was NOT successfully run
+    # this job was rerun in the subsequent migration
+    pass
 
 
 def downgrade() -> None:
