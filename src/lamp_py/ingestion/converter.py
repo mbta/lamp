@@ -10,7 +10,7 @@ from typing import List, Optional
 from enum import auto
 from enum import Enum
 
-from .error import ConfigTypeFromFilenameException
+from lamp_py.runtime_utils.lamp_exception import ConfigTypeFromFilenameException
 
 
 class ConfigType(Enum):

@@ -1,7 +1,7 @@
 import pytest
 
 from lamp_py.ingestion.converter import ConfigType
-from lamp_py.ingestion.error import ConfigTypeFromFilenameException
+from lamp_py.runtime_utils.lamp_exception import ConfigTypeFromFilenameException
 
 UPDATE_FILENAME = "2022-01-01T00:00:02Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz"
 

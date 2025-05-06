@@ -37,3 +37,13 @@ class AWSException(GTFSIngestException):
     """
     General Error for raising with any AWS errors encountered.
     """
+
+class LampExpectedNotFoundError(Exception):
+    """
+    Exception raised when expected inputs are not available
+    """
+
+class LampInvalidProcessingError(Exception):
+    """
+    Exception raised when invalid processing state is reached with inputs
+    """
