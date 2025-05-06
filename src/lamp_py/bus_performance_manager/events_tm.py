@@ -49,9 +49,9 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         trip_id -> String
         stop_id -> String
         tm_stop_sequence -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone=None) as EST
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone=None) as EST
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone=None) as EST
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone="UTC")
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone="UTC")
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone="UTC")
         tm_scheduled_time_sam -> Int64
         tm_actual_arrival_time_sam -> Int64
         tm_actual_departure_time_sam -> Int64
@@ -168,17 +168,20 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
                 (
                     (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
-                    .dt.replace_time_zone(None)
+                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                    .dt.convert_time_zone("UTC")
                     .alias("tm_scheduled_time_dt")
                 ),
                 (
                     (pl.col("service_date") + pl.duration(seconds="ACT_ARRIVAL_TIME"))
-                    .dt.replace_time_zone(None)
+                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                    .dt.convert_time_zone("UTC")
                     .alias("tm_actual_arrival_dt")
                 ),
                 (
                     (pl.col("service_date") + pl.duration(seconds="ACT_DEPARTURE_TIME"))
-                    .dt.replace_time_zone(None)
+                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                    .dt.convert_time_zone("UTC")
                     .alias("tm_actual_departure_dt")
                 ),
                 pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
