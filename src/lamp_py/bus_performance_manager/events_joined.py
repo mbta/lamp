@@ -150,8 +150,8 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
     service_dates = gtfs.get_column("service_date").unique()
 
     if len(service_dates) == 0:
-        raise lamp_exception.LampExpectedNotFoundError(f"no records for service_date found: {service_date}")
-    elif len(service_dates) > 1:
+        raise lamp_exception.LampExpectedNotFoundError(f"no records for service_date found: {service_dates}")
+    if len(service_dates) > 1:
         raise lamp_exception.LampInvalidProcessingError(f"more than 1 service_date found: {service_dates}")
 
     service_date = datetime.strptime(service_dates[0], "%Y%m%d")

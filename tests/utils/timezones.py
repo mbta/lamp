@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 
 
-def test_timezone_typing_same_type():
+def test_timezone_typing_same_type() -> None:
     """
     naive can compare with naive
     aware can compare with aware
@@ -14,7 +14,7 @@ def test_timezone_typing_same_type():
     assert (tz_aware == tz_aware).rename("naive_compared").all()
 
 
-def test_timezone_typing_us_eastern_vs_america_new_york_fail():
+def test_timezone_typing_us_eastern_vs_america_new_york_fail() -> None:
     """
     US/Eastern can not compare with America/New_York even though they are both EDT/EST
     """
@@ -30,7 +30,7 @@ def test_timezone_typing_us_eastern_vs_america_new_york_fail():
         assert True
 
 
-def test_timezone_typing_us_eastern_vs_utc_fail():
+def test_timezone_typing_us_eastern_vs_utc_fail() -> None:
     """
     UTC can not compare with America/New_York
     """
@@ -46,7 +46,7 @@ def test_timezone_typing_us_eastern_vs_utc_fail():
         assert True
 
 
-def test_timezone_typing_tz_vs_naive_fail():
+def test_timezone_typing_tz_vs_naive_fail() -> None:
     """
     verify can't compare naive with aware
     """

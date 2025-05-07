@@ -1,10 +1,10 @@
 import os
 import polars as pl
-import pyarrow.parquet as pq
 
 # input data from here - regenerate by running bus_performance_metrics() and removing the drops
 # analysis/check_bus.py has a bus_performance_metrics() runner
 
+# import pyarrow.parquet as pq
 # bus = pq.read_table('bus_df_final_validation_frames_not_dropped.parquet')
 # bus = pl.from_arrow(bus)
 # dumps the first 20 trip_ids to process
@@ -15,8 +15,7 @@ import pyarrow.parquet as pq
 # if idx > 20:
 #     break
 
-
-def test_bus_performance_metrics_times():
+def test_bus_performance_metrics_times() -> None:
     """
     Validate that when there are valid inputs to the stop_arrival_dt or stop_departure_dt, then
     these two fields are properly filled out. validate the last stop time is populated
@@ -33,7 +32,7 @@ def test_bus_performance_metrics_times():
         if test["stop_arrival_dt"].is_null()[0]:
             print(test)
             # check both inputs are actually null
-            if not (test["tm_actual_arrival_dt"].is_null()[0] & test["gtfs_arrival_dt"].is_null()[0]):
+            if not test["tm_actual_arrival_dt"].is_null()[0] & test["gtfs_arrival_dt"].is_null()[0]:
                 assert False
                 # breakpoint()
             print(f"{f} - valid null - no inputs arrival")
