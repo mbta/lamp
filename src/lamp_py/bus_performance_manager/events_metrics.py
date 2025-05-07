@@ -88,12 +88,13 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         )
         .with_columns(
             (
-            pl.when(
-                (pl.col("tm_actual_arrival_dt").is_not_null() & pl.col("gtfs_arrival_dt").is_not_null())
-                & (pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
-            )
-            .then(pl.col("tm_actual_arrival_dt"))
-            .otherwise(pl.col("tmp_default_arrival_dt"))
+                # note - is > correct here? TODO
+                pl.when(
+                    (pl.col("tm_actual_arrival_dt").is_not_null() & pl.col("gtfs_arrival_dt").is_not_null())
+                    & (pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
+                )
+                .then(pl.col("tm_actual_arrival_dt"))
+                .otherwise(pl.col("tmp_default_arrival_dt"))
             ).alias("stop_arrival_dt")
         )
         # take the later of the two possible departure times as the true departure time
@@ -149,14 +150,15 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
         # drop temp fields and dev validation fields
-        .drop(
-            [
-                "gtfs_departure_dt",
-                "gtfs_arrival_dt",
-                "gtfs_sort_dt",
-                "tmp_default_arrival_dt",
-                "tmp_default_departure_dt",
-            ]
-        )
+        # .drop(
+        #     [
+        #         "gtfs_departure_dt",
+        #         "gtfs_arrival_dt",
+        #         "gtfs_sort_dt",
+        #         "tmp_default_arrival_dt",
+        #         "tmp_default_departure_dt",
+        #     ]
+        # )
     )
+    bus_df.write_parquet("bus_df_final_validation_frames_not_dropped.parquet")
     return bus_df
