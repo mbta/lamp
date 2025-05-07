@@ -15,6 +15,7 @@ import polars as pl
 # if idx > 20:
 #     break
 
+
 def test_bus_performance_metrics_times() -> None:
     """
     Validate that when there are valid inputs to the stop_arrival_dt or stop_departure_dt, then
