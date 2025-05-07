@@ -150,15 +150,14 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
         # drop temp fields and dev validation fields
-        # .drop(
-        #     [
-        #         "gtfs_departure_dt",
-        #         "gtfs_arrival_dt",
-        #         "gtfs_sort_dt",
-        #         "tmp_default_arrival_dt",
-        #         "tmp_default_departure_dt",
-        #     ]
-        # )
+        .drop(
+            [
+                "gtfs_departure_dt",
+                "gtfs_arrival_dt",
+                "gtfs_sort_dt",
+                "tmp_default_arrival_dt",
+                "tmp_default_departure_dt",
+            ]
+        )
     )
-    bus_df.write_parquet("bus_df_final_validation_frames_not_dropped.parquet")
     return bus_df
