@@ -143,5 +143,4 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
             ]
         )
     )
-    bus_df.write_parquet("bus_df_final_validation_frames_not_dropped_original.parquet")
     return bus_df
