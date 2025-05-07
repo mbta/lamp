@@ -70,8 +70,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     bus_df = (
         bus_df.with_columns(
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
-        )
-        .with_columns(
+        ).with_columns(
             (
                 pl.col("gtfs_travel_to_dt")
                 .shift(-1)
@@ -80,33 +79,19 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
                     order_by="gtfs_sort_dt",
                 )
             ).alias("gtfs_departure_dt"),
-        )
-        .with_columns(
-            # takes gtfs version if available, otherwise tm, otherwise null
-            pl.coalesce(["tm_actual_arrival_dt", "gtfs_arrival_dt"]).alias("tmp_default_arrival_dt"),
-            pl.coalesce(["tm_actual_departure_dt", "gtfs_departure_dt"]).alias("tmp_default_departure_dt"),
-        )
-        .with_columns(
+            # take the later of the two possible arrival times as the true arrival time
             (
-                # note - is > correct here? TODO
-                pl.when(
-                    (pl.col("tm_actual_arrival_dt").is_not_null() & pl.col("gtfs_arrival_dt").is_not_null())
-                    & (pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
-                )
+                pl.when(pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
                 .then(pl.col("tm_actual_arrival_dt"))
-                .otherwise(pl.col("tmp_default_arrival_dt"))
-            ).alias("stop_arrival_dt")
+                .otherwise(pl.col("gtfs_arrival_dt"))
+            ).alias("stop_arrival_dt"),
         )
         # take the later of the two possible departure times as the true departure time
         .with_columns(
-            (
-                pl.when(
-                    (pl.col("tm_actual_departure_dt").is_not_null() & pl.col("gtfs_departure_dt").is_not_null())
-                    & (pl.col("tm_actual_departure_dt") >= pl.col("stop_arrival_dt"))
-                )
-                .then(pl.col("tm_actual_departure_dt"))
-                .otherwise(pl.col("tmp_default_departure_dt"))
-            ).alias("stop_departure_dt")
+            pl.when(pl.col("tm_actual_departure_dt") >= pl.col("stop_arrival_dt"))
+            .then(pl.col("tm_actual_departure_dt"))
+            .otherwise(pl.col("gtfs_departure_dt"))
+            .alias("stop_departure_dt")
         )
         # convert dt columns to seconds after midnight
         .with_columns(
@@ -155,9 +140,8 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
                 "gtfs_departure_dt",
                 "gtfs_arrival_dt",
                 "gtfs_sort_dt",
-                "tmp_default_arrival_dt",
-                "tmp_default_departure_dt",
             ]
         )
     )
+    bus_df.write_parquet("bus_df_final_validation_frames_not_dropped_original.parquet")
     return bus_df
