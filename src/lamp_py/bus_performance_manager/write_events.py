@@ -3,21 +3,26 @@ import tempfile
 
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
+from lamp_py.runtime_utils.lamp_exception import LampExpectedNotFoundError, LampInvalidProcessingError
 from lamp_py.runtime_utils.remote_files import bus_events
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
 
-def write_bus_metrics() -> None:
+def write_bus_metrics() -> bool:
     """
     Write bus-performance parquet files to S3 for service dates neeing to be processed
+
+    returns True if any service_date successfully processed.
     """
     logger = ProcessLogger("write_bus_metrics")
     logger.log_start()
 
     event_files = event_files_to_load()
     logger.add_metadata(service_date_count=len(event_files))
+
+    successful_metrics = False
 
     for service_date in event_files.keys():
         gtfs_files = event_files[service_date]["gtfs_rt"]
@@ -36,6 +41,12 @@ def write_bus_metrics() -> None:
             day_logger.log_failure(FileNotFoundError(f"No RT_VEHICLE_POSITION files found for {service_date}"))
             continue
 
+        # need gtfs_rt files to run process - this happens regularly at ~12am, so this
+        # is an expected case.
+        if len(tm_files) == 0:
+            day_logger.add_metadata(message=f"No TM files found for {service_date}")
+            continue
+
         try:
             events_df = bus_performance_metrics(service_date, gtfs_files, tm_files)
             day_logger.add_metadata(bus_performance_rows=events_df.shape[0])
@@ -50,8 +61,18 @@ def write_bus_metrics() -> None:
                     extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
                 )
 
-            day_logger.log_complete()
+            # if any day succeeds, flip true - triggers upload to tableau
+            successful_metrics = True
+
+        except (LampExpectedNotFoundError, LampInvalidProcessingError):
+            # service_date not found = ExpectedNotFound
+            # num service date > 1 = InvalidProcessing (this should never happen)
+            continue
         except Exception as exception:
             day_logger.log_failure(exception)
+            return False
+
+        day_logger.log_complete()
 
     logger.log_complete()
+    return successful_metrics

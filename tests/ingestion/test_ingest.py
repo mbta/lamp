@@ -7,8 +7,8 @@ from queue import Queue
 import pytest
 
 from lamp_py.ingestion.converter import ConfigType
-from lamp_py.ingestion.error import NoImplException
-from lamp_py.ingestion.error import IgnoreIngestion
+from lamp_py.runtime_utils.lamp_exception import NoImplException
+from lamp_py.runtime_utils.lamp_exception import IgnoreIngestion
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
 
