@@ -49,8 +49,8 @@ def main(args: argparse.Namespace) -> None:
         process_logger = ProcessLogger("event_loop")
         process_logger.log_start()
         try:
-            if write_bus_metrics():
-                start_bus_parquet_updates()
+            write_bus_metrics()
+            start_bus_parquet_updates()
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)

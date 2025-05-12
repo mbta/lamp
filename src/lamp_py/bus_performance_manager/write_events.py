@@ -10,19 +10,15 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
 
-def write_bus_metrics() -> bool:
+def write_bus_metrics() -> None:
     """
     Write bus-performance parquet files to S3 for service dates neeing to be processed
-
-    returns True if any service_date successfully processed.
     """
     logger = ProcessLogger("write_bus_metrics")
     logger.log_start()
 
     event_files = event_files_to_load()
     logger.add_metadata(service_date_count=len(event_files))
-
-    successful_metrics = False
 
     for service_date in event_files.keys():
         gtfs_files = event_files[service_date]["gtfs_rt"]
@@ -39,12 +35,6 @@ def write_bus_metrics() -> bool:
         # need gtfs_rt files to run process
         if len(gtfs_files) == 0:
             day_logger.log_failure(FileNotFoundError(f"No RT_VEHICLE_POSITION files found for {service_date}"))
-            continue
-
-        # need gtfs_rt files to run process - this happens regularly at ~12am, so this
-        # is an expected case.
-        if len(tm_files) == 0:
-            day_logger.add_metadata(message=f"No TM files found for {service_date}")
             continue
 
         try:
@@ -64,15 +54,16 @@ def write_bus_metrics() -> bool:
             # if any day succeeds, flip true - triggers upload to tableau
             successful_metrics = True
 
-        except (LampExpectedNotFoundError, LampInvalidProcessingError):
+        except LampExpectedNotFoundError as exception:
             # service_date not found = ExpectedNotFound
-            # num service date > 1 = InvalidProcessing (this should never happen)
+            day_logger.add_metadata(skipped_day=exception)
             continue
+        except LampInvalidProcessingError as exception:
+            # num service date > 1 = InvalidProcessing (this should never happen)
+            day_logger.log_failure(exception)
         except Exception as exception:
             day_logger.log_failure(exception)
-            return False
 
         day_logger.log_complete()
 
     logger.log_complete()
-    return successful_metrics
