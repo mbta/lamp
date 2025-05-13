@@ -51,9 +51,6 @@ def write_bus_metrics() -> None:
                     extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
                 )
 
-            # if any day succeeds, flip true - triggers upload to tableau
-            successful_metrics = True
-
         except LampExpectedNotFoundError as exception:
             # service_date not found = ExpectedNotFound
             day_logger.add_metadata(skipped_day=exception)
