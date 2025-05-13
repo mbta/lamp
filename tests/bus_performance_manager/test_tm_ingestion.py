@@ -53,9 +53,9 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     # Remove the .parquet extension and get the date
     filename = os.path.basename(stop_crossings_filepath)
     date_str = filename.replace(".parquet", "")[1:]
-    service_date_est = datetime.strptime(date_str, "%Y%m%d")
+    service_date_tmp = datetime.strptime(date_str, "%Y%m%d")
     service_date_est = pl.datetime(
-        year=service_date_est.year, month=service_date_est.month, day=service_date_est.day
+        year=service_date_tmp.year, month=service_date_tmp.month, day=service_date_tmp.day
     ).dt.replace_time_zone("America/New_York")
 
     service_date_utc = service_date_est.dt.convert_time_zone("UTC")
