@@ -223,11 +223,13 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
                 "IN_TRANSIT_TO": "gtfs_travel_to_dt",
             }
         )
-        .with_columns(pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64))
         .with_columns(
+            pl.col("gtfs_arrival_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
+            pl.col("gtfs_travel_to_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
+            (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
             (pl.col("service_date").str.to_datetime("%Y%m%d") + pl.duration(seconds=pl.col("start_time"))).alias(
                 "start_dt"
-            )
+            ),
         )
         .select(
             [

@@ -19,7 +19,7 @@ from lamp_py.ingestion.converter import (
     ConfigType,
     Converter,
 )
-from lamp_py.ingestion.error import (
+from lamp_py.runtime_utils.lamp_exception import (
     ConfigTypeFromFilenameException,
     NoImplException,
     IgnoreIngestion,

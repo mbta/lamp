@@ -3,6 +3,7 @@ from datetime import datetime
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_events_for_date
+from lamp_py.runtime_utils import lamp_exception
 
 
 def match_plan_trips(gtfs: pl.DataFrame, schedule: pl.DataFrame) -> pl.DataFrame:
@@ -147,7 +148,12 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
         plan_direction_destination_headway_seconds -> Int64
     """
     service_dates = gtfs.get_column("service_date").unique()
-    assert len(service_dates) == 1, f"more than 1 service_date found: {service_dates}"
+
+    if len(service_dates) == 0:
+        raise lamp_exception.LampExpectedNotFoundError(f"no records for service_date found: {service_dates}")
+    if len(service_dates) > 1:
+        raise lamp_exception.LampInvalidProcessingError(f"more than 1 service_date found: {service_dates}")
+
     service_date = datetime.strptime(service_dates[0], "%Y%m%d")
 
     schedule = bus_gtfs_events_for_date(service_date)

@@ -1,6 +1,6 @@
 import os
 from unittest import mock
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import Tuple, List
 
 import polars as pl
@@ -107,7 +107,6 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
 
     # the following properties are known to be in the consumed dataset
     y1808_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1808") & (pl.col("trip_id") == "61348621"))
-
     assert not y1808_events.is_empty()
 
     for event in y1808_events.to_dicts():
@@ -115,16 +114,28 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
         assert event["direction_id"] == 0
 
         if event["stop_id"] == "173":
-            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=1, second=19)
-            assert event["gtfs_arrival_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=2, second=34)
+            assert event["gtfs_travel_to_dt"] == datetime(
+                year=2024, month=6, day=1, hour=13, minute=1, second=19, tzinfo=timezone.utc
+            )
+            assert event["gtfs_arrival_dt"] == datetime(
+                year=2024, month=6, day=1, hour=13, minute=2, second=34, tzinfo=timezone.utc
+            )
 
         if event["stop_id"] == "655":
-            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=50, second=31)
-            assert event["gtfs_arrival_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=53, second=29)
+            assert event["gtfs_travel_to_dt"] == datetime(
+                year=2024, month=6, day=1, hour=12, minute=50, second=31, tzinfo=timezone.utc
+            )
+            assert event["gtfs_arrival_dt"] == datetime(
+                year=2024, month=6, day=1, hour=12, minute=53, second=29, tzinfo=timezone.utc
+            )
 
         if event["stop_id"] == "903":
-            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=3, second=39)
-            assert event["gtfs_arrival_dt"] == datetime(year=2024, month=6, day=1, hour=13, minute=11, second=3)
+            assert event["gtfs_travel_to_dt"] == datetime(
+                year=2024, month=6, day=1, hour=13, minute=3, second=39, tzinfo=timezone.utc
+            )
+            assert event["gtfs_arrival_dt"] == datetime(
+                year=2024, month=6, day=1, hour=13, minute=11, second=3, tzinfo=timezone.utc
+            )
 
     # the following properties are known to be in the consumed dataset
     y1329_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1329") & (pl.col("trip_id") == "61884885-OL1"))
@@ -140,11 +151,15 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
 
         # no arrival time at this stop
         if event["stop_id"] == "12005":
-            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=47, second=23)
+            assert event["gtfs_travel_to_dt"] == datetime(
+                year=2024, month=6, day=1, hour=12, minute=47, second=23, tzinfo=timezone.utc
+            )
             assert event["gtfs_arrival_dt"] is None
 
         if event["stop_id"] == "17091":
-            assert event["gtfs_travel_to_dt"] == datetime(year=2024, month=6, day=1, hour=12, minute=52, second=41)
+            assert event["gtfs_travel_to_dt"] == datetime(
+                year=2024, month=6, day=1, hour=12, minute=52, second=41, tzinfo=timezone.utc
+            )
             assert event["gtfs_arrival_dt"] is None
 
     # get an empty dataframe by reading the same files but for events the day prior.

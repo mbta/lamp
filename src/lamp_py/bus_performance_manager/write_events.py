@@ -3,6 +3,7 @@ import tempfile
 
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
+from lamp_py.runtime_utils.lamp_exception import LampExpectedNotFoundError, LampInvalidProcessingError
 from lamp_py.runtime_utils.remote_files import bus_events
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -50,8 +51,16 @@ def write_bus_metrics() -> None:
                     extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
                 )
 
-            day_logger.log_complete()
+        except LampExpectedNotFoundError as exception:
+            # service_date not found = ExpectedNotFound
+            day_logger.add_metadata(skipped_day=exception)
+            continue
+        except LampInvalidProcessingError as exception:
+            # num service date > 1 = InvalidProcessing (this should never happen)
+            day_logger.log_failure(exception)
         except Exception as exception:
             day_logger.log_failure(exception)
+
+        day_logger.log_complete()
 
     logger.log_complete()

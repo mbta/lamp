@@ -67,9 +67,10 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     tm_df = generate_tm_events(tm_files)
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
     bus_df = join_schedule_to_rt(join_tm_to_rt(gtfs_df, tm_df))
-
     bus_df = (
-        bus_df.with_columns(pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt")).with_columns(
+        bus_df.with_columns(
+            pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
+        ).with_columns(
             (
                 pl.col("gtfs_travel_to_dt")
                 .shift(-1)
@@ -142,5 +143,4 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
             ]
         )
     )
-
     return bus_df
