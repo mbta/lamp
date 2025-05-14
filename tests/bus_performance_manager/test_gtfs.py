@@ -58,12 +58,39 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
         by=["plan_trip_id", "stop_sequence"]
     )
 
+    for trip_id in bus_events.get_column("plan_trip_id").unique():
+        trip = bus_events.filter((pl.col("plan_trip_id") == trip_id))
+        # try:
+        # the first stop does not have a "travel to time" - so it must be null
+        assert trip["plan_travel_time_seconds"].head(1).is_null()[0]
+
+        # # only the first is null
+        assert trip["plan_travel_time_seconds"].null_count() == 1
+        # # and all the rest are 0 or greater
+        assert (trip["plan_travel_time_seconds"] >= 0).count() == trip["plan_travel_time_seconds"].len() - 1
+        # and they're not all zero
+        assert (trip["plan_travel_time_seconds"] == 0).sum() != trip["plan_travel_time_seconds"].len() - 1
+
+    # plan_route_direction_headway_seconds
+    for _, group in bus_events.group_by(["stop_id", "direction_id", "route_id"]):
+        assert (group["plan_route_direction_headway_seconds"] >= 0).count() == group[
+            "plan_route_direction_headway_seconds"
+        ].is_not_null().sum()
+
+    # plan_direction_destination_headway_seconds
+    for _, group in bus_events.group_by(["stop_id", "direction_destination"]):
+        assert (group["plan_direction_destination_headway_seconds"] >= 0).count() == group[
+            "plan_direction_destination_headway_seconds"
+        ].is_not_null().sum()
+
+        # breakpoint()
     # Compare pipeline values to CSV values by column
     column_exceptions = []
     #
     # Tempoarily skip headway columns as random sorting is causing non-deterministic
     # results with these test values
     #
+
     skip_columns = (
         "plan_route_direction_headway_seconds",
         "plan_direction_destination_headway_seconds",
@@ -73,8 +100,10 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
             continue
         for trip_id in expected_bus_events.get_column("plan_trip_id").unique():
             try:
+                trip = bus_events.filter((pl.col("plan_trip_id") == trip_id))
+
                 pl_test.assert_series_equal(
-                    bus_events.filter((pl.col("plan_trip_id") == trip_id)).get_column(column),
+                    trip.get_column(column),
                     expected_bus_events.filter((pl.col("plan_trip_id") == trip_id)).get_column(column),
                 )
             except Exception as exception:
