@@ -262,17 +262,14 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     """
     # travel times
     stop_events = stop_events.with_columns(
-        (
-            (pl.col("arrival_seconds") - pl.col("departure_seconds")).shift().over("trip_id", order_by="stop_sequence")
-        ).alias("plan_travel_time_seconds")
+        (pl.col("arrival_seconds") - pl.col("departure_seconds").shift())
+        .over("trip_id", order_by="stop_sequence")
+        .alias("plan_travel_time_seconds")
     )
-
     # direction_id headway
     stop_events = stop_events.with_columns(
         (
-            (pl.col("departure_seconds") - pl.col("departure_seconds"))
-            .shift()
-            .over(
+            (pl.col("departure_seconds") - pl.col("departure_seconds").shift()).over(
                 ["stop_id", "direction_id", "route_id"],
                 order_by="departure_seconds",
             )
@@ -282,9 +279,7 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     # direction_destination headway
     stop_events = stop_events.with_columns(
         (
-            (pl.col("departure_seconds") - pl.col("departure_seconds"))
-            .shift()
-            .over(
+            (pl.col("departure_seconds") - pl.col("departure_seconds").shift()).over(
                 ["stop_id", "direction_destination"],
                 order_by="departure_seconds",
             )
