@@ -260,31 +260,28 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
         plan_route_direction_headway_seconds -> i64
         plan_direction_destination_headway_seconds -> i64
     """
-    # travel times
+
+    # plan_travel_time_seconds - how many seconds in schedule between subsequent stops, for a trip
     stop_events = stop_events.with_columns(
-        (
-            (pl.col("arrival_seconds") - pl.col("departure_seconds")).shift().over("trip_id", order_by="stop_sequence")
-        ).alias("plan_travel_time_seconds")
+        (pl.col("arrival_seconds") - pl.col("departure_seconds").shift())
+        .over("trip_id", order_by="stop_sequence")
+        .alias("plan_travel_time_seconds")
     )
 
-    # direction_id headway
+    # plan_route_direction_headway_seconds - how many seconds in schedule between subsequent visits to a particular stop by a particular route
     stop_events = stop_events.with_columns(
         (
-            (pl.col("departure_seconds") - pl.col("departure_seconds"))
-            .shift()
-            .over(
+            (pl.col("departure_seconds") - pl.col("departure_seconds").shift()).over(
                 ["stop_id", "direction_id", "route_id"],
                 order_by="departure_seconds",
             )
         ).alias("plan_route_direction_headway_seconds")
     )
 
-    # direction_destination headway
+    # plan_direction_destination_headway_seconds - how many seconds in schedule between visits by any route to a particular stop
     stop_events = stop_events.with_columns(
         (
-            (pl.col("departure_seconds") - pl.col("departure_seconds"))
-            .shift()
-            .over(
+            (pl.col("departure_seconds") - pl.col("departure_seconds").shift()).over(
                 ["stop_id", "direction_destination"],
                 order_by="departure_seconds",
             )
