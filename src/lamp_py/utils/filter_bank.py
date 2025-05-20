@@ -1,5 +1,41 @@
+import itertools
 import pyarrow.compute as pc
 import pyarrow as pa
+
+
+class LightRailFilter:
+    """
+    Data-only class for lists of filters relevant for light rail
+    """
+
+    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
+
+
+class HeavyRailFilter:
+    """
+    Data-only class for lists of filters relevant for heavy rail
+    """
+
+    # Multiple stop_id names avaiable for some stations
+    _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
+    forest_hills_stop_id = ["70001", "Forest Hills-01", "Forest Hills-02"]
+    oak_grove_stop_id = ["70036", "Oak Grove-01", "Oak Grove-02"]
+    bowdoin_stop_id = ["70038"]
+    wonderland_stop_id = ["70059"]
+    alewife_stop_id = ["70061", "Alewife-01", "Alewife-02"]
+    ashmont_stop_id = ["70094"]
+    braintree_stop_id = ["70105", "Braintree-01", "Braintree-02"]
+    terminal_stop_ids = list(
+        itertools.chain(
+            forest_hills_stop_id,
+            oak_grove_stop_id,
+            bowdoin_stop_id,
+            wonderland_stop_id,
+            alewife_stop_id,
+            ashmont_stop_id,
+            braintree_stop_id,
+        )
+    )
 
 
 class FilterBankRtVehiclePositions:
