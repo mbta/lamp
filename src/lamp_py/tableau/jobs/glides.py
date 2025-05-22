@@ -1,6 +1,4 @@
 from typing import Optional
-from datetime import datetime
-from datetime import timezone
 
 import pyarrow
 import pyarrow.parquet as pq
@@ -16,7 +14,7 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_glides_all_trips_updated,
     tableau_glides_all_operator_signed_in,
 )
-from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_with_details, object_exists
+from lamp_py.aws.s3 import file_list_from_s3
 
 GLIDES_TABLEAU_PROJECT = "Glides"
 
@@ -190,16 +188,6 @@ class HyperGlidesTripUpdates(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
-        # only run once per day after 11AM UTC - 6 or 7 AM EST
-        if object_exists(tableau_glides_all_trips_updated.s3_uri):
-            now_utc = datetime.now(tz=timezone.utc)
-            last_mod: datetime = file_list_from_s3_with_details(
-                bucket_name=tableau_glides_all_trips_updated.bucket,
-                file_prefix=tableau_glides_all_trips_updated.prefix,
-            )[0]["last_modified"]
-
-            if now_utc.day == last_mod.day or now_utc.hour < 11:
-                return False
 
         create_trips_updated_glides_parquet(self, None)
         return True
@@ -225,16 +213,6 @@ class HyperGlidesOperatorSignIns(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
-        # only run once per day after 11AM UTC - 6 or 7 AM EST
-        if object_exists(tableau_glides_all_operator_signed_in.s3_uri):
-            now_utc = datetime.now(tz=timezone.utc)
-            last_mod: datetime = file_list_from_s3_with_details(
-                bucket_name=tableau_glides_all_operator_signed_in.bucket,
-                file_prefix=tableau_glides_all_operator_signed_in.prefix,
-            )[0]["last_modified"]
-
-            if now_utc.day == last_mod.day or now_utc.hour < 11:
-                return False
 
         create_operator_signed_in_glides_parquet(self, None)
         return True

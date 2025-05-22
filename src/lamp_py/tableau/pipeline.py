@@ -41,13 +41,6 @@ from lamp_py.runtime_utils.remote_files import (
 
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
 
-
-# the first_run flag used in FilteredHyperJob is entirely a developer nice to have. This will ensure that
-# the hyper job will run immediately when the tableau job is called, and will
-# process and upload a hyper file now, rather than on the hour or after 7am
-# this relies on the FilteredHyperJob persisting across runs - currently it is
-# constructed on library load (here), but if it is ever moved or reconstructed on each run_hyper() invocation,
-# this will no longer hold.
 HyperGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_lightrail_60_day,
@@ -133,6 +126,8 @@ def start_hyper_updates() -> None:
     check_for_parallel_tasks()
 
     hyper_jobs: List[HyperJob] = [
+        HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
+        HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
         HyperRtRail(),
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
@@ -145,8 +140,6 @@ def start_hyper_updates() -> None:
         HyperRtAlerts(),
         HyperBusPerformanceAll(),
         HyperBusPerformanceRecent(),
-        HyperGlidesTripUpdates(),
-        HyperGlidesOperatorSignIns(),
         HyperGtfsRtVehiclePositions,
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
@@ -163,6 +156,8 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
     """Run all Parquet Update jobs"""
 
     parquet_update_jobs: List[HyperJob] = [
+        HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
+        HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
         HyperRtRail(),
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
@@ -172,8 +167,6 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         HyperStaticStops(),
         HyperStaticStopTimes(),
         HyperStaticTrips(),
-        HyperGlidesTripUpdates(),
-        HyperGlidesOperatorSignIns(),
         HyperGtfsRtVehiclePositions,
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
