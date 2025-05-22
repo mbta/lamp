@@ -56,15 +56,6 @@ class FilteredHyperJob(HyperJob):
 
     def update_parquet(self, _: None) -> bool:
 
-        # this flag is entirely a developer nice to have. This will ensure that
-        # the hyper job will run immediately when the tableau job is called, and will
-        # process and upload a hyper file now, rather than on the hour or after 7am
-        # this relies on the FilteredHyperJob persisting across runs - currently it is
-        # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
-        # this will no longer hold.
-        if self.first_run:  # type: ignore
-            self.first_run = False
-            return self.create_tableau_parquet(num_days=self.rollup_num_days)
         # only run once per day after 11AM UTC
         if object_exists(self.remote_input_location.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)

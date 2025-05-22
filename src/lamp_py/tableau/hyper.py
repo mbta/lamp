@@ -60,14 +60,6 @@ class HyperJob(ABC):  # pylint: disable=R0902
             self.remote_fs = fs.S3FileSystem()
             self.remote_parquet_path = self.remote_parquet_path.replace("s3://", "")
 
-        # this flag is entirely a developer nice to have. This will ensure that
-        # the hyper job will run immediately when the tableau job is called, and will
-        # process and upload a hyper file now, rather than on the hour or after 7am
-        # this relies on the FilteredHyperJob persisting across runs - currently it is
-        # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
-        # this will no longer hold.
-        self.first_run: bool = True
-
     @property
     @abstractmethod
     def parquet_schema(self) -> pyarrow.schema:
