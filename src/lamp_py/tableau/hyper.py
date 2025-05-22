@@ -66,7 +66,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
         # this relies on the FilteredHyperJob persisting across runs - currently it is
         # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
         # this will no longer hold.
-        self.first_run = True
+        self.first_run: bool = True
 
     @property
     @abstractmethod

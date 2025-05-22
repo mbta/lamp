@@ -62,7 +62,7 @@ class FilteredHyperJob(HyperJob):
         # this relies on the FilteredHyperJob persisting across runs - currently it is
         # constructed on library load, but if it is reconstructed on each run_hyper() invocation,
         # this will no longer hold.
-        if self.first_run:
+        if self.first_run:  # type: ignore
             self.first_run = False
             return self.create_tableau_parquet(num_days=self.rollup_num_days)
         # only run once per day after 11AM UTC
