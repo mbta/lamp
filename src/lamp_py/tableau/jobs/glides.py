@@ -190,6 +190,11 @@ class HyperGlidesTripUpdates(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
+        if self.first_run:
+            self.first_run = False
+            create_trips_updated_glides_parquet(self, None)
+            return True
+
         # only run once per day after 11AM UTC - 6 or 7 AM EST
         if object_exists(tableau_glides_all_trips_updated.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
@@ -225,6 +230,11 @@ class HyperGlidesOperatorSignIns(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
+        if self.first_run:
+            self.first_run = False
+            create_operator_signed_in_glides_parquet(self, None)
+            return True
+
         # only run once per day after 11AM UTC - 6 or 7 AM EST
         if object_exists(tableau_glides_all_operator_signed_in.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
