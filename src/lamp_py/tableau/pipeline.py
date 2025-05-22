@@ -133,6 +133,8 @@ def start_hyper_updates() -> None:
     check_for_parallel_tasks()
 
     hyper_jobs: List[HyperJob] = [
+        HyperGlidesTripUpdates(), # glides have operational usage, run these first to ensure timely report gen
+        HyperGlidesOperatorSignIns(), # glides have operational usage, run these first to ensure timely report gen
         HyperRtRail(),
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
@@ -145,8 +147,6 @@ def start_hyper_updates() -> None:
         HyperRtAlerts(),
         HyperBusPerformanceAll(),
         HyperBusPerformanceRecent(),
-        HyperGlidesTripUpdates(),
-        HyperGlidesOperatorSignIns(),
         HyperGtfsRtVehiclePositions,
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
@@ -163,6 +163,8 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
     """Run all Parquet Update jobs"""
 
     parquet_update_jobs: List[HyperJob] = [
+        HyperGlidesTripUpdates(), # glides have operational usage, run these first to ensure timely report gen
+        HyperGlidesOperatorSignIns(), # glides have operational usage, run these first to ensure timely report gen
         HyperRtRail(),
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
@@ -172,8 +174,6 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
         HyperStaticStops(),
         HyperStaticStopTimes(),
         HyperStaticTrips(),
-        HyperGlidesTripUpdates(),
-        HyperGlidesOperatorSignIns(),
         HyperGtfsRtVehiclePositions,
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
