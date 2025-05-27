@@ -33,8 +33,8 @@ class S3Location:
         return f"{self.bucket}/{self.prefix}"
 
 
-@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
-@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.compressed_gtfs", gtfs)
+@mock.patch("lamp_py.utils.gtfs_utils.object_exists")
+@mock.patch("lamp_py.utils.gtfs_utils.compressed_gtfs", gtfs)
 @mock.patch("lamp_py.runtime_utils.remote_files.S3Location", S3Location)
 def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     """
