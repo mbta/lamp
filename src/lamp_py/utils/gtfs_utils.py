@@ -57,10 +57,9 @@ def bus_route_ids_for_service_date(service_date: date) -> List[str]:
 
     return bus_routes.to_list()
 
+
 def routes_for_service_date(service_date: date) -> pl.DataFrame:
     """get a list of all routes for a given service date"""
-    routes = (
-        gtfs_from_parquet("routes", service_date)
-    )
+    routes = gtfs_from_parquet("routes", service_date)
 
     return routes
