@@ -11,14 +11,8 @@ from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 # get latest
 
 
-def list_station_child_stops_from_gtfs(stops: pl.DataFrame, parent_station: str, filter=pl.Expr):
-    cc = stops.filter(pl.col("parent_station") == parent_station)
-    dd = cc.filter(filter)
-    return dd
-
-
 @patch("lamp_py.utils.filter_bank.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive")
-def test_hardcoded_terminal_prediction_names():
+def test_hardcoded_terminal_prediction_names() -> None:
     # the stops listed for these filters are retrieved dynamically from gtfs.
     # ensure that the expected list contains all of the expected terminal values
 

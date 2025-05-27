@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import Optional
 import pyarrow.compute as pc
 import pyarrow as pa
 import polars as pl
@@ -7,10 +7,16 @@ import polars as pl
 GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
 
 
-def list_station_child_stops_from_gtfs(stops: pl.DataFrame, parent_station: str, filter=pl.Expr):
-    cc = stops.filter(pl.col("parent_station") == parent_station)
-    dd = cc.filter(filter)
-    return dd
+def list_station_child_stops_from_gtfs(
+    stops: pl.DataFrame, parent_station: str, additional_filter: Optional[pl.Expr] = None
+) -> pl.DataFrame:
+    """
+    Filter gtfs stops by parent_station string, and additional filter if available
+    """
+    df_parent_station = stops.filter(pl.col("parent_station") == parent_station)
+    if additional_filter is not None:
+        df_parent_station = df_parent_station.filter(additional_filter)
+    return df_parent_station
 
 
 class LightRailFilter:
@@ -42,13 +48,11 @@ class HeavyRailFilter:
     _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
 
     heavy_rail_filter = pl.col("vehicle_type") == 1
-    terminal_stop_ids = []
 
     service_date = datetime.now()
     stops = pl.read_parquet(f"{GTFS_ARCHIVE}/{service_date.year}/stops.parquet")
 
     terminal_stop_ids = []
-
     for place_name in _terminal_stop_place_names:
         gtfs_stops = list_station_child_stops_from_gtfs(stops, place_name, heavy_rail_filter)
         terminal_stop_ids.extend(gtfs_stops["stop_id"].to_list())
