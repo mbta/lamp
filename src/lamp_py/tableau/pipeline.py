@@ -103,7 +103,9 @@ HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
 
 
 def start_hyper_updates() -> None:
-    """Run all HyperFile Update Jobs"""
+    """Run all HyperFile Update Jobs
+    called on cron defined in terraform-aws-mbta-lamp/main.tf:525
+    """
     # configure the environment
     os.environ["SERVICE_NAME"] = "tableau_hyper_update"
 
@@ -153,7 +155,9 @@ def start_hyper_updates() -> None:
 
 
 def start_parquet_updates(db_manager: DatabaseManager) -> None:
-    """Run all Parquet Update jobs"""
+    """Run all Parquet Update jobs
+    called from performance manager
+    """
 
     parquet_update_jobs: List[HyperJob] = [
         HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
@@ -180,7 +184,9 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
 
 
 def start_bus_parquet_updates() -> None:
-    """Run all Bus Parquet Update jobs"""
+    """Run all Bus Parquet Update jobs
+    called from bus performance manager
+    """
 
     parquet_update_jobs: List[HyperJob] = [
         HyperBusPerformanceRecent(),

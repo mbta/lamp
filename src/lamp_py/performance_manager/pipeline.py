@@ -15,7 +15,7 @@ from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from lamp_py.tableau import start_parquet_updates
+from lamp_py.tableau.run import start_parquet_updates
 
 from lamp_py.publishing.performancedata import publish_performance_index
 from lamp_py.utils.clear_folder import clear_folder
