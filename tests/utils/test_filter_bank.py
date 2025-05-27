@@ -11,7 +11,7 @@ from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 # get latest
 
 
-@patch("lamp_py.utils.filter_bank.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive")
+@patch("lamp_py.utils.filter_bank.GTFS_ARCHIVE_FILTER_BANK", "https://performancedata.mbta.com/lamp/gtfs_archive")
 def test_hardcoded_terminal_prediction_names() -> None:
     # the stops listed for these filters are retrieved dynamically from gtfs.
     # ensure that the expected list contains all of the expected terminal values

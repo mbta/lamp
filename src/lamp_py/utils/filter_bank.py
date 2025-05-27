@@ -4,7 +4,7 @@ import pyarrow.compute as pc
 import pyarrow as pa
 import polars as pl
 
-GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
+GTFS_ARCHIVE_FILTER_BANK = "s3://mbta-performance/lamp/gtfs_archive"
 # GTFS_ARCHIVE = "https://performancedata.mbta.com/lamp/gtfs_archive"
 
 
@@ -51,7 +51,7 @@ class HeavyRailFilter:
     heavy_rail_filter = pl.col("vehicle_type") == 1
 
     service_date = datetime.now()
-    stops = pl.read_parquet(f"{GTFS_ARCHIVE}/{service_date.year}/stops.parquet")
+    stops = pl.read_parquet(f"{GTFS_ARCHIVE_FILTER_BANK}/{service_date.year}/stops.parquet")
 
     terminal_stop_ids = []
     for place_name in _terminal_stop_place_names:
