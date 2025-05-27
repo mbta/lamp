@@ -4,7 +4,9 @@ import pyarrow.compute as pc
 import pyarrow as pa
 import polars as pl
 
-GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
+# GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
+GTFS_ARCHIVE = "https://performancedata.mbta.com/lamp/gtfs_archive"
+
 
 
 def list_station_child_stops_from_gtfs(
