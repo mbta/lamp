@@ -1,6 +1,16 @@
-import itertools
+from datetime import datetime
+from typing import List
 import pyarrow.compute as pc
 import pyarrow as pa
+import polars as pl
+
+GTFS_ARCHIVE = "s3://mbta-performance/lamp/gtfs_archive"
+
+
+def list_station_child_stops_from_gtfs(stops: pl.DataFrame, parent_station: str, filter=pl.Expr):
+    cc = stops.filter(pl.col("parent_station") == parent_station)
+    dd = cc.filter(filter)
+    return dd
 
 
 class LightRailFilter:
@@ -16,26 +26,32 @@ class HeavyRailFilter:
     Data-only class for lists of filters relevant for heavy rail
     """
 
+    service_date = datetime.now()
+
     # Multiple stop_id names avaiable for some stations
+    _terminal_stop_place_names = [
+        "place-forhl",
+        "place-ogmnl",
+        "place-bomnl",
+        "place-wondl",
+        "place-alfcl",
+        "place-asmnl",
+        "place-brntn",
+    ]
+
     _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
-    forest_hills_stop_id = ["70001", "Forest Hills-01", "Forest Hills-02"]
-    oak_grove_stop_id = ["70036", "Oak Grove-01", "Oak Grove-02"]
-    bowdoin_stop_id = ["70038"]
-    wonderland_stop_id = ["70059"]
-    alewife_stop_id = ["70061", "Alewife-01", "Alewife-02"]
-    ashmont_stop_id = ["70094"]
-    braintree_stop_id = ["70105", "Braintree-01", "Braintree-02"]
-    terminal_stop_ids = list(
-        itertools.chain(
-            forest_hills_stop_id,
-            oak_grove_stop_id,
-            bowdoin_stop_id,
-            wonderland_stop_id,
-            alewife_stop_id,
-            ashmont_stop_id,
-            braintree_stop_id,
-        )
-    )
+
+    heavy_rail_filter = pl.col("vehicle_type") == 1
+    terminal_stop_ids = []
+
+    service_date = datetime.now()
+    stops = pl.read_parquet(f"{GTFS_ARCHIVE}/{service_date.year}/stops.parquet")
+
+    terminal_stop_ids = []
+
+    for place_name in _terminal_stop_place_names:
+        gtfs_stops = list_station_child_stops_from_gtfs(stops, place_name, heavy_rail_filter)
+        terminal_stop_ids.extend(gtfs_stops["stop_id"].to_list())
 
 
 class FilterBankRtVehiclePositions:
