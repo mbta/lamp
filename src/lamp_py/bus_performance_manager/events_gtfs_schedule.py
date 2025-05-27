@@ -2,7 +2,7 @@ from datetime import date
 
 import polars as pl
 
-from lamp_py.bus_performance_manager.gtfs_utils import gtfs_from_parquet
+from lamp_py.utils.gtfs_utils import gtfs_from_parquet
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
