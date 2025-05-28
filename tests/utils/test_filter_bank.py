@@ -39,7 +39,6 @@ def test_hardcoded_terminal_prediction_names() -> None:
         )
     )
     heavy_filters = HeavyRailFilter()
-    breakpoint()
     assert set(heavy_filters.terminal_stop_ids()).issuperset(set(terminal_stop_ids_list))
 
     # check that all stops in Filter lists exist
