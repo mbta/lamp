@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 import pyarrow.compute as pc
 import pyarrow as pa
 import polars as pl
@@ -33,30 +33,45 @@ class HeavyRailFilter:
     Data-only class for lists of filters relevant for heavy rail
     """
 
-    service_date = datetime.now()
+    def __init__(self) -> None:
 
-    # Multiple stop_id names avaiable for some stations
-    _terminal_stop_place_names = [
-        "place-forhl",
-        "place-ogmnl",
-        "place-bomnl",
-        "place-wondl",
-        "place-alfcl",
-        "place-asmnl",
-        "place-brntn",
-    ]
+        self._terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
+        self._terminal_stop_place_names = [
+            "place-forhl",
+            "place-ogmnl",
+            "place-bomnl",
+            "place-wondl",
+            "place-alfcl",
+            "place-asmnl",
+            "place-brntn",
+        ]
+        self.terminal_stop_ids_list: list = []
 
-    _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
+    def terminal_stop_ids(self) -> List:
+        """
+        populate on first call - otherwise return populated
+        """
+        if not self.terminal_stop_ids_list:
+            self.current_terminal_stop_ids()
+        return self.terminal_stop_ids_list
 
-    heavy_rail_filter = pl.col("vehicle_type") == 1
+    def current_terminal_stop_ids(self) -> None:
+        """
+        When called, dynamically populates terminal_stop_ids based on the
+        _terminal_stop_place_names. This has to live outside of the constructor
+        because we want to be able to patch the GTFS_ARCHIVE_FILTER_BANK for
+        unit tests (s3 path vs public performancedata path) which is not possible
+        when terminal_stop_ids is populated on class construction.
+        """
+        heavy_rail_filter = pl.col("vehicle_type") == 1
 
-    service_date = datetime.now()
-    stops = pl.read_parquet(f"{GTFS_ARCHIVE_FILTER_BANK}/{service_date.year}/stops.parquet")
+        service_date = datetime.now()
+        stops = pl.read_parquet(f"{GTFS_ARCHIVE_FILTER_BANK}/{service_date.year}/stops.parquet")
+        # Multiple stop_id names avaiable for some stations
 
-    terminal_stop_ids = []
-    for place_name in _terminal_stop_place_names:
-        gtfs_stops = list_station_child_stops_from_gtfs(stops, place_name, heavy_rail_filter)
-        terminal_stop_ids.extend(gtfs_stops["stop_id"].to_list())
+        for place_name in self._terminal_stop_place_names:
+            gtfs_stops = list_station_child_stops_from_gtfs(stops, place_name, heavy_rail_filter)
+            self.terminal_stop_ids_list.extend(gtfs_stops["stop_id"].to_list())
 
 
 class FilterBankRtVehiclePositions:

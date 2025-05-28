@@ -38,14 +38,15 @@ def test_hardcoded_terminal_prediction_names() -> None:
             braintree_stop_id,
         )
     )
-
-    assert set(HeavyRailFilter.terminal_stop_ids).issuperset(set(terminal_stop_ids_list))
+    heavy_filters = HeavyRailFilter()
+    breakpoint()
+    assert set(heavy_filters.terminal_stop_ids()).issuperset(set(terminal_stop_ids_list))
 
     # check that all stops in Filter lists exist
     service_date = datetime.now()
     stops = pl.read_parquet(f"https://performancedata.mbta.com/lamp/gtfs_archive/{service_date.year}/stops.parquet")
 
-    for stop in HeavyRailFilter.terminal_stop_ids:
+    for stop in heavy_filters.terminal_stop_ids():
         bb = stops.filter(pl.col("stop_id") == stop)
         assert stops.filter(pl.col("stop_id") == stop).height == 1
 
