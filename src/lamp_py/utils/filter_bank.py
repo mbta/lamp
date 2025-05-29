@@ -1,23 +1,6 @@
-from datetime import datetime
-from typing import List, Optional
+import itertools
 import pyarrow.compute as pc
 import pyarrow as pa
-import polars as pl
-
-GTFS_ARCHIVE_FILTER_BANK = "s3://mbta-performance/lamp/gtfs_archive"
-# GTFS_ARCHIVE = "https://performancedata.mbta.com/lamp/gtfs_archive"
-
-
-def list_station_child_stops_from_gtfs(
-    stops: pl.DataFrame, parent_station: str, additional_filter: Optional[pl.Expr] = None
-) -> pl.DataFrame:
-    """
-    Filter gtfs stops by parent_station string, and additional filter if available
-    """
-    df_parent_station = stops.filter(pl.col("parent_station") == parent_station)
-    if additional_filter is not None:
-        df_parent_station = df_parent_station.filter(additional_filter)
-    return df_parent_station
 
 
 class LightRailFilter:
@@ -32,46 +15,38 @@ class HeavyRailFilter:
     """
     Data-only class for lists of filters relevant for heavy rail
     """
+    _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
+    _terminal_stop_place_names = [
+        "place-forhl",
+        "place-ogmnl",
+        "place-bomnl",
+        "place-wondl",
+        "place-alfcl",
+        "place-asmnl",
+        "place-brntn",
+    ]
 
-    def __init__(self) -> None:
+    forest_hills_stop_ids = ["70001", "Forest Hills-01", "Forest Hills-02"]
+    oak_grove_stop_ids = ["70036", "Oak Grove-01", "Oak Grove-02"]
+    bowdoin_stop_ids = ["70038"]
+    wonderland_stop_ids = ["70059"]
+    alewife_stop_ids = ["70061", "Alewife-01", "Alewife-02"]
+    ashmont_stop_ids = ["70094"]
+    braintree_stop_ids = ["70105", "Braintree-01", "Braintree-02"]
 
-        self._terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
-        self._terminal_stop_place_names = [
-            "place-forhl",
-            "place-ogmnl",
-            "place-bomnl",
-            "place-wondl",
-            "place-alfcl",
-            "place-asmnl",
-            "place-brntn",
-        ]
-        self.terminal_stop_ids_list: list = []
+    # self.terminal_stop_ids: list = []
 
-    def terminal_stop_ids(self) -> List:
-        """
-        populate on first call - otherwise return populated
-        """
-        if not self.terminal_stop_ids_list:
-            self.current_terminal_stop_ids()
-        return self.terminal_stop_ids_list
-
-    def current_terminal_stop_ids(self) -> None:
-        """
-        When called, dynamically populates terminal_stop_ids based on the
-        _terminal_stop_place_names. This has to live outside of the constructor
-        because we want to be able to patch the GTFS_ARCHIVE_FILTER_BANK for
-        unit tests (s3 path vs public performancedata path) which is not possible
-        when terminal_stop_ids is populated on class construction.
-        """
-        heavy_rail_filter = pl.col("vehicle_type") == 1
-
-        service_date = datetime.now()
-        stops = pl.read_parquet(f"{GTFS_ARCHIVE_FILTER_BANK}/{service_date.year}/stops.parquet")
-        # Multiple stop_id names avaiable for some stations
-
-        for place_name in self._terminal_stop_place_names:
-            gtfs_stops = list_station_child_stops_from_gtfs(stops, place_name, heavy_rail_filter)
-            self.terminal_stop_ids_list.extend(gtfs_stops["stop_id"].to_list())
+    terminal_stop_ids = list(
+        itertools.chain(
+            forest_hills_stop_ids,
+            oak_grove_stop_ids,
+            bowdoin_stop_ids,
+            wonderland_stop_ids,
+            alewife_stop_ids,
+            ashmont_stop_ids,
+            braintree_stop_ids,
+        )
+    )
 
 
 class FilterBankRtVehiclePositions:
