@@ -15,6 +15,7 @@ class HeavyRailFilter:
     """
     Data-only class for lists of filters relevant for heavy rail
     """
+
     _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
     _terminal_stop_place_names = [
         "place-forhl",
