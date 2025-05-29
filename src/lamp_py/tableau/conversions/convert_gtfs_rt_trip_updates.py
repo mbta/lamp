@@ -1,6 +1,8 @@
 import pyarrow
 import polars as pl
 
+from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
+
 gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
     [
         ("id", pyarrow.large_string()),
@@ -44,9 +46,9 @@ def lrtp_prod(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
-    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
-
-    polars_df = polars_df.filter(pl.col("trip_update.stop_time_update.stop_id").is_in(terminal_stop_ids))
+    polars_df = polars_df.filter(
+        pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
+    )
     polars_df = apply_timezone_conversions(polars_df)
     return polars_df
 
@@ -55,11 +57,9 @@ def lrtp_devgreen(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
-    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
-
     polars_df = polars_df.filter(
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
-        & pl.col("trip_update.stop_time_update.stop_id").is_in(terminal_stop_ids)
+        & pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
     )
     polars_df = apply_timezone_conversions(polars_df)
     return polars_df
@@ -69,10 +69,10 @@ def heavyrail(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
-    terminal_stop_ids = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
+
     polars_df = polars_df.filter(
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
-        & pl.col("trip_update.stop_time_update.stop_id").is_in(terminal_stop_ids)
+        & pl.col("trip_update.stop_time_update.stop_id").is_in(HeavyRailFilter.terminal_stop_ids)
     )
     polars_df = apply_timezone_conversions(polars_df)
     return polars_df

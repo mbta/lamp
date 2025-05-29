@@ -1,6 +1,5 @@
 from datetime import date
 from typing import List
-
 import polars as pl
 
 from lamp_py.aws.s3 import object_exists
@@ -50,10 +49,17 @@ def gtfs_from_parquet(file: str, service_date: date) -> pl.DataFrame:
     return gtfs_df
 
 
-def bus_routes_for_service_date(service_date: date) -> List[str]:
+def bus_route_ids_for_service_date(service_date: date) -> List[str]:
     """get a list of bus route ids for a given service date"""
     bus_routes = (
         gtfs_from_parquet("routes", service_date).filter((pl.col("route_type") == 3)).get_column("route_id").unique()
     )
 
     return bus_routes.to_list()
+
+
+def routes_for_service_date(service_date: date) -> pl.DataFrame:
+    """get a list of all routes for a given service date"""
+    routes = gtfs_from_parquet("routes", service_date)
+
+    return routes

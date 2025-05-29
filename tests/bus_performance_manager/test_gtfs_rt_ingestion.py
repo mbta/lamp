@@ -83,7 +83,7 @@ VE_SCHEMA = {
 }
 
 
-@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
+@mock.patch("lamp_py.utils.gtfs_utils.object_exists")
 def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
     """
     generate vehicle event dataframes from gtfs realtime vehicle position files.
@@ -174,7 +174,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
     pl.concat([bus_vehicle_events, empty_bus_vehicle_events])
 
 
-@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
+@mock.patch("lamp_py.utils.gtfs_utils.object_exists")
 def test_read_vehicle_positions(exists_patch: mock.MagicMock) -> None:
     """
     test that vehicle positions can be read from files and return a df with the

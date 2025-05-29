@@ -1,12 +1,13 @@
 from datetime import date
 from unittest import mock
 
-from lamp_py.bus_performance_manager.gtfs_utils import (
-    bus_routes_for_service_date,
+from lamp_py.utils.gtfs_utils import (
+    bus_route_ids_for_service_date,
+    routes_for_service_date,
 )
 
 
-@mock.patch("lamp_py.bus_performance_manager.gtfs_utils.object_exists")
+@mock.patch("lamp_py.utils.gtfs_utils.object_exists")
 def test_bus_routes_for_service_date(exists_patch: mock.MagicMock) -> None:
     """
     Test that bus routes be generated for a given service date. For the
@@ -18,7 +19,7 @@ def test_bus_routes_for_service_date(exists_patch: mock.MagicMock) -> None:
     exists_patch.return_value = True
 
     service_date = date(year=2023, month=2, day=1)
-    bus_routes = bus_routes_for_service_date(service_date)
+    bus_routes = bus_route_ids_for_service_date(service_date)
 
     # check that we're getting a non empty list
     assert len(bus_routes) > 0
@@ -55,3 +56,19 @@ def test_bus_routes_for_service_date(exists_patch: mock.MagicMock) -> None:
 
     for route in known_routes:
         assert route in bus_routes
+
+
+@mock.patch("lamp_py.utils.gtfs_utils.object_exists")
+def test_routes_for_service_date(exists_patch: mock.MagicMock) -> None:
+    """
+    Test that routes be generated for a given service date. For the
+    generated list ensure that all the route types available are represented
+    """
+    exists_patch.return_value = True
+
+    service_date = date(year=2023, month=2, day=1)
+    routes = routes_for_service_date(service_date)
+
+    # check that we're getting a non empty list
+    assert len(routes) > 0
+    assert routes["route_type"].unique().to_list() == [0, 1, 2, 3, 4]

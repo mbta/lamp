@@ -5,7 +5,7 @@ import polars as pl
 from pyarrow.fs import S3FileSystem
 import pyarrow.compute as pc
 
-from lamp_py.bus_performance_manager.gtfs_utils import bus_routes_for_service_date
+from lamp_py.utils.gtfs_utils import bus_route_ids_for_service_date
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -154,7 +154,7 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
         reader_engine="polars",
     )
     logger.log_start()
-    bus_routes = bus_routes_for_service_date(service_date)
+    bus_routes = bus_route_ids_for_service_date(service_date)
 
     try:
         vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)

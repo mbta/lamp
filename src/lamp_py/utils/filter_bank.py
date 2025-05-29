@@ -1,5 +1,51 @@
+import itertools
 import pyarrow.compute as pc
 import pyarrow as pa
+
+
+class LightRailFilter:
+    """
+    Data-only class for lists of filters relevant for light rail
+    """
+
+    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
+
+
+class HeavyRailFilter:
+    """
+    Data-only class for lists of filters relevant for heavy rail
+    """
+
+    _terminal_stop_ids_numeric = list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105]))
+    _terminal_stop_place_names = [
+        "place-forhl",
+        "place-ogmnl",
+        "place-bomnl",
+        "place-wondl",
+        "place-alfcl",
+        "place-asmnl",
+        "place-brntn",
+    ]
+
+    forest_hills_stop_ids = ["70001", "Forest Hills-01", "Forest Hills-02"]
+    oak_grove_stop_ids = ["70036", "Oak Grove-01", "Oak Grove-02"]
+    bowdoin_stop_ids = ["70038"]
+    wonderland_stop_ids = ["70059"]
+    alewife_stop_ids = ["70061", "Alewife-01", "Alewife-02"]
+    ashmont_stop_ids = ["70094"]
+    braintree_stop_ids = ["70105", "Braintree-01", "Braintree-02"]
+
+    terminal_stop_ids = list(
+        itertools.chain(
+            forest_hills_stop_ids,
+            oak_grove_stop_ids,
+            bowdoin_stop_ids,
+            wonderland_stop_ids,
+            alewife_stop_ids,
+            ashmont_stop_ids,
+            braintree_stop_ids,
+        )
+    )
 
 
 class FilterBankRtVehiclePositions:
@@ -57,16 +103,16 @@ class FilterBankRtTripUpdates:
 
         # don't filter with these IDs - do this in Polars.
         # this is significantly slower
-        light_rail_terminal_stop_ids = pa.array(
+        _light_rail_terminal_stop_ids = pa.array(
             list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512]))
         )
-        heavy_rail_terminal_stop_ids = pa.array(list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105])))
+        _heavy_rail_terminal_stop_ids = pa.array(list(map(str, [70001, 70036, 70038, 70059, 70061, 70094, 70105])))
 
-        light_rail_terminal_by_stop_id = pc.is_in(
-            pc.field("trip_update.stop_time_update.stop_id"), light_rail_terminal_stop_ids
+        _light_rail_terminal_by_stop_id = pc.is_in(
+            pc.field("trip_update.stop_time_update.stop_id"), _light_rail_terminal_stop_ids
         )
-        heavy_rail_terminal_by_stop_id = pc.is_in(
-            pc.field("trip_update.stop_time_update.stop_id"), heavy_rail_terminal_stop_ids
+        _heavy_rail_terminal_by_stop_id = pc.is_in(
+            pc.field("trip_update.stop_time_update.stop_id"), _heavy_rail_terminal_stop_ids
         )
 
         light_rail = green | mattapan
