@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from unittest.mock import patch
 import polars as pl
 
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions

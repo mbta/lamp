@@ -35,8 +35,6 @@ class HeavyRailFilter:
     ashmont_stop_ids = ["70094"]
     braintree_stop_ids = ["70105", "Braintree-01", "Braintree-02"]
 
-    # self.terminal_stop_ids: list = []
-
     terminal_stop_ids = list(
         itertools.chain(
             forest_hills_stop_ids,
