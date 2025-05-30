@@ -15,6 +15,7 @@ from lamp_py.runtime_utils.remote_files import S3Location
 
 from lamp_py.aws.s3 import file_list_from_s3_date_range
 
+
 # pylint: disable=R0913,R0902
 # pylint too many local variables (more than 15)
 class FilteredHyperJob(HyperJob):
