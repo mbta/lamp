@@ -1,5 +1,5 @@
 from typing import Optional, Callable
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -13,10 +13,7 @@ from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
 
-from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import file_list_from_s3_date_range
-from lamp_py.aws.s3 import object_exists
-
 
 # pylint: disable=R0913,R0902
 # pylint too many local variables (more than 15)

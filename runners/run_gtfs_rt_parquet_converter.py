@@ -28,7 +28,7 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_rt_trip_updates_heavyrail_30_day,
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
-    tableau_rt_vehicle_positions_all_light_rail_7_day
+    tableau_rt_vehicle_positions_all_light_rail_7_day,
 )
 
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         HyperDevGreenGtfsRtTripUpdates,
         HyperGtfsRtVehiclePositionsHeavyRail,
         HyperGtfsRtTripUpdatesHeavyRail,
-        HyperGtfsRtVehiclePositionsAllLightRail
+        HyperGtfsRtVehiclePositionsAllLightRail,
     ]
 
     for job in parquet_update_jobs:
