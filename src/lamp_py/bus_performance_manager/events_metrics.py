@@ -134,13 +134,14 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         )
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
+        #
         # drop temp fields and dev validation fields
-        .drop(
-            [
-                "gtfs_departure_dt",
-                "gtfs_arrival_dt",
-                "gtfs_sort_dt",
-            ]
-        )
+        # .drop(
+        #     [
+        #         "gtfs_departure_dt",
+        #         "gtfs_arrival_dt",
+        #         "gtfs_sort_dt",
+        #     ]
+        # )
     )
     return bus_df

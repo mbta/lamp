@@ -28,6 +28,7 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_rt_trip_updates_heavyrail_30_day,
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
+    tableau_rt_vehicle_positions_all_light_rail_7_day,
 )
 
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
@@ -137,6 +138,16 @@ if __name__ == "__main__":
         tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
     )
 
+    HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
+        remote_input_location=springboard_rt_vehicle_positions,
+        remote_output_location=tableau_rt_vehicle_positions_all_light_rail_7_day,
+        rollup_num_days=7,
+        processed_schema=convert_gtfs_rt_vehicle_position.schema(),
+        dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_timezone_conversions,
+        parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
+        tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
+    )
+
     parquet_update_jobs: List[HyperJob] = [
         HyperGtfsRtVehiclePositions,
         HyperGtfsRtTripUpdates,
@@ -144,6 +155,7 @@ if __name__ == "__main__":
         HyperDevGreenGtfsRtTripUpdates,
         HyperGtfsRtVehiclePositionsHeavyRail,
         HyperGtfsRtTripUpdatesHeavyRail,
+        HyperGtfsRtVehiclePositionsAllLightRail,
     ]
 
     for job in parquet_update_jobs:

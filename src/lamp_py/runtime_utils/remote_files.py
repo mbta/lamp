@@ -172,6 +172,11 @@ tableau_rt_trip_updates_heavyrail_30_day = S3Location(
     bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_TripUpdates_HR_30_day.parquet")
 )
 
+# all light rail output file - to be converted to .hyper
+tableau_rt_vehicle_positions_all_light_rail_7_day = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_ALL_LR_7_day.parquet")
+)
+
 # DEVGREEN
 tableau_devgreen_rt_vehicle_positions_lightrail_60_day = S3Location(
     bucket=S3_ARCHIVE,

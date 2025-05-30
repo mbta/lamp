@@ -1,5 +1,5 @@
 from typing import Optional, Callable
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -13,9 +13,7 @@ from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
 
-from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import file_list_from_s3_date_range
-from lamp_py.aws.s3 import object_exists
 
 
 # pylint: disable=R0913,R0902
@@ -55,18 +53,6 @@ class FilteredHyperJob(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
-
-        # only run once per day after 11AM UTC
-        if object_exists(self.remote_input_location.s3_uri):
-            now_utc = datetime.now(tz=timezone.utc)
-            last_mod: datetime = file_list_from_s3_with_details(
-                bucket_name=self.remote_input_location.bucket,
-                file_prefix=self.remote_input_location.prefix,
-            )[0]["last_modified"]
-
-            if now_utc.day == last_mod.day or now_utc.hour < 11:
-                return False
-
         return self.create_tableau_parquet(num_days=self.rollup_num_days)
 
     def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
