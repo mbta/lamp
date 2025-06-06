@@ -32,7 +32,7 @@ def _empty_stop_crossing() -> pl.DataFrame:
         "tm_actual_arrival_time_sam": pl.Int64,
         "tm_actual_departure_time_sam": pl.Int64,
     }
-    return pl.DataFrame(schema=schema)
+    return pl.DataFrame(schema=schema)  # type: ignore
 
 
 def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
