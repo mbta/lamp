@@ -66,6 +66,9 @@ bus_schema = pyarrow.schema(
         ("dwell_time_seconds", pyarrow.int64()),
         ("route_direction_headway_seconds", pyarrow.int64()),
         ("direction_destination_headway_seconds", pyarrow.int64()),
+        ("gtfs_sort_dt", pyarrow.timestamp("us")),
+        ("gtfs_departure_dt", pyarrow.timestamp("us")),
+        ("gtfs_arrival_dt", pyarrow.timestamp("us")),
     ]
 )
 
