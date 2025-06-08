@@ -139,7 +139,7 @@ class HyperBusPerformanceAll(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        create_bus_parquet(self, days_in_year)
+        create_bus_parquet(self, DAYS_YEAR)
         return True
 
 
@@ -162,5 +162,5 @@ class HyperBusPerformanceRecent(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
-        create_bus_parquet(self, 7)
+        create_bus_parquet(self, DAYS_WEEK)
         return True
