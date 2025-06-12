@@ -1,3 +1,4 @@
+from lamp_py.aws.s3 import file_list_from_s3
 from typing import Optional, Callable
 from datetime import datetime, timedelta
 import pyarrow
@@ -33,7 +34,9 @@ class FilteredHyperJob(HyperJob):
     ) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name=remote_output_location.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
+            hyper_file_name=remote_output_location.prefix.rsplit("/")[-1].replace(
+                ".parquet", ".hyper"
+            ),
             remote_parquet_path=remote_output_location.s3_uri,
             lamp_version=remote_output_location.version,
             project_name=tableau_project_name,
@@ -60,16 +63,20 @@ class FilteredHyperJob(HyperJob):
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
         """
 
-        end_date = datetime.now() - timedelta(days=1)
-        start_date = end_date - timedelta(days=num_days)  # type: ignore
-        bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
-        # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
-        s3_uris = file_list_from_s3_date_range(
+        # end_date = datetime.now() - timedelta(days=1)
+        # start_date = end_date - timedelta(days=num_days)  # type: ignore
+        # bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
+        # self.remote_input_location.bucket = "mbta-ctd-dataplatform-staging-springboard"
+        # s3_uris = file_list_from_s3_date_range(
+        #     bucket_name=self.remote_input_location.bucket,
+        #     file_prefix=self.remote_input_location.prefix,
+        #     path_template=bucket_filter_template,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # )
+        s3_uris = file_list_from_s3(
             bucket_name=self.remote_input_location.bucket,
             file_prefix=self.remote_input_location.prefix,
-            path_template=bucket_filter_template,
-            end_date=end_date,
-            start_date=start_date,
         )
 
         ds_paths = [s.replace("s3://", "") for s in s3_uris]
@@ -86,7 +93,9 @@ class FilteredHyperJob(HyperJob):
             return False
         process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         max_alloc = 0
-        with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
+        with pq.ParquetWriter(
+            self.local_parquet_path, schema=self.processed_schema
+        ) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
                 columns=self.processed_schema.names,
@@ -103,13 +112,16 @@ class FilteredHyperJob(HyperJob):
 
                     polars_df = pl.from_arrow(batch)
                     if not isinstance(polars_df, pl.DataFrame):
-                        raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+                        raise TypeError(
+                            f"Expected a Polars DataFrame or Series, but got {type(polars_df)}"
+                        )
                     polars_df = self.dataframe_filter(polars_df)
                     # filtered on columns of interest and dataframe_filter
                     writer.write_table(polars_df.to_arrow())
                 else:
                     # just write the batch out - filtered on columns of interest
-                    writer.write_table(batch)
+                    # writer.write_table(batch)
+                    writer.write_batch(batch)
 
                 alloc = pyarrow.total_allocated_bytes()
                 if alloc > max_alloc:

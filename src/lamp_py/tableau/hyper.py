@@ -46,15 +46,17 @@ class HyperJob(ABC):  # pylint: disable=R0902
     ) -> None:
         environment = os.getenv("ECS_TASK_GROUP", "-").split("-")[-1]
         if environment != "prod":
-            hyper_file_name = f"{hyper_file_name.replace('.hyper','')}_{environment}.hyper"
+            hyper_file_name = (
+                f"{hyper_file_name.replace('.hyper', '')}_{environment}.hyper"
+            )
         self.hyper_file_name = hyper_file_name
 
         self.hyper_table_name = hyper_file_name.replace(".hyper", "")
         self.remote_parquet_path = remote_parquet_path
         self.lamp_version = lamp_version
         self.project_name = project_name
-        self.local_parquet_path = "/tmp/local.parquet"
-        self.local_hyper_path = f"/tmp/{hyper_file_name}"
+        self.local_parquet_path = "tmp/local.parquet"
+        self.local_hyper_path = f"tmp/{hyper_file_name}"
         self.remote_fs = fs.LocalFileSystem()
         if remote_parquet_path.startswith("s3://"):
             self.remote_fs = fs.S3FileSystem()
@@ -130,10 +132,14 @@ class HyperJob(ABC):  # pylint: disable=R0902
         row_groups = pq.read_metadata(self.local_parquet_path).to_dict()["row_groups"]
 
         # explode columns element from all row  groups into flat list
-        parquet_column_stats = list(chain.from_iterable([row_group["columns"] for row_group in row_groups]))
+        parquet_column_stats = list(
+            chain.from_iterable([row_group["columns"] for row_group in row_groups])
+        )
 
         return {
-            col["path_in_schema"]: col["statistics"].get("max") for col in parquet_column_stats if col["statistics"]
+            col["path_in_schema"]: col["statistics"].get("max")
+            for col in parquet_column_stats
+            if col["statistics"]
         }
 
     def remote_version_match(self) -> bool:
@@ -157,7 +163,8 @@ class HyperJob(ABC):  # pylint: disable=R0902
         hyper_table_schema = TableDefinition(
             table_name=self.hyper_table_name,
             columns=[
-                TableDefinition.Column(col.name, self.convert_parquet_dtype(col.type)) for col in self.parquet_schema
+                TableDefinition.Column(col.name, self.convert_parquet_dtype(col.type))
+                for col in self.parquet_schema
             ],
         )
 
@@ -185,6 +192,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 )
 
                 count_inserted = connect.execute_command(copy_command)
+                print({"copy_command": copy_command, "count_inserted": count_inserted})
 
         os.remove(self.local_parquet_path)
 
@@ -207,14 +215,18 @@ class HyperJob(ABC):  # pylint: disable=R0902
             try:
                 process_log.add_metadata(retry_count=retry_count)
                 # get datasource from Tableau to check "updated_at" datetime
-                datasource = datasource_from_name(self.hyper_table_name, self.project_name)
+                datasource = datasource_from_name(
+                    self.hyper_table_name, self.project_name
+                )
 
                 # get file_info on remote parquet file to check "mtime" datetime
                 pq_file_info = self.remote_fs.get_file_info(self.remote_parquet_path)
 
                 # Parquet file does not exist, can not run upload
                 if pq_file_info.type == fs.FileType.NotFound:
-                    raise FileNotFoundError(f"{self.remote_parquet_path} does not exist")
+                    raise FileNotFoundError(
+                        f"{self.remote_parquet_path} does not exist"
+                    )
 
                 process_log.add_metadata(
                     parquet_last_mod=pq_file_info.mtime.isoformat(),
@@ -226,7 +238,10 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     )
 
                 # if datasource exists and parquet file was not modified, skip HyperFile update
-                if datasource is not None and pq_file_info.mtime < datasource.updated_at:
+                if (
+                    datasource is not None
+                    and pq_file_info.mtime < datasource.updated_at
+                ):
                     process_log.add_metadata(update_hyper_file=False)
                     process_log.log_complete()
                     break
@@ -295,7 +310,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
             parquet_file_size_mb = 0.0
             if os.path.exists(self.local_parquet_path):
-                parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (1024 * 1024)
+                parquet_file_size_mb = os.path.getsize(self.local_parquet_path) / (
+                    1024 * 1024
+                )
 
             process_log.add_metadata(
                 remote_schema_match=remote_schema_match,
