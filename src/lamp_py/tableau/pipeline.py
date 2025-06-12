@@ -130,6 +130,7 @@ def start_hyper_updates() -> None:
             "ECS_CLUSTER",
             "ECS_TASK_GROUP",
         ],
+        optional_variables=["TABLEAU_TOKEN_NAME"],
         private_variables=[
             "TABLEAU_PASSWORD",
         ],
