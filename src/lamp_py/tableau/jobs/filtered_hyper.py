@@ -109,7 +109,7 @@ class FilteredHyperJob(HyperJob):
                     writer.write_table(polars_df.to_arrow())
                 else:
                     # just write the batch out - filtered on columns of interest
-                    writer.write_table(batch)
+                    writer.write_batch(batch)
 
                 alloc = pyarrow.total_allocated_bytes()
                 if alloc > max_alloc:
