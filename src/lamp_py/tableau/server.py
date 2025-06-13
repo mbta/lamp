@@ -6,6 +6,8 @@ from typing import (
 
 import tableauserverclient as TSC
 
+from lamp_py.aws.ecs import running_in_aws
+
 
 def tableau_server(
     url: Optional[str] = os.getenv("TABLEAU_SERVER"),
@@ -17,6 +19,12 @@ def tableau_server(
 
     :return TSC.Server object
     """
+
+    # allow ssl verify false when running locally b/c of zscalr
+    if not running_in_aws():
+        return TSC.Server(server_address=url, http_options={"verify": False})
+
+    # default to returning ssl verified
     return TSC.Server(server_address=url)
 
 
