@@ -25,4 +25,5 @@ dist
 .devcontainer/*
 .vscode/*
 
-.envrc.lamp_private
+# private enviroment overrides
+.env.lamp_private
