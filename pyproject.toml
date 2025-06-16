@@ -20,7 +20,7 @@ ad_hoc = 'lamp_py.ad_hoc.pipeline:start'
 
 [tool.poetry.dependencies]
 python = "^3.10"
-SQLAlchemy = "^2.0.30"
+SQLAlchemy = "^2.0.41"
 pyarrow = "^19.0.1"
 boto3 = "^1.35.2"
 pandas = "^2.2.1"
