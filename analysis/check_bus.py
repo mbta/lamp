@@ -5,7 +5,7 @@ from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events
 from lamp_py.bus_performance_manager.write_events import write_bus_metrics
-from lamp_py.runtime_utils.remote_files import bus_events
+from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD, bus_events
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -40,15 +40,22 @@ from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_a
 
 # AssertionError
 # a = event_files_to_load()
-# write_bus_metrics()
+
+# ##################
+# # this is a good runner - 6/17/25
+# end_date = datetime(year=2025, month=6, day=17)
+# start_date = end_date - timedelta(days=7)
+# write_bus_metrics(start_date, end_date, write_local_only=True)
+# ##################
+
 
 # :param service_date: date of service being processed
 # :param gtfs_files: list of RT_VEHCILE_POSITION parquet file paths, from S3, that cover service date
 # :param tm_files: list of TM/STOP_CROSSING parquet file paths, from S3, that cover service date
-date = datetime(year=2025, month=5, day=5)
+date = datetime(year=2025, month=6, day=12)
 
 date_end = date + timedelta(days=1)
-bucket_name = "mbta-ctd-dataplatform-staging-springboard"
+bucket_name = "mbta-ctd-dataplatform-springboard"
 file_prefix = "lamp/RT_VEHICLE_POSITIONS/"
 
 file_prefix2 = "lamp/TM/STOP_CROSSING"
