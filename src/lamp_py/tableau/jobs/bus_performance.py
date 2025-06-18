@@ -128,6 +128,7 @@ bus_schema_recent = pyarrow.schema(
     ]
 )
 
+
 def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     """
     Join bus_events files into single parquet file for upload to Tableau
