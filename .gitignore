@@ -11,7 +11,7 @@ erl_crash.dump
 /performance_manager/test.db
 /notebook
 /investigation
-
+*.parquet
 
 __pycache__
 venv
