@@ -126,9 +126,13 @@ def transit_master_files_as_frame() -> pl.DataFrame:
     )
 
 
-def event_files_to_load() -> Dict[date, Dict[str, List[str]]]:
+def event_files_to_load(start_date: Optional[date], end_date: Optional[date]) -> Dict[date, Dict[str, List[str]]]:
     """
-    Generate a dictionary containing a record for every service date to be processed.
+    Generate a dictionary containing a record for a range of service_dates
+    to be re-processed.
+
+    If no dates are provided, processes the latest service date that was last modified
+
     * Collect all of the potential input filepaths, their last modified
         timestamp, and potential service dates.
     * Get the last modified timestamp for the output filepaths.
@@ -149,26 +153,26 @@ def event_files_to_load() -> Dict[date, Dict[str, List[str]]]:
 
     # a merged dataframe of all files to operate on
     all_files = pl.concat([vp_df, tm_df])
+    if start_date is not None:
+        all_files = all_files.filter((pl.col("service_date") >= start_date))
+    if end_date is not None:
+        all_files = all_files.filter((pl.col("service_date") <= end_date))
+    if start_date is None and end_date is None:
+        # get the last modified object in the output file s3 location
+        latest_event_file = get_last_modified_object(
+            bucket_name=bus_events.bucket,
+            file_prefix=bus_events.prefix,
+            version=bus_events.version,
+        )
 
-    # get the last modified object in the output file s3 location
-    latest_event_file = get_last_modified_object(
-        bucket_name=bus_events.bucket,
-        file_prefix=bus_events.prefix,
-        version=bus_events.version,
-    )
-
-    # if there is a event file, pull the service date from it and filter
-    # all_files to only contain objects with service dates on or after this
-    # date.
-    if latest_event_file:
-        latest_service_date = service_date_from_filename(latest_event_file["s3_obj_path"])
-        all_files = all_files.filter(pl.col("service_date") >= latest_service_date)
+        # if there is a event file, pull the service date from it and filter
+        # all_files to only contain objects with service dates on or after this
+        # date.
+        if latest_event_file:
+            latest_service_date = service_date_from_filename(latest_event_file["s3_obj_path"])
+            all_files = all_files.filter(pl.col("service_date") >= latest_service_date)
 
     all_files = all_files.group_by(["service_date", "source"]).agg([pl.col("s3_obj_path")])
-    # all_files as dataframe:
-    #   service_date -> Date
-    #   source -> String{"gtfs_rt" or "transit_master"}
-    #   s3_obj_path -> List[String]
 
     return_dict: Dict[date, Dict[str, List[str]]] = {
         date: {"gtfs_rt": [], "transit_master": []} for date in all_files.get_column("service_date").unique()

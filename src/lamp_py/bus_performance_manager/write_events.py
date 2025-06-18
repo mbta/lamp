@@ -1,5 +1,7 @@
+from datetime import date
 import os
 import tempfile
+from typing import Optional
 
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
@@ -10,14 +12,14 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
 
-def write_bus_metrics() -> None:
+def write_bus_metrics(start_date: Optional[date], end_date: Optional[date], write_local_only: bool = False) -> None:
     """
     Write bus-performance parquet files to S3 for service dates neeing to be processed
     """
     logger = ProcessLogger("write_bus_metrics")
     logger.log_start()
 
-    event_files = event_files_to_load()
+    event_files = event_files_to_load(start_date, end_date)
     logger.add_metadata(service_date_count=len(event_files))
 
     for service_date in event_files.keys():
@@ -41,15 +43,19 @@ def write_bus_metrics() -> None:
             events_df = bus_performance_metrics(service_date, gtfs_files, tm_files)
             day_logger.add_metadata(bus_performance_rows=events_df.shape[0])
 
-            with tempfile.TemporaryDirectory() as tempdir:
-                write_file = f"{service_date.strftime('%Y%m%d')}.parquet"
-                events_df.write_parquet(os.path.join(tempdir, write_file), use_pyarrow=True)
+            write_file = f"{service_date.strftime('%Y%m%d')}.parquet"
 
-                upload_file(
-                    file_name=os.path.join(tempdir, write_file),
-                    object_path=os.path.join(bus_events.s3_uri, write_file),
-                    extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
-                )
+            if write_local_only:
+                events_df.write_parquet(os.path.join("/tmp/", write_file), use_pyarrow=True)
+            else:
+                with tempfile.TemporaryDirectory() as tempdir:
+                    events_df.write_parquet(os.path.join(tempdir, write_file), use_pyarrow=True)
+
+                    upload_file(
+                        file_name=os.path.join(tempdir, write_file),
+                        object_path=os.path.join(bus_events.s3_uri, write_file),
+                        extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
+                    )
 
         except LampExpectedNotFoundError as exception:
             # service_date not found = ExpectedNotFound
