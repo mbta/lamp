@@ -15,6 +15,7 @@ import polars as pl
 
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 from lamp_py.tableau.jobs.bus_performance import bus_schema_recent
+
 # stage 1 - regenerate range
 ##################
 # this is a good runner - 6/17/25
@@ -37,7 +38,7 @@ ds = pd.dataset(
     filesystem=None,
 )
 
-with pq.ParquetWriter('/tmp/bus_recent.parquet', schema=bus_schema_recent) as writer:
+with pq.ParquetWriter("/tmp/bus_recent.parquet", schema=bus_schema_recent) as writer:
     for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
         # this select() is here to make sure the order of the polars_df
         # schema is the same as the bus_schema above.
