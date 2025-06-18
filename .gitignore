@@ -24,3 +24,5 @@ dist
 *.sh
 .devcontainer/*
 .vscode/*
+
+*.parquet
