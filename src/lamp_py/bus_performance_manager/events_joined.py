@@ -253,7 +253,10 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # asof strategy finds nearest value match between "asof" columns if exact match is not found
     # will perform regular left join on "by" columns
 
-    return gtfs.sort(by="stop_sequence").join_asof(
+    # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
+    # usually off by 1 or so. By matching the nearest stop sequence
+    # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
+    first_part = gtfs.sort(by="stop_sequence").join_asof(
         tm.sort("tm_stop_sequence"),
         left_on="stop_sequence",
         right_on="tm_stop_sequence",
@@ -261,3 +264,37 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
         strategy="nearest",
         coalesce=True,
     )
+
+    second_parts = []
+
+    single_service_date = first_part.get_column("service_date").head(1)
+
+    # this should be able to be simplified - # which stop_ids are not in GTFS in tm?
+    for name, trip in first_part.group_by(["trip_id", "route_id", "vehicle_label"]):
+        tm_tmp = tm.filter(
+            pl.col("trip_id") == trip["trip_id"][0],
+            pl.col("route_id") == trip["route_id"][0],
+            pl.col("vehicle_label") == trip["vehicle_label"][0],
+        )
+        tm_tmp = tm_tmp.with_columns(pl.lit(False).alias("tm_joined"))
+
+        if trip["tm_stop_sequence"].is_not_null().sum() != tm_tmp.height:
+            tm_exclusive = tm_tmp.filter(
+                ~pl.col("tm_stop_sequence").is_in(trip["tm_stop_sequence"].drop_nulls().unique())
+            )
+
+            trip = pl.concat([trip, tm_exclusive], how="align")
+            trip = trip.with_columns(
+                (pl.col("service_date").fill_null(single_service_date)),
+                (pl.col("start_time").fill_null(strategy="forward")),
+                (pl.col("stop_count").fill_null(strategy="forward")),
+                (pl.col("direction_id").fill_null(strategy="forward")),
+                (pl.col("vehicle_id").fill_null(strategy="forward")),
+            )
+            if len(trip.get_column("service_date").unique()) > 1:
+                print("why null")
+            second_parts.append(trip)
+        print(len(second_parts))
+
+    output_df = pl.concat(second_parts)
+    return output_df
