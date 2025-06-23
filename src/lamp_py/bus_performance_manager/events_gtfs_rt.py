@@ -224,14 +224,14 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             on="trip_id",
             how="left",
         )
-        .with_columns(
-            pl.coalesce(["latitude_STOPPED_AT", "latitude_IN_TRANSIT_TO"]).alias("latitude"),
-            pl.coalesce(["longitude_STOPPED_AT", "longitude_IN_TRANSIT_TO"]).alias("longitude"),
-        )
         .rename(
             {
                 "vehicle_timestamp_STOPPED_AT": "gtfs_arrival_dt",
                 "vehicle_timestamp_IN_TRANSIT_TO": "gtfs_travel_to_dt",
+                # only grab the IN_TRANSIT_TO rows because they seem to better
+                # align to actual trips than STOPPED_AT does
+                "latitude_IN_TRANSIT_TO": "latitude",
+                "longitude_IN_TRANSIT_TO": "longitude",
             }
         )
         .with_columns(
