@@ -18,6 +18,8 @@ from lamp_py.runtime_utils.remote_files import (
     tm_block_file,
     tm_work_piece_file,
     tm_daily_sched_adherence_waiver_file,
+    tm_time_point,
+    tm_pattern_geo_node_xref,
 )
 from lamp_py.aws.s3 import upload_file
 
@@ -368,5 +370,64 @@ class TMDailyLogDailySchedAdhereWaiver(TMWholeTable):
                 ("WAIVER_TIMEOUT", pyarrow.int64()),
                 ("SCHEDULED_WAIVER_ID", pyarrow.int64()),
                 ("SERVICE_NOTICE_CAUSE_ID", pyarrow.int64()),
+            ]
+        )
+
+
+class TMDataMartTimePoint(TMWholeTable):
+    """Export TMDataMart_TIME_POINT table from TMDataMart"""
+
+    def __init__(self) -> None:
+        TMWholeTable.__init__(
+            self,
+            s3_location=tm_time_point,
+            tm_table="TMDataMart.dbo.TIME_POINT",
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("TIME_POINT_ID", pyarrow.int64()),
+                ("TIME_POINT_ABBR", pyarrow.string()),
+                ("TIME_PT_NAME", pyarrow.string()),
+                ("SOURCE_NODE_ID", pyarrow.int64()),
+            ]
+        )
+
+
+class TMMainPatternGeoNodeXref(TMWholeTable):
+    """Export TMMain_PatternGeoNodeXref table from TMMain"""
+
+    def __init__(self) -> None:
+        TMWholeTable.__init__(
+            self,
+            s3_location=tm_pattern_geo_node_xref,
+            tm_table="TMMain.dbo.PATTERN_GEO_NODE_XREF",
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("PATTERN_ID", pyarrow.int64()),
+                ("GEO_NODE_ID", pyarrow.int64()),
+                ("PATTERN_GEO_NODE_SEQ", pyarrow.int64()),
+                ("FARE_ZONE_ID", pyarrow.int64()),
+                ("INTERNAL_ANNOUNCEMENT_ID", pyarrow.int64()),
+                ("ANNOUNCEMENT_ZONE_ID", pyarrow.int64()),
+                ("TIME_TABLE_VERSION_ID", pyarrow.int64()),
+                ("ARRIVAL_ZONE_ID", pyarrow.int64()),
+                ("DEPARTURE_ZONE_ID", pyarrow.int64()),
+                ("MDT_ANNUN", pyarrow.int64()),
+                ("MDT_ARZONE", pyarrow.int64()),
+                ("MDT_DEZONE", pyarrow.int64()),
+                ("MDT_ANZONE", pyarrow.int64()),
+                ("MDT_INCLUDE", pyarrow.int64()),
+                ("EARLY_ARRIVAL_ALLOWED", pyarrow.string()),
+                ("TIME_POINT_ID", pyarrow.int64()),
+                ("ADHERENCE_POINT", pyarrow.bool_()),
+                ("REQUIRED_ANNOUNCEMENT", pyarrow.int8()),
+                ("STOP_NUM", pyarrow.int64()),
             ]
         )
