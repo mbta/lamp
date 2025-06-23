@@ -38,7 +38,7 @@ def get_ingestion_jobs() -> List[TMExport]:
         TMDailyLogStopCrossing(),
         TMDailyLogDailyWorkPiece(),
         TMDailyLogDailySchedAdhereWaiver(),
-        # TMDataMartTimePoint(),
+        TMDataMartTimePoint(),
     ]
 
 
