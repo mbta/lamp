@@ -11,7 +11,9 @@ from lamp_py.ingestion_tm.jobs.whole_table import (
     TMMainOperator,
     TMMainRun,
     TMMainWorkPiece,
+    TMMainPatternGeoNodeXref,
     TMDailyLogDailySchedAdhereWaiver,
+    TMDataMartTimePoint,
 )
 from lamp_py.ingestion_tm.jobs.parition_table import (
     TMDailyLogStopCrossing,
@@ -32,9 +34,11 @@ def get_ingestion_jobs() -> List[TMExport]:
         TMMainOperator(),
         TMMainRun(),
         TMMainWorkPiece(),
+        TMMainPatternGeoNodeXref(),
         TMDailyLogStopCrossing(),
         TMDailyLogDailyWorkPiece(),
         TMDailyLogDailySchedAdhereWaiver(),
+        # TMDataMartTimePoint(),
     ]
 
 
