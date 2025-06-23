@@ -44,7 +44,7 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
             pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
             pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("trip_revenue"),
-            pl.col("vehicle.revenue").cast(pl.Boolean).alias("revenue"),
+            # pl.col("vehicle.revenue").cast(pl.Boolean).alias("revenue"), # only in BusLoc/Swiftly VP files
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -121,7 +121,7 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
             pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
             pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
             pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("trip_revenue"),
-            pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("revenue"),
+            # pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("revenue"), # only in BusLoc/Swiftly VP files
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -169,11 +169,12 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
     logger.log_start()
     bus_routes = bus_route_ids_for_service_date(service_date)
 
-    try:
-        vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
-    except Exception as _:
-        logger.add_metadata(reader_engine="pyarrow")
-        vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
+    # try:
+    #     vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
+    # except Exception as _:
+    # why is this so slow now? local machine?
+    logger.add_metadata(reader_engine="pyarrow")
+    vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
 
     logger.log_complete()
     return vehicle_positions
