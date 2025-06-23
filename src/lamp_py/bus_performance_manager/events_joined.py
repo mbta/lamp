@@ -158,10 +158,28 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
     schedule = bus_gtfs_events_for_date(service_date)
 
+    # point type requires the schedule to be known, so likely handling it here after
+    # join_schedule_to_rt
+    # bus_df = bus_df.with_columns(
+    #     pl.coalesce(
+    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_stop_sequence").min()).then(0),
+    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_stop_sequence").max()).then(2),
+    #         pl.lit(1),
+    #     )
+    #     .over("trip_id", "route_id", "vehicle_label")
+    #     .alias("tm_point_type")
+    # )
+
+    # if for any group over, does not have a 0 and a 2 for point_type,
+    # valid trip is false
+    # rename valid trip to something better.
+
+    matched_plan_trips = match_plan_trips(gtfs, schedule)
+
     # get a plan_trip_id from the schedule for every rt trip_id
-    gtfs = gtfs.join(
-        match_plan_trips(gtfs, schedule), on="trip_id", how="left", coalesce=True, validate="m:1"
-    ).with_columns(pl.col("trip_id").eq(pl.col("plan_trip_id")).alias("exact_plan_trip_match"))
+    gtfs = gtfs.join(matched_plan_trips, on="trip_id", how="left", coalesce=True, validate="m:1").with_columns(
+        pl.col("trip_id").eq(pl.col("plan_trip_id")).alias("exact_plan_trip_match")
+    )
 
     # join plan scheudle trip data to rt gtfs
     gtfs = gtfs.join(
