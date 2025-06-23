@@ -28,6 +28,7 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             & pl.col("vehicle.vehicle.id").is_not_null()
             & pl.col("vehicle.timestamp").is_not_null()
             & pl.col("vehicle.trip.start_time").is_not_null()
+            # & (pl.col("vehicle.trip.revenue") == True)
         )
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
@@ -42,6 +43,8 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
             pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
             pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
+            pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("trip_revenue"),
+            pl.col("vehicle.revenue").cast(pl.Boolean).alias("revenue"),
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -82,6 +85,7 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
         "vehicle.timestamp",
         "vehicle.position.latitude",
         "vehicle.position.longitude",
+        "vehicle.trip.revenue",
     ]
     # pyarrow_exp filter expression is used to limit memory usage during read operation
     pyarrow_exp = pc.field("vehicle.trip.route_id").isin(bus_routes)
@@ -101,6 +105,7 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
             & pl.col("vehicle.vehicle.id").is_not_null()
             & pl.col("vehicle.timestamp").is_not_null()
             & pl.col("vehicle.trip.start_time").is_not_null()
+            # & (pl.col("vehicle.trip.revenue") == True)
         )
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
@@ -115,6 +120,8 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
             pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
             pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
+            pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("trip_revenue"),
+            pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("revenue"),
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -259,6 +266,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
                 "gtfs_arrival_dt",
                 "latitude",
                 "longitude",
+                # "revenue"
             ]
         )
     )
