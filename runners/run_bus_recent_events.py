@@ -20,8 +20,8 @@ from lamp_py.tableau.jobs.bus_performance import bus_schema_recent
 ##################
 # this is a good runner - 6/17/25
 end_date = datetime(year=2025, month=6, day=17)
-start_date = end_date - timedelta(days=7)
-# write_bus_metrics(start_date, end_date, write_local_only=True)
+start_date = end_date - timedelta(days=3)
+write_bus_metrics(start_date, end_date, write_local_only=True)
 ##################
 ss = pl.date_range(start_date, end_date, "1d", eager=True)
 
