@@ -186,6 +186,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         "departure_time",
         "stop_id",
         "stop_sequence",
+        "checkpoint_id",
     )
 
     stop_count = stop_times.group_by("trip_id").len("plan_stop_count")
