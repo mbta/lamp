@@ -432,6 +432,8 @@ class TMMainPatternGeoNodeXref(TMWholeTable):
                 ("STOP_NUM", pyarrow.int64()),
             ]
         )
+
+
 class TMDailyLogLoggedMessage(TMWholeTable):
     """Export LOGGED_MESSAGE table from TMDailyLog"""
 
@@ -453,6 +455,6 @@ class TMDailyLogLoggedMessage(TMWholeTable):
                 ("MESSAGE_TYPE_ID", pyarrow.int64()),
                 ("LATITUDE", pyarrow.int64()),
                 ("LONGITUDE", pyarrow.int64()),
-                ("SOURCE_HOST", pyarrow.int64())
+                ("SOURCE_HOST", pyarrow.int64()),
             ]
         )
