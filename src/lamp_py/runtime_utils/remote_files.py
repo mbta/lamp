@@ -90,7 +90,7 @@ tm_daily_sched_adherence_waiver_file = S3Location(
 # need to do this daily - why doesn't sched adhere waiver need
 tm_daily_logged_message = S3Location(
     bucket=S3_SPRINGBOARD,
-    prefix=os.path.join(TM, "DAILY_LOGGED_MESSAGE"),
+    prefix=os.path.join(TM, "DAILY_LOGGED_MESSAGE.parquet"),
 )
 tm_geo_node_file = S3Location(
     bucket=S3_SPRINGBOARD,
