@@ -60,7 +60,12 @@ class FilteredHyperJob(HyperJob):
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
         """
 
-        end_date = datetime.now() - timedelta(days=1)
+        # limitation of filtered hyper only does whole days.
+        # update to allow start/end set by hour, to get the entire
+        # previous days uploads working
+        # need to implement new input daily_upload_hour as well
+        # this will currently update hourly. will monitor
+        end_date = datetime.now()
         start_date = end_date - timedelta(days=num_days)  # type: ignore
         bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
         # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
