@@ -14,11 +14,11 @@ from lamp_py.ingestion_tm.jobs.whole_table import (
     TMMainPatternGeoNodeXref,
     TMMainTimePoint,
     TMDailyLogDailySchedAdhereWaiver,
-    TMDailyLogLoggedMessage,
 )
 from lamp_py.ingestion_tm.jobs.parition_table import (
     TMDailyLogStopCrossing,
     TMDailyLogDailyWorkPiece,
+    TMDailyLogLoggedMessage,
 )
 
 
