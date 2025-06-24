@@ -20,6 +20,7 @@ from lamp_py.runtime_utils.remote_files import (
     tm_daily_sched_adherence_waiver_file,
     tm_time_point,
     tm_pattern_geo_node_xref,
+    tm_daily_logged_message,
 )
 from lamp_py.aws.s3 import upload_file
 
@@ -374,14 +375,14 @@ class TMDailyLogDailySchedAdhereWaiver(TMWholeTable):
         )
 
 
-class TMDataMartTimePoint(TMWholeTable):
+class TMMainTimePoint(TMWholeTable):
     """Export TMDataMart_TIME_POINT table from TMDataMart"""
 
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
             s3_location=tm_time_point,
-            tm_table="TMDataMart.dbo.TIME_POINT",
+            tm_table="TMMain.dbo.TIME_POINT",
         )
 
     @property
@@ -429,5 +430,29 @@ class TMMainPatternGeoNodeXref(TMWholeTable):
                 ("ADHERENCE_POINT", pyarrow.bool_()),
                 ("REQUIRED_ANNOUNCEMENT", pyarrow.int8()),
                 ("STOP_NUM", pyarrow.int64()),
+            ]
+        )
+class TMDailyLogLoggedMessage(TMWholeTable):
+    """Export LOGGED_MESSAGE table from TMDailyLog"""
+
+    def __init__(self) -> None:
+        TMWholeTable.__init__(
+            self,
+            s3_location=tm_daily_logged_message,
+            tm_table="TMDailyLog.dbo.LOGGED_MESSAGE",
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+
+        # only grab the cols we need
+        return pyarrow.schema(
+            [
+                ("TRANSMITTED_MESSAGE_ID", pyarrow.int64()),
+                ("CALENDAR_ID", pyarrow.int64()),
+                ("MESSAGE_TYPE_ID", pyarrow.int64()),
+                ("LATITUDE", pyarrow.int64()),
+                ("LONGITUDE", pyarrow.int64()),
+                ("SOURCE_HOST", pyarrow.int64())
             ]
         )
