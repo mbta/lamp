@@ -376,7 +376,7 @@ class TMDailyLogDailySchedAdhereWaiver(TMWholeTable):
 
 
 class TMMainTimePoint(TMWholeTable):
-    """Export TMDataMart_TIME_POINT table from TMDataMart"""
+    """Export TMMain_TIME_POINT table from TMMain"""
 
     def __init__(self) -> None:
         TMWholeTable.__init__(
