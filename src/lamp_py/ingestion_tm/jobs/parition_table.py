@@ -16,6 +16,7 @@ from lamp_py.runtime_utils.remote_files import (
     S3Location,
     tm_stop_crossing,
     tm_daily_work_piece,
+    tm_daily_logged_message,
 )
 
 from lamp_py.aws.s3 import (
@@ -238,5 +239,32 @@ class TMDailyLogDailyWorkPiece(TMDailyTable):
                 ("ASSIGNED_VEHICLE_ID", pyarrow.int64()),
                 ("CURRENT_VEHICLE_ID", pyarrow.int64()),
                 ("INSERTED_FLAG", pyarrow.bool_()),
+            ]
+        )
+
+
+class TMDailyLogLoggedMessage(TMDailyTable):
+    """Export LOGGED_MESSAGE table from TMDailyLog"""
+
+    def __init__(self) -> None:
+        TMDailyTable.__init__(
+            self,
+            s3_location=tm_daily_logged_message,
+            tm_table="TMDailyLog.dbo.LOGGED_MESSAGE",
+            lamp_version="0.0.1",
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+
+        # only grab the cols we need
+        return pyarrow.schema(
+            [
+                ("TRANSMITTED_MESSAGE_ID", pyarrow.int64()),
+                ("CALENDAR_ID", pyarrow.int64()),
+                ("MESSAGE_TYPE_ID", pyarrow.int64()),
+                ("LATITUDE", pyarrow.int64()),
+                ("LONGITUDE", pyarrow.int64()),
+                ("SOURCE_HOST", pyarrow.int64()),
             ]
         )
