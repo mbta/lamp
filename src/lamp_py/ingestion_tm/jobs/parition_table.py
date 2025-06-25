@@ -251,7 +251,7 @@ class TMDailyLogLoggedMessage(TMDailyTable):
             self,
             s3_location=tm_daily_logged_message,
             tm_table="TMDailyLog.dbo.LOGGED_MESSAGE",
-            lamp_version="0.0.1",
+            lamp_version="0.0.2",
         )
 
     @property
@@ -262,9 +262,52 @@ class TMDailyLogLoggedMessage(TMDailyTable):
             [
                 ("TRANSMITTED_MESSAGE_ID", pyarrow.int64()),
                 ("CALENDAR_ID", pyarrow.int64()),
-                ("MESSAGE_TYPE_ID", pyarrow.int64()),
                 ("LATITUDE", pyarrow.int64()),
                 ("LONGITUDE", pyarrow.int64()),
                 ("SOURCE_HOST", pyarrow.int64()),
             ]
         )
+
+    def run_export(self, tm_db: MSSQLManager) -> None:
+        table_columns = ",".join([col.name for col in self.export_schema])
+
+        for date in self.dates_to_export(tm_db):
+            try:
+                logger = ProcessLogger("tm_daily_log_export", tm_table=self.tm_table, date=date)
+                logger.log_start()
+
+                query = sa.text(
+                    f"""
+                    SELECT
+                        {table_columns}
+                    FROM
+                        {self.tm_table}
+                    WHERE
+                        CALENDAR_ID = {date} AND MESSAGE_TYPE_ID = 16
+                    ;
+                    """
+                )
+
+                s3_export_path = os.path.join(
+                    self.s3_location.s3_uri,
+                    f"{date}.parquet",
+                )
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    local_pq = os.path.join(temp_dir, "out.parquet")
+                    tm_db.write_to_parquet(
+                        select_query=query,
+                        write_path=local_pq,
+                        schema=self.export_schema,
+                    )
+                    logger.add_metadata(
+                        last_export_path=s3_export_path,
+                        last_export_bytes=os.stat(local_pq).st_size,
+                    )
+                    upload_file(local_pq, s3_export_path)
+
+                self.update_version_file()
+                logger.log_complete()
+
+            except Exception as exception:
+                logger.log_failure(exception)
