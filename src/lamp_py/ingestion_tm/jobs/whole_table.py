@@ -18,7 +18,7 @@ from lamp_py.runtime_utils.remote_files import (
     tm_block_file,
     tm_work_piece_file,
     tm_daily_sched_adherence_waiver_file,
-    tm_time_point,
+    tm_time_point_file,
     tm_pattern_geo_node_xref,
 )
 from lamp_py.aws.s3 import upload_file
@@ -380,7 +380,7 @@ class TMMainTimePoint(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=tm_time_point,
+            s3_location=tm_time_point_file,
             tm_table="TMMain.dbo.TIME_POINT",
         )
 
