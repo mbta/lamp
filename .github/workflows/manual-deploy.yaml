@@ -1,5 +1,5 @@
 name: Manual Deploy
-
+run-name: "Manual Deploy to ${{ github.event.inputs.environment }} INS: ${{ fromJson(github.event.inputs.deploy-ingestion) }} RPM: ${{ fromJson(github.event.inputs.deploy-rail-pm) }} BPM: ${{ fromJson(github.event.inputs.deploy-bus-pm) }}ITM: ${{ fromJson(github.event.inputs.deploy-tm-ingestion) }} TAB: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) }}"
 on:
   workflow_dispatch:
     inputs:
