@@ -122,11 +122,11 @@ tm_work_piece_file = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(TM, "TMMAIN_WORK_PIECE.parquet"),
 )
-tm_time_point = S3Location(
+tm_time_point_file = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(TM, "TMMAIN_TIME_POINT.parquet"),
 )
-tm_pattern_geo_node_xref = S3Location(
+tm_pattern_geo_node_xref_file = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(TM, "TMMAIN_PATTERN_GEO_NODE_XREF.parquet"),
 )
