@@ -19,7 +19,7 @@ from lamp_py.runtime_utils.remote_files import (
     tm_work_piece_file,
     tm_daily_sched_adherence_waiver_file,
     tm_time_point_file,
-    tm_pattern_geo_node_xref,
+    tm_pattern_geo_node_xref_file,
 )
 from lamp_py.aws.s3 import upload_file
 
@@ -402,7 +402,7 @@ class TMMainPatternGeoNodeXref(TMWholeTable):
     def __init__(self) -> None:
         TMWholeTable.__init__(
             self,
-            s3_location=tm_pattern_geo_node_xref,
+            s3_location=tm_pattern_geo_node_xref_file,
             tm_table="TMMain.dbo.PATTERN_GEO_NODE_XREF",
         )
 
