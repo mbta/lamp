@@ -273,7 +273,7 @@ class TMDailyLogLoggedMessage(TMDailyTable):
 
         for date in self.dates_to_export(tm_db):
             try:
-                logger = ProcessLogger("tm_daily_log_export", tm_table=self.tm_table, date=date)
+                logger = ProcessLogger("tm_daily_log_export_logged_message", tm_table=self.tm_table, date=date)
                 logger.log_start()
 
                 query = sa.text(
