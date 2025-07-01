@@ -95,7 +95,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "TRIP_SERIAL_NUMBER",
             "Pattern_ID",
         )
-        .rename({"Pattern_ID" : "PATTERN_ID"})
+        .rename({"Pattern_ID": "PATTERN_ID"})
         .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null())
         .unique()
     )
@@ -214,7 +214,6 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
                 pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
                 pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-
                 (
                     (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
                     .dt.replace_time_zone("America/New_York", ambiguous="earliest")
