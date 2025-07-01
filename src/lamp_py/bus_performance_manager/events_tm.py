@@ -239,21 +239,14 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             .collect()
         )
 
-    # # add a new column tm_joined to keep track of whether the join to gtfs is successful or not
-    # # in the final output of this method:
-    # # tm_joined - true if join is successful
-    # # tm_joined - false if join not successful - tm row will be inserted via concat
-    # # tm_joined - null if this is a pure GTFS row with no TM fields
-
-    # tm_stop_crossings = tm_stop_crossings.with_columns(
-    #     (pl.col(["tm_stop_sequence"]).rank(method="dense").alias("timepoint_order")),
-    #     (pl.lit(True).alias("tm_joined")),
-    #     pl.coalesce(
-    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_stop_sequence").min()).then(0),
-    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_stop_sequence").max()).then(2),
-    #         pl.lit(1),
-    #     )
-    # )#.sort(by=["route_id", "trip_id", "vehicle_label", "stop_id", "tm_stop_sequence"])
+    tm_stop_crossings = tm_stop_crossings.with_columns(
+        (
+            pl.col(["tm_stop_sequence"])
+            .rank(method="dense")
+            .over(["trip_id", "pattern_id", "vehicle_label"])
+            .alias("timepoint_order")
+        )
+    )
 
     if tm_stop_crossings.shape[0] == 0:
         tm_stop_crossings = _empty_stop_crossing()
