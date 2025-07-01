@@ -30,10 +30,7 @@ class TMDailyTable(TMExport):
     """Export Daily table from TMDailyLog"""
 
     def __init__(
-        self,
-        s3_location: S3Location,
-        tm_table: str,
-        lamp_version: str,
+        self, s3_location: S3Location, tm_table: str, lamp_version: str, specialized_template: Optional[str] = None
     ) -> None:
         self.s3_location = s3_location
         self.tm_table = tm_table
@@ -43,6 +40,7 @@ class TMDailyTable(TMExport):
             self.s3_location.s3_uri,
             self.version_key,
         )
+        self.query_specialized_template = specialized_template
 
     def update_version_file(self) -> None:
         """write version file to s3 for partition dataset"""
@@ -127,8 +125,15 @@ class TMDailyTable(TMExport):
                 logger = ProcessLogger("tm_daily_log_export", tm_table=self.tm_table, date=date)
                 logger.log_start()
 
-                query = sa.text(
-                    f"""
+                if self.query_specialized_template is not None:
+                    query = sa.text(
+                        self.query_specialized_template.format(
+                            table_columns=table_columns, tm_table=self.tm_table, date=date
+                        )
+                    )
+                else:
+                    query = sa.text(
+                        f"""
                     SELECT
                         {table_columns}
                     FROM
@@ -137,7 +142,7 @@ class TMDailyTable(TMExport):
                         CALENDAR_ID = {date}
                     ;
                     """
-                )
+                    )
 
                 s3_export_path = os.path.join(
                     self.s3_location.s3_uri,
@@ -252,6 +257,15 @@ class TMDailyLogLoggedMessage(TMDailyTable):
             s3_location=tm_daily_logged_message,
             tm_table="TMDailyLog.dbo.LOGGED_MESSAGE",
             lamp_version="0.0.2",
+            specialized_template="""
+                    SELECT
+                        {table_columns}
+                    FROM
+                        {tm_table}
+                    WHERE
+                        CALENDAR_ID = {date}  AND MESSAGE_TYPE_ID = 16
+                    ;
+                    """,
         )
 
     @property
@@ -262,52 +276,9 @@ class TMDailyLogLoggedMessage(TMDailyTable):
             [
                 ("TRANSMITTED_MESSAGE_ID", pyarrow.int64()),
                 ("CALENDAR_ID", pyarrow.int64()),
+                ("MESSAGE_TIMESTAMP", pyarrow.string()),
                 ("LATITUDE", pyarrow.int64()),
                 ("LONGITUDE", pyarrow.int64()),
                 ("SOURCE_HOST", pyarrow.int64()),
             ]
         )
-
-    def run_export(self, tm_db: MSSQLManager) -> None:
-        table_columns = ",".join([col.name for col in self.export_schema])
-
-        for date in self.dates_to_export(tm_db):
-            try:
-                logger = ProcessLogger("tm_daily_log_export_logged_message", tm_table=self.tm_table, date=date)
-                logger.log_start()
-
-                query = sa.text(
-                    f"""
-                    SELECT
-                        {table_columns}
-                    FROM
-                        {self.tm_table}
-                    WHERE
-                        CALENDAR_ID = {date} AND MESSAGE_TYPE_ID = 16
-                    ;
-                    """
-                )
-
-                s3_export_path = os.path.join(
-                    self.s3_location.s3_uri,
-                    f"{date}.parquet",
-                )
-
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    local_pq = os.path.join(temp_dir, "out.parquet")
-                    tm_db.write_to_parquet(
-                        select_query=query,
-                        write_path=local_pq,
-                        schema=self.export_schema,
-                    )
-                    logger.add_metadata(
-                        last_export_path=s3_export_path,
-                        last_export_bytes=os.stat(local_pq).st_size,
-                    )
-                    upload_file(local_pq, s3_export_path)
-
-                self.update_version_file()
-                logger.log_complete()
-
-            except Exception as exception:
-                logger.log_failure(exception)
