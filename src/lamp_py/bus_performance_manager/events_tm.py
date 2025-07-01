@@ -95,7 +95,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "TRIP_SERIAL_NUMBER",
             "Pattern_ID",
         )
-        .rename({"Pattern_ID" : "PATTERN_ID"})
+        .rename({"Pattern_ID": "PATTERN_ID"})
         .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null())
         .unique()
     )
@@ -132,9 +132,10 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
         .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
-    ).sort(by="PATTERN_ID")
+    ).sort(by=["TRIP_SERIAL_NUMBER", "PATTERN_ID", "PATTERN_GEO_NODE_SEQ"])
 
-    # only TRIP_ID helps
+    # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
+    # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
     tm_sequences = tm_trip_xref.group_by(["TRIP_ID"]).agg(
         pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
         pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
@@ -228,7 +229,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
                 pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
                 pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-
+                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
                 (
                     (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
                     .dt.replace_time_zone("America/New_York", ambiguous="earliest")
