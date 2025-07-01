@@ -12,7 +12,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
 
-def write_bus_metrics(start_date: Optional[date], end_date: Optional[date], write_local_only: bool = False) -> None:
+def write_bus_metrics(start_date: Optional[date] = None, end_date: Optional[date] = None, write_local_only: bool = False) -> None:
     """
     Write bus-performance parquet files to S3 for service dates neeing to be processed
     """
