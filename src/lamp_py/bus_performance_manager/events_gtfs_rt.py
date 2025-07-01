@@ -28,6 +28,7 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             & pl.col("vehicle.vehicle.id").is_not_null()
             & pl.col("vehicle.timestamp").is_not_null()
             & pl.col("vehicle.trip.start_time").is_not_null()
+            # & (pl.col("vehicle.trip.revenue") == True)
         )
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
@@ -40,6 +41,10 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
             pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
+            pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
+            pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
+            pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("trip_revenue"),
+            # pl.col("vehicle.revenue").cast(pl.Boolean).alias("revenue"), # only in BusLoc/Swiftly VP files
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -78,6 +83,9 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
         "vehicle.current_stop_sequence",
         "vehicle.current_status",
         "vehicle.timestamp",
+        "vehicle.position.latitude",
+        "vehicle.position.longitude",
+        "vehicle.trip.revenue",
     ]
     # pyarrow_exp filter expression is used to limit memory usage during read operation
     pyarrow_exp = pc.field("vehicle.trip.route_id").isin(bus_routes)
@@ -97,6 +105,7 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
             & pl.col("vehicle.vehicle.id").is_not_null()
             & pl.col("vehicle.timestamp").is_not_null()
             & pl.col("vehicle.trip.start_time").is_not_null()
+            # & (pl.col("vehicle.trip.revenue") == True)
         )
         .select(
             pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
@@ -109,6 +118,10 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
             pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
             pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
+            pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
+            pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
+            pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("trip_revenue"),
+            # pl.col("vehicle.trip.revenue").cast(pl.Boolean).alias("revenue"), # only in BusLoc/Swiftly VP files
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -156,11 +169,12 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
     logger.log_start()
     bus_routes = bus_route_ids_for_service_date(service_date)
 
-    try:
-        vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
-    except Exception as _:
-        logger.add_metadata(reader_engine="pyarrow")
-        vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
+    # try:
+    #     vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
+    # except Exception as _:
+    # why is this so slow now? local machine?
+    logger.add_metadata(reader_engine="pyarrow")
+    vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
 
     logger.log_complete()
     return vehicle_positions
@@ -188,8 +202,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         gtfs_travel_to_dt -> Datetime
         gtfs_arrival_dt -> Datetime
     """
+
     vehicle_events = vehicle_positions.pivot(
-        values="vehicle_timestamp",
+        values=["vehicle_timestamp", "latitude", "longitude"],
         aggregate_function="min",
         index=[
             "route_id",
@@ -205,7 +220,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         on="current_status",
     )
 
-    for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
+    for column in ["vehicle_timestamp_STOPPED_AT", "vehicle_timestamp_IN_TRANSIT_TO"]:
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
@@ -219,8 +234,12 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         )
         .rename(
             {
-                "STOPPED_AT": "gtfs_arrival_dt",
-                "IN_TRANSIT_TO": "gtfs_travel_to_dt",
+                "vehicle_timestamp_STOPPED_AT": "gtfs_arrival_dt",
+                "vehicle_timestamp_IN_TRANSIT_TO": "gtfs_travel_to_dt",
+                # only grab the IN_TRANSIT_TO rows because they seem to better
+                # align to actual trips than STOPPED_AT does
+                "latitude_IN_TRANSIT_TO": "latitude",
+                "longitude_IN_TRANSIT_TO": "longitude",
             }
         )
         .with_columns(
@@ -246,6 +265,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
                 "vehicle_label",
                 "gtfs_travel_to_dt",
                 "gtfs_arrival_dt",
+                "latitude",
+                "longitude",
+                # "revenue"
             ]
         )
     )
