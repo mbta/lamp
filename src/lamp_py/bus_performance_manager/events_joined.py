@@ -251,45 +251,45 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
-    first_part = gtfs.sort(by="stop_sequence").join_asof(
-        tm.sort("tm_stop_sequence"),
-        left_on="stop_sequence",
-        right_on="tm_stop_sequence",
-        by=["trip_id", "route_id", "vehicle_label", "stop_id"],
-        strategy="nearest",
-        coalesce=True,
-    )
 
-    second_parts = []
+    tm = tm.sort("tm_stop_sequence").with_row_index()
+
+    # add a new column tm_joined to keep track of whether the join to gtfs is successful or not
+    # in the final output of this method:
+    # tm_joined - true if join is successful
+    # tm_joined - false if join not successful - tm row will be inserted via concat
+    # tm_joined - null if this is a pure GTFS row with no TM fields
+
+    first_part = (
+        gtfs.sort(by="stop_sequence")
+        .join_asof(
+            tm,
+            left_on="stop_sequence",
+            right_on="tm_stop_sequence",
+            by=["trip_id", "route_id", "vehicle_label", "stop_id"],
+            strategy="nearest",
+            coalesce=True,
+        )
+        .with_columns(pl.when(pl.col("index").is_not_null()).then(True).alias("tm_joined"))
+    )
 
     single_service_date = first_part.get_column("service_date").head(1)
 
-    # this should be able to be simplified - # which stop_ids are not in GTFS in tm?
-    for name, trip in first_part.group_by(["trip_id", "route_id", "vehicle_label"]):
-        tm_tmp = tm.filter(
-            pl.col("trip_id") == trip["trip_id"][0],
-            pl.col("route_id") == trip["route_id"][0],
-            pl.col("vehicle_label") == trip["vehicle_label"][0],
+    # grab unjoined indices - set the tm_joined flag to false to mark these as "concat" rows
+    leftover_tm = tm.filter(~pl.col("index").is_in(first_part["index"])).with_columns(pl.lit(False).alias("tm_joined"))
+
+    # concat the leftover rows, filling in all the
+    output_df = (
+        pl.concat([first_part, leftover_tm], how="align")
+        .sort(by=["trip_id", "route_id", "vehicle_label", "stop_id"])
+        .with_columns(
+            (pl.col("service_date").fill_null(single_service_date)),
+            (pl.col("start_time").fill_null(strategy="forward")),
+            (pl.col("stop_count").fill_null(strategy="forward")),
+            (pl.col("direction_id").fill_null(strategy="forward")),
+            (pl.col("vehicle_id").fill_null(strategy="forward")),
         )
-        tm_tmp = tm_tmp.with_columns(pl.lit(False).alias("tm_joined"))
+        .drop("index")
+    )
 
-        if trip["tm_stop_sequence"].is_not_null().sum() != tm_tmp.height:
-            tm_exclusive = tm_tmp.filter(
-                ~pl.col("tm_stop_sequence").is_in(trip["tm_stop_sequence"].drop_nulls().unique())
-            )
-
-            trip = pl.concat([trip, tm_exclusive], how="align")
-            trip = trip.with_columns(
-                (pl.col("service_date").fill_null(single_service_date)),
-                (pl.col("start_time").fill_null(strategy="forward")),
-                (pl.col("stop_count").fill_null(strategy="forward")),
-                (pl.col("direction_id").fill_null(strategy="forward")),
-                (pl.col("vehicle_id").fill_null(strategy="forward")),
-            )
-            if len(trip.get_column("service_date").unique()) > 1:
-                print("why null")
-            second_parts.append(trip)
-        print(len(second_parts))
-
-    output_df = pl.concat(second_parts)
     return output_df
