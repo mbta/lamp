@@ -202,16 +202,11 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
         coalesce=True,
         validate="m:1",
     ).join(
-        (
-            schedule.select(
-                "stop_id",
-                "stop_name",
-            ).unique()
-        ),
+        (schedule.select("stop_id", "stop_name", "checkpoint_id", "checkpoint_name").unique()),
         on="stop_id",
         how="left",
         coalesce=True,
-        validate="m:1",
+        # validate="m:1",
     )
 
     # join plan schedule evenat data to rt gtfs
