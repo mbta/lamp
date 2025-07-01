@@ -140,20 +140,6 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
     )
 
-    # select tr.TRIP_SERIAL_NUMBER as trip_id
-    #         ,geo.GEO_NODE_ABBR as stop_id
-    #         ,geo.GEO_NODE_NAME as stop_name
-    #         ,timept.TIME_POINT_ABBR as tp_name
-    #         ,xref.PATTERN_GEO_NODE_SEQ as tm_sequence
-    #     from TMViewport..TMMain_Trip tr =============== - STOP_CROSSING - TRIP
-    #     join TMViewport..TMMain_PATTERN_GEO_NODE_XREF xref
-    #         on tr.PATTERN_ID=xref.PATTERN_ID =============== - STOP_CROSSING - default
-    #     join TMViewport.dbo.TMMain_GEO_NODE geo
-    #         on xref.GEO_NODE_ID = geo.GEO_NODE_ID =============== - STOP_CROSSING - default
-    #     left join TMViewport.dbo.TMDataMart_TIME_POINT timept
-    #         on xref.TIME_POINT_ID = timept.TIME_POINT_ID =============== - NEW
-    #     order by xref.PATTERN_GEO_NODE_SEQ
-
     # pull stop crossing information for a given service date and join it with
     # other dataframes using the transit master keys.
     #
