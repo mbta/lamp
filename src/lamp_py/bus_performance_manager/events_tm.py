@@ -132,13 +132,28 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
         .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
-    ).sort(by="PATTERN_ID")
+    ).sort(by=["TRIP_SERIAL_NUMBER", "PATTERN_ID", "PATTERN_GEO_NODE_SEQ"])
 
-    # only TRIP_ID helps
+    # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
+    # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
     tm_sequences = tm_trip_xref.group_by(["TRIP_ID"]).agg(
         pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
         pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
     )
+
+    # select tr.TRIP_SERIAL_NUMBER as trip_id
+    #         ,geo.GEO_NODE_ABBR as stop_id
+    #         ,geo.GEO_NODE_NAME as stop_name
+    #         ,timept.TIME_POINT_ABBR as tp_name
+    #         ,xref.PATTERN_GEO_NODE_SEQ as tm_sequence
+    #     from TMViewport..TMMain_Trip tr =============== - STOP_CROSSING - TRIP
+    #     join TMViewport..TMMain_PATTERN_GEO_NODE_XREF xref
+    #         on tr.PATTERN_ID=xref.PATTERN_ID =============== - STOP_CROSSING - default
+    #     join TMViewport.dbo.TMMain_GEO_NODE geo
+    #         on xref.GEO_NODE_ID = geo.GEO_NODE_ID =============== - STOP_CROSSING - default
+    #     left join TMViewport.dbo.TMDataMart_TIME_POINT timept
+    #         on xref.TIME_POINT_ID = timept.TIME_POINT_ID =============== - NEW
+    #     order by xref.PATTERN_GEO_NODE_SEQ
 
     # pull stop crossing information for a given service date and join it with
     # other dataframes using the transit master keys.
@@ -214,6 +229,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
                 pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
                 pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
+                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
                 (
                     (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
                     .dt.replace_time_zone("America/New_York", ambiguous="earliest")
