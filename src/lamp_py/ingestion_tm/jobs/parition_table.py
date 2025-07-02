@@ -276,7 +276,7 @@ class TMDailyLogLoggedMessage(TMDailyTable):
             [
                 ("TRANSMITTED_MESSAGE_ID", pyarrow.int64()),
                 ("CALENDAR_ID", pyarrow.int64()),
-                ("MESSAGE_TIMESTAMP", pyarrow.string()),
+                ("MESSAGE_TIMESTAMP", pyarrow.timestamp("ms")),
                 ("LATITUDE", pyarrow.int64()),
                 ("LONGITUDE", pyarrow.int64()),
                 ("SOURCE_HOST", pyarrow.int64()),
