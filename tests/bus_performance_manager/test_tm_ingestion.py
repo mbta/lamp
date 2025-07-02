@@ -12,6 +12,9 @@ from ..test_resources import (
     tm_trip_file,
     tm_vehicle_file,
     tm_stop_crossings,
+    tm_daily_logged_message,
+    tm_pattern_geo_node_xref_file,
+    tm_time_point_file,
 )
 
 
@@ -35,13 +38,39 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
         "lamp_py.bus_performance_manager.events_tm.tm_vehicle_file",
         tm_vehicle_file,
     )
-
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.events_tm.tm_time_point_file",
+        tm_time_point_file,
+    )
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.events_tm.tm_pattern_geo_node_xref_file",
+        tm_pattern_geo_node_xref_file,
+    )
     tm_sc_dir = tm_stop_crossings.s3_uri
     print(tm_sc_dir)
     assert os.path.exists(tm_sc_dir)
 
     for filename in os.listdir(tm_sc_dir):
         check_stop_crossings(os.path.join(tm_sc_dir, filename))
+
+    tm_lm_dir = tm_daily_logged_message.s3_uri
+    print(tm_lm_dir)
+    assert os.path.exists(tm_lm_dir)
+
+    for filename in os.listdir(tm_lm_dir):
+        check_daily_logged_messages(os.path.join(tm_lm_dir, filename))
+
+
+def check_daily_logged_messages(daily_logged_messages_filepath: str) -> None:
+    """
+    run basic checks on daily_logged_messages to ensure data is valid
+    usage checks to follow when daily logged messages are integrated into output
+    """
+    print(f"processing: {daily_logged_messages_filepath}")
+    dlm = pl.read_parquet(daily_logged_messages_filepath)
+    assert len(dlm["CALENDAR_ID"].unique()) == 1
+    assert dlm["LATITUDE"].is_not_null().all()
+    assert dlm["LONGITUDE"].is_not_null().all()
 
 
 def check_stop_crossings(stop_crossings_filepath: str) -> None:

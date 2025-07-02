@@ -66,7 +66,13 @@ tm_stop_crossings = LocalS3Location(
     bucket=S3_SPRINGBOARD,
     prefix="TM/STOP_CROSSING",
 )
+tm_daily_logged_message = LocalS3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix="TM/DAILY_LOGGED_MESSAGE",
+)
 tm_geo_node_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_GEO_NODE.parquet")
 tm_route_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_ROUTE.parquet")
 tm_trip_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_TRIP.parquet")
 tm_vehicle_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_VEHICLE.parquet")
+tm_pattern_geo_node_xref_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_PATTERN_GEO_NODE_XREF.parquet")
+tm_time_point_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_TIME_POINT.parquet")

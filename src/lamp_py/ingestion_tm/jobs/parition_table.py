@@ -16,6 +16,7 @@ from lamp_py.runtime_utils.remote_files import (
     S3Location,
     tm_stop_crossing,
     tm_daily_work_piece,
+    tm_daily_logged_message,
 )
 
 from lamp_py.aws.s3 import (
@@ -29,10 +30,7 @@ class TMDailyTable(TMExport):
     """Export Daily table from TMDailyLog"""
 
     def __init__(
-        self,
-        s3_location: S3Location,
-        tm_table: str,
-        lamp_version: str,
+        self, s3_location: S3Location, tm_table: str, lamp_version: str, specialized_template: Optional[str] = None
     ) -> None:
         self.s3_location = s3_location
         self.tm_table = tm_table
@@ -42,6 +40,7 @@ class TMDailyTable(TMExport):
             self.s3_location.s3_uri,
             self.version_key,
         )
+        self.query_specialized_template = specialized_template
 
     def update_version_file(self) -> None:
         """write version file to s3 for partition dataset"""
@@ -126,8 +125,15 @@ class TMDailyTable(TMExport):
                 logger = ProcessLogger("tm_daily_log_export", tm_table=self.tm_table, date=date)
                 logger.log_start()
 
-                query = sa.text(
-                    f"""
+                if self.query_specialized_template is not None:
+                    query = sa.text(
+                        self.query_specialized_template.format(
+                            table_columns=table_columns, tm_table=self.tm_table, date=date
+                        )
+                    )
+                else:
+                    query = sa.text(
+                        f"""
                     SELECT
                         {table_columns}
                     FROM
@@ -136,7 +142,7 @@ class TMDailyTable(TMExport):
                         CALENDAR_ID = {date}
                     ;
                     """
-                )
+                    )
 
                 s3_export_path = os.path.join(
                     self.s3_location.s3_uri,
@@ -238,5 +244,41 @@ class TMDailyLogDailyWorkPiece(TMDailyTable):
                 ("ASSIGNED_VEHICLE_ID", pyarrow.int64()),
                 ("CURRENT_VEHICLE_ID", pyarrow.int64()),
                 ("INSERTED_FLAG", pyarrow.bool_()),
+            ]
+        )
+
+
+class TMDailyLogLoggedMessage(TMDailyTable):
+    """Export LOGGED_MESSAGE table from TMDailyLog"""
+
+    def __init__(self) -> None:
+        TMDailyTable.__init__(
+            self,
+            s3_location=tm_daily_logged_message,
+            tm_table="TMDailyLog.dbo.LOGGED_MESSAGE",
+            lamp_version="0.0.2",
+            specialized_template="""
+                    SELECT
+                        {table_columns}
+                    FROM
+                        {tm_table}
+                    WHERE
+                        CALENDAR_ID = {date}  AND MESSAGE_TYPE_ID = 16
+                    ;
+                    """,
+        )
+
+    @property
+    def export_schema(self) -> pyarrow.schema:
+
+        # only grab the cols we need
+        return pyarrow.schema(
+            [
+                ("TRANSMITTED_MESSAGE_ID", pyarrow.int64()),
+                ("CALENDAR_ID", pyarrow.int64()),
+                ("MESSAGE_TIMESTAMP", pyarrow.string()),
+                ("LATITUDE", pyarrow.int64()),
+                ("LONGITUDE", pyarrow.int64()),
+                ("SOURCE_HOST", pyarrow.int64()),
             ]
         )

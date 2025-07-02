@@ -86,6 +86,10 @@ tm_daily_sched_adherence_waiver_file = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(TM, "DAILY_SCHED_ADHERE_WAIVER.parquet"),
 )
+tm_daily_logged_message = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(TM, "DAILY_LOGGED_MESSAGE"),
+)
 tm_geo_node_file = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(TM, "TMMAIN_GEO_NODE.parquet"),
@@ -118,7 +122,14 @@ tm_work_piece_file = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(TM, "TMMAIN_WORK_PIECE.parquet"),
 )
-
+tm_time_point_file = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(TM, "TMMAIN_TIME_POINT.parquet"),
+)
+tm_pattern_geo_node_xref_file = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(TM, "TMMAIN_PATTERN_GEO_NODE_XREF.parquet"),
+)
 
 # published by LAMP
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.2")

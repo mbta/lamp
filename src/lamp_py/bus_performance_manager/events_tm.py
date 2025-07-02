@@ -11,6 +11,8 @@ from lamp_py.runtime_utils.remote_files import (
     tm_block_file,
     tm_run_file,
     tm_operator_file,
+    tm_time_point_file,
+    tm_pattern_geo_node_xref_file,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -91,7 +93,9 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         .select(
             "TRIP_ID",
             "TRIP_SERIAL_NUMBER",
+            "Pattern_ID",
         )
+        .rename({"Pattern_ID": "PATTERN_ID"})
         .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null())
         .unique()
     )
@@ -106,6 +110,34 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
         .filter(pl.col("PROPERTY_TAG").is_not_null())
         .unique()
+    )
+
+    tm_time_points = pl.scan_parquet(tm_time_point_file.s3_uri).select(
+        "TIME_POINT_ID",
+        "TIME_POINT_ABBR",
+        "TIME_PT_NAME",
+    )
+
+    tm_pattern_geo_node_xref = pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri).select(
+        "PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID"
+    )
+
+    # this is the truth to reference and compare STOP_CROSSING records with to determine timepoint_order
+    tm_trip_xref = (
+        tm_trips.join(
+            tm_pattern_geo_node_xref,
+            on="PATTERN_ID",
+            how="left",
+            coalesce=True,
+        )
+        .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
+        .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
+    ).sort(by="PATTERN_ID")
+
+    # only TRIP_ID helps
+    tm_sequences = tm_trip_xref.group_by(["TRIP_ID"]).agg(
+        pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
+        pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
     )
 
     # pull stop crossing information for a given service date and join it with
@@ -151,6 +183,18 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 how="left",
                 coalesce=True,
             )
+            .join(
+                tm_time_points,
+                on="TIME_POINT_ID",
+                how="left",
+                coalesce=True,
+            )
+            .join(
+                tm_sequences,
+                on="TRIP_ID",
+                how="left",
+                coalesce=True,
+            )
             .with_columns(
                 (
                     pl.col("CALENDAR_ID")
@@ -165,7 +209,11 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
                 pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("tm_planned_sequence_end"),
                 pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
+                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
+                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
+                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
                 (
                     (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
                     .dt.replace_time_zone("America/New_York", ambiguous="earliest")
