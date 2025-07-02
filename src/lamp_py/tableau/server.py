@@ -36,10 +36,9 @@ def tableau_pat_authentication(
     Get Tableau Personal Access Token Authentication object
 
     :param tablea_user: User to authenticate as, defaults to TABLEAU_USER env var
-    :param tablea_password: Password to authenticate with, defaults to TABLEAU_PASSWORD evn var
-    :param tablea_sute: Site to authenticate to, will default to 'Default' site
+    :param tableau_token_name: Personal Access Token to authenticate with, defaults to TABLEAU_TOKEN_NAME evn var
 
-    :return TSC.PersonalAccessTokenAuth  objects
+    :return TSC.PersonalAccessTokenAuth object
     """
     return TSC.PersonalAccessTokenAuth(token_name=tableau_token_name, personal_access_token=tableau_password)
 
@@ -52,9 +51,9 @@ def tableau_authentication(
     """
     Get Tableau Authentication object
 
-    :param tablea_user: User to authenticate as, defaults to TABLEAU_USER env var
-    :param tablea_password: Password to authenticate with, defaults to TABLEAU_PASSWORD evn var
-    :param tablea_sute: Site to authenticate to, will default to 'Default' site
+    :param tableau_user: User to authenticate as, defaults to TABLEAU_USER env var
+    :param tableau_password: Password to authenticate with, defaults to TABLEAU_PASSWORD evn var
+    :param tableau_site: Site to authenticate to, will default to 'Default' site
 
     :return TSC.TableaAuth  objects
     """
