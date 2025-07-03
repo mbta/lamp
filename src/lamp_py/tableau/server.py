@@ -6,6 +6,8 @@ from typing import (
 
 import tableauserverclient as TSC
 
+from lamp_py.aws.ecs import running_in_aws
+
 
 def tableau_server(
     url: Optional[str] = os.getenv("TABLEAU_SERVER"),
@@ -17,7 +19,28 @@ def tableau_server(
 
     :return TSC.Server object
     """
+
+    # allow ssl verify false when running locally b/c of zscalr
+    if not running_in_aws():
+        return TSC.Server(server_address=url, http_options={"verify": False})
+
+    # default to returning ssl verified
     return TSC.Server(server_address=url)
+
+
+def tableau_pat_authentication(
+    tableau_password: Optional[str] = os.getenv("TABLEAU_PASSWORD"),
+    tableau_token_name: Optional[str] = os.getenv("TABLEAU_TOKEN_NAME"),
+) -> TSC.PersonalAccessTokenAuth:
+    """
+    Get Tableau Personal Access Token Authentication object
+
+    :param tablea_user: User to authenticate as, defaults to TABLEAU_USER env var
+    :param tableau_token_name: Personal Access Token to authenticate with, defaults to TABLEAU_TOKEN_NAME evn var
+
+    :return TSC.PersonalAccessTokenAuth object
+    """
+    return TSC.PersonalAccessTokenAuth(token_name=tableau_token_name, personal_access_token=tableau_password)
 
 
 def tableau_authentication(
@@ -28,9 +51,9 @@ def tableau_authentication(
     """
     Get Tableau Authentication object
 
-    :param tablea_user: User to authenticate as, defaults to TABLEAU_USER env var
-    :param tablea_password: Password to authenticate with, defaults to TABLEAU_PASSWORD evn var
-    :param tablea_sute: Site to authenticate to, will default to 'Default' site
+    :param tableau_user: User to authenticate as, defaults to TABLEAU_USER env var
+    :param tableau_password: Password to authenticate with, defaults to TABLEAU_PASSWORD evn var
+    :param tableau_site: Site to authenticate to, will default to 'Default' site
 
     :return TSC.TableaAuth  objects
     """
@@ -43,7 +66,7 @@ def tableau_authentication(
 
 def project_list(
     server: Optional[TSC.server.server.Server] = None,
-    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth | TSC.PersonalAccessTokenAuth] = None,
 ) -> List[TSC.models.project_item.ProjectItem]:
     """
     Get List of all projects from Tablea server
@@ -56,7 +79,10 @@ def project_list(
     if server is None:
         server = tableau_server()
     if auth is None:
-        auth = tableau_authentication()
+        if os.getenv("TABLEAU_TOKEN_NAME") is not None:  # optional token
+            auth = tableau_pat_authentication()
+        else:  # default to user/pw auth
+            auth = tableau_authentication()
 
     with server.auth.sign_in(auth):
         return list(TSC.Pager(server.projects))
@@ -64,7 +90,7 @@ def project_list(
 
 def datasource_list(
     server: Optional[TSC.server.server.Server] = None,
-    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth | TSC.PersonalAccessTokenAuth] = None,
 ) -> List[TSC.models.datasource_item.DatasourceItem]:
     """
     Get List of all datasources from Tablea server
@@ -77,7 +103,10 @@ def datasource_list(
     if server is None:
         server = tableau_server()
     if auth is None:
-        auth = tableau_authentication()
+        if os.getenv("TABLEAU_TOKEN_NAME") is not None:  # optional token
+            auth = tableau_pat_authentication()
+        else:  # default to user/pw auth
+            auth = tableau_authentication()
 
     with server.auth.sign_in(auth):
         return list(TSC.Pager(server.datasources))
@@ -86,7 +115,7 @@ def datasource_list(
 def project_from_name(
     project_name: str,
     server: Optional[TSC.server.server.Server] = None,
-    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth | TSC.PersonalAccessTokenAuth] = None,
 ) -> Optional[TSC.models.project_item.ProjectItem]:
     """
     Get Tableau ProjectItem from name
@@ -102,7 +131,7 @@ def datasource_from_name(
     datasource_name: str,
     project_name: str,
     server: Optional[TSC.server.server.Server] = None,
-    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth | TSC.PersonalAccessTokenAuth] = None,
 ) -> Optional[TSC.models.datasource_item.DatasourceItem]:
     """
     Get Tableau DatasourceItem from datasource name and project name
@@ -110,7 +139,10 @@ def datasource_from_name(
     if server is None:
         server = tableau_server()
     if auth is None:
-        auth = tableau_authentication()
+        if os.getenv("TABLEAU_TOKEN_NAME") is not None:  # optional token
+            auth = tableau_pat_authentication()
+        else:  # default to user/pw auth
+            auth = tableau_authentication()
 
     for datasource in datasource_list(server, auth):
         if datasource.name == datasource_name and datasource.project_name == project_name:
@@ -123,7 +155,7 @@ def overwrite_datasource(
     project_name: str,
     hyper_path: str,
     server: Optional[TSC.server.server.Server] = None,
-    auth: Optional[TSC.models.tableau_auth.TableauAuth] = None,
+    auth: Optional[TSC.models.tableau_auth.TableauAuth | TSC.PersonalAccessTokenAuth] = None,
 ) -> TSC.models.datasource_item.DatasourceItem:
     """
     Publish locally saved hyperfile to Tableau
@@ -131,7 +163,10 @@ def overwrite_datasource(
     if server is None:
         server = tableau_server()
     if auth is None:
-        auth = tableau_authentication()
+        if os.getenv("TABLEAU_TOKEN_NAME") is not None:  # optional token
+            auth = tableau_pat_authentication()
+        else:  # default to user/pw auth
+            auth = tableau_authentication()
 
     publish_mode = TSC.Server.PublishMode.Overwrite
 

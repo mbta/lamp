@@ -44,6 +44,8 @@ class HyperJob(ABC):  # pylint: disable=R0902
         lamp_version: str,
         project_name: str = os.getenv("TABLEAU_PROJECT", ""),
     ) -> None:
+
+        # extracts one of "dev", "staging", or "prod" from the ECS_TASK_GROUP variable
         environment = os.getenv("ECS_TASK_GROUP", "-").split("-")[-1]
         if environment != "prod":
             hyper_file_name = f"{hyper_file_name.replace('.hyper','')}_{environment}.hyper"
