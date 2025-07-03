@@ -1,4 +1,10 @@
 name: Manual Deploy
+run-name: "env: ${{github.event.inputs.environment}} |
+ ingest: ${{ fromJson(github.event.inputs.deploy-ingestion) == 1 }} |
+ rpm: ${{ fromJson(github.event.inputs.deploy-rail-pm) == 1}} |
+ bpm: ${{ fromJson(github.event.inputs.deploy-bus-pm) == 1}} |
+ tm: ${{ fromJson(github.event.inputs.deploy-tm-ingestion) == 1}} |
+ tab: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) == 1}}"
 
 on:
   workflow_dispatch:
