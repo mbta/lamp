@@ -19,8 +19,8 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
 # temporary - ticket in backlog to implement this split as per-rating instead
-DAYS_YEAR = 365
-DAYS_WEEK = 7
+BUS_ALL_NDAYS = 365
+BUS_RECENT_NDAYS = 7
 # this schema and the order of this schema SHOULD match what comes out
 # of the polars version from bus_performance_manager.
 # see select() comment below..
@@ -192,7 +192,7 @@ class HyperBusPerformanceAll(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        create_bus_parquet(self, DAYS_YEAR)
+        create_bus_parquet(self, BUS_ALL_NDAYS)
         return True
 
 
@@ -215,5 +215,5 @@ class HyperBusPerformanceRecent(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
-        create_bus_parquet(self, DAYS_WEEK)
+        create_bus_parquet(self, BUS_RECENT_NDAYS)
         return True

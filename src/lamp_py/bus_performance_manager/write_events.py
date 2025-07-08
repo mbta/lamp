@@ -1,7 +1,9 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 import os
 import tempfile
 from typing import Optional
+
+import pyarrow.parquet as pq
 
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
@@ -10,6 +12,7 @@ from lamp_py.runtime_utils.remote_files import bus_events
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
+from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
 
 
 def write_bus_metrics(
@@ -72,3 +75,30 @@ def write_bus_metrics(
         day_logger.log_complete()
 
     logger.log_complete()
+
+
+def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
+    """
+    Check if latest updated schema is the same for all files in a recent num_days
+    range. If not, regenerate the num_days range (== BUS_RECENT date range)
+    so BUS_RECENT tableau events has all columns needed
+
+    input:
+        num_days: number of days to regenerate with write_bus_metrics
+    """
+
+    today = datetime.now()
+    week_ago = today - timedelta(days=num_days)
+    latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
+    prior_path = os.path.join(bus_events.s3_uri, f"{week_ago.strftime('%Y%m%d')}.parquet")
+
+    regenerate_days = False
+    # if the two schemas don't match, assume that changes have been made, and regenerate all latest days
+    if pq.read_schema(latest_path) != pq.read_schema(prior_path):
+        write_bus_metrics(start_date=week_ago, end_date=today)
+        regenerate_days = True
+
+    regenerate_logger = ProcessLogger(
+        "regenerate_bus_metrics_recent",
+        regenerated=regenerate_days,
+    )

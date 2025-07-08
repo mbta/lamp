@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+from datetime import datetime, timedelta
 import logging
 import os
 import sched
@@ -9,11 +10,15 @@ import sys
 import time
 from typing import List
 
+import polars as pl
+
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.bus_performance_manager.write_events import write_bus_metrics
+from lamp_py.bus_performance_manager.write_events import regenerate_bus_metrics_recent, write_bus_metrics
 from lamp_py.tableau.pipeline import start_bus_parquet_updates
+from lamp_py.runtime_utils.remote_files import BUS_RECENT_NDAYS, bus_events
+
 
 logging.getLogger().setLevel("INFO")
 
@@ -50,6 +55,7 @@ def main(args: argparse.Namespace) -> None:
         process_logger.log_start()
         try:
             write_bus_metrics()
+            regenerate_bus_metrics_recent(days=BUS_RECENT_NDAYS)
             start_bus_parquet_updates()
             process_logger.log_complete()
         except Exception as exception:

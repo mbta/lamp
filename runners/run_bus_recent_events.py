@@ -4,7 +4,7 @@ from typing import List
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events
-from lamp_py.bus_performance_manager.write_events import write_bus_metrics
+from lamp_py.bus_performance_manager.write_events import regenerate_bus_metrics_recent, write_bus_metrics
 from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD, bus_events
 import pyarrow
 import pyarrow.parquet as pq
@@ -22,6 +22,8 @@ from lamp_py.tableau.jobs.bus_performance import bus_schema_recent
 end_date = datetime(year=2025, month=6, day=17)
 start_date = end_date - timedelta(days=7)
 # write_bus_metrics(start_date, end_date, write_local_only=True)
+
+regenerate_bus_metrics_recent()
 ##################
 ss = pl.date_range(start_date, end_date, "1d", eager=True)
 
