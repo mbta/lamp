@@ -93,13 +93,15 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
     latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
     prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
 
+    regenerate_bus_metrics_logger = ProcessLogger("regenerate_bus_metrics_recent")
+    regenerate_bus_metrics_logger.log_start()
+
     regenerate_days = False
+
     # if the two schemas don't match, assume that changes have been made, and regenerate all latest days
     if pq.read_schema(latest_path) != pq.read_schema(prior_path):
         write_bus_metrics(start_date=start_day, end_date=today)
         regenerate_days = True
 
-    regenerate_logger = ProcessLogger(
-        "regenerate_bus_metrics_recent",
-        regenerated=regenerate_days,
-    ).log_complete()
+    regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
+    regenerate_bus_metrics_logger.log_complete()
