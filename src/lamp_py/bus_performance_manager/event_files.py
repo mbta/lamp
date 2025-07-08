@@ -141,6 +141,10 @@ def event_files_to_load(start_date: Optional[date], end_date: Optional[date]) ->
     * For each service date, generate a list of input files associated with
         that service date.
 
+    :input
+        start_date: Optional | beginning date of bus metrics to process
+        end_date: Optional | end date of bus metrics to process
+
     :return {
         datetime.date (service date): {
             'gtfs_rt': list[str] - s3 filepaths for vehicle position files,
