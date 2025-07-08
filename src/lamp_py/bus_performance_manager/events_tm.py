@@ -118,9 +118,11 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         "TIME_PT_NAME",
     )
 
-    tm_pattern_geo_node_xref = pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri).select(
-        "PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID"
-    ).filter(pl.col('TIME_POINT_ID').is_not_null())
+    tm_pattern_geo_node_xref = (
+        pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
+        .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
+        .filter(pl.col("TIME_POINT_ID").is_not_null())
+    )
 
     # this is the truth to reference and compare STOP_CROSSING records with to determine timepoint_order
     tm_trip_xref = (
