@@ -19,7 +19,19 @@ def write_bus_metrics(
     start_date: Optional[date] = None, end_date: Optional[date] = None, write_local_only: bool = False
 ) -> None:
     """
-    Write bus-performance parquet files to S3 for service dates neeing to be processed
+    Write bus-performance parquet files to S3 for latest service dates needing to be processed
+    If optional start_date or end_date are provided, re-processes the resulting date range
+    disregarding last-processed check
+    If optional write_local_only is provided, does not write to S3 bucket - only writes to local temp
+
+    Inputs:
+        start_date: Optional | beginning date of bus metrics to process
+        end_date: Optional | end date of bus metrics to process
+        write_local_only: Optional | if true, does not write to S3, only to local disk
+
+    Outputs:
+        None
+
     """
     logger = ProcessLogger("write_bus_metrics")
     logger.log_start()
@@ -89,7 +101,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
 
     # get date without time so comparisons will match for the entire day
     today = datetime.now().date()
-    start_day = today - timedelta(days=8)
+    start_day = today - timedelta(days=num_days)
     latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
     prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
 
