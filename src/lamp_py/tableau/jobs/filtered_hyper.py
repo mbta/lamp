@@ -65,7 +65,7 @@ class FilteredHyperJob(HyperJob):
         # previous days uploads working
         # need to implement new input daily_upload_hour as well
         # this will currently update hourly. will monitor
-        end_date = datetime.now()
+        end_date = datetime.now().date()
         start_date = end_date - timedelta(days=num_days)  # type: ignore
         bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
         # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'

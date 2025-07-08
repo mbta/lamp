@@ -2,7 +2,7 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from io import BytesIO
 from threading import current_thread
 from typing import (
@@ -350,8 +350,8 @@ def file_list_from_s3_date_range(
     bucket_name: str,
     file_prefix: str,
     path_template: str,
-    start_date: datetime,
-    end_date: datetime,
+    start_date: date,
+    end_date: date,
 ) -> List[str]:
     """
     get a list of s3 objects between two dates
@@ -360,8 +360,8 @@ def file_list_from_s3_date_range(
     :param path_template: prefix template string for object keys - will be populated with dates
     :param max_list_size: max number of objects to return
     :param in_filter: arbirtary sub-string filter on the full object path
-    :param start_date: datetime object with day/month/year
-    :param end_date: datetime object with day/month/year
+    :param start_date: date object with day/month/year
+    :param end_date: date object with day/month/year
 
     :return List[
         object path as s3://bucket-name/object-key

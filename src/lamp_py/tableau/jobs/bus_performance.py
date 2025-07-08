@@ -19,8 +19,8 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
 # temporary - ticket in backlog to implement this split as per-rating instead
-DAYS_YEAR = 365
-DAYS_WEEK = 7
+BUS_ALL_NDAYS = 365
+BUS_RECENT_NDAYS = 7
 # this schema and the order of this schema SHOULD match what comes out
 # of the polars version from bus_performance_manager.
 # see select() comment below..
@@ -72,6 +72,59 @@ bus_schema = pyarrow.schema(
         ("gtfs_sort_dt", pyarrow.timestamp("us")),
         ("gtfs_departure_dt", pyarrow.timestamp("us")),
         ("gtfs_arrival_dt", pyarrow.timestamp("us")),
+    ]
+)
+
+bus_schema_recent = pyarrow.schema(
+    [
+        ("service_date", pyarrow.date32()),  # change to date type
+        ("route_id", pyarrow.large_string()),
+        ("trip_id", pyarrow.large_string()),
+        ("start_time", pyarrow.int64()),
+        ("start_dt", pyarrow.timestamp("us")),
+        ("stop_count", pyarrow.uint32()),
+        ("direction_id", pyarrow.int8()),
+        ("stop_id", pyarrow.large_string()),
+        ("stop_sequence", pyarrow.int64()),
+        ("vehicle_id", pyarrow.large_string()),
+        ("vehicle_label", pyarrow.large_string()),
+        ("gtfs_travel_to_dt", pyarrow.timestamp("us")),
+        ("tm_stop_sequence", pyarrow.int64()),
+        ("tm_scheduled_time_dt", pyarrow.timestamp("us")),
+        ("tm_actual_arrival_dt", pyarrow.timestamp("us")),
+        ("tm_actual_departure_dt", pyarrow.timestamp("us")),
+        ("tm_scheduled_time_sam", pyarrow.int64()),
+        ("tm_actual_arrival_time_sam", pyarrow.int64()),
+        ("tm_actual_departure_time_sam", pyarrow.int64()),
+        ("plan_trip_id", pyarrow.large_string()),
+        ("exact_plan_trip_match", pyarrow.bool_()),
+        ("block_id", pyarrow.large_string()),
+        ("service_id", pyarrow.large_string()),
+        ("route_pattern_id", pyarrow.large_string()),
+        ("route_pattern_typicality", pyarrow.int64()),
+        ("direction", pyarrow.large_string()),
+        ("direction_destination", pyarrow.large_string()),
+        ("plan_stop_count", pyarrow.uint32()),
+        ("plan_start_time", pyarrow.int64()),
+        ("plan_start_dt", pyarrow.timestamp("us")),
+        ("stop_name", pyarrow.large_string()),
+        ("plan_travel_time_seconds", pyarrow.int64()),
+        ("plan_route_direction_headway_seconds", pyarrow.int64()),
+        ("plan_direction_destination_headway_seconds", pyarrow.int64()),
+        ("stop_arrival_dt", pyarrow.timestamp("us")),
+        ("stop_departure_dt", pyarrow.timestamp("us")),
+        ("gtfs_travel_to_seconds", pyarrow.int64()),
+        ("stop_arrival_seconds", pyarrow.int64()),
+        ("stop_departure_seconds", pyarrow.int64()),
+        ("travel_time_seconds", pyarrow.int64()),
+        ("dwell_time_seconds", pyarrow.int64()),
+        ("route_direction_headway_seconds", pyarrow.int64()),
+        ("direction_destination_headway_seconds", pyarrow.int64()),
+        ("gtfs_sort_dt", pyarrow.timestamp("us")),
+        ("gtfs_departure_dt", pyarrow.timestamp("us")),
+        ("gtfs_arrival_dt", pyarrow.timestamp("us")),
+        ("latitude", pyarrow.float64()),
+        ("longitude", pyarrow.float64()),
     ]
 )
 
@@ -139,7 +192,7 @@ class HyperBusPerformanceAll(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        create_bus_parquet(self, DAYS_YEAR)
+        create_bus_parquet(self, BUS_ALL_NDAYS)
         return True
 
 
@@ -162,5 +215,5 @@ class HyperBusPerformanceRecent(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: None) -> bool:
-        create_bus_parquet(self, DAYS_WEEK)
+        create_bus_parquet(self, BUS_RECENT_NDAYS)
         return True
