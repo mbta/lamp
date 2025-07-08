@@ -89,7 +89,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
 
     # get date without time so comparisons will match for the entire day
     today = datetime.now().date()
-    start_day = today - timedelta(days=num_days)
+    start_day = today - timedelta(days=8)
     latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
     prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
 
@@ -98,10 +98,16 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
 
     regenerate_days = False
 
-    # if the two schemas don't match, assume that changes have been made, and regenerate all latest days
-    if pq.read_schema(latest_path) != pq.read_schema(prior_path):
+    latest_schema = pq.read_schema(latest_path)
+    prior_schema = pq.read_schema(prior_path)
+
+    # if the two schemas don't match, assume that changes have been made,
+    # and regenerate all latest days as long as the new schema is strictly a superset of the
+    # old one i.e. new columns added, none removed
+    # if the schema is not a subset, downstream Tableau joining will fail and
+    # the developer will see the error there
+    if latest_schema != prior_schema and set(prior_schema).issubset(set(latest_schema)):
         write_bus_metrics(start_date=start_day, end_date=today)
         regenerate_days = True
-
     regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
     regenerate_bus_metrics_logger.log_complete()
