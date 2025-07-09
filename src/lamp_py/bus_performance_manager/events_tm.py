@@ -143,20 +143,6 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
     )
 
-    # select tr.TRIP_SERIAL_NUMBER as trip_id
-    #         ,geo.GEO_NODE_ABBR as stop_id
-    #         ,geo.GEO_NODE_NAME as stop_name
-    #         ,timept.TIME_POINT_ABBR as tp_name
-    #         ,xref.PATTERN_GEO_NODE_SEQ as tm_sequence
-    #     from TMViewport..TMMain_Trip tr =============== - STOP_CROSSING - TRIP
-    #     join TMViewport..TMMain_PATTERN_GEO_NODE_XREF xref
-    #         on tr.PATTERN_ID=xref.PATTERN_ID =============== - STOP_CROSSING - default
-    #     join TMViewport.dbo.TMMain_GEO_NODE geo
-    #         on xref.GEO_NODE_ID = geo.GEO_NODE_ID =============== - STOP_CROSSING - default
-    #     left join TMViewport.dbo.TMDataMart_TIME_POINT timept
-    #         on xref.TIME_POINT_ID = timept.TIME_POINT_ID =============== - NEW
-    #     order by xref.PATTERN_GEO_NODE_SEQ
-
     # pull stop crossing information for a given service date and join it with
     # other dataframes using the transit master keys.
     #
@@ -226,6 +212,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
                 pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("tm_planned_sequence_start"),
                 pl.col("tm_planned_sequence_end"),
                 pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
                 pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
@@ -263,7 +250,20 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             .rank(method="dense")
             .over(["trip_id", "pattern_id", "vehicle_label"])
             .alias("timepoint_order")
+        ),
+        pl.coalesce(
+            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
+            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
+            pl.lit(1),
         )
+        .over("trip_id", "pattern_id", "vehicle_label")
+        .alias("tm_point_type"),
+    ).with_columns(
+        pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
+        .then(1)
+        .otherwise(0)
+        .over("trip_id", "pattern_id", "vehicle_label")
+        .alias("is_full_trip")
     )
 
     if tm_stop_crossings.shape[0] == 0:
