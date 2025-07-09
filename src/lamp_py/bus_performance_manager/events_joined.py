@@ -158,10 +158,28 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
     schedule = bus_gtfs_events_for_date(service_date)
 
+    # point type requires the schedule to be known, so likely handling it here after
+    # join_schedule_to_rt
+    # bus_df = bus_df.with_columns(
+    #     pl.coalesce(
+    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_stop_sequence").min()).then(0),
+    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_stop_sequence").max()).then(2),
+    #         pl.lit(1),
+    #     )
+    #     .over("trip_id", "route_id", "vehicle_label")
+    #     .alias("tm_point_type")
+    # )
+
+    # if for any group over, does not have a 0 and a 2 for point_type,
+    # valid trip is false
+    # rename valid trip to something better.
+
+    matched_plan_trips = match_plan_trips(gtfs, schedule)
+
     # get a plan_trip_id from the schedule for every rt trip_id
-    gtfs = gtfs.join(
-        match_plan_trips(gtfs, schedule), on="trip_id", how="left", coalesce=True, validate="m:1"
-    ).with_columns(pl.col("trip_id").eq(pl.col("plan_trip_id")).alias("exact_plan_trip_match"))
+    gtfs = gtfs.join(matched_plan_trips, on="trip_id", how="left", coalesce=True, validate="m:1").with_columns(
+        pl.col("trip_id").eq(pl.col("plan_trip_id")).alias("exact_plan_trip_match")
+    )
 
     # join plan scheudle trip data to rt gtfs
     gtfs = gtfs.join(
@@ -184,16 +202,11 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
         coalesce=True,
         validate="m:1",
     ).join(
-        (
-            schedule.select(
-                "stop_id",
-                "stop_name",
-            ).unique()
-        ),
+        (schedule.select("stop_id", "stop_name", "checkpoint_id", "checkpoint_name").unique()),
         on="stop_id",
         how="left",
         coalesce=True,
-        validate="m:1",
+        # validate="m:1",
     )
 
     # join plan schedule evenat data to rt gtfs
@@ -235,11 +248,48 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # asof strategy finds nearest value match between "asof" columns if exact match is not found
     # will perform regular left join on "by" columns
 
-    return gtfs.sort(by="stop_sequence").join_asof(
-        tm.sort("tm_stop_sequence"),
-        left_on="stop_sequence",
-        right_on="tm_stop_sequence",
-        by=["trip_id", "route_id", "vehicle_label", "stop_id"],
-        strategy="nearest",
-        coalesce=True,
+    # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
+    # usually off by 1 or so. By matching the nearest stop sequence
+    # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
+
+    tm = tm.sort("tm_stop_sequence").with_row_index()
+
+    # add a new column tm_joined to keep track of whether the join to gtfs is successful or not
+    # in the final output of this method:
+    # tm_joined - true if join is successful
+    # tm_joined - false if join not successful - tm row will be inserted via concat
+    # tm_joined - null if this is a pure GTFS row with no TM fields
+
+    first_part = (
+        gtfs.sort(by="stop_sequence")
+        .join_asof(
+            tm,
+            left_on="stop_sequence",
+            right_on="tm_stop_sequence",
+            by=["trip_id", "route_id", "vehicle_label", "stop_id"],
+            strategy="nearest",
+            coalesce=True,
+        )
+        .with_columns(pl.when(pl.col("index").is_not_null()).then(True).alias("tm_joined"))
     )
+
+    single_service_date = first_part.get_column("service_date").head(1)
+
+    # grab unjoined indices - set the tm_joined flag to false to mark these as "concat" rows
+    leftover_tm = tm.filter(~pl.col("index").is_in(first_part["index"])).with_columns(pl.lit(False).alias("tm_joined"))
+
+    # concat the leftover rows, filling in all the
+    output_df = (
+        pl.concat([first_part, leftover_tm], how="align")
+        .sort(by=["trip_id", "route_id", "vehicle_label", "stop_id"])
+        .with_columns(
+            (pl.col("service_date").fill_null(single_service_date)),
+            (pl.col("start_time").fill_null(strategy="forward")),
+            (pl.col("stop_count").fill_null(strategy="forward")),
+            (pl.col("direction_id").fill_null(strategy="forward")),
+            (pl.col("vehicle_id").fill_null(strategy="forward")),
+        )
+        .drop("index")
+    )
+
+    return output_df
