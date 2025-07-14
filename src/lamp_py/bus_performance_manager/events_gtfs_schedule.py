@@ -186,10 +186,8 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         "departure_time",
         "stop_id",
         "stop_sequence",
-        "checkpoint_id",
     )
 
-    checkpoints = gtfs_from_parquet("checkpoints", service_date).select("checkpoint_id", "checkpoint_name")
     stop_count = stop_times.group_by("trip_id").len("plan_stop_count")
     trip_start = stop_times.group_by("trip_id").agg(pl.col("arrival_time").min().alias("plan_start_time"))
 
@@ -221,11 +219,6 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         .join(
             trip_start,
             on="trip_id",
-            how="left",
-        )
-        .join(
-            checkpoints,
-            on="checkpoint_id",
             how="left",
         )
         # .join(
