@@ -75,10 +75,20 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
                 pl.col("gtfs_travel_to_dt")
                 .shift(-1)
                 .over(
+                    # this should technically include pattern_id as well,
+                    # but the groups formed by [trip_id, pattern_id] == [trip_id]
                     ["vehicle_label", "trip_id"],
                     order_by="gtfs_sort_dt",
                 )
             ).alias("gtfs_departure_dt"),
+            (
+                pl.col("stop_id")
+                .shift(1)
+                .over(
+                    ["vehicle_label", "trip_id"],
+                    order_by="gtfs_sort_dt",
+                )
+            ).alias("previous_stop_id"),
             # take the later of the two possible arrival times as the true arrival time
             (
                 pl.when(pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
