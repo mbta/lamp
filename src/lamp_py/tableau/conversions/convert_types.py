@@ -3,7 +3,7 @@ import pyarrow
 
 
 def convert_to_tableau_compatible_schema(
-    input_schema: pyarrow.schema, overrides: Optional[dict] = {}, exclude: Optional[list] = []
+    input_schema: pyarrow.schema, overrides: Optional[dict] = None, exclude: Optional[list] = None
 ) -> pyarrow.schema:
     """
     generic converter for known types (dates, timezones, etc)
@@ -16,9 +16,9 @@ def convert_to_tableau_compatible_schema(
     for field in input_schema:
         print(field.type)
 
-        if field.name in exclude:
+        if exclude is not None and field.name in exclude:
             continue
-        if field.name in overrides.keys():
+        if overrides is not None and field.name in overrides.keys():
             new_field = field.with_type(overrides[field.name])
             auto_schema.append(new_field)
             continue
