@@ -5,7 +5,7 @@ from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compati
 
 # simple case
 @pytest.fixture
-def test_schema1():
+def test_schema1() -> pyarrow.schema:
     return pyarrow.schema(
         [
             ("service_date", pyarrow.string()),
@@ -17,7 +17,7 @@ def test_schema1():
 
 # simple case
 @pytest.fixture
-def test_schema2():
+def test_schema2() -> pyarrow.schema:
     return pyarrow.schema(
         [
             ("service_date", pyarrow.date32()),
@@ -30,7 +30,7 @@ def test_schema2():
 
 # all case
 @pytest.fixture
-def test_schema3():
+def test_schema3() -> pyarrow.schema:
     return pyarrow.schema(
         [
             ("service_date", pyarrow.string()),
@@ -41,11 +41,11 @@ def test_schema3():
     )
 
 
-def test_tableau_auto_schema_happy_case(test_schema1) -> None:
+def test_tableau_auto_schema_happy_case(test_schema1: pyarrow.schema) -> None:
     assert test_schema1 == convert_to_tableau_compatible_schema(test_schema1)
 
 
-def test_tableau_auto_schema_override(test_schema1) -> None:
+def test_tableau_auto_schema_override(test_schema1: pyarrow.schema) -> None:
     assert_test_schema1 = pyarrow.schema(
         [
             ("service_date", pyarrow.date32()),  # change to date type
@@ -57,7 +57,7 @@ def test_tableau_auto_schema_override(test_schema1) -> None:
     assert assert_test_schema1 == convert_to_tableau_compatible_schema(test_schema1, overrides=overrides)
 
 
-def test_tableau_auto_schema_exclude(test_schema1) -> None:
+def test_tableau_auto_schema_exclude(test_schema1: pyarrow.schema) -> None:
     assert_test_schema1 = pyarrow.schema(
         [
             ("exact_plan_trip_match", pyarrow.bool_()),
@@ -67,7 +67,7 @@ def test_tableau_auto_schema_exclude(test_schema1) -> None:
     assert assert_test_schema1 == convert_to_tableau_compatible_schema(test_schema1, exclude=excludes)
 
 
-def test_tableau_auto_schema_tz(test_schema2) -> None:
+def test_tableau_auto_schema_tz(test_schema2: pyarrow.schema) -> None:
     assert_test_schema2 = pyarrow.schema(
         [
             ("service_date", pyarrow.date32()),  # change to date type
@@ -79,7 +79,7 @@ def test_tableau_auto_schema_tz(test_schema2) -> None:
     assert assert_test_schema2 == convert_to_tableau_compatible_schema(test_schema2)
 
 
-def test_tableau_auto_schema_all_case(test_schema3) -> None:
+def test_tableau_auto_schema_all_case(test_schema3: pyarrow.schema) -> None:
     breakpoint()
     assert_test_schema3 = pyarrow.schema(
         [
