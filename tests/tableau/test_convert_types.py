@@ -80,7 +80,6 @@ def test_tableau_auto_schema_tz(test_schema2: pyarrow.schema) -> None:
 
 
 def test_tableau_auto_schema_all_case(test_schema3: pyarrow.schema) -> None:
-    breakpoint()
     assert_test_schema3 = pyarrow.schema(
         [
             ("service_date", pyarrow.date32()),  # change to date type
