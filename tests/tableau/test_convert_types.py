@@ -2,6 +2,7 @@ import pyarrow
 import pytest
 from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 
+
 # simple case
 @pytest.fixture
 def test_schema1():
