@@ -14,16 +14,16 @@ from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 import polars as pl
 
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
-from lamp_py.tableau.jobs.bus_performance import bus_schema_recent
+from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 
 # stage 1 - regenerate range
 ##################
 # this is a good runner - 6/17/25
-end_date = datetime(year=2025, month=6, day=17)
-start_date = end_date - timedelta(days=7)
-# write_bus_metrics(start_date, end_date, write_local_only=True)
+end_date = datetime(year=2025, month=7, day=13)
+start_date = end_date - timedelta(days=2)
+write_bus_metrics(start_date, end_date, write_local_only=True)
 
-regenerate_bus_metrics_recent()
+# regenerate_bus_metrics_recent(num_days=2, write_local_only=True)
 ##################
 ss = pl.date_range(start_date, end_date, "1d", eager=True)
 
@@ -40,7 +40,10 @@ ds = pd.dataset(
     filesystem=None,
 )
 
-with pq.ParquetWriter("/tmp/bus_recent.parquet", schema=bus_schema_recent) as writer:
+overrides = {"service_date": pyarrow.date32()}
+tableau_schema = convert_to_tableau_compatible_schema(ds.schema, overrides)
+
+with pq.ParquetWriter("/tmp/bus_recent.parquet", schema=tableau_schema) as writer:
     for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
         # this select() is here to make sure the order of the polars_df
         # schema is the same as the bus_schema above.
@@ -49,7 +52,7 @@ with pq.ParquetWriter("/tmp/bus_recent.parquet", schema=bus_schema_recent) as wr
         # if the bus_schema above is in the same order as the batch
         # schema, then the select will do nothing - as expected
 
-        polars_df = pl.from_arrow(batch).select(bus_schema_recent.names)  # type: ignore[union-attr]
+        polars_df = pl.from_arrow(batch).select(tableau_schema.names)  # type: ignore[union-attr]
 
         if not isinstance(polars_df, pl.DataFrame):
             raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
