@@ -158,12 +158,10 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
     schedule = bus_gtfs_events_for_date(service_date)
 
-    matched_plan_trips = match_plan_trips(gtfs, schedule)
-
     # get a plan_trip_id from the schedule for every rt trip_id
-    gtfs = gtfs.join(matched_plan_trips, on="trip_id", how="left", coalesce=True, validate="m:1").with_columns(
-        pl.col("trip_id").eq(pl.col("plan_trip_id")).alias("exact_plan_trip_match")
-    )
+    gtfs = gtfs.join(
+        match_plan_trips(gtfs, schedule), on="trip_id", how="left", coalesce=True, validate="m:1"
+    ).with_columns(pl.col("trip_id").eq(pl.col("plan_trip_id")).alias("exact_plan_trip_match"))
 
     # join plan scheudle trip data to rt gtfs
     gtfs = gtfs.join(
@@ -186,7 +184,12 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
         coalesce=True,
         validate="m:1",
     ).join(
-        (schedule.select("stop_id", "stop_name").unique()),
+        (
+            schedule.select(
+                "stop_id",
+                "stop_name",
+            ).unique()
+        ),
         on="stop_id",
         how="left",
         coalesce=True,
@@ -262,7 +265,7 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # grab unjoined indices - set the tm_joined flag to false to mark these as "concat" rows
     leftover_tm = tm.filter(~pl.col("index").is_in(first_part["index"])).with_columns(pl.lit(False).alias("tm_joined"))
 
-    # concat the leftover rows, filling in all the
+    # concat the leftover rows, filling in all the columns that make sense to fill
     output_df = (
         pl.concat([first_part, leftover_tm], how="align")
         .sort(by=["trip_id", "route_id", "vehicle_label", "stop_id"])
