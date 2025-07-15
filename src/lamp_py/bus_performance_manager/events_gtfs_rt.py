@@ -195,6 +195,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         vehicle_label -> String
         gtfs_travel_to_dt -> Datetime
         gtfs_arrival_dt -> Datetime
+        latitude -> Float64
+        longitude -> Float64
     """
 
     vehicle_events = vehicle_positions.pivot(
@@ -214,9 +216,25 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         on="current_status",
     )
 
-    for column in ["vehicle_timestamp_STOPPED_AT", "vehicle_timestamp_IN_TRANSIT_TO"]:
+    # these sections to add in columns are for handling when the input dataframes are empty.
+    # the pivot does not successfully add in the values=[x,y,z] columns, so they must be added
+    # back in after the fact to maintain the expected interface
+    for column in [
+        "vehicle_timestamp_STOPPED_AT",
+        "vehicle_timestamp_IN_TRANSIT_TO",
+    ]:
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
+
+    for column in [
+        "latitude_STOPPED_AT",
+        "latitude_IN_TRANSIT_TO",
+        "longitude_STOPPED_AT",
+        "longitude_IN_TRANSIT_TO",
+    ]:
+        if column not in vehicle_events.columns:
+            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Float64).alias(column))
+    # end of empty table handling logic
 
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
