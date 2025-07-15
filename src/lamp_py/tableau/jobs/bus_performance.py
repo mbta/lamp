@@ -8,6 +8,7 @@ from pyarrow.fs import S3FileSystem
 
 import polars as pl
 
+from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 
@@ -145,7 +146,10 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
         filesystem=S3FileSystem(),
     )
 
-    with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
+    overrides = {"service_date": pyarrow.date32()}
+    tableau_schema = convert_to_tableau_compatible_schema(ds.schema, overrides)
+
+    with pq.ParquetWriter(job.local_parquet_path, schema=tableau_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
             # this select() is here to make sure the order of the polars_df
             # schema is the same as the bus_schema above.
@@ -154,7 +158,7 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
 
-            polars_df = pl.from_arrow(batch).select(bus_schema.names)  # type: ignore[union-attr]
+            polars_df = pl.from_arrow(batch).select(tableau_schema.names)  # type: ignore[union-attr]
 
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
