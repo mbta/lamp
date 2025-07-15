@@ -62,6 +62,8 @@ VP_SCHEMA = {
     "vehicle_label": pl.String,
     "current_status": pl.String,
     "vehicle_timestamp": pl.Datetime,
+    "latitude": pl.Float64,
+    "longitude": pl.Float64,
 }
 
 # schema for vehicle events dataframes
@@ -80,6 +82,8 @@ VE_SCHEMA = {
     "current_status": pl.String,
     "gtfs_travel_to_dt": pl.Datetime,
     "gtfs_arrival_dt": pl.Datetime,
+    "latitude": pl.Float64,
+    "longitude": pl.Float64,
 }
 
 
@@ -215,6 +219,8 @@ def route_one() -> pl.DataFrame:
             datetime(year=2024, month=6, day=1, hour=8, minute=55),
             datetime(year=2024, month=6, day=1, hour=8, minute=57),
         ],
+        "latitude": [42.3516, 42.3516, 42.3516, 42.3516],
+        "longitude": [-71.0668, -71.0668, -71.0668, -71.0668],
     }
 
     return pl.DataFrame(data, schema=VP_SCHEMA)
@@ -263,6 +269,22 @@ def route_two() -> pl.DataFrame:
             datetime(year=2024, month=6, day=1, hour=9, minute=55),
             datetime(year=2024, month=6, day=1, hour=9, minute=57),
             datetime(year=2024, month=6, day=1, hour=9, minute=59),
+        ],
+        "latitude": [
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+        ],
+        "longitude": [
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
         ],
     }
 
@@ -313,6 +335,22 @@ def route_three() -> pl.DataFrame:
             datetime(year=2024, month=6, day=1, hour=10, minute=57),
             datetime(year=2024, month=6, day=1, hour=10, minute=59),
         ],
+        "latitude": [
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+        ],
+        "longitude": [
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+        ],
     }
 
     return pl.DataFrame(data, schema=VP_SCHEMA)
@@ -361,6 +399,22 @@ def route_four() -> pl.DataFrame:
             datetime(year=2024, month=6, day=1, hour=11, minute=55),
             datetime(year=2024, month=6, day=1, hour=11, minute=57),
             datetime(year=2024, month=6, day=1, hour=11, minute=59),
+        ],
+        "latitude": [
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+            42.3516,
+        ],
+        "longitude": [
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
+            -71.0668,
         ],
     }
 
