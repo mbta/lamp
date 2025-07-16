@@ -13,7 +13,7 @@ from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
 
-from lamp_py.aws.s3 import file_list_from_s3_date_range
+from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 
 
 # pylint: disable=R0917,R0902,R0913
@@ -69,24 +69,28 @@ class FilteredHyperJob(HyperJob):
         -------
         True if parquet created, False otherwise
         """
-
-        # limitation of filtered hyper only does whole days.
-        # update to allow start/end set by hour, to get the entire
-        # previous days uploads working
-        # need to implement new input daily_upload_hour as well
-        # this will currently update hourly. will monitor
-        end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=num_days)  # type: ignore
-        bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
-        # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
-        s3_uris = file_list_from_s3_date_range(
-            bucket_name=self.remote_input_location.bucket,
-            file_prefix=self.remote_input_location.prefix,
-            path_template=bucket_filter_template,
-            end_date=end_date,
-            start_date=start_date,
-        )
-
+        if num_days is not None:
+            # limitation of filtered hyper only does whole days.
+            # update to allow start/end set by hour, to get the entire
+            # previous days uploads working
+            # need to implement new input daily_upload_hour as well
+            # this will currently update hourly. will monitor
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=num_days)  # type: ignore
+            bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
+            # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
+            s3_uris = file_list_from_s3_date_range(
+                bucket_name=self.remote_input_location.bucket,
+                file_prefix=self.remote_input_location.prefix,
+                path_template=bucket_filter_template,
+                end_date=end_date,
+                start_date=start_date,
+            )
+        else:
+            s3_uris = file_list_from_s3(
+                bucket_name=self.remote_input_location.bucket,
+                file_prefix=self.remote_input_location.prefix,
+            )
         ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
         ds = pd.dataset(
