@@ -19,9 +19,9 @@ from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compati
 # stage 1 - regenerate range
 ##################
 # this is a good runner - 6/17/25
-end_date = datetime(year=2025, month=7, day=13)
-start_date = end_date - timedelta(days=2)
-write_bus_metrics(start_date, end_date, write_local_only=True)
+end_date = datetime(year=2025, month=6, day=26)
+start_date = end_date - timedelta(days=0)
+write_bus_metrics(start_date=end_date, end_date=end_date, write_local_only=True)
 
 # regenerate_bus_metrics_recent(num_days=2, write_local_only=True)
 ##################
