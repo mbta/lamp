@@ -464,7 +464,7 @@ class GtfsRtConverter(Converter):
                         filter=(
                             (pc.field(self.detail.partition_column) == part)
                             & (pc.field("feed_timestamp") < unique_ts_min)
-                            & FilterBankRtTripUpdates.ParquetFilter.light_rail,
+                            & (FilterBankRtTripUpdates.ParquetFilter.light_rail),
                         )
                     )
                     light_rail_full_set_writer.write_table(lr_write_table)
@@ -475,7 +475,7 @@ class GtfsRtConverter(Converter):
                                 filter=(
                                     (pc.field(self.detail.partition_column) == part)
                                     & (pc.field("feed_timestamp") >= unique_ts_min)
-                                    & FilterBankRtTripUpdates.ParquetFilter.light_rail,
+                                    & (FilterBankRtTripUpdates.ParquetFilter.light_rail),
                                 )
                             )
                         )
@@ -507,7 +507,7 @@ class GtfsRtConverter(Converter):
             ):
                 upload_file(
                     light_rail_full_set_path,
-                    local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
+                    local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace("RT_TRIP_UPDATES", "LRTP"),
                 )
 
     # pylint: enable=R0914
