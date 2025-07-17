@@ -456,7 +456,10 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
-                if self.config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES or self.config_type == ConfigType.RT_TRIP_UPDATES:
+                if (
+                    self.config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES
+                    or self.config_type == ConfigType.RT_TRIP_UPDATES
+                ):
                     lr_write_table = out_ds.to_table(
                         filter=(
                             (pc.field(self.detail.partition_column) == part)
@@ -498,7 +501,10 @@ class GtfsRtConverter(Converter):
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
-            if self.config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES or self.config_type == ConfigType.RT_TRIP_UPDATES:
+            if (
+                self.config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES
+                or self.config_type == ConfigType.RT_TRIP_UPDATES
+            ):
                 upload_file(
                     light_rail_full_set_path,
                     local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
