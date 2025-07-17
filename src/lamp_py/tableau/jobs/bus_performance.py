@@ -76,59 +76,6 @@ bus_schema = pyarrow.schema(
     ]
 )
 
-bus_schema_recent = pyarrow.schema(
-    [
-        ("service_date", pyarrow.date32()),  # change to date type
-        ("route_id", pyarrow.large_string()),
-        ("trip_id", pyarrow.large_string()),
-        ("start_time", pyarrow.int64()),
-        ("start_dt", pyarrow.timestamp("us")),
-        ("stop_count", pyarrow.uint32()),
-        ("direction_id", pyarrow.int8()),
-        ("stop_id", pyarrow.large_string()),
-        ("stop_sequence", pyarrow.int64()),
-        ("vehicle_id", pyarrow.large_string()),
-        ("vehicle_label", pyarrow.large_string()),
-        ("gtfs_travel_to_dt", pyarrow.timestamp("us")),
-        ("tm_stop_sequence", pyarrow.int64()),
-        ("tm_scheduled_time_dt", pyarrow.timestamp("us")),
-        ("tm_actual_arrival_dt", pyarrow.timestamp("us")),
-        ("tm_actual_departure_dt", pyarrow.timestamp("us")),
-        ("tm_scheduled_time_sam", pyarrow.int64()),
-        ("tm_actual_arrival_time_sam", pyarrow.int64()),
-        ("tm_actual_departure_time_sam", pyarrow.int64()),
-        ("plan_trip_id", pyarrow.large_string()),
-        ("exact_plan_trip_match", pyarrow.bool_()),
-        ("block_id", pyarrow.large_string()),
-        ("service_id", pyarrow.large_string()),
-        ("route_pattern_id", pyarrow.large_string()),
-        ("route_pattern_typicality", pyarrow.int64()),
-        ("direction", pyarrow.large_string()),
-        ("direction_destination", pyarrow.large_string()),
-        ("plan_stop_count", pyarrow.uint32()),
-        ("plan_start_time", pyarrow.int64()),
-        ("plan_start_dt", pyarrow.timestamp("us")),
-        ("stop_name", pyarrow.large_string()),
-        ("plan_travel_time_seconds", pyarrow.int64()),
-        ("plan_route_direction_headway_seconds", pyarrow.int64()),
-        ("plan_direction_destination_headway_seconds", pyarrow.int64()),
-        ("stop_arrival_dt", pyarrow.timestamp("us")),
-        ("stop_departure_dt", pyarrow.timestamp("us")),
-        ("gtfs_travel_to_seconds", pyarrow.int64()),
-        ("stop_arrival_seconds", pyarrow.int64()),
-        ("stop_departure_seconds", pyarrow.int64()),
-        ("travel_time_seconds", pyarrow.int64()),
-        ("dwell_time_seconds", pyarrow.int64()),
-        ("route_direction_headway_seconds", pyarrow.int64()),
-        ("direction_destination_headway_seconds", pyarrow.int64()),
-        ("gtfs_sort_dt", pyarrow.timestamp("us")),
-        ("gtfs_departure_dt", pyarrow.timestamp("us")),
-        ("gtfs_arrival_dt", pyarrow.timestamp("us")),
-        ("latitude", pyarrow.float64()),
-        ("longitude", pyarrow.float64()),
-    ]
-)
-
 
 def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     """
