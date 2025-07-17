@@ -134,7 +134,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
         .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
-    ).sort(by=["TRIP_SERIAL_NUMBER", "PATTERN_ID", "PATTERN_GEO_NODE_SEQ"])
+    ).with_columns(pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["TRIP_ID"]).alias("timepoint_order"))
 
     # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
     # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
@@ -187,13 +187,13 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 coalesce=True,
             )
             .join(
-                tm_time_points,
-                on="TIME_POINT_ID",
+                tm_sequences,
+                on="TRIP_ID",
                 how="left",
                 coalesce=True,
             )
             .join(
-                tm_sequences,
+                tm_trip_xref,
                 on="TRIP_ID",
                 how="left",
                 coalesce=True,
@@ -212,6 +212,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
                 pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("timepoint_order"),
                 pl.col("tm_planned_sequence_start"),
                 pl.col("tm_planned_sequence_end"),
                 pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
@@ -245,12 +246,6 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
 
     tm_stop_crossings = tm_stop_crossings.with_columns(
-        (
-            pl.col(["tm_stop_sequence"])
-            .rank(method="dense")
-            .over(["trip_id", "pattern_id", "vehicle_label"])
-            .alias("timepoint_order")
-        ),
         pl.coalesce(
             pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
             pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
