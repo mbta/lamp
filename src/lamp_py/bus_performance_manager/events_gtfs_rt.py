@@ -198,9 +198,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         latitude -> Float64
         longitude -> Float64
     """
-
+    vehicle_positions = vehicle_positions.with_row_index()
     vehicle_events = vehicle_positions.pivot(
-        values=["vehicle_timestamp", "latitude", "longitude"],
+        values=["vehicle_timestamp"],
         aggregate_function="min",
         index=[
             "route_id",
@@ -212,28 +212,26 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             "service_date",
             "vehicle_id",
             "vehicle_label",
+            "index",
         ],
         on="current_status",
     )
 
-    # these sections to add in columns are for handling when the input dataframes are empty.
+    vehicle_events = vehicle_events.join(
+        vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO").select(
+            ["index", "latitude", "longitude"]
+        ),
+        on="index",
+        coalesce=True,
+    )
+
+    # this section adds in columns are for handling when the input dataframes are empty.
     # the pivot does not successfully add in the values=[x,y,z] columns, so they must be added
     # back in after the fact to maintain the expected interface
-    for column in [
-        "vehicle_timestamp_STOPPED_AT",
-        "vehicle_timestamp_IN_TRANSIT_TO",
-    ]:
+    for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
-    for column in [
-        "latitude_STOPPED_AT",
-        "latitude_IN_TRANSIT_TO",
-        "longitude_STOPPED_AT",
-        "longitude_IN_TRANSIT_TO",
-    ]:
-        if column not in vehicle_events.columns:
-            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Float64).alias(column))
     # end of empty table handling logic
 
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
@@ -246,13 +244,13 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         )
         .rename(
             {
-                "vehicle_timestamp_STOPPED_AT": "gtfs_arrival_dt",
-                "vehicle_timestamp_IN_TRANSIT_TO": "gtfs_travel_to_dt",
+                "STOPPED_AT": "gtfs_arrival_dt",
+                "IN_TRANSIT_TO": "gtfs_travel_to_dt",
                 # only grab the IN_TRANSIT_TO rows because they seem to better
                 # align to actual trips than STOPPED_AT does - caused by
                 # vendor - details in linked Asana Ticket/PR #542
-                "latitude_IN_TRANSIT_TO": "latitude",
-                "longitude_IN_TRANSIT_TO": "longitude",
+                # "latitude_IN_TRANSIT_TO": "latitude",
+                # "longitude_IN_TRANSIT_TO": "longitude",
             }
         )
         .with_columns(
