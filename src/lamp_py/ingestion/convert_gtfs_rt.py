@@ -56,6 +56,7 @@ from lamp_py.runtime_utils.remote_files import (
     S3_ERROR,
     S3_ARCHIVE,
 )
+from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
 
 
 @dataclass
@@ -416,9 +417,16 @@ class GtfsRtConverter(Converter):
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
+            light_rail_full_set_path = os.path.join(temp_dir, "light_rail_full_set.parquet")
+
             hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
             upload_writer = pq.ParquetWriter(
                 upload_path, schema=no_hash_schema, compression="zstd", compression_level=3
+            )
+
+            # include the hash column for debug
+            light_rail_full_set_writer = pq.ParquetWriter(
+                light_rail_full_set_path, schema=out_ds.schema, compression="zstd", compression_level=3
             )
 
             partitions = pc.unique(
@@ -430,8 +438,10 @@ class GtfsRtConverter(Converter):
                         (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
                     )
                 )
+
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+
                 write_table = (
                     pl.from_arrow(
                         out_ds.to_table(
@@ -446,17 +456,53 @@ class GtfsRtConverter(Converter):
                     .to_arrow()
                     .cast(out_ds.schema)
                 )
+                if self.config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES or self.config_type == ConfigType.RT_TRIP_UPDATES:
+                    lr_write_table = out_ds.to_table(
+                        filter=(
+                            (pc.field(self.detail.partition_column) == part)
+                            & (pc.field("feed_timestamp") < unique_ts_min)
+                            & FilterBankRtTripUpdates.ParquetFilter.light_rail,
+                        )
+                    )
+                    light_rail_full_set_writer.write_table(lr_write_table)
+
+                    lr_write_table = (
+                        pl.from_arrow(
+                            out_ds.to_table(
+                                filter=(
+                                    (pc.field(self.detail.partition_column) == part)
+                                    & (pc.field("feed_timestamp") >= unique_ts_min)
+                                    & FilterBankRtTripUpdates.ParquetFilter.light_rail,
+                                )
+                            )
+                        )
+                        .sort(by=["feed_timestamp"])  # type: ignore
+                        .to_arrow()
+                        .cast(out_ds.schema)
+                    )
+                    light_rail_full_set_writer.write_table(lr_write_table)
+
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
             hash_writer.close()
             upload_writer.close()
+            light_rail_full_set_writer.close()
 
+            # overwrite existing hashed parquet path
             os.replace(hash_pq_path, local_path)
+
+            # upload the upload_path file (without hash) to s3
+            # replace the first part of the path with the s3 path
             upload_file(
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
+            if self.config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES or self.config_type == ConfigType.RT_TRIP_UPDATES:
+                upload_file(
+                    light_rail_full_set_path,
+                    local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
+                )
 
     # pylint: enable=R0914
 
