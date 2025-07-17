@@ -25,6 +25,8 @@ from typing import (
 import polars as pl
 import pyarrow
 from pyarrow import fs
+
+import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -464,7 +466,7 @@ class GtfsRtConverter(Converter):
                         filter=(
                             (pc.field(self.detail.partition_column) == part)
                             & (pc.field("feed_timestamp") < unique_ts_min)
-                            & (FilterBankRtTripUpdates.ParquetFilter.light_rail),
+                            & (FilterBankRtTripUpdates.ParquetFilter.light_rail)
                         )
                     )
                     light_rail_full_set_writer.write_table(lr_write_table)
@@ -475,7 +477,7 @@ class GtfsRtConverter(Converter):
                                 filter=(
                                     (pc.field(self.detail.partition_column) == part)
                                     & (pc.field("feed_timestamp") >= unique_ts_min)
-                                    & (FilterBankRtTripUpdates.ParquetFilter.light_rail),
+                                    & (FilterBankRtTripUpdates.ParquetFilter.light_rail)
                                 )
                             )
                         )
