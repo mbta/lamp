@@ -58,6 +58,14 @@ class FilteredHyperJob(HyperJob):
     def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
+
+        Parameters
+        ----------
+        num_days : Number of days to query and concatenate. If None, processes all days available
+
+        Returns
+        -------
+        True if parquet created, False otherwise
         """
 
         # limitation of filtered hyper only does whole days.

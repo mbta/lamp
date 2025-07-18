@@ -56,11 +56,36 @@ def lrtp_prod(polars_df: pl.DataFrame) -> pl.DataFrame:
 def lrtp_devgreen(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
+    This is intended for more complicated transformations than is feasible to perform in pyarrow
+
+    Parameters
+    ----------
+    polars_df : Dataframe filtered down to light rail trip updates
+
+    Returns
+    -------
+    pl.Dataframe : filtered down to departures at terminals
+                   add feed_timestamp.first_prediction and feed_timestamp.last_prediction columns
+                   to signify a validity duration of a prediction
+
     """
+
+    # filter down to only terminals - original data
     polars_df = polars_df.filter(
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
         & pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
     )
+
+    # predictions are valid only instantaneously from the upstream producer (RTR)
+    # This section attempts to derive a rough "validity period" by checking when the first prediction is made
+    # vs the last one for the same trip_update.timestamp.
+    polars_df = polars_df.group_by(["trip_update.trip.trip_id", "trip_update.timestamp"]).agg(
+        pl.col("feed_timestamp").min().alias("feed_timestamp.first_prediction"),
+        pl.col("feed_timestamp").max().alias("feed_timestamp.last_prediction"),
+    )
+    polars_df = polars_df.join(
+        polars_df, on=["trip_update.trip.trip_id", "trip_update.timestamp"], how="inner", coalesce=True
+    ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
     polars_df = apply_timezone_conversions(polars_df)
     return polars_df
 
