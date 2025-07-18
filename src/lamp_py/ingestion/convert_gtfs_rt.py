@@ -26,7 +26,6 @@ import polars as pl
 import pyarrow
 from pyarrow import fs
 
-import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
