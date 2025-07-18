@@ -28,9 +28,9 @@ from lamp_py.aws.ecs import check_for_parallel_tasks
 
 from lamp_py.runtime_utils.remote_files import (
     springboard_rt_vehicle_positions,
-    springboard_rt_trip_updates,
     springboard_devgreen_rt_vehicle_positions,
-    springboard_devgreen_rt_trip_updates,
+    springboard_devgreen_lrtp_trip_updates,
+    springboard_lrtp_trip_updates,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_heavyrail_30_day,
@@ -53,7 +53,7 @@ HyperGtfsRtVehiclePositions = FilteredHyperJob(
 )
 
 HyperGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_rt_trip_updates,
+    remote_input_location=springboard_lrtp_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_60_day,
     rollup_num_days=60,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
@@ -73,7 +73,7 @@ HyperGtfsRtVehiclePositionsHeavyRail = FilteredHyperJob(
 )
 
 HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
-    remote_input_location=springboard_rt_trip_updates,
+    remote_input_location=springboard_lrtp_trip_updates,
     remote_output_location=tableau_rt_trip_updates_heavyrail_30_day,
     rollup_num_days=30,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),
@@ -103,7 +103,7 @@ HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
 )
 
 HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_devgreen_rt_trip_updates,
+    remote_input_location=springboard_devgreen_lrtp_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_60_day,
     rollup_num_days=60,
     processed_schema=convert_gtfs_rt_trip_updates.schema(),

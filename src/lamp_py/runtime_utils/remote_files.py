@@ -44,7 +44,6 @@ springboard_rt_trip_updates = S3Location(
     prefix=os.path.join(LAMP, "RT_TRIP_UPDATES"),
 )
 ########################################################
-########################################################
 # files ingested from delta - DEVGREEN
 springboard_devgreen_rt_vehicle_positions = S3Location(
     bucket=S3_SPRINGBOARD,
@@ -56,6 +55,20 @@ springboard_devgreen_rt_trip_updates = S3Location(
     prefix=os.path.join(LAMP, "DEV_GREEN_RT_TRIP_UPDATES"),
 )
 ########################################################
+
+########################################################
+# LRTP extracts - only light rail, but contains all records
+# Not uniqued/filtered down.
+
+springboard_devgreen_lrtp_trip_updates = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "DEV_GREEN_LRTP_TRIP_UPDATES"),
+)
+
+springboard_lrtp_trip_updates = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "LRTP_TRIP_UPDATES"),
+)
 ########################################################
 
 rt_alerts = S3Location(
