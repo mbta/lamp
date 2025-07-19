@@ -55,6 +55,8 @@ class FilteredHyperJob(HyperJob):
     def update_parquet(self, _: None) -> bool:
         return self.create_tableau_parquet(num_days=self.rollup_num_days)
 
+    # pylint: disable=R0914
+    # pylint too many local variables (more than 15)
     def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
