@@ -97,12 +97,16 @@ class FilteredHyperJob(HyperJob):
         if len(ds_paths) == 0:
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
             return False
-        process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         max_alloc = 0
+        read_schema = list(set(ds.schema.names).intersection(self.processed_schema.names))
+
+        dropped_columns = list(set(ds.schema.names).difference(set(self.processed_schema.names)))
+        added_columns = list(set(self.processed_schema.names).difference(set(ds.schema.names)))
+
         with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
-                columns=self.processed_schema.names,
+                columns=read_schema,
                 filter=self.parquet_filter,
                 batch_readahead=1,
                 fragment_readahead=0,
@@ -113,11 +117,10 @@ class FilteredHyperJob(HyperJob):
 
                 if self.dataframe_filter is not None:
                     # apply transformations if function passed in
-
                     polars_df = pl.from_arrow(batch)
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-                    polars_df = self.dataframe_filter(polars_df)
+                    polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
                     # filtered on columns of interest and dataframe_filter
                     writer.write_table(polars_df.to_arrow())
                 else:
@@ -128,6 +131,13 @@ class FilteredHyperJob(HyperJob):
                 if alloc > max_alloc:
                     max_alloc = alloc
                     process_logger.add_metadata(alloc_bytes=max_alloc)
+
+            process_logger.add_metadata(
+                first_file=ds_paths[0],
+                last_file=ds_paths[-1],
+                tableau_writer_dropped_columns=dropped_columns,
+                tableau_writer_added_columns=added_columns,
+            )
 
         process_logger.log_complete()
         return True
