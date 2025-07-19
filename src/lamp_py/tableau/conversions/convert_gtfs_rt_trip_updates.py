@@ -38,6 +38,8 @@ gtfs_rt_trip_updates_processed_schema = pyarrow.schema(
         ("trip_update.stop_time_update.departure.uncertainty", pyarrow.int32()),
         ("trip_update.stop_time_update.schedule_relationship", pyarrow.large_string()),
         ("trip_update.stop_time_update.boarding_status", pyarrow.large_string()),
+        ("feed_timestamp_first_prediction", pyarrow.timestamp("us")),
+        ("feed_timestamp_last_prediction", pyarrow.timestamp("us")),
     ]
 )
 
@@ -79,12 +81,17 @@ def lrtp_devgreen(polars_df: pl.DataFrame) -> pl.DataFrame:
     # predictions are valid only instantaneously from the upstream producer (RTR)
     # This section attempts to derive a rough "validity period" by checking when the first prediction is made
     # vs the last one for the same trip_update.timestamp.
-    polars_df = polars_df.group_by(["trip_update.trip.trip_id", "trip_update.timestamp"]).agg(
-        pl.col("feed_timestamp").min().alias("feed_timestamp.first_prediction"),
-        pl.col("feed_timestamp").max().alias("feed_timestamp.last_prediction"),
+    prediction_valid_duration = polars_df.group_by(
+        ["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"]
+    ).agg(
+        pl.col("feed_timestamp").min().alias("feed_timestamp_first_prediction"),
+        pl.col("feed_timestamp").max().alias("feed_timestamp_last_prediction"),
     )
     polars_df = polars_df.join(
-        polars_df, on=["trip_update.trip.trip_id", "trip_update.timestamp"], how="inner", coalesce=True
+        prediction_valid_duration,
+        on=["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"],
+        how="inner",
+        coalesce=True,
     ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
     polars_df = apply_timezone_conversions(polars_df)
     return polars_df
@@ -118,6 +125,12 @@ def apply_timezone_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
         pl.from_epoch(pl.col("feed_timestamp"), time_unit="s")
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+        pl.from_epoch(pl.col("feed_timestamp_first_prediction"), time_unit="s")
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+        pl.from_epoch(pl.col("feed_timestamp_last_prediction"), time_unit="s")
         .dt.convert_time_zone(time_zone="US/Eastern")
         .dt.replace_time_zone(None),
     )
