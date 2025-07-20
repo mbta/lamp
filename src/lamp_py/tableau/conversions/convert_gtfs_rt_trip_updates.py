@@ -77,22 +77,7 @@ def lrtp_devgreen(polars_df: pl.DataFrame) -> pl.DataFrame:
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
         & pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
     )
-
-    # predictions are valid only instantaneously from the upstream producer (RTR)
-    # This section attempts to derive a rough "validity period" by checking when the first prediction is made
-    # vs the last one for the same trip_update.timestamp.
-    prediction_valid_duration = polars_df.group_by(
-        ["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"]
-    ).agg(
-        pl.col("feed_timestamp").min().alias("feed_timestamp_first_prediction"),
-        pl.col("feed_timestamp").max().alias("feed_timestamp_last_prediction"),
-    )
-    polars_df = polars_df.join(
-        prediction_valid_duration,
-        on=["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"],
-        how="inner",
-        coalesce=True,
-    ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
+    polars_df = append_prediction_valid_duration(polars_df)
     polars_df = apply_timezone_conversions(polars_df)
     return polars_df
 
@@ -142,3 +127,43 @@ def schema() -> pyarrow.schema:
     Function returns schema of the processed gtfs-rt trip updates
     """
     return gtfs_rt_trip_updates_processed_schema
+
+
+def append_prediction_valid_duration(polars_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Append feed_timestamp_first_prediction and feed_timestamp_last_prediction columns to the dataframe
+
+    Predictions are valid only instantaneously from the upstream producer (RTR)
+    This method attempts to derive a rough "validity period" by checking when the
+    first prediction is made vs the last one grouped by trip_id, feed_timestamp, and predicted time
+
+    The intent is to isolate timestamps that are sent by RTR that are meant for the
+    same trip_id, but has not changed the prediction (departure.time) since the previous query.
+
+    Parameters
+    ----------
+    polars_df : Dataframe filtered down to light rail trip updates
+
+    Returns
+    -------
+    pl.Dataframe : dataframe with feed_timestamp_first_prediction and feed_timestamp_last_prediction columns
+                   to signify a validity duration of a prediction
+                   these columns are all null if enable_calculation argument is False
+                   these columns are calculated and valid if enable_calculation is True
+    """
+
+    prediction_valid_duration = polars_df.group_by(
+        ["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"]
+    ).agg(
+        pl.col("feed_timestamp").min().alias("feed_timestamp_first_prediction"),
+        pl.col("feed_timestamp").max().alias("feed_timestamp_last_prediction"),
+    )
+
+    polars_df = polars_df.join(
+        prediction_valid_duration,
+        on=["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"],
+        how="inner",
+        coalesce=True,
+    ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
+
+    return polars_df
