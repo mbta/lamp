@@ -40,7 +40,7 @@ class FilteredHyperJob(HyperJob):
         )
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
-        self.processed_schema = processed_schema # expected output schema passed in
+        self.processed_schema = processed_schema  # expected output schema passed in
         self.rollup_num_days = rollup_num_days
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
@@ -117,13 +117,20 @@ class FilteredHyperJob(HyperJob):
                 if batch.num_rows == 0:
                     continue
 
+                # apply transformations if function passed in
                 if self.dataframe_filter is not None:
-                    # apply transformations if function passed in
                     polars_df = pl.from_arrow(batch)
+
+                    for col in added_columns:
+                        polars_df = polars_df.with_columns(pl.lit(None).alias(col))
+
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+
+                    # filter, then reorder the columns to get them in pyarrow write order,
+                    # otherwise the write_table call fails
                     polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
-                    # filtered on columns of interest and dataframe_filter
+
                     writer.write_table(polars_df.to_arrow())
                 else:
                     # just write the batch out - filtered on columns of interest
