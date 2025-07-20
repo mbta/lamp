@@ -40,13 +40,13 @@ class FilteredHyperJob(HyperJob):
         )
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
-        self.processed_schema = processed_schema
+        self.processed_schema = processed_schema # expected output schema passed in
         self.rollup_num_days = rollup_num_days
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return self.processed_schema
 
     def create_parquet(self, _: None) -> None:
@@ -100,12 +100,12 @@ class FilteredHyperJob(HyperJob):
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
             return False
         max_alloc = 0
-        read_schema = list(set(ds.schema.names).intersection(self.processed_schema.names))
+        read_schema = list(set(ds.schema.names).intersection(self.output_processed_schema.names))
 
-        dropped_columns = list(set(ds.schema.names).difference(set(self.processed_schema.names)))
-        added_columns = list(set(self.processed_schema.names).difference(set(ds.schema.names)))
+        dropped_columns = list(set(ds.schema.names).difference(set(self.output_processed_schema.names)))
+        added_columns = list(set(self.output_processed_schema.names).difference(set(ds.schema.names)))
 
-        with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
+        with pq.ParquetWriter(self.local_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
                 columns=read_schema,

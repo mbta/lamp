@@ -105,7 +105,7 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
         filesystem=S3FileSystem(),
     )
 
-    with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
+    with pq.ParquetWriter(job.local_parquet_path, schema=job.output_processed_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
             polars_df = pl.from_arrow(batch)
             if not isinstance(polars_df, pl.DataFrame):
@@ -148,7 +148,7 @@ def create_operator_signed_in_glides_parquet(job: HyperJob, num_files: Optional[
         filesystem=S3FileSystem(),
     )
 
-    with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
+    with pq.ParquetWriter(job.local_parquet_path, schema=job.output_processed_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000):
             polars_df = pl.from_arrow(batch)
             if not isinstance(polars_df, pl.DataFrame):
@@ -181,7 +181,7 @@ class HyperGlidesTripUpdates(HyperJob):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return glides_trips_updated_schema
 
     def create_parquet(self, _: None) -> None:
@@ -206,7 +206,7 @@ class HyperGlidesOperatorSignIns(HyperJob):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return glides_operator_signed_in_schema
 
     def create_parquet(self, _: None) -> None:

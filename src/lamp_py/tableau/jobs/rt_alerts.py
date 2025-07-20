@@ -18,7 +18,7 @@ class HyperRtAlerts(HyperJob):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return AlertsS3Info.parquet_schema
 
     def create_parquet(self, _: DatabaseManager) -> None:

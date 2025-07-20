@@ -44,7 +44,7 @@ class HyperGTFS(HyperJob):
         self.ds_batch_size = 1024 * 512
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         """Define GTFS Table Schema"""
 
     def create_parquet(self, db_manager: DatabaseManager) -> None:
@@ -54,7 +54,7 @@ class HyperGTFS(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
             write_path=self.local_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.output_processed_schema,
             batch_size=self.ds_batch_size,
         )
 
@@ -87,7 +87,7 @@ class HyperGTFS(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
             write_path=db_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.output_processed_schema,
             batch_size=self.ds_batch_size,
         )
 
@@ -97,14 +97,14 @@ class HyperGTFS(HyperJob):
         combine_parquet_path = "/tmp/combine.parquet"
         combine_batches = pd.dataset(
             [old_ds, new_ds],
-            schema=self.parquet_schema,
+            schema=self.output_processed_schema,
         ).to_batches(
             batch_size=self.ds_batch_size,
             batch_readahead=1,
             fragment_readahead=0,
         )
 
-        with pq.ParquetWriter(combine_parquet_path, schema=self.parquet_schema) as writer:
+        with pq.ParquetWriter(combine_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in combine_batches:
                 writer.write_batch(batch)
 
@@ -136,7 +136,7 @@ class HyperServiceIdByRoute(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("route_id", pyarrow.string()),
@@ -173,7 +173,7 @@ class HyperStaticTrips(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
@@ -213,7 +213,7 @@ class HyperStaticStops(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
@@ -256,7 +256,7 @@ class HyperStaticCalendar(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
@@ -298,7 +298,7 @@ class HyperStaticCalendarDates(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
@@ -339,7 +339,7 @@ class HyperStaticRoutes(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
@@ -379,7 +379,7 @@ class HyperStaticFeedInfo(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
@@ -418,7 +418,7 @@ class HyperStaticStopTimes(HyperGTFS):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("pk_id", pyarrow.int64()),
