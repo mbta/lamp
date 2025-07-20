@@ -64,7 +64,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
     @property
     @abstractmethod
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         """
         Schema for Job parquet file
         """
@@ -159,7 +159,8 @@ class HyperJob(ABC):  # pylint: disable=R0902
         hyper_table_schema = TableDefinition(
             table_name=self.hyper_table_name,
             columns=[
-                TableDefinition.Column(col.name, self.convert_parquet_dtype(col.type)) for col in self.parquet_schema
+                TableDefinition.Column(col.name, self.convert_parquet_dtype(col.type))
+                for col in self.output_processed_schema
             ],
         )
 
@@ -282,7 +283,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     self.remote_parquet_path,
                     filesystem=self.remote_fs,
                 )
-                remote_schema_match = self.parquet_schema.equals(remote_schema)
+                remote_schema_match = self.output_processed_schema.equals(remote_schema)
                 remote_version_match = self.remote_version_match()
 
             if remote_schema_match is False or remote_version_match is False:
