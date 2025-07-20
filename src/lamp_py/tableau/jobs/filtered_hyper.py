@@ -121,11 +121,11 @@ class FilteredHyperJob(HyperJob):
                 if self.dataframe_filter is not None:
                     polars_df = pl.from_arrow(batch)
 
-                    for col in added_columns:
-                        polars_df = polars_df.with_columns(pl.lit(None).alias(col))
-
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+
+                    for col in added_columns:
+                        polars_df = polars_df.with_columns(pl.lit(None).alias(col))
 
                     # filter, then reorder the columns to get them in pyarrow write order,
                     # otherwise the write_table call fails
