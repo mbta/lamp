@@ -152,18 +152,15 @@ def append_prediction_valid_duration(polars_df: pl.DataFrame) -> pl.DataFrame:
                    these columns are calculated and valid if enable_calculation is True
     """
 
-    prediction_valid_duration = polars_df.group_by(
-        ["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"]
-    ).agg(
-        pl.col("feed_timestamp").min().alias("feed_timestamp_first_prediction"),
-        pl.col("feed_timestamp").max().alias("feed_timestamp_last_prediction"),
-    )
-
-    polars_df = polars_df.join(
-        prediction_valid_duration,
-        on=["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"],
-        how="inner",
-        coalesce=True,
+    polars_df = polars_df.with_columns(
+        pl.col("feed_timestamp")
+        .min()
+        .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
+        .alias("feed_timestamp_first_prediction"),
+        pl.col("feed_timestamp")
+        .max()
+        .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
+        .alias("feed_timestamp_last_prediction")
     ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
 
     return polars_df
