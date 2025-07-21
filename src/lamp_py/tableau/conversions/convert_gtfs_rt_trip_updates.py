@@ -160,7 +160,7 @@ def append_prediction_valid_duration(polars_df: pl.DataFrame) -> pl.DataFrame:
         pl.col("feed_timestamp")
         .max()
         .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
-        .alias("feed_timestamp_last_prediction")
+        .alias("feed_timestamp_last_prediction"),
     ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
 
     return polars_df
