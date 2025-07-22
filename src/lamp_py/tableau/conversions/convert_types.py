@@ -14,7 +14,6 @@ def convert_to_tableau_compatible_schema(
     auto_schema = []
     # Loop through the schema fields and apply changes
     for field in input_schema:
-        print(field.type)
 
         if exclude is not None and field.name in exclude:
             continue
