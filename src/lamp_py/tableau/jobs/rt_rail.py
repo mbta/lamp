@@ -124,7 +124,7 @@ class HyperRtRail(HyperJob):
         self.db_parquet_path = "/tmp/db_local.parquet"
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
                 ("service_date", pyarrow.date32()),
@@ -181,7 +181,7 @@ class HyperRtRail(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(create_query),
             write_path=self.local_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.output_processed_schema,
             batch_size=self.ds_batch_size,
         )
 
@@ -208,7 +208,7 @@ class HyperRtRail(HyperJob):
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
             write_path=self.db_parquet_path,
-            schema=self.parquet_schema,
+            schema=self.output_processed_schema,
             batch_size=self.ds_batch_size,
         )
 
@@ -237,7 +237,7 @@ class HyperRtRail(HyperJob):
         old_batch_rows = 0
         old_batch_bytes = 0
 
-        with pq.ParquetWriter(filter_path, schema=self.parquet_schema) as writer:
+        with pq.ParquetWriter(filter_path, schema=self.output_processed_schema) as writer:
             for batch in old_batches:
                 old_batch_count += 1
                 old_batch_rows += batch.num_rows
@@ -259,7 +259,7 @@ class HyperRtRail(HyperJob):
         combine_parquet_path = "/tmp/combine.parquet"
         combine_batches = pd.dataset(
             joined_dataset,
-            schema=self.parquet_schema,
+            schema=self.output_processed_schema,
         ).to_batches(
             batch_size=self.ds_batch_size,
             batch_readahead=1,
@@ -270,7 +270,7 @@ class HyperRtRail(HyperJob):
         combine_batch_rows = 0
         combine_batch_bytes = 0
 
-        with pq.ParquetWriter(combine_parquet_path, schema=self.parquet_schema) as writer:
+        with pq.ParquetWriter(combine_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in combine_batches:
                 combine_batch_count += 1
                 combine_batch_rows += batch.num_rows

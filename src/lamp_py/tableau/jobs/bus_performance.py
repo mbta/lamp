@@ -145,7 +145,7 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
         filesystem=S3FileSystem(),
     )
 
-    with pq.ParquetWriter(job.local_parquet_path, schema=job.parquet_schema) as writer:
+    with pq.ParquetWriter(job.local_parquet_path, schema=job.output_processed_schema) as writer:
         for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
             # this select() is here to make sure the order of the polars_df
             # schema is the same as the bus_schema above.
@@ -174,7 +174,7 @@ class HyperBusPerformanceAll(HyperJob):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return bus_schema
 
     def create_parquet(self, _: None) -> None:
@@ -208,7 +208,7 @@ class HyperBusPerformanceRecent(HyperJob):
         )
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return bus_schema
 
     def create_parquet(self, _: None) -> None:

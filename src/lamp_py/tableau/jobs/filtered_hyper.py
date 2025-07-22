@@ -40,13 +40,13 @@ class FilteredHyperJob(HyperJob):
         )
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
-        self.processed_schema = processed_schema
+        self.processed_schema = processed_schema  # expected output schema passed in
         self.rollup_num_days = rollup_num_days
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
     @property
-    def parquet_schema(self) -> pyarrow.schema:
+    def output_processed_schema(self) -> pyarrow.schema:
         return self.processed_schema
 
     def create_parquet(self, _: None) -> None:
@@ -55,9 +55,19 @@ class FilteredHyperJob(HyperJob):
     def update_parquet(self, _: None) -> bool:
         return self.create_tableau_parquet(num_days=self.rollup_num_days)
 
+    # pylint: disable=R0914
+    # pylint too many local variables (more than 15)
     def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
+
+        Parameters
+        ----------
+        num_days : Number of days to query and concatenate. If None, processes all days available
+
+        Returns
+        -------
+        True if parquet created, False otherwise
         """
 
         # limitation of filtered hyper only does whole days.
@@ -89,12 +99,16 @@ class FilteredHyperJob(HyperJob):
         if len(ds_paths) == 0:
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
             return False
-        process_logger.add_metadata(first_file=ds_paths[0], last_file=ds_paths[-1])
         max_alloc = 0
-        with pq.ParquetWriter(self.local_parquet_path, schema=self.processed_schema) as writer:
+        read_schema = list(set(ds.schema.names).intersection(self.output_processed_schema.names))
+
+        dropped_columns = list(set(ds.schema.names).difference(self.output_processed_schema.names))
+        added_columns = list(set(self.output_processed_schema.names).difference(ds.schema.names))
+
+        with pq.ParquetWriter(self.local_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
-                columns=self.processed_schema.names,
+                columns=read_schema,
                 filter=self.parquet_filter,
                 batch_readahead=1,
                 fragment_readahead=0,
@@ -103,14 +117,20 @@ class FilteredHyperJob(HyperJob):
                 if batch.num_rows == 0:
                     continue
 
+                # apply transformations if function passed in
                 if self.dataframe_filter is not None:
-                    # apply transformations if function passed in
-
                     polars_df = pl.from_arrow(batch)
+
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-                    polars_df = self.dataframe_filter(polars_df)
-                    # filtered on columns of interest and dataframe_filter
+
+                    for col in added_columns:
+                        polars_df = polars_df.with_columns(pl.lit(None).alias(col))
+
+                    # filter, then reorder the columns to get them in pyarrow write order,
+                    # otherwise the write_table call fails
+                    polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
+
                     writer.write_table(polars_df.to_arrow())
                 else:
                     # just write the batch out - filtered on columns of interest
@@ -120,6 +140,13 @@ class FilteredHyperJob(HyperJob):
                 if alloc > max_alloc:
                     max_alloc = alloc
                     process_logger.add_metadata(alloc_bytes=max_alloc)
+
+            process_logger.add_metadata(
+                first_file=ds_paths[0],
+                last_file=ds_paths[-1],
+                tableau_writer_dropped_columns=dropped_columns,
+                tableau_writer_added_columns=added_columns,
+            )
 
         process_logger.log_complete()
         return True
