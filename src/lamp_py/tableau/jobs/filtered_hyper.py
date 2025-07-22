@@ -100,7 +100,7 @@ class FilteredHyperJob(HyperJob):
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
             return False
         max_alloc = 0
-        read_schema = list(set(ds.schema.names).intersection(self.output_processed_schema.names))
+        read_schema = list(set(ds.schema.names).intersection(set(self.output_processed_schema.names)))
 
         dropped_columns = list(set(ds.schema.names).difference(set(self.output_processed_schema.names)))
         added_columns = list(set(self.output_processed_schema.names).difference(set(ds.schema.names)))
