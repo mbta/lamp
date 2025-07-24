@@ -179,7 +179,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.
 
-    :param vehicle_positions: Dataframe of vehiclie positions
+    :param vehicle_positions: Dataframe of vehicles positions
 
     :return dataframe:
         service_date -> String
@@ -201,6 +201,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     vehicle_positions = vehicle_positions.with_row_index()
     vehicle_events = vehicle_positions.pivot(
         values=["vehicle_timestamp"],
+        # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
         aggregate_function="min",
         index=[
             "route_id",
@@ -212,16 +213,18 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             "service_date",
             "vehicle_id",
             "vehicle_label",
-            "index",
         ],
         on="current_status",
     )
 
+    # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
+    # align to actual trips than STOPPED_AT does - caused by
+    # vendor - details in linked Asana Ticket/PR #542
     vehicle_events = vehicle_events.join(
-        vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO").select(
-            ["index", "latitude", "longitude"]
-        ),
-        on="index",
+        vehicle_positions.select(["trip_id", "stop_sequence", "vehicle_timestamp", "latitude", "longitude"]),
+        how="left",
+        right_on=["trip_id", "stop_sequence", "vehicle_timestamp"],
+        left_on=["trip_id", "stop_sequence", "IN_TRANSIT_TO"],
         coalesce=True,
     )
 
@@ -231,8 +234,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
-
-    # end of empty table handling logic
 
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
@@ -246,11 +247,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             {
                 "STOPPED_AT": "gtfs_arrival_dt",
                 "IN_TRANSIT_TO": "gtfs_travel_to_dt",
-                # only grab the IN_TRANSIT_TO rows because they seem to better
-                # align to actual trips than STOPPED_AT does - caused by
-                # vendor - details in linked Asana Ticket/PR #542
-                # "latitude_IN_TRANSIT_TO": "latitude",
-                # "longitude_IN_TRANSIT_TO": "longitude",
             }
         )
         .with_columns(
