@@ -224,7 +224,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
-
     # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
     # align to actual trips than STOPPED_AT does - caused by
     # vendor - details in linked Asana Ticket/PR #542

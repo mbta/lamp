@@ -194,7 +194,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             )
             .join(
                 tm_trip_xref,
-                on="TRIP_ID",
+                on=["TRIP_ID", "TIME_POINT_ID", "GEO_NODE_ID", "PATTERN_GEO_NODE_SEQ"],
                 how="left",
                 coalesce=True,
             )
