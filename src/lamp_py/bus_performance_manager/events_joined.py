@@ -222,13 +222,40 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     """
     Join gtfs-rt and transit master (tm) event dataframes
 
-    :return added-columns:
-        tm_scheduled_time_dt -> Datetime
-        tm_actual_arrival_dt -> Datetime
-        tm_actual_departure_dt -> Datetime
+    :return dataframe:
+        service_date -> String
+        route_id -> String
+        trip_id -> String
+        start_time -> Int64
+        start_dt -> Datetime(time_unit='us', time_zone=None)
+        stop_count -> UInt32
+        direction_id -> Int8
+        stop_id -> String
+        stop_sequence -> Int64
+        vehicle_id -> String
+        vehicle_label -> String
+        gtfs_travel_to_dt -> Datetime(time_unit='us', time_zone='UTC')
+        gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        latitude -> Float64
+        longitude -> Float64
+        index -> UInt32
+        tm_stop_sequence -> Int64
+        timepoint_order -> UInt32
+        tm_planned_sequence_start -> Int64
+        tm_planned_sequence_end -> Int64
+        timepoint_id -> Int64
+        timepoint_abbr -> String
+        timepoint_name -> String
+        pattern_id -> Int64
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
         tm_scheduled_time_sam -> Int64
         tm_actual_arrival_time_sam -> Int64
         tm_actual_departure_time_sam -> Int64
+        tm_point_type -> Int32
+        is_full_trip -> Int32
+        tm_joined -> Boolean
     """
 
     # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
@@ -245,7 +272,9 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # tm_joined - false if join not successful - tm row will be inserted via concat
     # tm_joined - null if this is a pure GTFS row with no TM fields
 
-    return (
+    tm = tm.sort("tm_stop_sequence").with_row_index()
+
+    gtfs_tm_df = (
         gtfs.sort(by="stop_sequence")
         .join_asof(
             tm,
@@ -257,3 +286,5 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
         )
         .with_columns(pl.when(pl.col("index").is_not_null()).then(True).alias("tm_joined"))
     )
+
+    return gtfs_tm_df

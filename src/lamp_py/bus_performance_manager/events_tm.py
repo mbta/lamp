@@ -46,17 +46,26 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
     :param tm_files: transit master parquet files from the StopCrossings table.
 
     :return dataframe:
-        vehicle_label -> String
         route_id -> String
         trip_id -> String
         stop_id -> String
         tm_stop_sequence -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone="UTC")
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone="UTC")
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone="UTC")
+        timepoint_order -> UInt32
+        tm_planned_sequence_start -> Int64
+        tm_planned_sequence_end -> Int64
+        vehicle_label -> String
+        timepoint_id -> Int64
+        timepoint_abbr -> String
+        timepoint_name -> String
+        pattern_id -> Int64
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
         tm_scheduled_time_sam -> Int64
         tm_actual_arrival_time_sam -> Int64
         tm_actual_departure_time_sam -> Int64
+        tm_point_type -> Int32
+        is_full_trip -> Int32
 
     """
     logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
