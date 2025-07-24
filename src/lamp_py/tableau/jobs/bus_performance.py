@@ -92,11 +92,11 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
         format="parquet",
         filesystem=S3FileSystem(),
     )
-    
+
     with pq.ParquetWriter(job.local_parquet_path, schema=job.output_processed_schema) as writer:
         overrides = {"service_date": pyarrow.date32()}
         tableau_schema = convert_to_tableau_compatible_schema(ds.schema, overrides)
-        
+
         for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
             # this select() is here to make sure the order of the polars_df
             # schema is the same as the bus_schema above.
