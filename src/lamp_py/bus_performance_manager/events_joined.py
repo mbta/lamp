@@ -262,21 +262,21 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
 
     single_service_date = first_part.get_column("service_date").head(1)
 
-    # grab unjoined indices - set the tm_joined flag to false to mark these as "concat" rows
-    leftover_tm = tm.filter(~pl.col("index").is_in(first_part["index"])).with_columns(pl.lit(False).alias("tm_joined"))
+    # # grab unjoined indices - set the tm_joined flag to false to mark these as "concat" rows
+    # leftover_tm = tm.filter(~pl.col("index").is_in(first_part["index"])).with_columns(pl.lit(False).alias("tm_joined"))
 
-    # concat the leftover rows, filling in all the columns that make sense to fill
-    output_df = (
-        pl.concat([first_part, leftover_tm], how="align")
-        .sort(by=["trip_id", "route_id", "vehicle_label", "stop_id"])
-        .with_columns(
-            (pl.col("service_date").fill_null(single_service_date)),
-            (pl.col("start_time").fill_null(strategy="forward")),
-            (pl.col("stop_count").fill_null(strategy="forward")),
-            (pl.col("direction_id").fill_null(strategy="forward")),
-            (pl.col("vehicle_id").fill_null(strategy="forward")),
-        )
-        .drop("index")
-    )
+    # # concat the leftover rows, filling in all the columns that make sense to fill
+    # output_df = (
+    #     pl.concat([first_part, leftover_tm], how="align")
+    #     .sort(by=["trip_id", "route_id", "vehicle_label", "stop_id"])
+    #     .with_columns(
+    #         (pl.col("service_date").fill_null(single_service_date)),
+    #         (pl.col("start_time").fill_null(strategy="forward")),
+    #         (pl.col("stop_count").fill_null(strategy="forward")),
+    #         (pl.col("direction_id").fill_null(strategy="forward")),
+    #         (pl.col("vehicle_id").fill_null(strategy="forward")),
+    #     )
+    #     .drop("index")
+    # )
 
-    return output_df
+    return first_part
