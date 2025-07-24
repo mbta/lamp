@@ -125,5 +125,6 @@ def foo(arguments: pl.Dataframe) -> pl.Dataframe:
     -------
     pl.Dataframe [Nx20] - description of returned object intent and shape - don't specify type. type hint is specified in function signature.
     ```
+
     pass
 ```
