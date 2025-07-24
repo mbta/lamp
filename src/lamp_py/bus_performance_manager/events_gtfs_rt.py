@@ -217,6 +217,14 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         on="current_status",
     )
 
+    # this section adds in columns are for handling when the input dataframes are empty or if
+    # the pivot does not successfully add in the values=[x] columns. they must be added
+    # back in after the fact to maintain the expected interface further donwstream
+    for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
+        if column not in vehicle_events.columns:
+            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
+
+
     # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
     # align to actual trips than STOPPED_AT does - caused by
     # vendor - details in linked Asana Ticket/PR #542
@@ -227,13 +235,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         left_on=["trip_id", "stop_sequence", "IN_TRANSIT_TO"],
         coalesce=True,
     )
-
-    # this section adds in columns are for handling when the input dataframes are empty.
-    # the pivot does not successfully add in the values=[x,y,z] columns, so they must be added
-    # back in after the fact to maintain the expected interface
-    for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
-        if column not in vehicle_events.columns:
-            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
