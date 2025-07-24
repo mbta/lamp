@@ -239,8 +239,6 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
 
-    tm = tm.sort("tm_stop_sequence").with_row_index()
-
     # add a new column tm_joined to keep track of whether the join to gtfs is successful or not
     # in the final output of this method:
     # tm_joined - true if join is successful
@@ -259,24 +257,5 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
         )
         .with_columns(pl.when(pl.col("index").is_not_null()).then(True).alias("tm_joined"))
     )
-
-    single_service_date = first_part.get_column("service_date").head(1)
-
-    # # grab unjoined indices - set the tm_joined flag to false to mark these as "concat" rows
-    # leftover_tm = tm.filter(~pl.col("index").is_in(first_part["index"])).with_columns(pl.lit(False).alias("tm_joined"))
-
-    # # concat the leftover rows, filling in all the columns that make sense to fill
-    # output_df = (
-    #     pl.concat([first_part, leftover_tm], how="align")
-    #     .sort(by=["trip_id", "route_id", "vehicle_label", "stop_id"])
-    #     .with_columns(
-    #         (pl.col("service_date").fill_null(single_service_date)),
-    #         (pl.col("start_time").fill_null(strategy="forward")),
-    #         (pl.col("stop_count").fill_null(strategy="forward")),
-    #         (pl.col("direction_id").fill_null(strategy="forward")),
-    #         (pl.col("vehicle_id").fill_null(strategy="forward")),
-    #     )
-    #     .drop("index")
-    # )
 
     return first_part
