@@ -245,7 +245,7 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # tm_joined - false if join not successful - tm row will be inserted via concat
     # tm_joined - null if this is a pure GTFS row with no TM fields
 
-    first_part = (
+    return (
         gtfs.sort(by="stop_sequence")
         .join_asof(
             tm,
@@ -257,5 +257,3 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
         )
         .with_columns(pl.when(pl.col("index").is_not_null()).then(True).alias("tm_joined"))
     )
-
-    return first_part
