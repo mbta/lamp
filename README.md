@@ -22,9 +22,9 @@ LAMP uses [asdf](https://asdf-vm.com/) to mange runtime versions using the comma
 
 ```sh
 # add project plugins
-asdf plugin-add python
-asdf plugin-add direnv
-asdf plugin-add poetry
+asdf plugin add python
+asdf plugin add direnv
+asdf plugin add poetry
 
 # install versions of plugins specified in .tool-versions
 asdf install
@@ -96,8 +96,34 @@ The tableau package is installed by running `poetry install --with tableau`
 LAMP uses `docker` and `docker-compose` to run local instances of applications for development purposes. Please refer to the `README` page of invidiual applications for instructions. 
 
 
+## Notebook Usage
+
+For analysis and investigations, we are currently utilizing the [marimo](https://marimo.io/) notebooks.
+
+Ensure you have the correct environment variables setup for your testing needs, as variables are loaded on marimo start.
+
+`poetry run marimo edit`
+
 ## Repository Design 
 
 This repository contains all LAMP source code used to run, test and deploy LAMP applications.
 
 Source code for LAMP python applications can be found in the [src/](src/)  directory. 
+
+## Development Conventions
+
+Function Docstring Template:
+
+```
+def foo(arguments: pl.Dataframe) -> pl.Dataframe:
+    ```
+    Parameters
+    ----------
+    arguments : [Nx10] - description of input types and general expected shape/columns (if applicable) - don't specify type. type hint is specified in function signature.
+
+    Returns
+    -------
+    pl.Dataframe [Nx20] - description of returned object intent and shape - don't specify type. type hint is specified in function signature.
+    ```
+    pass
+```
