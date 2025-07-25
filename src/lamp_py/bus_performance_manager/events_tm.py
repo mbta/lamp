@@ -131,6 +131,8 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
         .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
         .filter(pl.col("TIME_POINT_ID").is_not_null())
+    ).with_columns(
+        pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
     )
 
     # this is the truth to reference and compare STOP_CROSSING records with to determine timepoint_order
@@ -143,7 +145,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         )
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
         .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
-    ).with_columns(pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["TRIP_ID"]).alias("timepoint_order"))
+    )
 
     # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
     # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
