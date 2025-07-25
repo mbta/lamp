@@ -238,7 +238,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         coalesce=True,
         validate="m:1",
     )
-    breakpoint()
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
     vehicle_events = (
