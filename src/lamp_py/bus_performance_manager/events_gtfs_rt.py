@@ -236,9 +236,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         right_on=["trip_id", "stop_sequence", "vehicle_timestamp"],
         left_on=["trip_id", "stop_sequence", "IN_TRANSIT_TO"],
         coalesce=True,
-        validate="1:1",
+        validate="m:1",
     )
-
+    breakpoint()
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
     vehicle_events = (
