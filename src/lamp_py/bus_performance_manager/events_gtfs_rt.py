@@ -227,8 +227,11 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
     # align to actual trips than STOPPED_AT does - caused by
     # vendor - details in linked Asana Ticket/PR #542
+    event_position = vehicle_positions.group_by("trip_id", "stop_sequence", "vehicle_timestamp").agg(
+        pl.col("latitude").min(), pl.col("longitude").min()
+    )
     vehicle_events = vehicle_events.join(
-        vehicle_positions.select(["trip_id", "stop_sequence", "vehicle_timestamp", "latitude", "longitude"]),
+        event_position,
         how="left",
         right_on=["trip_id", "stop_sequence", "vehicle_timestamp"],
         left_on=["trip_id", "stop_sequence", "IN_TRANSIT_TO"],
