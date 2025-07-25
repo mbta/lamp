@@ -81,6 +81,11 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     """
     # gtfs-rt events from parquet
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
+
+    # generated events are non-unique, perhaps we are not
+    # selecting all the columns that would result in a unique record?
+    gtfs_df = gtfs_df.unique()
+
     # transit master events from parquet
     tm_df = generate_tm_events(tm_files)
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
