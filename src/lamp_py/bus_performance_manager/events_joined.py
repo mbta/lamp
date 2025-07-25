@@ -265,26 +265,13 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
-
-    # add a new column tm_joined to keep track of whether the join to gtfs is successful or not
-    # in the final output of this method:
-    # tm_joined - true if join is successful
-    # tm_joined - false if join not successful - tm row will be inserted via concat
-    # tm_joined - null if this is a pure GTFS row with no TM fields
-
-    tm = tm.sort("tm_stop_sequence").with_row_index()
-
-    gtfs_tm_df = (
-        gtfs.sort(by="stop_sequence")
-        .join_asof(
-            tm,
-            left_on="stop_sequence",
-            right_on="tm_stop_sequence",
-            by=["trip_id", "route_id", "vehicle_label", "stop_id"],
-            strategy="nearest",
-            coalesce=True,
-        )
-        .with_columns(pl.when(pl.col("index").is_not_null()).then(True).alias("tm_joined"))
+    gtfs_tm_df = gtfs.sort(by="stop_sequence").join_asof(
+        tm,
+        left_on="stop_sequence",
+        right_on="tm_stop_sequence",
+        by=["trip_id", "route_id", "vehicle_label", "stop_id"],
+        strategy="nearest",
+        coalesce=True,
     )
 
     return gtfs_tm_df
