@@ -74,7 +74,9 @@ tm = file_list_from_s3_date_range(
     bucket_name=bucket_name, file_prefix=file_prefix2, path_template=tm_template, end_date=date_end, start_date=date
 )
 
-bus_performance_metrics(service_date=date, gtfs_files=vp, tm_files=tm)
+df = bus_performance_metrics(service_date=date, gtfs_files=vp, tm_files=tm)
+
+print(df.height)
 
 # generate_tm_events(tm_files=['s3://mbta-ctd-dataplatform-staging-springboard/lamp/TM/STOP_CROSSING/120250502.parquet'])
 

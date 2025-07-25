@@ -40,6 +40,8 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
             pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
+            pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
+            pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -78,6 +80,8 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
         "vehicle.current_stop_sequence",
         "vehicle.current_status",
         "vehicle.timestamp",
+        "vehicle.position.latitude",
+        "vehicle.position.longitude",
     ]
     # pyarrow_exp filter expression is used to limit memory usage during read operation
     pyarrow_exp = pc.field("vehicle.trip.route_id").isin(bus_routes)
@@ -109,6 +113,8 @@ def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes:
             pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
             pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
+            pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
+            pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
             pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
         )
         # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
@@ -156,6 +162,8 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
     logger.log_start()
     bus_routes = bus_route_ids_for_service_date(service_date)
 
+    # need to investigate which is actually faster/works.
+    # as of 7/15/25, the pyarrow reader was faster on my local machine
     try:
         vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
     except Exception as _:
@@ -171,7 +179,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.
 
-    :param vehicle_positions: Dataframe of vehiclie positions
+    :param vehicle_positions: Dataframe of vehicles positions
 
     :return dataframe:
         service_date -> String
@@ -187,9 +195,13 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         vehicle_label -> String
         gtfs_travel_to_dt -> Datetime
         gtfs_arrival_dt -> Datetime
+        latitude -> Float64
+        longitude -> Float64
     """
+    vehicle_positions = vehicle_positions.with_row_index()
     vehicle_events = vehicle_positions.pivot(
-        values="vehicle_timestamp",
+        values=["vehicle_timestamp"],
+        # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
         aggregate_function="min",
         index=[
             "route_id",
@@ -205,10 +217,27 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         on="current_status",
     )
 
+    # this section adds in columns are for handling when the input dataframes are empty or if
+    # the pivot does not successfully add in the values=[x] columns. they must be added
+    # back in after the fact to maintain the expected interface further donwstream
     for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
+    # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
+    # align to actual trips than STOPPED_AT does - caused by
+    # vendor - details in linked Asana Ticket/PR #542
+    event_position = vehicle_positions.group_by("trip_id", "stop_sequence", "vehicle_timestamp").agg(
+        pl.col("latitude").min(), pl.col("longitude").min()
+    )
+    vehicle_events = vehicle_events.join(
+        event_position,
+        how="left",
+        right_on=["trip_id", "stop_sequence", "vehicle_timestamp"],
+        left_on=["trip_id", "stop_sequence", "IN_TRANSIT_TO"],
+        coalesce=True,
+        validate="m:1",
+    )
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
     vehicle_events = (
@@ -246,6 +275,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
                 "vehicle_label",
                 "gtfs_travel_to_dt",
                 "gtfs_arrival_dt",
+                "latitude",
+                "longitude",
             ]
         )
     )
