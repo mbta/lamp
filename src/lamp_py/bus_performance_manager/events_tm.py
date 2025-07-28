@@ -105,7 +105,7 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             "Pattern_ID",
         )
         .rename({"Pattern_ID": "PATTERN_ID"})
-        .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null())
+        .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null() & pl.col("PATTERN_ID").is_not_null())
         .unique()
     )
 
@@ -121,16 +121,25 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
         .unique()
     )
 
-    tm_time_points = pl.scan_parquet(tm_time_point_file.s3_uri).select(
-        "TIME_POINT_ID",
-        "TIME_POINT_ABBR",
-        "TIME_PT_NAME",
+    tm_time_points = (
+        pl.scan_parquet(tm_time_point_file.s3_uri)
+        .select(
+            "TIME_POINT_ID",
+            "TIME_POINT_ABBR",
+            "TIME_PT_NAME",
+        )
+        .filter(pl.col("TIME_POINT_ABBR").is_not_null() & pl.col("TIME_PT_NAME").is_not_null())
     )
 
     tm_pattern_geo_node_xref = (
         pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
         .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
-        .filter(pl.col("TIME_POINT_ID").is_not_null())
+        .filter(
+            pl.col("TIME_POINT_ID").is_not_null()
+            & pl.col("GEO_NODE_ID").is_not_null()
+            & pl.col("PATTERN_ID").is_not_null()
+            & pl.col("PATTERN_GEO_NODE_SEQ").is_not_null()
+        )
     ).with_columns(
         pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
     )
