@@ -266,7 +266,7 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     gtfs_tm_df = gtfs.sort(by="stop_sequence").join_asof(
-        tm,
+        tm.sort(by="tm_stop_sequence"),
         left_on="stop_sequence",
         right_on="tm_stop_sequence",
         by=["trip_id", "route_id", "vehicle_label", "stop_id"],
