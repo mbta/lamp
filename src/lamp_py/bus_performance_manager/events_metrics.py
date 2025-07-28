@@ -33,7 +33,6 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
         latitude -> Float64
         longitude -> Float64
-        index -> UInt32
         tm_stop_sequence -> Int64
         timepoint_order -> UInt32
         tm_planned_sequence_start -> Int64
@@ -50,7 +49,6 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         tm_actual_departure_time_sam -> Int64
         tm_point_type -> Int32
         is_full_trip -> Int32
-        tm_joined -> Boolean
         plan_trip_id -> String
         exact_plan_trip_match -> Boolean
         block_id -> String
