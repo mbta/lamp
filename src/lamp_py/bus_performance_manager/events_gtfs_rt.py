@@ -227,6 +227,22 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
     # align to actual trips than STOPPED_AT does - caused by
     # vendor - details in linked Asana Ticket/PR #542
+
+    # ==== lat/lon ====
+    # Lat/Lon join via event_position is only being added for verification -
+    # leaving a note to explain deficiency
+
+    # This event position is grabbing the first time we declare "IN_TRANSIT_TO" a stop_id
+    # this group_by is very wide - looking for all the timestamps for a given bus, and then
+    # if there are multiple duplicate timestamps recorded for 1 bus at the same timestamp point,
+    # grabbing the first one. This will give us a single "IN_TRANSIT_TO" record for each
+    # timestamp for each bus, which should be joinable with the events further down.
+
+    # The left vehicle_events.IN_TRANSIT_TO that we pivoted actually points to the first
+    # time the bus declared IN_TRANSIT_TO this stop, which means the coordinate for that
+    # IN_TRANSIT_TO record is actually the DEPARTING timestamp of the previous stop, and
+    # thus we'd be getting the gps coordinate of the declared DEPARTURE.
+
     event_position = (
         vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
         .group_by("vehicle_id", "vehicle_timestamp")
@@ -240,6 +256,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         coalesce=True,
         validate="m:1",
     )
+    # ==== end lat/lon ====
+
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
     vehicle_events = (
