@@ -198,7 +198,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         latitude -> Float64
         longitude -> Float64
     """
-    vehicle_positions = vehicle_positions.with_row_index()
     vehicle_events = vehicle_positions.pivot(
         values=["vehicle_timestamp"],
         # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
