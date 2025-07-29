@@ -183,20 +183,8 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
             )
             .join(
-                tm_geo_nodes,
-                on="GEO_NODE_ID",
-                how="left",
-                coalesce=True,
-            )
-            .join(
                 tm_routes,
                 on="ROUTE_ID",
-                how="left",
-                coalesce=True,
-            )
-            .join(
-                tm_trips,
-                on="TRIP_ID",
                 how="left",
                 coalesce=True,
             )
