@@ -229,14 +229,14 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
     # vendor - details in linked Asana Ticket/PR #542
     event_position = (
         vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
-        .group_by("route_id", "trip_id", "stop_id", "stop_sequence", "vehicle_id")
-        .agg(pl.col("latitude").min(), pl.col("longitude").min())
+        .group_by("vehicle_id", "vehicle_timestamp")
+        .agg(pl.col("latitude").first(), pl.col("longitude").first())
     )
     vehicle_events = vehicle_events.join(
         event_position,
         how="left",
-        right_on=["route_id", "trip_id", "stop_id", "stop_sequence", "vehicle_id"],
-        left_on=["route_id", "trip_id", "stop_id", "stop_sequence", "vehicle_id"],
+        right_on=["vehicle_id", "vehicle_timestamp"],
+        left_on=["vehicle_id", "IN_TRANSIT_TO"],
         coalesce=True,
         validate="m:1",
     )
