@@ -222,24 +222,56 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     """
     Join gtfs-rt and transit master (tm) event dataframes
 
-    :return added-columns:
-        tm_scheduled_time_dt -> Datetime
-        tm_actual_arrival_dt -> Datetime
-        tm_actual_departure_dt -> Datetime
+    :return dataframe:
+        service_date -> String
+        route_id -> String
+        trip_id -> String
+        start_time -> Int64
+        start_dt -> Datetime(time_unit='us', time_zone=None)
+        stop_count -> UInt32
+        direction_id -> Int8
+        stop_id -> String
+        stop_sequence -> Int64
+        vehicle_id -> String
+        vehicle_label -> String
+        gtfs_travel_to_dt -> Datetime(time_unit='us', time_zone='UTC')
+        gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        latitude -> Float64
+        longitude -> Float64
+        index -> UInt32
+        tm_stop_sequence -> Int64
+        timepoint_order -> UInt32
+        tm_planned_sequence_start -> Int64
+        tm_planned_sequence_end -> Int64
+        timepoint_id -> Int64
+        timepoint_abbr -> String
+        timepoint_name -> String
+        pattern_id -> Int64
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
         tm_scheduled_time_sam -> Int64
         tm_actual_arrival_time_sam -> Int64
         tm_actual_departure_time_sam -> Int64
+        tm_point_type -> Int32
+        is_full_trip -> Int32
+        tm_joined -> Boolean
     """
 
     # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
     # asof strategy finds nearest value match between "asof" columns if exact match is not found
     # will perform regular left join on "by" columns
 
-    return gtfs.sort(by="stop_sequence").join_asof(
-        tm.sort("tm_stop_sequence"),
+    # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
+    # usually off by 1 or so. By matching the nearest stop sequence
+    # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
+    gtfs_tm_df = gtfs.sort(by="stop_sequence").join_asof(
+        tm.sort(by="tm_stop_sequence"),
         left_on="stop_sequence",
         right_on="tm_stop_sequence",
         by=["trip_id", "route_id", "vehicle_label", "stop_id"],
         strategy="nearest",
         coalesce=True,
     )
+
+    return gtfs_tm_df

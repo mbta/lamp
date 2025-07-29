@@ -22,27 +22,35 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         route_id -> String
         trip_id -> String
         start_time -> Int64
-        start_dt -> Datetime
+        start_dt -> Datetime(time_unit='us', time_zone=None)
         stop_count -> UInt32
         direction_id -> Int8
         stop_id -> String
-        stop_sequence -> String
+        stop_sequence -> Int64
         vehicle_id -> String
         vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime
-        gtfs_travel_to_seconds -> Int64
-        stop_arrival_dt -> Datetime
-        stop_arrival_seconds -> Int64
-        stop_departure_dt -> Datetime
-        stop_departure_seconds -> Int64
-        tm_scheduled_time_dt -> Datetime
-        tm_actual_departure_dt -> Datetime
-        tm_actual_arrival_dt -> Datetime
+        gtfs_travel_to_dt -> Datetime(time_unit='us', time_zone='UTC')
+        gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        latitude -> Float64
+        longitude -> Float64
+        tm_stop_sequence -> Int64
+        timepoint_order -> UInt32
+        tm_planned_sequence_start -> Int64
+        tm_planned_sequence_end -> Int64
+        timepoint_id -> Int64
+        timepoint_abbr -> String
+        timepoint_name -> String
+        pattern_id -> Int64
+        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
         tm_scheduled_time_sam -> Int64
-        tm_actual_departure_time_sam -> Int64
         tm_actual_arrival_time_sam -> Int64
+        tm_actual_departure_time_sam -> Int64
+        tm_point_type -> Int32
+        is_full_trip -> Int32
         plan_trip_id -> String
-        exact_plan_trip_match -> Bool
+        exact_plan_trip_match -> Boolean
         block_id -> String
         service_id -> String
         route_pattern_id -> String
@@ -51,11 +59,19 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         direction_destination -> String
         plan_stop_count -> UInt32
         plan_start_time -> Int64
-        plan_start_dt -> Datetime
+        plan_start_dt -> Datetime(time_unit='us', time_zone=None)
         stop_name -> String
         plan_travel_time_seconds -> Int64
         plan_route_direction_headway_seconds -> Int64
         plan_direction_destination_headway_seconds -> Int64
+        gtfs_sort_dt -> Datetime(time_unit='us', time_zone='UTC')
+        gtfs_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
+        previous_stop_id -> String
+        stop_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
+        stop_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
+        gtfs_travel_to_seconds -> Int64
+        stop_arrival_seconds -> Int64
+        stop_departure_seconds -> Int64
         travel_time_seconds -> Int64
         dwell_time_seconds -> Int64
         route_direction_headway_seconds -> Int64
@@ -63,6 +79,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     """
     # gtfs-rt events from parquet
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
+
     # transit master events from parquet
     tm_df = generate_tm_events(tm_files)
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
@@ -75,10 +92,20 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
                 pl.col("gtfs_travel_to_dt")
                 .shift(-1)
                 .over(
+                    # this should technically include pattern_id as well,
+                    # but the groups formed by [trip_id, pattern_id] == [trip_id]
                     ["vehicle_label", "trip_id"],
                     order_by="gtfs_sort_dt",
                 )
             ).alias("gtfs_departure_dt"),
+            (
+                pl.col("stop_id")
+                .shift(1)
+                .over(
+                    ["vehicle_label", "trip_id"],
+                    order_by="gtfs_sort_dt",
+                )
+            ).alias("previous_stop_id"),
             # take the later of the two possible arrival times as the true arrival time
             (
                 pl.when(pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))

@@ -269,8 +269,8 @@ LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events have the same data dictionary.\
 Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.\
 The bus data incorporates an additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
 
-| field name | type | description | source |
-| ----------- | --------- | ----------- | ------------ |
+| field name | type | description | source | temporary |
+| ----------- | --------- | ----------- | ------------ | ---- |
 | service_date | string | equivalent to GTFS-RT `start_date` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
 | route_id | string | equivalent to GTFS-RT `route_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
 | trip_id | string | equivalent to GTFS-RT `trip_id` value in [Trip Descriptor][gtfs-tripdescriptor] | GTFS-RT |
@@ -283,7 +283,19 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
 | vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
 | gtfs_travel_to_dt | datetime | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
+| gtfs_arrival_dt | datetime | "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT | Yes
+| latitude | float64 | latitude of "IN_TRANSIT_TO" records for a trip from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT | Yes
+| longitude | float64 | longitiude of "IN_TRANSIT_TO" records for a trip from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT | Yes
 | tm_stop_sequence | int64 | TransitMaster stop sequence | TransitMaster
+| timepoint_order | int64 | Ranked order of planned timepoints for a given trip-route-pattern | TransitMaster |
+| tm_planned_sequence_start | int64 | TransitMaster single tm_stop_sequence of the planned start timepoint for a given trip-route-pattern  | TransitMaster | Yes
+| tm_planned_sequence_end | int64 | TransitMaster single tm_stop_sequence of the planned end timepoint for a given trip-route-pattern | TransitMaster | Yes
+| timepoint_id | int64 | TransitMaster timepoint numeric identifier | TransitMaster | Maybe?
+| timepoint_abbr | String | TransitMaster timepoint short name | TransitMaster | Maybe?
+| timepoint_name | String | TransitMaster timepoint full name | TransitMaster | Maybe?
+| pattern_id | int64 | TransitMaster pattern_id | TransitMaster | Maybe?
+| tm_point_type | int64 | 0 - if start point 1 - if mid point 2 - if end point. Start point and End point are determined by the expected `tm_planned_sequence_start` and `tm_planned_sequence_end` for a given trip-route-pattern. | TransitMaster | Maybe?
+| is_full_trip | int64 | 0 - if it is NOT full trip, 1 - if it is a full trip. This is derived from `tm_point_type` and checks if all three point types (0, 1, 2) are present. This detects trips that are atypical, that did not hit all the expected timepoints | TransitMaster | Maybe?
 | plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
 | exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
 | block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
@@ -314,6 +326,7 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | tm_scheduled_time_sam	| Int64 | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
 | tm_actual_arrival_time_sam	| Datetime | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
 | tm_actual_departure_time_sam	| Datetime | seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
+
 
 [gtfs-rt-alert]: https://gtfs.org/realtime/reference/#message-alert
 [mbta-enhanced]: https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs-realtime.md#enhanced-fields
