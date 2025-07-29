@@ -1,5 +1,5 @@
 name: Manual Deploy
-run-name: "--${{github.event.inputs.environment}}-- |
+run-name: "${{github.event.inputs.environment}}: |
  🍽️: ${{ fromJson(github.event.inputs.deploy-ingestion) == 1 }} |
  🚂: ${{ fromJson(github.event.inputs.deploy-rail-pm) == 1}} |
  🚌: ${{ fromJson(github.event.inputs.deploy-bus-pm) == 1}} |
