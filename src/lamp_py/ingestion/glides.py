@@ -14,7 +14,7 @@ from dateutil.relativedelta import relativedelta
 
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
-from lamp_py.ingestion.utils import explode_table_column, flatten_schema
+from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
@@ -188,9 +188,9 @@ class EditorChanges(GlidesConverter):
         process_logger.log_start()
 
         editors_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
-        editors_table = flatten_schema(editors_table)
+        editors_table = flatten_table_schema(editors_table)
         editors_table = explode_table_column(editors_table, "data.changes")
-        editors_table = flatten_schema(editors_table)
+        editors_table = flatten_table_schema(editors_table)
         editors_dataset = pd.dataset(editors_table)
 
         process_logger.log_complete()
@@ -252,7 +252,7 @@ class OperatorSignIns(GlidesConverter):
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
         osi_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
-        osi_table = flatten_schema(osi_table)
+        osi_table = flatten_table_schema(osi_table)
         osi_dataset = pd.dataset(osi_table)
 
         process_logger.log_complete()
@@ -353,9 +353,9 @@ class TripUpdates(GlidesConverter):
 
         modified_records = [flatten_multitypes(r) for r in self.records]
         tu_table = pyarrow.Table.from_pylist(modified_records, schema=self.event_schema)
-        tu_table = flatten_schema(tu_table)
+        tu_table = flatten_table_schema(tu_table)
         tu_table = explode_table_column(tu_table, "data.tripUpdates")
-        tu_table = flatten_schema(tu_table)
+        tu_table = flatten_table_schema(tu_table)
         tu_dataset = pd.dataset(tu_table)
 
         process_logger.log_complete()
@@ -411,7 +411,7 @@ class VehicleTripAssignment(GlidesConverter):
         process_logger.log_start()
 
         tu_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
-        tu_table = flatten_schema(tu_table)
+        tu_table = flatten_table_schema(tu_table)
         tu_dataset = pd.dataset(tu_table)
 
         process_logger.log_complete()
