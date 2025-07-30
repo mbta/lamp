@@ -9,6 +9,7 @@ from pyarrow.fs import S3FileSystem
 import polars as pl
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
@@ -28,6 +29,7 @@ class FilteredHyperJob(HyperJob):
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
         rollup_num_days: int = 7,  # default this to a week of data
+        parquet_preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
         parquet_filter: pc.Expression | None = None,
         dataframe_filter: Callable[[pl.DataFrame], pl.DataFrame] | None = None,
     ) -> None:
@@ -42,6 +44,7 @@ class FilteredHyperJob(HyperJob):
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema  # expected output schema passed in
         self.rollup_num_days = rollup_num_days
+        self.parquet_preprocess = parquet_preprocess  # level 1 | complex preprocess
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
@@ -104,7 +107,7 @@ class FilteredHyperJob(HyperJob):
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
             return False
         max_alloc = 0
-        read_schema = list(set(ds.schema.names).intersection(self.output_processed_schema.names))
+        # read_schema = list(set(ds.schema.names).intersection(self.output_processed_schema.names))
 
         dropped_columns = list(set(ds.schema.names).difference(self.output_processed_schema.names))
         added_columns = list(set(self.output_processed_schema.names).difference(ds.schema.names))
@@ -112,7 +115,7 @@ class FilteredHyperJob(HyperJob):
         with pq.ParquetWriter(self.local_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
-                columns=read_schema,
+                columns=ds.schema.names,
                 filter=self.parquet_filter,
                 batch_readahead=1,
                 fragment_readahead=0,
@@ -120,6 +123,11 @@ class FilteredHyperJob(HyperJob):
                 # don't write empty batch if no rows
                 if batch.num_rows == 0:
                     continue
+
+                # apply transformations if function passed in
+                if self.parquet_preprocess is not None:
+                    table = pyarrow.Table.from_batches([batch])
+                    batch = self.parquet_preprocess(table)
 
                 # apply transformations if function passed in
                 if self.dataframe_filter is not None:
@@ -137,8 +145,11 @@ class FilteredHyperJob(HyperJob):
 
                     writer.write_table(polars_df.to_arrow())
                 else:
-                    # just write the batch out - filtered on columns of interest
-                    writer.write_batch(batch)
+                    # filtered on self.parquet_filter and self.parquet_preprocess
+                    if isinstance(batch, pyarrow.RecordBatch):
+                        writer.write_batch(batch)
+                    elif isinstance(batch, pyarrow.Table):
+                        writer.write_table(batch)
 
                 alloc = pyarrow.total_allocated_bytes()
                 if alloc > max_alloc:
