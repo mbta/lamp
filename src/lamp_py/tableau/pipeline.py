@@ -3,9 +3,17 @@ from typing import List
 
 from lamp_py.runtime_utils.env_validation import validate_environment
 
-from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.tableau.jobs.lamp_jobs import (
+    HyperDevGreenGtfsRtTripUpdates,
+    HyperDevGreenGtfsRtVehiclePositions,
+    HyperGtfsRtTripUpdates,
+    HyperGtfsRtTripUpdatesHeavyRail,
+    HyperGtfsRtVehiclePositions,
+    HyperGtfsRtVehiclePositionsAllLightRail,
+    HyperGtfsRtVehiclePositionsHeavyRail,
+)
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
 from lamp_py.tableau.jobs.gtfs_rail import (
@@ -22,96 +30,8 @@ from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 from lamp_py.aws.ecs import check_for_parallel_tasks
-
-from lamp_py.runtime_utils.remote_files import (
-    springboard_rt_vehicle_positions,
-    springboard_devgreen_rt_vehicle_positions,
-    springboard_rt_trip_updates,  # main feed, all lines, unique records
-    springboard_devgreen_lrtp_trip_updates,  # dev green feed, green line only, all records
-    springboard_lrtp_trip_updates,  # main feed, green line only, all records
-    tableau_rt_vehicle_positions_lightrail_60_day,
-    tableau_rt_trip_updates_lightrail_60_day,
-    tableau_rt_vehicle_positions_heavyrail_30_day,
-    tableau_rt_trip_updates_heavyrail_30_day,
-    tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
-    tableau_devgreen_rt_trip_updates_lightrail_60_day,
-    tableau_rt_vehicle_positions_all_light_rail_7_day,
-)
-
-GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
-
-HyperGtfsRtVehiclePositions = FilteredHyperJob(
-    remote_input_location=springboard_rt_vehicle_positions,
-    remote_output_location=tableau_rt_vehicle_positions_lightrail_60_day,
-    rollup_num_days=60,
-    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-    dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
-    parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
-
-HyperGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_lrtp_trip_updates,
-    remote_output_location=tableau_rt_trip_updates_lightrail_60_day,
-    rollup_num_days=60,
-    processed_schema=convert_gtfs_rt_trip_updates.schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_prod,
-    parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
-
-HyperGtfsRtVehiclePositionsHeavyRail = FilteredHyperJob(
-    remote_input_location=springboard_rt_vehicle_positions,
-    remote_output_location=tableau_rt_vehicle_positions_heavyrail_30_day,
-    rollup_num_days=30,
-    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-    dataframe_filter=convert_gtfs_rt_vehicle_position.heavyrail,
-    parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.heavy_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
-
-HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
-    remote_input_location=springboard_rt_trip_updates,
-    remote_output_location=tableau_rt_trip_updates_heavyrail_30_day,
-    rollup_num_days=30,
-    processed_schema=convert_gtfs_rt_trip_updates.schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.heavyrail,
-    parquet_filter=FilterBankRtTripUpdates.ParquetFilter.heavy_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
-
-HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
-    remote_input_location=springboard_rt_vehicle_positions,
-    remote_output_location=tableau_rt_vehicle_positions_all_light_rail_7_day,
-    rollup_num_days=7,
-    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-    dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_timezone_conversions,
-    parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
-
-HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
-    remote_input_location=springboard_devgreen_rt_vehicle_positions,
-    remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
-    rollup_num_days=60,
-    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-    dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
-    parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
-
-HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_devgreen_lrtp_trip_updates,
-    remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_60_day,
-    rollup_num_days=60,
-    processed_schema=convert_gtfs_rt_trip_updates.schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_devgreen,
-    parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
-    tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
-)
+from lamp_py.tableau.jobs.spare_jobs import HyperSpareVehicles
 
 
 def start_hyper_updates() -> None:
@@ -164,6 +84,8 @@ def start_hyper_updates() -> None:
         HyperGtfsRtVehiclePositionsAllLightRail,
     ]
 
+    start_spare_jobs()
+
     for job in hyper_jobs:
         job.run_hyper()
 
@@ -210,3 +132,19 @@ def start_bus_parquet_updates() -> None:
 
     for job in parquet_update_jobs:
         job.run_parquet(None)
+
+
+def start_spare_jobs() -> None:
+    """Run all Spare Parquet Update jobs
+    called from Tableau Publisher
+    """
+
+    jobs: List[HyperJob] = [
+        HyperSpareVehicles,
+    ]
+
+    for job in jobs:
+        job.run_parquet(None)
+
+    for job in jobs:
+        job.run_hyper(None)
