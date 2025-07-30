@@ -7,7 +7,7 @@ import pandas
 
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
-from lamp_py.ingestion.utils import flatten_schema
+from lamp_py.ingestion.utils import flatten_table_schema
 
 from ..test_resources import (
     incoming_dir,
@@ -127,7 +127,7 @@ def test_vehicle_positions_file_conversion() -> None:
     assert table.num_rows == 426
     assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_VP.parquet")
@@ -148,7 +148,7 @@ def test_vehicle_positions_file_conversion() -> None:
     assert timestamp.year == 2019
     assert timestamp.day == 12
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_VP_OLD.parquet")
@@ -186,7 +186,7 @@ def test_rt_alert_file_conversion() -> None:
     assert table.num_rows == 144
     assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_ALERT.parquet")
@@ -225,7 +225,7 @@ def test_rt_trip_file_conversion() -> None:
     assert table.num_rows == 79
     assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_TU.parquet")
@@ -245,7 +245,7 @@ def test_rt_trip_file_conversion() -> None:
     assert timestamp.year == 2019
     assert timestamp.day == 12
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_TU_OLD.parquet")
@@ -283,7 +283,7 @@ def test_bus_vehicle_positions_file_conversion() -> None:
     assert table.num_rows == 844
     assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_BUSLOC_VP.parquet")
@@ -321,7 +321,7 @@ def test_bus_trip_updates_file_conversion() -> None:
     assert table.num_rows == 157
     assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
 
-    np_df = flatten_schema(table).to_pandas()
+    np_df = flatten_table_schema(table).to_pandas()
     np_df = drop_list_columns(np_df)
 
     parquet_file = os.path.join(test_files_dir, "ingestion_BUSLOC_TU.parquet")
