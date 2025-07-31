@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 import os
 import tempfile
-from typing import Optional
+import zoneinfo
 
 import pyarrow.parquet as pq
 
@@ -102,7 +102,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
     # get date without time so comparisons will match for the entire day
     # cast this to eastern because datetime.now() UTC will be 4/5 hours ahead,
     # and thus the bus_recent events for "today" would not exist yet.
-    today_eastern = datetime.now(tz="US/Eastern").date()
+    today_eastern = datetime.now(tz=zoneinfo.ZoneInfo("US/Eastern")).date()
     start_day = today_eastern - timedelta(days=num_days)
     latest_path = os.path.join(bus_events.s3_uri, f"{today_eastern.strftime('%Y%m%d')}.parquet")
     prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
