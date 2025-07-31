@@ -134,6 +134,7 @@ def start_bus_parquet_updates() -> None:
     for job in parquet_update_jobs:
         job.run_parquet(None)
 
+
 def start_spare_updates() -> None:
     """
     Run all Spare Parquet Update jobs
@@ -141,6 +142,7 @@ def start_spare_updates() -> None:
     """
     start_spare_parquet()
     start_spare_hyper()
+
 
 def start_spare_parquet() -> None:
     """
@@ -154,6 +156,7 @@ def start_spare_parquet() -> None:
 
     for job in jobs:
         job.run_parquet(None)
+
 
 def start_spare_hyper() -> None:
     """
