@@ -140,33 +140,10 @@ def start_spare_updates() -> None:
     Run all Spare Parquet Update jobs
     called from Tableau Publisher
     """
-    start_spare_parquet()
-    start_spare_hyper()
-
-
-def start_spare_parquet() -> None:
-    """
-    Run all Spare Parquet Update jobs
-    called from Tableau Publisher
-    """
 
     jobs: List[HyperJob] = [
         HyperSpareVehicles,
     ]
 
     for job in jobs:
-        job.run_parquet(None)
-
-
-def start_spare_hyper() -> None:
-    """
-    Run all Spare Parquet Update jobs
-    called from Tableau Publisher
-    """
-
-    jobs: List[HyperJob] = [
-        HyperSpareVehicles,
-    ]
-
-    for job in jobs:
-        job.run_hyper(None)
+        job.run_parquet_hyper_one_shot(None)
