@@ -16,7 +16,9 @@ from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
 
 
 def write_bus_metrics(
-    start_date: Optional[date] = None, end_date: Optional[date] = None, write_local_only: bool = False
+    start_date: date | None = None,
+    end_date: date | None = None,
+    write_local_only: bool = False,
 ) -> None:
     """
     Write bus-performance parquet files to S3 for latest service dates needing to be processed
