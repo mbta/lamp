@@ -100,9 +100,11 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
     """
 
     # get date without time so comparisons will match for the entire day
-    today = datetime.now().date()
-    start_day = today - timedelta(days=num_days)
-    latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
+    # cast this to eastern because datetime.now() UTC will be 4/5 hours ahead,
+    # and thus the bus_recent events for "today" would not exist yet.
+    today_eastern = datetime.now(tz="US/Eastern").date()
+    start_day = today_eastern - timedelta(days=num_days)
+    latest_path = os.path.join(bus_events.s3_uri, f"{today_eastern.strftime('%Y%m%d')}.parquet")
     prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
 
     regenerate_bus_metrics_logger = ProcessLogger("regenerate_bus_metrics_recent")
@@ -119,7 +121,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
     # if the schema is not a subset, downstream Tableau joining will fail and
     # the developer will see the error there
     if latest_schema != prior_schema and set(prior_schema).issubset(set(latest_schema)):
-        write_bus_metrics(start_date=start_day, end_date=today)
+        write_bus_metrics(start_date=start_day, end_date=today_eastern)
         regenerate_days = True
     regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
     regenerate_bus_metrics_logger.log_complete()
