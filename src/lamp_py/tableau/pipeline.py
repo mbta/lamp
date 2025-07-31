@@ -60,6 +60,9 @@ def start_hyper_updates() -> None:
     # make sure only one publisher runs at a time
     check_for_parallel_tasks()
 
+    # parquet and hyper all in one
+    start_spare_updates()
+
     hyper_jobs: List[HyperJob] = [
         HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
         HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
@@ -83,8 +86,6 @@ def start_hyper_updates() -> None:
         HyperGtfsRtTripUpdatesHeavyRail,
         HyperGtfsRtVehiclePositionsAllLightRail,
     ]
-
-    start_spare_jobs()
 
     for job in hyper_jobs:
         job.run_hyper()
@@ -133,9 +134,17 @@ def start_bus_parquet_updates() -> None:
     for job in parquet_update_jobs:
         job.run_parquet(None)
 
+def start_spare_updates() -> None:
+    """
+    Run all Spare Parquet Update jobs
+    called from Tableau Publisher
+    """
+    start_spare_parquet()
+    start_spare_hyper()
 
-def start_spare_jobs() -> None:
-    """Run all Spare Parquet Update jobs
+def start_spare_parquet() -> None:
+    """
+    Run all Spare Parquet Update jobs
     called from Tableau Publisher
     """
 
@@ -145,6 +154,16 @@ def start_spare_jobs() -> None:
 
     for job in jobs:
         job.run_parquet(None)
+
+def start_spare_hyper() -> None:
+    """
+    Run all Spare Parquet Update jobs
+    called from Tableau Publisher
+    """
+
+    jobs: List[HyperJob] = [
+        HyperSpareVehicles,
+    ]
 
     for job in jobs:
         job.run_hyper(None)
