@@ -148,12 +148,14 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         return lamp_version == self.lamp_version
 
-    def create_local_hyper(self) -> int:
+    def create_local_hyper(self, use_local=False) -> int:
         """
         Create local hyper file, from remote parquet file
         """
-        if os.path.exists(self.local_hyper_path):
-            os.remove(self.local_hyper_path)
+
+        if use_local is not True:
+            if os.path.exists(self.local_hyper_path):
+                os.remove(self.local_hyper_path)
 
         # create HyperFile TableDefinition based on Job parquet schema
         hyper_table_schema = TableDefinition(
@@ -163,11 +165,12 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 for col in self.output_processed_schema
             ],
         )
+        if use_local is not True:
 
-        download_file(
-            object_path=self.remote_parquet_path,
-            file_name=self.local_parquet_path,
-        )
+            download_file(
+                object_path=self.remote_parquet_path,
+                file_name=self.local_parquet_path,
+            )
 
         # create local HyperFile based on remote parquet file
         # log_config = "" disables creation of local logfile
@@ -321,3 +324,58 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         except Exception as exception:
             process_log.log_failure(exception=exception)
+
+    def run_parquet_hyper_one_shot(self, db_manager: Optional[DatabaseManager]) -> None:
+        """
+        Remote parquet Create / Update runner / Hyper uploader
+        """
+        process_log_create = ProcessLogger(
+            "hyper_job_run_parquet_one_shot",
+            remote_path=self.remote_parquet_path,
+        )
+        process_log_create.log_start()
+
+        try:
+            self.create_parquet(db_manager)
+            process_log_create.log_complete()
+        except Exception as exception:
+            process_log_create.log_failure(exception=exception)
+
+        # Update Tableau HyperFile
+        max_retries = 3
+        process_log = ProcessLogger(
+            "hyper_job_run_hyper_one_shot",
+            hyper_file_name=self.hyper_file_name,
+            tableau_project=self.project_name,
+            max_retries=max_retries,
+        )
+        process_log.log_start()
+
+        for retry_count in range(max_retries + 1):
+            try:
+                process_log.add_metadata(retry_count=retry_count)
+                # get datasource from Tableau to check "updated_at" datetime
+
+                # create_local_hyper removes the parquet file and leaves just hyper
+                hyper_row_count = self.create_local_hyper(use_local=True)
+                hyper_file_size = os.path.getsize(self.local_hyper_path) / (1024 * 1024)
+                process_log.add_metadata(
+                    hyper_row_count=hyper_row_count,
+                    hyper_file_siz_mb=f"{hyper_file_size:.2f}",
+                    update_hyper_file=True,
+                )
+
+                # Upload local HyperFile to Tableau server
+                overwrite_datasource(
+                    project_name=self.project_name,
+                    hyper_path=self.local_hyper_path,
+                )
+                os.remove(self.local_hyper_path)
+
+                process_log.log_complete()
+
+                break
+
+            except Exception as exception:
+                if retry_count == max_retries:
+                    process_log.log_failure(exception=exception)
