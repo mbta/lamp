@@ -64,6 +64,15 @@ TestHyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
 )
 
 
+def start_spare() -> None:
+    """Run all HyperFile Update Jobs"""
+
+    hyper_jobs: List[HyperJob] = [
+        HyperSpareVehicles,
+    ]
+    for job in hyper_jobs:
+        outs = job.run_parquet_hyper_combined_job()
+
 def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
     # configure the environment
@@ -88,13 +97,13 @@ def start_hyper() -> None:
     # check_for_parallel_tasks()
 
     hyper_jobs: List[HyperJob] = [
-        # HyperSpareVehicles,
+        HyperSpareVehicles,
         # HyperBusPerformanceAll(),
         # HyperBusPerformanceRecent(),
         # HyperDevGreenGtfsRtTripUpdates,
         # HyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdatesHeavyRail,
-        TestHyperGtfsRtTripUpdates,
+        # TestHyperGtfsRtTripUpdates,
         # TestHyperDevGreenGtfsRtTripUpdates,
     ]
     # breakpoint()
@@ -121,5 +130,5 @@ def start_hyper() -> None:
 
 
 if __name__ == "__main__":
-    start_hyper()
+    start_spare()
     # start_bus_parquet_updates()
