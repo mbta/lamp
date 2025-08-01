@@ -7,9 +7,12 @@ from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll, HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.jobs.spare_jobs import HyperSpareVehicles
 from lamp_py.tableau.pipeline import (
-    GTFS_RT_TABLEAU_PROJECT,
     start_bus_parquet_updates,
+)
+from lamp_py.tableau.jobs.lamp_jobs import (
+    GTFS_RT_TABLEAU_PROJECT,
     HyperDevGreenGtfsRtTripUpdates,
     HyperGtfsRtTripUpdatesHeavyRail,
 )
@@ -61,6 +64,15 @@ TestHyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
 )
 
 
+def start_spare() -> None:
+    """Run all HyperFile Update Jobs"""
+
+    hyper_jobs: List[HyperJob] = [
+        HyperSpareVehicles,
+    ]
+    for job in hyper_jobs:
+        outs = job.run_parquet_hyper_combined_job()
+
 def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
     # configure the environment
@@ -85,27 +97,38 @@ def start_hyper() -> None:
     # check_for_parallel_tasks()
 
     hyper_jobs: List[HyperJob] = [
+        HyperSpareVehicles,
         # HyperBusPerformanceAll(),
         # HyperBusPerformanceRecent(),
         # HyperDevGreenGtfsRtTripUpdates,
         # HyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdates,
-        TestHyperDevGreenGtfsRtTripUpdates,
+        # TestHyperDevGreenGtfsRtTripUpdates,
     ]
     # breakpoint()
 
-    run_pq = True
-    if run_pq:
+    run_create_pq = False
+    if run_create_pq:
         for job in hyper_jobs:
             outs = job.create_parquet(None)
 
-    hyper = False
-    if hyper:
+    run_pq = False
+    if run_pq:
+        for job in hyper_jobs:
+            outs = job.run_parquet(None)
+
+    local_hyper = False
+    if local_hyper:
         for job in hyper_jobs:
             outs = job.create_local_hyper()
 
+    hyper = True
+    if hyper:
+        for job in hyper_jobs:
+            outs = job.run_hyper()
+
 
 if __name__ == "__main__":
-    start_hyper()
+    start_spare()
     # start_bus_parquet_updates()
