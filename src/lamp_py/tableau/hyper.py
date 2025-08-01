@@ -325,7 +325,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
         except Exception as exception:
             process_log.log_failure(exception=exception)
 
-    def run_parquet_hyper_one_shot(self, db_manager: Optional[DatabaseManager]) -> None:
+    def run_parquet_hyper_combined_job(self, db_manager: DatabaseManager | None = None) -> None:
         """
         Remote parquet Create / Update runner / Hyper uploader
         """

@@ -146,4 +146,4 @@ def start_spare_updates() -> None:
     ]
 
     for job in jobs:
-        job.run_parquet_hyper_one_shot(None)
+        job.run_parquet_hyper_combined_job(None)

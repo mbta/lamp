@@ -4,8 +4,6 @@ from lamp_py.runtime_utils.remote_files_spare import (
     tableau_spare_vehicles,
 )
 from lamp_py.tableau.conversions.convert_types import get_default_tableau_schema_from_s3
-
-# from lamp_py.tableau.conversions.spare.convert_spare_vehicle import flatten_spare_vehicle
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 import pyarrow
 import polars as pl
@@ -21,7 +19,7 @@ def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
     return pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align").to_arrow().drop("accessibilityFeatures")
 
 
-SPARE_TABLEAU_PROJECT = "GTFS-RT"
+SPARE_TABLEAU_PROJECT = "Spare"
 # overrides1 = {"emissionsRate": pyarrow.int64()}
 excludes1 = {"accessibilityFeatures": ""}
 HyperSpareVehicles = FilteredHyperJob(
