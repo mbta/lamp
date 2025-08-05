@@ -1,3 +1,6 @@
+import pyarrow
+import polars as pl
+
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
 from lamp_py.runtime_utils.remote_files_spare import (
     springboard_spare_vehicles,
@@ -5,8 +8,6 @@ from lamp_py.runtime_utils.remote_files_spare import (
 )
 from lamp_py.tableau.conversions.convert_types import get_default_tableau_schema_from_s3
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-import pyarrow
-import polars as pl
 
 
 def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
@@ -19,7 +20,12 @@ def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
         explode_table_column(flatten_table_schema(table), "accessibilityFeatures")
     )  # .drop(['accessibilityFeatures'])
 
-    return pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align").to_arrow().drop("accessibilityFeatures")
+    return (
+        pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align")
+        .to_frame()
+        .to_arrow()
+        .drop("accessibilityFeatures")
+    )
 
 
 SPARE_TABLEAU_PROJECT = "Spare"

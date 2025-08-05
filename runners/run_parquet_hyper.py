@@ -73,6 +73,7 @@ def start_spare() -> None:
     for job in hyper_jobs:
         outs = job.run_parquet_hyper_combined_job()
 
+
 def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
     # configure the environment
