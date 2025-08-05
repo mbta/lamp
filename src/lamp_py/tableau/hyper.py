@@ -150,7 +150,15 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
     def create_local_hyper(self, use_local=False) -> int:
         """
-        Create local hyper file, from remote parquet file
+        Create local hyper file, from remote parquet file or local
+
+        Parameters
+        ----------
+        use_local : if True, assumes that the local.parquet exists, and uses that instead of pulling from S3
+
+        Returns
+        -------
+        int: number of rows in hyper file created
         """
 
         if use_local is not True:
@@ -328,6 +336,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
     def run_parquet_hyper_combined_job(self, db_manager: DatabaseManager | None = None) -> None:
         """
         Remote parquet Create / Update runner / Hyper uploader
+        Performs parquet and hyper creation in a single stage.
+
+        This is meant to be run on the Tableau Uploader application, which has all the required AWS bucket policies.
         """
         process_log_create = ProcessLogger(
             "hyper_job_run_parquet_one_shot",

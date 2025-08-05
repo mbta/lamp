@@ -11,7 +11,27 @@ def get_default_tableau_schema_from_s3(
     preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
     overrides: dict | None = None,
     excludes: dict | None = None,
-):
+) -> pyarrow.schema:
+    """
+    This function automatically applies a set of schema transformations to make a table tableau compatible
+    There are some datatypes that are supported that are different than the pyarrow supported set.
+
+    Function reads from input_location to get a parquet file, and reads the schema from it without loading
+    The schema can be pre-processed with a method, or type changed or excluded with overrides
+
+    Parameters
+    ----------
+    input_location : location to read a dataset from
+    preprocess : [Optional] function to transform a schema. The function signature is Table, but the retur
+    overrides: dict of {"column_name": "new_type"} to apply to schema
+    excludes: dict of {"column_name": "exclude_reason_string"} to apply to schema
+
+    Returns
+    -------
+    pyarrow.schema that is valid for upload to tableau
+    """
+
+    # grab a single file in the dataset to get the schema
     s3_uris = file_list_from_s3(bucket_name=input_location.bucket, file_prefix=input_location.prefix, max_list_size=1)
     ds_paths = [s.replace("s3://", "") for s in s3_uris]
 
@@ -20,6 +40,8 @@ def get_default_tableau_schema_from_s3(
         format="parquet",
         filesystem=pyarrow.fs.S3FileSystem(),
     )
+
+    # if we want to preprocess it,
     if preprocess is not None:
         ds = preprocess(ds.schema.empty_table())
 
@@ -32,10 +54,23 @@ def convert_to_tableau_compatible_schema(
     excludes: dict | None = None,
 ) -> pyarrow.schema:
     """
-    generic converter for known types (dates, timezones, etc)
-    overrides to correct the rest
-    overrides_exclude -
+    This function automatically applies a set of schema transformations to make a table tableau compatible
+    There are some datatypes that are supported that are different than the pyarrow supported set.
+
+    Generic converter for known tableau types (dates, timezones, etc)
+
+    Parameters
+    ----------
+    input_schema : pyarrow schema to transform
+    overrides: dict of {"column_name": "new_type"} to apply to schema
+    excludes: dict of {"column_name": "exclude_reason_string"} to apply to schema
+
+    Returns
+    -------
+    pyarrow.schema that is valid for upload to tableau
+
     """
+
     # Create a map to store the modified fields that can't be auto-inferred
     auto_schema = []
     # Loop through the schema fields and apply changes

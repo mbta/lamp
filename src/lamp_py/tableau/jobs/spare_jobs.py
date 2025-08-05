@@ -10,6 +10,9 @@ import polars as pl
 
 
 def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
+    """
+    Apply transforms to spare vehicle.parquet
+    """
     table = table.drop(["metadata.providerId", "metadata.owner", "emissionsRate", "createdAt", "updatedAt"])
     df = pl.from_arrow(table)
     accessibilty_rows = flatten_table_schema(
@@ -37,12 +40,3 @@ HyperSpareVehicles = FilteredHyperJob(
     parquet_filter=None,
     tableau_project_name=SPARE_TABLEAU_PROJECT,
 )
-
-
-# if __name__ == '__main__':
-#     processed_schema=get_default_tableau_schema_from_s3(
-#         springboard_spare_vehicles,
-#         preprocess=flatten_spare_vehicle,
-#     )
-#     print(processed_schema)
-#     print("here!")
