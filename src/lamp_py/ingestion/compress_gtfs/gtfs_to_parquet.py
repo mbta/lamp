@@ -59,7 +59,7 @@ def frame_parquet_diffs(
         pq_frame.select(join_columns),
         how="anti",
         on=join_columns,
-        join_nulls=True,
+        nulls_equal=True,
         coalesce=True,
     ).drop("from_zip")
 
@@ -68,7 +68,7 @@ def frame_parquet_diffs(
         new_frame.select(join_columns + ("from_zip",)),
         how="left",
         on=join_columns,
-        join_nulls=True,
+        nulls_equal=True,
         coalesce=True,
     )
     same_records = pq_frame.filter(pl.col("from_zip").eq(True)).drop("from_zip")
