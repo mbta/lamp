@@ -10,7 +10,6 @@ from lamp_py.runtime_utils.remote_files import (
     springboard_rt_trip_updates,  # main feed, all lines, unique records
     springboard_devgreen_lrtp_trip_updates,  # dev green feed, green line only, all records
     springboard_lrtp_trip_updates,  # main feed, green line only, all records
-    bus_events,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_heavyrail_30_day,
@@ -18,7 +17,6 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_all_light_rail_7_day,
-    tableau_bus_recent,
 )
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
@@ -94,13 +92,3 @@ HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
-
-# HyperBusPerformanceRecent = FilteredHyperJob(
-#     remote_input_location=bus_events,
-#     remote_output_location=tableau_bus_recent,
-#     rollup_num_days=7,
-#     processed_schema=convert_gtfs_rt_vehicle_position.schema(),
-#     dataframe_filter=convert_bus_performance_data.apply_bus_analysis_conversions,
-#     parquet_filter=None,
-#     tableau_project_name=LAMP_API,
-# )

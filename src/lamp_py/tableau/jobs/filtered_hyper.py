@@ -9,7 +9,6 @@ from pyarrow.fs import S3FileSystem
 import polars as pl
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 from lamp_py.tableau.hyper import HyperJob
 
 from lamp_py.runtime_utils.remote_files import S3Location
@@ -79,7 +78,7 @@ class FilteredHyperJob(HyperJob):
             # need to implement new input daily_upload_hour as well
             # this will currently update hourly. will monitor
             end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=num_days)  # type: ignore
+            start_date = end_date - timedelta(days=num_days)
             bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
             # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
             s3_uris = file_list_from_s3_date_range(
