@@ -260,11 +260,10 @@ def hash_gtfs_rt_parquet(path: str) -> None:
         tmp_pq = os.path.join(temp_dir, "temp.parquet")
         with pq.ParquetWriter(tmp_pq, schema=hash_schema) as writer:
             for batch in ds.iter_batches(batch_size=512 * 1024):
-                assert(isinstance(batch, pl.DataFrame))
                 batch = pl.from_arrow(batch)
                 batch = (
-                    batch.with_columns(
-                        batch.select(hash_columns)
+                    batch.with_columns( # type: ignore
+                        batch.select(hash_columns) # type: ignore
                         .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
                         .to_series(0)
                         .alias(GTFS_RT_HASH_COL)
