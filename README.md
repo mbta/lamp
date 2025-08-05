@@ -3,7 +3,8 @@ LAMP is a collection of applications used to measure performance of the MBTA tra
 
 ## LAMP Applications:
 * [Ingestion (Parquet Archiver)](src/lamp_py/ingestion/README.md)
-* [Performance Manager (Rail Performance)](src/lamp_py/performance_manager/README.md)
+* [Rail Performance Manager](src/lamp_py/performance_manager/README.md)
+* [Bus Performance Manager](src/lamp_py/bus_performance_manager/README.md)
 
 ## Architecture
 
@@ -13,18 +14,114 @@ LAMP application architecture is managed and described using `Terraform` in the 
 
 [Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to Miro Diagram
 
+# Getting Started (Quick Start)
+## Local Development
 
-# Developer Usage
+1) Install container runtime (colima at MBTA)
+
+*Note*: Follow brew instructions for colima. Need to modify `~/.docker/config.json`
+
+Follow these colima installation instructions: [Test](#tests)
+
+2) Install asdf and dependencies
+```
+asdf plugin add python
+asdf plugin add direnv
+asdf plugin add poetry
+asdf install
+```
+3. Copy `.env.template` into `.env`
+
+4. Install python dependencies via poetry
+```
+poetry env use 3.12.3
+poetry env activate  
+poetry lock
+poetry install
+poetry self add poetry-plugin-shell
+```
+
+5. Start up containers for local development
+```
+[terminal 1] colima start -f
+[terminal 2] docker-compose up seed_metadata
+```
+
+6. Run tests
+```
+poetry shell
+pytest -s
+```
+
+## Local Development with AWS resources
+
+There are many scripts in the `runners` repository that pull data from our S3 buckets to do semi-local development. These require AWS credential to be configured. See the [AWS Credentials](#aws-credentials) section below
+
+Minimally, this will require the following steps:
+
+1. Generate personal token on AWS Console
+2. populate ~/.aws/config with:
+```
+[default]
+region = us-east-1
+```
+
+3. populate ~/.aws/credentials with:
+```
+[default]
+aws_access_key_id = <YOUR ID>
+aws_secret_access_key = <YOUR ACCESS KEY>
+```
+
+4. To test this, run the following runner script that queries a date range from S3:
+```
+python runners/run_query_s3_with_date_range.py
+```
+
+## Setting up for development in Notebooks
+
+Notebook and dev dependencies are installed separately from the app dependencies. 
+
+To install these:
+
+```
+poetry install --with investigation
+poetry install --with dev
+```
+
+To check `dev` installed correctly:
+```sh
+# black for Formatting
+poetry run black .
+
+# mypy for Type Checking
+poetry run mypy .
+
+# pylint for Static Analysis
+poetry run pylint src tests
+
+# pytest for Unit Tests
+poetry run pytest
+```
+
+To check `investigation` installed correctly:
+
+```sh 
+poetry run marimo edit 
+```
+
+# Developer Usage (Details)
 
 ## Dependencies
 
 LAMP uses [asdf](https://asdf-vm.com/) to mange runtime versions using the command line. Once installed, run the following in the root project directory:
 
+
 ```sh
 # add project plugins
-asdf plugin-add python
-asdf plugin-add direnv
-asdf plugin-add poetry
+asdf plugin add python
+asdf plugin add direnv
+asdf plugin add poetry
 
 # install versions of plugins specified in .tool-versions
 asdf install
@@ -94,6 +191,17 @@ The tableau package is installed by running `poetry install --with tableau`
 ## Running Locally
 
 LAMP uses `docker` and `docker-compose` to run local instances of applications for development purposes. Please refer to the `README` page of invidiual applications for instructions. 
+
+## Tests
+
+To run the tests, first install and setup Colima, Docker, and docker-compose:
+
+```shell
+brew install docker docker-compose colima
+colima start
+mkdir -p ${DOCKER_CONFIG:-"~/.docker"}/cli-plugins
+ln -sfn /opt/homebrew/opt/docker-compose/bin/docker-compose ${DOCKER_CONFIG:-"~/.docker"}/cli-plugins/docker-compose
+```
 
 
 ## Repository Design 
