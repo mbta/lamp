@@ -148,7 +148,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         return lamp_version == self.lamp_version
 
-    def create_local_hyper(self, use_local=False) -> int:
+    def create_local_hyper(self, use_local: bool = False) -> int:
         """
         Create local hyper file, from remote parquet file or local
 
