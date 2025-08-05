@@ -277,7 +277,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
         )
         .with_columns(
-            (pl.col("service_date").str.to_datetime("%Y%m%d") + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
+            (pl.col("service_date").str.to_datetime("%Y%m%d") + pl.duration(seconds=pl.col("start_time"))).alias(
+                "start_dt"
+            ),
         )
         .select(
             [
