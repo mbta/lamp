@@ -110,7 +110,7 @@ To check `investigation` installed correctly:
 poetry run marimo edit 
 ```
 
-# Developer Usage (Details)
+# Developer Usage (Detailed)
 
 ## Dependencies
 
@@ -203,6 +203,9 @@ mkdir -p ${DOCKER_CONFIG:-"~/.docker"}/cli-plugins
 ln -sfn /opt/homebrew/opt/docker-compose/bin/docker-compose ${DOCKER_CONFIG:-"~/.docker"}/cli-plugins/docker-compose
 ```
 
+Then:
+
+`pytest -s`
 
 ## Repository Design 
 
