@@ -20,7 +20,8 @@ runs:
       working-directory: .
       # env use python3.10 to force usage of python3.10 installed by asdf over system python version
       run: |
-        poetry env use python3.10
+        poetry env use python3.12 -vvv
+        poetry config --list
         poetry install -v
       shell: bash
       if: "!steps.python-cache.outputs.cache-hit"
