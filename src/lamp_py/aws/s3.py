@@ -538,7 +538,7 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
 # pylint: enable=R0914
 
 
-# pylint: disable=R0913
+# pylint: disable=R0913,R0917
 # pylint too many arguments (more than 5)
 def write_parquet_file(
     table: Table,
