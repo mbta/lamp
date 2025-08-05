@@ -40,8 +40,6 @@ def get_default_tableau_schema_from_s3(
         format="parquet",
         filesystem=pyarrow.fs.S3FileSystem(),
     )
-
-    # if we want to preprocess it,
     if preprocess is not None:
         ds = preprocess(ds.schema.empty_table())
 
