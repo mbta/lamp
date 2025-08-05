@@ -177,17 +177,6 @@ Images for LAMP applications are hosted by AWS on the Elastic Container Registry
 
 LAMP applications are hosted by AWS and run on Elastic Container Service (ECS) instances. Deployment of LAMP applications, to ECS instances, occur via automated github actions.
 
-## Running Locally (TableauHyperAPI package required)
-
-The tableauhyperapi package is not built or made available via package managers for Apple Silicon as of 3/19/25. 
-
-The workaround is to run tableauhyperapi required tests and activities in Rosetta mode. 
-
-This can ba activated by running `env /usr/bin/arch -x86_64 /bin/zsh --login` in a terminal. 
-
-The tableau package is installed by running `poetry install --with tableau`
-
-
 ## Running Locally
 
 LAMP uses `docker` and `docker-compose` to run local instances of applications for development purposes. Please refer to the `README` page of invidiual applications for instructions. 
