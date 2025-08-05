@@ -19,7 +19,7 @@ transit_master_ingestion = 'lamp_py.ingestion_tm.pipeline:start'
 ad_hoc = 'lamp_py.ad_hoc.pipeline:start'
 
 [tool.poetry.dependencies]
-python = "^3.12.3"
+python = "^3.12"
 SQLAlchemy = "^2.0.30"
 pyarrow = "^21.0"
 cffi = "^1.17.0"
@@ -73,7 +73,7 @@ disallow_untyped_defs = true
 ignore_missing_imports = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 pretty = true
-python_version = "3.12.3"
+python_version = "3.12"
 warn_unreachable = true
 warn_unused_ignores = true
 exclude = ["investigation/", "runners"]
