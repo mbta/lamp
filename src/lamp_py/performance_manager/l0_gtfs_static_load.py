@@ -1,5 +1,5 @@
 import pathlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 
 import numpy
@@ -55,7 +55,7 @@ class StaticTableDetails:
     insert_table: sa.sql.schema.Table
     static_version_key_column: sa.sql.schema.Column
     column_info: StaticTableColumns
-    data_table: pandas.DataFrame = pandas.DataFrame()
+    data_table: pandas.DataFrame = field(default_factory=pandas.DataFrame)
     allow_empty_dataframe: bool = False
 
 
