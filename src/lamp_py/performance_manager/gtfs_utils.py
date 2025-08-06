@@ -17,8 +17,17 @@ from lamp_py.postgres.rail_performance_manager_schema import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import dt_from_obj_path
 
-# timezones are handled with ZoneInfo in python 3.9+
-BOSTON_TZ = ZoneInfo("US/Eastern")
+# TO BE ADDRESSED:
+# pytz local timezone introduces some weird offsets - should not be used anymore with proper
+# python support via ZoneInfo https://stackoverflow.com/questions/11473721/weird-timezone-issue-with-pytz
+
+# boston tzinfo to be used with datetimes that require DST considerations.
+#
+# NOTE: do not use this as an argument for datetime.deatime constructors.
+# instead use BOSTON_TZ with a naive datetime. (https://pypi.org/project/pytz/)
+BOSTON_TZ = pytz.timezone("EST5EDT")
+
+BOSTON_TZ_ZONEINFO = ZoneInfo("US/Eastern")
 
 
 @lru_cache
