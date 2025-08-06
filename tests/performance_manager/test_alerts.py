@@ -14,7 +14,7 @@ from lamp_py.performance_manager.alerts import (
     explode_active_periods,
     explode_informed_entity,
 )
-from lamp_py.performance_manager.gtfs_utils import BOSTON_TZ
+from lamp_py.performance_manager.gtfs_utils import BOSTON_TZ_ZONEINFO
 
 from ..test_resources import springboard_dir
 
@@ -236,8 +236,8 @@ def test_explode_active_period() -> None:
     """
     test that active periods can be exploded without losing information
     """
-    start_dt = datetime.datetime(2023, 1, 1, tzinfo=BOSTON_TZ)
-    end_dt = datetime.datetime(2023, 1, 2, tzinfo=BOSTON_TZ)
+    start_dt = datetime.datetime(2023, 1, 1, tzinfo=BOSTON_TZ_ZONEINFO)
+    end_dt = datetime.datetime(2023, 1, 2, tzinfo=BOSTON_TZ_ZONEINFO)
     max_duration_days = 2
 
     alerts_raw, active_period_count = generate_sample_active_periods(

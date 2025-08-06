@@ -17,7 +17,7 @@ runs:
         key: ${{ runner.os}}-asdf-${{ hashFiles('**/.tool-versions') }}
 
     - name: Install ASDF Tools
-      uses: asdf-vm/actions/install@v2
+      uses: asdf-vm/actions/install@v4
       if: steps.asdf-cache.outputs.cache-hit != 'true'
 
     - name: Re-shim ASDF Install
