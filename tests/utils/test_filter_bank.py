@@ -44,9 +44,7 @@ def test_hardcoded_terminal_prediction_names() -> None:
     assert set(terminal_stop_ids).issuperset(set(HeavyRailFilter.terminal_stop_ids))
 
     for stop in HeavyRailFilter.terminal_stop_ids:
-        bb = stops.filter(pl.col("stop_id") == stop)
         assert stops.filter(pl.col("stop_id") == stop).height == 1
 
     for stop in LightRailFilter.terminal_stop_ids:
-        bb = stops.filter(pl.col("stop_id") == stop)
         assert stops.filter(pl.col("stop_id") == stop).height == 1
