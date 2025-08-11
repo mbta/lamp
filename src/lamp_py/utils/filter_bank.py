@@ -8,7 +8,10 @@ class LightRailFilter:
     Data-only class for lists of filters relevant for light rail
     """
 
-    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512])) + ["Union Square-01", "Union Square-02"]
+    terminal_stop_ids = list(map(str, [70106, 70160, 70161, 70238, 70276, 70503, 70504, 70511, 70512])) + [
+        "Union Square-01",
+        "Union Square-02",
+    ]
 
 
 class HeavyRailFilter:
