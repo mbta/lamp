@@ -14,67 +14,74 @@ LAMP application architecture is managed and described using `Terraform` in the 
 
 [Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to Miro Diagram
 
-# Getting Started (Quick Start)
-## Local Development
+# Getting Started with Local Development
+## Prerequisites
+Install these dependencies from `brew` and follow the installation output for any additional configuration.
+- `colima`
+    ```zsh
+    brew install docker docker-compose colima
+    colima start
+    mkdir -p ${DOCKER_CONFIG:-"$HOME/.docker"}/cli-plugins
+    ln -sfn /opt/homebrew/opt/docker-compose/bin/docker-compose ${DOCKER_CONFIG:-"$HOME/.docker"}/cli-plugins/docker-compose
+    ```
+- `asdf`
+    ```zsh
+    asdf plugin add python
+    asdf plugin add direnv
+    asdf plugin add poetry
+    asdf install
+    ```
+    To configure `direnv`:
+    1. Copy `.env.template` into `.env`
+    2. [Hook](https://direnv.net/docs/hook.html) `direnv` into your shell
+- `docker`
+- `docker-compose`
+- `postgresql`
+- `unixodbc`
 
-1) Install container runtime (colima at MBTA)
+### GFTS-RT access (optional)
 
-*Note*: Follow brew instructions for colima. Need to modify `~/.docker/config.json`
+In the base installation, LAMP provides access to performancedata.mbta.com.
+A fuller featureset is available by connecting to the MBTA's internal s3 storage.
+For AWS access, also install
+- `awscli`
+    ```zsh
+    aws configure
+    ```
+    will take you through an interactive CLI and store [your AWS Access Key credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-key-self-managed.html#Using_CreateAccessKey).
+    Associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
 
-Follow these colima installation instructions: [Test](#tests)
-
-2) Install asdf and dependencies
-```
-asdf plugin add python
-asdf plugin add direnv
-asdf plugin add poetry
-asdf install
-```
-3. Copy `.env.template` into `.env`
-
-4. Install python dependencies via poetry
-```
+## `poetry` configuration
+```zsh
 poetry env use 3.12.3
 poetry env activate  
 poetry lock
 poetry install
-poetry self add poetry-plugin-shell
 ```
 
-5. Start up containers for local development
+## Check
+If all this worked, you can run the following checks without errors.
+
+1. Start up containers for local development
+```zsh
+# terminal 1
+colima start -f
 ```
-[terminal 1] colima start -f
-[terminal 2] docker-compose up seed_metadata
+```zsh
+# terminal 2
+docker-compose up seed_metadata
 ```
 
-6. Run tests
-```
+2. Run tests
+```zsh
 poetry shell
 pytest -s
 ```
 
-## Local Development with AWS resources
+### GFTS-RT (optional)
 
-There are many scripts in the `runners` repository that pull data from our S3 buckets to do semi-local development. These require AWS credential to be configured. See the [AWS Credentials](#aws-credentials) section below
-
-Minimally, this will require the following steps:
-
-1. Generate personal token on AWS Console
-2. populate ~/.aws/config with:
-```
-[default]
-region = us-east-1
-```
-
-3. populate ~/.aws/credentials with:
-```
-[default]
-aws_access_key_id = <YOUR ID>
-aws_secret_access_key = <YOUR ACCESS KEY>
-```
-
-4. To test this, run the following runner script that queries a date range from S3:
-```
+3. Query a date range from s3
+```zsh
 python runners/run_query_s3_with_date_range.py
 ```
 
@@ -89,20 +96,7 @@ poetry install --with investigation
 poetry install --with dev
 ```
 
-To check `dev` installed correctly:
-```sh
-# black for Formatting
-poetry run black .
-
-# mypy for Type Checking
-poetry run mypy .
-
-# pylint for Static Analysis
-poetry run pylint src tests
-
-# pytest for Unit Tests
-poetry run pytest
-```
+To check `dev` installed correctly, run the [CI checks](#continuous-integration).
 
 To check `investigation` installed correctly:
 
@@ -111,31 +105,6 @@ poetry run marimo edit
 ```
 
 # Developer Usage (Detailed)
-
-## Dependencies
-
-LAMP uses [asdf](https://asdf-vm.com/) to mange runtime versions using the command line. Once installed, run the following in the root project directory:
-
-
-```sh
-# add project plugins
-asdf plugin add python
-asdf plugin add direnv
-asdf plugin add poetry
-
-# install versions of plugins specified in .tool-versions
-asdf install
-```
-
-`poetry` is used by LAMP python applications to manage dependencies. 
-
-`docker` and  `docker-compose` are required to run containerized versions of LAMP applications for local development.
-
-## AWS Credentials
-
-LAMP applications require permissions to access MBTA/CTD AWS resources. 
-
-To get started with AWS, install the [AWS Command Line Interface](https://aws.amazon.com/cli/). Then, follow the instructions for [configuring the AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to associate a local machine with an AWS account.  Finally, associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
 
 ## Microsoft SQL
 
@@ -180,24 +149,3 @@ LAMP applications are hosted by AWS and run on Elastic Container Service (ECS) i
 ## Running Locally
 
 LAMP uses `docker` and `docker-compose` to run local instances of applications for development purposes. Please refer to the `README` page of invidiual applications for instructions. 
-
-## Tests
-
-To run the tests, first install and setup Colima, Docker, and docker-compose:
-
-```shell
-brew install docker docker-compose colima
-colima start
-mkdir -p ${DOCKER_CONFIG:-"~/.docker"}/cli-plugins
-ln -sfn /opt/homebrew/opt/docker-compose/bin/docker-compose ${DOCKER_CONFIG:-"~/.docker"}/cli-plugins/docker-compose
-```
-
-Then:
-
-`pytest -s`
-
-## Repository Design 
-
-This repository contains all LAMP source code used to run, test and deploy LAMP applications.
-
-Source code for LAMP python applications can be found in the [src/](src/)  directory. 
