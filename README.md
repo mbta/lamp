@@ -34,16 +34,22 @@ Install these dependencies from `brew` and follow the installation output for an
     To configure `direnv`:
     1. Copy `.env.template` into `.env`
     2. [Hook](https://direnv.net/docs/hook.html) `direnv` into your shell
+- `docker`
+- `docker-compose`
+- `postgresql`
+- `unixodbc`
+
+### GFTS-RT access (optional)
+
+In the base installation, LAMP provides access to performancedata.mbta.com.
+A fuller featureset is available by connecting to the MBTA's internal s3 storage.
+For AWS access, also install
 - `awscli`
     ```zsh
     aws configure
     ```
     will take you through an interactive CLI and store [your AWS Access Key credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-key-self-managed.html#Using_CreateAccessKey).
     Associate the AWS Account with the [Lamp Team User Group](https://github.com/mbta/devops/blob/627ab870f51b4bb9967f0f45efaee679e4a7d195/terraform/restricted/iam-user-groups.tf#L204-L213) found in the MBTA devops terraform repository.
-- `docker`
-- `docker-compose`
-- `postgresql`
-- `unixodbc`
 
 ## `poetry` configuration
 ```zsh
@@ -51,7 +57,6 @@ poetry env use 3.12.3
 poetry env activate  
 poetry lock
 poetry install
-poetry self add poetry-plugin-shell
 ```
 
 ## Check
@@ -72,6 +77,8 @@ docker-compose up seed_metadata
 poetry shell
 pytest -s
 ```
+
+### GFTS-RT (optional)
 
 3. Query a date range from s3
 ```zsh
