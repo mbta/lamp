@@ -28,8 +28,8 @@ def test_service_date_from_timestamp() -> None:
             1583654399,  # 3:59:59 am
         ],
         20200308: [
-            1583654400, # 4:00 am
-            1583654460, # 4:01 am
+            1583654400,  # 4:00 am
+            1583654460,  # 4:01 am
         ],
         # dst ended on 1 nov 2020, the clock goes from 2:00 -> 1:00
         20201031: [

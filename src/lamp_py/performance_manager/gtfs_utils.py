@@ -71,7 +71,7 @@ def service_date_from_timestamp(timestamp: int) -> int:
     """
     date_and_time = datetime.datetime.fromtimestamp(timestamp, tz=BOSTON_TZ)
 
-    if date_and_time.hour < 4: # changed from 3 -> 4 ahead of 2025 Fall Rating
+    if date_and_time.hour < 4:  # changed from 3 -> 4 ahead of 2025 Fall Rating
         service_date = date_and_time.date() - datetime.timedelta(days=1)
     else:
         service_date = date_and_time.date()
