@@ -114,11 +114,11 @@ class ProcessLogger:
         # 'raised' exceptions will also be logged to sys.stderr
         for tb in traceback.format_tb(exception.__traceback__):
             for line in tb.strip("\n").split("\n"):
-                logging.error(f"uuid={self.uuid}, {line.strip('\n')}")
+                logging.error(f"uuid={self.default_data["uuid"]}, {line.strip('\n')}")
 
         # Log Exception
         for line in traceback.format_exception_only(exception):
-            logging.error(f"uuid={self.uuid}, {line.strip('\n')}")
+            logging.error(f"uuid={self.default_data["uuid"]}, {line.strip('\n')}")
 
         # Log Process Failure
         logging.exception(self._get_log_string())
