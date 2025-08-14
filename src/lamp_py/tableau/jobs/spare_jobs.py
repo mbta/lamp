@@ -22,7 +22,7 @@ def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
 
     return (
         pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align")
-        .to_frame()
+        # .to_frame()
         .to_arrow()
         .drop("accessibilityFeatures")
     )
