@@ -2,6 +2,7 @@ from typing import List
 
 import polars as pl
 
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
 from lamp_py.runtime_utils.remote_files import (
     tm_geo_node_file,
     tm_route_file,
@@ -37,7 +38,10 @@ def _empty_stop_crossing() -> pl.DataFrame:
     return pl.DataFrame(schema=schema)  # type: ignore
 
 
-def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
+def generate_tm_events(
+    tm_files: List[str],
+    tm_scheduled: TransitMasterSchedule,
+) -> pl.DataFrame:
     """
     Build out events from transit master stop crossing data after joining it
     with static Transit Master data describing stops, routes, trips, and
@@ -70,98 +74,6 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
     """
     logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
     logger.log_start()
-    # the geo node id is the transit master key and the geo node abbr is the
-    # gtfs stop id
-    tm_geo_nodes = (
-        pl.scan_parquet(tm_geo_node_file.s3_uri)
-        .select(
-            "GEO_NODE_ID",
-            "GEO_NODE_ABBR",
-        )
-        .filter(pl.col("GEO_NODE_ABBR").is_not_null())
-        .unique()
-    )
-
-    # the route id is the transit master key and the route abbr is the gtfs
-    # route id.
-    # NOTE: some of these route ids have leading zeros
-    tm_routes = (
-        pl.scan_parquet(tm_route_file.s3_uri)
-        .select(
-            "ROUTE_ID",
-            "ROUTE_ABBR",
-        )
-        .filter(pl.col("ROUTE_ABBR").is_not_null())
-        .unique()
-    )
-
-    # the trip id is the transit master key and the trip serial number is the
-    # gtfs trip id.
-    tm_trips = (
-        pl.scan_parquet(tm_trip_file.s3_uri)
-        .select(
-            "TRIP_ID",
-            "TRIP_SERIAL_NUMBER",
-            "Pattern_ID",
-        )
-        .rename({"Pattern_ID": "PATTERN_ID"})
-        .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null() & pl.col("PATTERN_ID").is_not_null())
-        .unique()
-    )
-
-    # the vehicle id is the transit master key and the property tag is the
-    # vehicle label
-    tm_vehicles = (
-        pl.scan_parquet(tm_vehicle_file.s3_uri)
-        .select(
-            "VEHICLE_ID",
-            "PROPERTY_TAG",
-        )
-        .filter(pl.col("PROPERTY_TAG").is_not_null())
-        .unique()
-    )
-
-    tm_time_points = (
-        pl.scan_parquet(tm_time_point_file.s3_uri)
-        .select(
-            "TIME_POINT_ID",
-            "TIME_POINT_ABBR",
-            "TIME_PT_NAME",
-        )
-        .filter(pl.col("TIME_POINT_ABBR").is_not_null() & pl.col("TIME_PT_NAME").is_not_null())
-    )
-
-    tm_pattern_geo_node_xref = (
-        pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
-        .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
-        .filter(
-            pl.col("TIME_POINT_ID").is_not_null()
-            & pl.col("GEO_NODE_ID").is_not_null()
-            & pl.col("PATTERN_ID").is_not_null()
-            & pl.col("PATTERN_GEO_NODE_SEQ").is_not_null()
-        )
-    ).with_columns(
-        pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
-    )
-
-    # this is the truth to reference and compare STOP_CROSSING records with to determine timepoint_order
-    tm_trip_xref = (
-        tm_trips.join(
-            tm_pattern_geo_node_xref,
-            on="PATTERN_ID",
-            how="left",
-            coalesce=True,
-        )
-        .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
-        .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
-    )
-
-    # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
-    # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
-    tm_sequences = tm_trip_xref.group_by(["TRIP_ID"]).agg(
-        pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
-        pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
-    )
 
     # pull stop crossing information for a given service date and join it with
     # other dataframes using the transit master keys.
@@ -183,25 +95,25 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
                 & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
             )
             .join(
-                tm_routes,
+                tm_scheduled.tm_routes,
                 on="ROUTE_ID",
                 how="left",
                 coalesce=True,
             )
             .join(
-                tm_vehicles,
+                tm_scheduled.tm_vehicles,
                 on="VEHICLE_ID",
                 how="left",
                 coalesce=True,
             )
             .join(
-                tm_sequences,
+                tm_scheduled.tm_sequences,
                 on="TRIP_ID",
                 how="left",
                 coalesce=True,
             )
             .join(
-                tm_trip_xref,
+                tm_scheduled.tm_trip_xref,
                 on=["TRIP_ID", "TIME_POINT_ID", "GEO_NODE_ID", "PATTERN_GEO_NODE_SEQ"],
                 how="left",
                 coalesce=True,
@@ -253,21 +165,21 @@ def generate_tm_events(tm_files: List[str]) -> pl.DataFrame:
             .collect()
         )
 
-    tm_stop_crossings = tm_stop_crossings.with_columns(
-        pl.coalesce(
-            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
-            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
-            pl.lit(1),
-        )
-        .over("trip_id", "pattern_id", "vehicle_label")
-        .alias("tm_point_type"),
-    ).with_columns(
-        pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
-        .then(1)
-        .otherwise(0)
-        .over("trip_id", "pattern_id", "vehicle_label")
-        .alias("is_full_trip")
-    )
+    # tm_stop_crossings = tm_stop_crossings.with_columns(
+    #     pl.coalesce(
+    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
+    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
+    #         pl.lit(1),
+    #     )
+    #     .over("trip_id", "pattern_id", "vehicle_label")
+    #     .alias("tm_point_type"),
+    # ).with_columns(
+    #     pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
+    #     .then(1)
+    #     .otherwise(0)
+    #     .over("trip_id", "pattern_id", "vehicle_label")
+    #     .alias("is_full_trip")
+    # )
 
     if tm_stop_crossings.shape[0] == 0:
         tm_stop_crossings = _empty_stop_crossing()

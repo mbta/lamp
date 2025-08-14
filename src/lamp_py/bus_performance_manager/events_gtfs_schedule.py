@@ -292,7 +292,7 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     return stop_events
 
 
-def bus_gtfs_events_for_date(service_date: date) -> pl.DataFrame:
+def bus_gtfs_schedule_events_for_date(service_date: date) -> pl.DataFrame:
     """
     Create data frame of all GTFS data needed by Bus PM app for a service_date
 

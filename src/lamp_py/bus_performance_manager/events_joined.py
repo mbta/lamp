@@ -2,7 +2,7 @@ from datetime import datetime
 
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_events_for_date
+from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
 from lamp_py.runtime_utils import lamp_exception
 
 
@@ -156,7 +156,7 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
     service_date = datetime.strptime(service_dates[0], "%Y%m%d")
 
-    schedule = bus_gtfs_events_for_date(service_date)
+    schedule = bus_gtfs_schedule_events_for_date(service_date)
 
     # get a plan_trip_id from the schedule for every rt trip_id
     gtfs = gtfs.join(
