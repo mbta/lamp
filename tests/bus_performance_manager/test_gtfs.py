@@ -193,4 +193,4 @@ def test_gtfs_events_for_date_2(exists_patch: mock.MagicMock) -> None:
         "BUS32025-hbt35j47-Sunday-02",
     ]
 
-    bus_events["service_id"].unique().is_in(should_not_be_in_set).any() == False
+    assert(bus_events["service_id"].unique().is_in(should_not_be_in_set).any() == False)
