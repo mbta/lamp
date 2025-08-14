@@ -168,3 +168,29 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     # will only raise one column exception, but error logging will print all columns with issues
     if column_exceptions:
         raise column_exceptions[0]
+
+
+@mock.patch("lamp_py.utils.gtfs_utils.object_exists")
+@mock.patch("lamp_py.utils.gtfs_utils.compressed_gtfs", gtfs)
+@mock.patch("lamp_py.runtime_utils.remote_files.S3Location", S3Location)
+def test_gtfs_events_for_date_2(exists_patch: mock.MagicMock) -> None:
+    """
+    validate another set - these ids are for the 4th of july, and were found in the prior implementation's 6/24/25 service_ids
+    """
+    # mock files from S3 with https://performancedata paths
+    exists_patch.return_value = True
+
+    bus_events = bus_gtfs_events_for_date(date(2025, 6, 24))
+
+    #
+    should_not_be_in_set = [
+        "BUS32025-hbb35j47-Sunday-02",
+        "BUS32025-hbc35j47-Sunday-02",
+        "BUS32025-hbg35j47-Sunday-02",
+        "BUS32025-hbl35j47-Sunday-02",
+        "BUS32025-hbq35j47-Sunday-02",
+        "BUS32025-hbs35j47-Sunday-02",
+        "BUS32025-hbt35j47-Sunday-02",
+    ]
+
+    bus_events["service_id"].unique().is_in(should_not_be_in_set).any() == False
