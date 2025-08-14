@@ -4,7 +4,7 @@ from typing import Optional, List, Tuple
 
 import pyarrow
 
-from lamp_py.ingestion.utils import flatten_schema
+from lamp_py.ingestion.utils import flatten_table_schema
 
 
 class GTFSRTDetail(ABC):
@@ -17,7 +17,7 @@ class GTFSRTDetail(ABC):
 
     def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
         """modify table schema before write to parquet"""
-        return flatten_schema(table)
+        return flatten_table_schema(table)
 
     @property
     @abstractmethod

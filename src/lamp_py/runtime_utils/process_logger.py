@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import traceback
 import uuid
 import shutil
 from typing import Any, Dict, Union, Optional
@@ -109,4 +110,15 @@ class ProcessLogger:
         self.default_data["duration"] = f"{duration:.2f}"
         self.default_data["error_type"] = type(exception).__name__
 
+        # This is for exceptions that are not 'raised'
+        # 'raised' exceptions will also be logged to sys.stderr
+        for tb in traceback.format_tb(exception.__traceback__):
+            for line in tb.strip("\n").split("\n"):
+                logging.error(f"uuid={self.default_data["uuid"]}, {line.strip('\n')}")
+
+        # Log Exception
+        for line in traceback.format_exception_only(exception):
+            logging.error(f"uuid={self.default_data["uuid"]}, {line.strip('\n')}")
+
+        # Log Process Failure
         logging.exception(self._get_log_string())
