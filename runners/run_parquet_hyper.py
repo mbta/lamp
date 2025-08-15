@@ -98,9 +98,8 @@ def start_hyper() -> None:
     # check_for_parallel_tasks()
 
     hyper_jobs: List[HyperJob] = [
-        HyperSpareVehicles,
         # HyperBusPerformanceAll(),
-        # HyperBusPerformanceRecent(),
+        HyperBusPerformanceRecent(),
         # HyperDevGreenGtfsRtTripUpdates,
         # HyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdatesHeavyRail,
@@ -114,7 +113,7 @@ def start_hyper() -> None:
         for job in hyper_jobs:
             outs = job.create_parquet(None)
 
-    run_pq = False
+    run_pq = True
     if run_pq:
         for job in hyper_jobs:
             outs = job.run_parquet(None)
@@ -132,4 +131,4 @@ def start_hyper() -> None:
 
 if __name__ == "__main__":
     start_spare()
-    # start_bus_parquet_updates()
+    # start_hyper()

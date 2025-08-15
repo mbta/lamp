@@ -107,12 +107,15 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
 
-            polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)  # type: ignore[union-attr]
+            try:
+                polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)  # type: ignore[union-attr]
 
-            if not isinstance(polars_df, pl.DataFrame):
-                raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+                if not isinstance(polars_df, pl.DataFrame):
+                    raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-            writer.write_table(apply_bus_analysis_conversions(polars_df))
+                    writer.write_table(apply_bus_analysis_conversions(polars_df))
+            except:
+                print("why?")
 
 
 class HyperBusPerformanceAll(HyperJob):
@@ -164,6 +167,7 @@ class HyperBusPerformanceRecent(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         overrides = {"service_date": pyarrow.date32()}
         return get_default_tableau_schema_from_s3(input_location=bus_events, overrides=overrides)
+        # return bus_schema
 
     def create_parquet(self, _: None) -> None:
         self.update_parquet(None)
