@@ -22,13 +22,11 @@ def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
 
     return (
         pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align")
-        # .to_frame()
-        .to_arrow()
-        .drop("accessibilityFeatures")
+        .to_arrow().drop("accessibilityFeatures")
     )
 
 
-SPARE_TABLEAU_PROJECT = "Spare"
+SPARE_TABLEAU_PROJECT = "GTFS-RT"
 # overrides1 = {"emissionsRate": pyarrow.int64()}
 excludes1 = {"accessibilityFeatures": ""}
 HyperSpareVehicles = FilteredHyperJob(
