@@ -100,7 +100,7 @@ class FilteredHyperJob(HyperJob):
             format="parquet",
             filesystem=S3FileSystem(),
         )
-        process_logger = ProcessLogger("filtered_hyper_create", num_days=num_days)
+        process_logger = ProcessLogger("filtered_hyper_create_parquet", num_days=num_days)
         process_logger.log_start()
         if len(ds_paths) == 0:
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
