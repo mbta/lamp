@@ -65,13 +65,13 @@ def start_timestamp_to_seconds(start_timestamp: int) -> int:
 def service_date_from_timestamp(timestamp: int) -> int:
     """
     generate the service date from a timestamp. if the timestamp is from before
-    3am, it belongs to the previous days service. otherwise, it belongs to its
+    4am, it belongs to the previous days service. otherwise, it belongs to its
     days service. use the EST timezone when interpreting the timestamp to ensure
     proper handling of daylight savings time.
     """
     date_and_time = datetime.datetime.fromtimestamp(timestamp, tz=BOSTON_TZ)
 
-    if date_and_time.hour < 3:
+    if date_and_time.hour < 4:  # changed from 3 -> 4 ahead of 2025 Fall Rating
         service_date = date_and_time.date() - datetime.timedelta(days=1)
     else:
         service_date = date_and_time.date()
