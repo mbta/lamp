@@ -24,34 +24,48 @@ else:
     combined_schedule = pl.read_parquet('combined_schedule.parquet')
 
 
-
+tmp_dir = "tmp"
 
 tm_schedule = tm_schedule.filter(pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs_schedule["plan_trip_id"].unique()))
 # check gtfs_schedule
 
-def check_non_null(df, cols):
+def check_non_null(df, cols, trip_id="", prefix=""):
     stats = df.describe()
 
     for col in cols:
-        assert(stats.row(by_predicate=pl.col('statistic') == "null_count")[stats.get_column_index(name=col)] == 0)
+        if stats.row(by_predicate=pl.col('statistic') == "null_count")[stats.get_column_index(name=col)] == 0:
+            continue
+        else:
+            df.write_parquet(f'{tmp_dir}/{prefix}_{trip_id}__fail_non_null_{col}.parquet')
 
-def check_all_unique(df, static_cols):
+def check_all_unique(df, static_cols, trip_id="", prefix=""):
     for col in static_cols:
-        assert((df[col].drop_nulls().unique_counts() == 1).all())
+        if (df[col].drop_nulls().unique_counts() == 1).all():
+            continue
+        else:
+            # df[col].drop_nulls().value_counts().filter(pl.col.count == 2).select('stop_name').item().replace(' ', '-')
+            df.write_parquet(f'{tmp_dir}/{prefix}_{trip_id}__fail_unique_{col}.parquet')
 
-def check_static_cols(df, static_cols):
+def check_static_cols(df, static_cols, trip_id="", prefix=""):
     stats = df.describe()
 
     for col in static_cols:
-        assert(stats.row(by_predicate=pl.col('statistic') == "min")[stats.get_column_index(name=col)] == stats.row(by_predicate=pl.col('statistic') == "max")[stats.get_column_index(name=col)])
+        try:
+            assert stats.row(by_predicate=pl.col('statistic') == "min")[stats.get_column_index(name=col)] == stats.row(by_predicate=pl.col('statistic') == "max")[stats.get_column_index(name=col)]
+        except AssertionError as err:
+            df.write_parquet(f'{tmp_dir}/{prefix}_{trip_id}__fail_static_{col}.parquet')
+
 
 non_null_tm = ["PATTERN_GEO_NODE_SEQ"]
 all_unique_tm = [ 'TIME_POINT_ID', 'GEO_NODE_ID', 'GEO_NODE_ABBR', 'TIME_POINT_ABBR', 'TIME_PT_NAME', 'stop_id', ]
 static_cols_tm = ['TRIP_ID', 'TRIP_SERIAL_NUMBER', 'PATTERN_ID','trip_id', 'tm_planned_sequence_end', 'tm_planned_sequence_start']
-for idx, tm in tm_schedule.group_by("TRIP_ID"):
-    check_non_null(tm, non_null_tm)
-    check_all_unique(tm, all_unique_tm)
-    check_static_cols(tm, static_cols_tm)
+
+skip_tm = False
+if not skip_tm:
+    for idx, tm in tm_schedule.group_by("TRIP_ID"):
+        check_non_null(tm, non_null_tm, trip_id=idx[0], prefix="tm")
+        check_all_unique(tm, all_unique_tm, trip_id=idx[0], prefix="tm")
+        check_static_cols(tm, static_cols_tm, trip_id=idx[0], prefix="tm")
     
 
   
@@ -62,7 +76,7 @@ non_null_tm = [
 all_unique_gtfs = [
   "stop_id",
   "stop_sequence",
-  "stop_name",
+#   "stop_name", # multiple stops can have the same stop name...but different stop Ids
 ]
 static_cols_gtfs = [
   "plan_trip_id",
@@ -79,18 +93,16 @@ static_cols_gtfs = [
   "plan_start_dt",
 ]
 
-for idx, gtfs in gtfs_schedule.group_by("planned_trip_id"):
-    check_non_null(gtfs, non_null_tm)
-    check_all_unique(gtfs, all_unique_gtfs)
-    check_static_cols(gtfs, static_cols_gtfs)
+for idx, gtfs in gtfs_schedule.group_by("plan_trip_id"):
+    check_non_null(gtfs, non_null_tm, trip_id=idx[0], prefix="gtfs")
+    check_all_unique(gtfs, all_unique_gtfs, trip_id=idx[0], prefix="gtfs")
+    check_static_cols(gtfs, static_cols_gtfs, trip_id=idx[0], prefix="gtfs")
 
 
 
 # incrementing = ['PATTERN_GEO_NODE_SEQ', 'TIME_POINT_ID', 'GEO_NODE_ID', 'GEO_NODE_ABBR', 'TIME_POINT_ABBR', 'TIME_PT_NAME', 'stop_id', ]
-static_cols_combined = [
+non_null_combined = [
   "trip_id",
-  "stop_id",
-  "stop_sequence",
   "block_id",
   "route_id",
   "service_id",
@@ -99,24 +111,37 @@ static_cols_combined = [
   "direction_id",
   "direction",
   "direction_destination",
-  "stop_name",
+  "tm_joined",
+  "tm_stop_sequence",
+  "pattern_id"
+]
+
+all_unique_combined = [
+  "stop_sequence",
+#   "stop_name",
+  "stop_id",
+
+]
+
+static_cols_combined = [
+  "trip_id",
+  "block_id",
+  "route_id",
+  "service_id",
+  "route_pattern_id",
+  "route_pattern_typicality",
+  "direction_id",
+  "direction",
+  "direction_destination",
   "plan_stop_count",
   "plan_start_time",
   "plan_start_dt",
-  "plan_travel_time_seconds",
-  "plan_route_direction_headway_seconds",
-  "plan_direction_destination_headway_seconds",
-  "tm_joined",
-  "timepoint_order",
-  "tm_stop_sequence",
   "tm_planned_sequence_start",
   "tm_planned_sequence_end",
-  "timepoint_id",
-  "timepoint_abbr",
-  "timepoint_name",
   "pattern_id"
 ]
+
 for idx, combined in combined_schedule.group_by("trip_id"):
-    # check_non_null(combined, non_null_combined)
-    # check_all_unique(combined, all_unique_combined)
-    check_static_cols(combined, static_cols_combined)
+    check_non_null(combined, non_null_combined, trip_id=idx[0], prefix="combined")
+    check_all_unique(combined, all_unique_combined, trip_id=idx[0], prefix="combined")
+    check_static_cols(combined, static_cols_combined, trip_id=idx[0], prefix="combined")
