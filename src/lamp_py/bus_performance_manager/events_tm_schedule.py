@@ -27,9 +27,12 @@ class TransitMasterSchedule:
     tm_routes: pl.DataFrame
     tm_vehicles: pl.DataFrame
     tm_time_points: pl.DataFrame
-    tm_pattern_geo_node_xref: pl.DataFrame
-    tm_trip_xref: pl.DataFrame  # derived
+    tm_pattern_geo_node_xref: pl.DataFrame  # to get actual timepoints (non_null)
+    tm_pattern_geo_node_xref_full: pl.DataFrame  # to get all stop sequence (including non-timepoint)
+    tm_trip_geo_tp: pl.DataFrame  # derived
+    tm_trip_geo_tp_full: pl.DataFrame  # derived
     tm_sequences: pl.DataFrame  # derived
+    tm_schedule: pl.DataFrame
 
     # # eventually just these two
     # tm_schedule: pl.DataFrame
@@ -111,9 +114,14 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         # .rename({"TIME_POINT_ID": "time_point_id",
         #          "TIME_POINT_ABBR": "time_point_abbr",
         #          "TIME_PT_NAME" : "time_pt_name"})
-        # .filter(pl.col("TIME_POINT_ABBR").is_not_null() & pl.col("TIME_PT_NAME").is_not_null())
     )
 
+    # Pattern 1
+    # PATTERN_GEO_NODE_SEQ: 1,5,7,9
+    # TIMEPOINT_ORDER: 1,2,3,4 (RANK OVER PATTERN GEO SEQ)
+    #
+
+    # N patterns (at least 1) per Route - but we don't know Routes yet here
     tm_pattern_geo_node_xref = (
         pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
         .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
@@ -127,6 +135,18 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
     )
 
+    # Current
+    # ACTUAL: 1, 2, 3, 4, 5 FULL SEQUENCE
+    # GTFS:   1, 2,    3, 4  - 3 is the non rev timepoint stop/whatever
+    # TM:     1,       4,   (tm_pattern_geo_node_xref)
+
+    # Stop Cross actual events data will only have TM points 1, and 4.
+
+    tm_pattern_geo_node_xref_full = pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri).select(
+        "PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID"
+    )
+
+    # trip id - this is the transit master schedule
     # this is the truth to reference and compare STOP_CROSSING records with to determine timepoint_order
     tm_trip_geo_tp = (
         tm_trips.join(
@@ -139,6 +159,16 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
     )
 
+    tm_trip_geo_tp_full = (
+        tm_trips.join(
+            tm_pattern_geo_node_xref_full,
+            on="PATTERN_ID",
+            how="left",
+            coalesce=True,
+        )
+        .join(tm_geo_nodes, on="GEO_NODE_ID", how="left", coalesce=True)
+        .join(tm_time_points, on="TIME_POINT_ID", how="left", coalesce=True)
+    )
     # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
     # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
     tm_sequences = tm_trip_geo_tp.group_by(["TRIP_ID"]).agg(
@@ -146,6 +176,14 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
     )
 
+    tm_schedule = tm_trip_geo_tp_full.with_columns(
+        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"), pl.col("GEO_NODE_ABBR").alias("stop_id")
+    ).join(
+        tm_sequences,
+        on="TRIP_ID",
+        how="left",
+        coalesce=True,
+    )
     # tm_schedule = (
     #     tm_trip_xref
     #     .join(tm_routes,
@@ -174,9 +212,11 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         tm_vehicles=tm_vehicles,
         tm_time_points=tm_time_points,
         tm_pattern_geo_node_xref=tm_pattern_geo_node_xref,
-        tm_trip_xref=tm_trip_geo_tp,
+        tm_trip_geo_tp=tm_trip_geo_tp,
+        tm_trip_geo_tp_full=tm_trip_geo_tp_full,
+        tm_pattern_geo_node_xref_full=tm_pattern_geo_node_xref_full,
         tm_sequences=tm_sequences,
-        # tm_schedule=tm_schedule,
+        tm_schedule=tm_schedule,
     )
 
 
