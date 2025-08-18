@@ -113,7 +113,7 @@ def generate_tm_events(
                 coalesce=True,
             )
             .join(
-                tm_scheduled.tm_trip_xref,
+                tm_scheduled.tm_trip_geo_tp,
                 on=["TRIP_ID", "TIME_POINT_ID", "GEO_NODE_ID", "PATTERN_GEO_NODE_SEQ"],
                 how="left",
                 coalesce=True,
