@@ -24,6 +24,11 @@ def _():
 
 @app.cell
 def _():
+    return
+
+
+@app.cell
+def _():
 
     from lamp_py.runtime_utils.remote_files import (
         tm_geo_node_file,
@@ -46,16 +51,23 @@ def _():
 def _(gtfs, pl, tm):
 
     # filter tm on trip ids that are in the gtfs set - tm has all trip ids ever, gtfs only has the ids scheduled for a single days
-    tm_schedule = tm.tm_schedule.collect().filter(pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique()))
+    tm_schedule = tm.tm_schedule.collect().filter(
+        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique())
+    )
     gtfs2 = gtfs.rename({"plan_trip_id": "trip_id"})
 
     # breakpoint()
 
     # gtfs has extra trips that tm doesn't, but tm should not have ANY
-    # scheduled trips that are not in gtfs - 
+    # scheduled trips that are not in gtfs -
     combined_schedule = (
         gtfs2.join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
-        .join(tm.tm_pattern_geo_node_xref.select(["PATTERN_ID", "timepoint_order"]).collect(), on="PATTERN_ID", how="left", coalesce=True)
+        .join(
+            tm.tm_pattern_geo_node_xref.select(["PATTERN_ID", "timepoint_order"]).collect(),
+            on="PATTERN_ID",
+            how="left",
+            coalesce=True,
+        )
         # this operation fills in the nulls for the selected columns after the join- the commented out ones do not make sense to fill in
         # leaving them in as comments to make clear that this is a conscious choice
         .with_columns(
@@ -93,7 +105,7 @@ def _(gtfs, pl, tm):
         .with_columns(
             pl.when(pl.col("stop_sequence").is_null())
             .then(pl.lit("TM"))
-            .when(pl.col("timepoint_order").is_null()) #?
+            .when(pl.col("timepoint_order").is_null())  # ?
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("tm_joined")
@@ -160,31 +172,35 @@ def _(tm):
 @app.cell
 def _(pl, tm_pattern_geo_node_xref_file):
     tm_pattern_geo_node_xref = (
-        pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
-        .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
-        .filter(
-            pl.col("TIME_POINT_ID").is_not_null()
-            & pl.col("GEO_NODE_ID").is_not_null()
-            & pl.col("PATTERN_ID").is_not_null()
-            & pl.col("PATTERN_GEO_NODE_SEQ").is_not_null()
+        (
+            pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
+            .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
+            .filter(
+                pl.col("TIME_POINT_ID").is_not_null()
+                & pl.col("GEO_NODE_ID").is_not_null()
+                & pl.col("PATTERN_ID").is_not_null()
+                & pl.col("PATTERN_GEO_NODE_SEQ").is_not_null()
+            )
         )
-    ).with_columns(
-        pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
-    ).collect()
+        .with_columns(
+            pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
+        )
+        .collect()
+    )
     return (tm_pattern_geo_node_xref,)
 
 
 @app.cell
 def _(pl, tm_geo_node_file):
     tm_geo_nodes = (
-            pl.scan_parquet(tm_geo_node_file.s3_uri)
-            .select(
-                "GEO_NODE_ID",
-                "GEO_NODE_ABBR",
-            )
-            .filter(pl.col("GEO_NODE_ABBR").is_not_null())
-            .unique()
-        ).collect()
+        pl.scan_parquet(tm_geo_node_file.s3_uri)
+        .select(
+            "GEO_NODE_ID",
+            "GEO_NODE_ABBR",
+        )
+        .filter(pl.col("GEO_NODE_ABBR").is_not_null())
+        .unique()
+    ).collect()
     return (tm_geo_nodes,)
 
 
@@ -208,15 +224,15 @@ def _(pl, tm_trip_file):
 @app.cell
 def _(pl, tm_time_point_file):
     tm_time_points = (
-            pl.scan_parquet(tm_time_point_file.s3_uri).select(
-                "TIME_POINT_ID",
-                "TIME_POINT_ABBR",
-                "TIME_PT_NAME",
-            )
-            # .rename({"TIME_POINT_ID": "time_point_id",
-            #          "TIME_POINT_ABBR": "time_point_abbr",
-            #          "TIME_PT_NAME" : "time_pt_name"})
-        ).collect()
+        pl.scan_parquet(tm_time_point_file.s3_uri).select(
+            "TIME_POINT_ID",
+            "TIME_POINT_ABBR",
+            "TIME_PT_NAME",
+        )
+        # .rename({"TIME_POINT_ID": "time_point_id",
+        #          "TIME_POINT_ABBR": "time_point_abbr",
+        #          "TIME_PT_NAME" : "time_pt_name"})
+    ).collect()
     return (tm_time_points,)
 
 
@@ -238,20 +254,17 @@ def _(tm_geo_nodes, tm_pattern_geo_node_xref_full, tm_time_points, tm_trips):
 @app.cell
 def _(gtfs, pl, tm_trip_geo_tp):
     tm_sequences = tm_trip_geo_tp.group_by(["TRIP_ID"]).agg(
-            pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
-            pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
-        )
+        pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
+        pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
+    )
 
-    tm_schedule = (
-        tm_trip_geo_tp.with_columns(
-            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"), pl.col("GEO_NODE_ABBR").alias("stop_id")
-        )
-        .join(
-            tm_sequences,
-            on="TRIP_ID",
-            how="left",
-            coalesce=True,
-        )
+    tm_schedule = tm_trip_geo_tp.with_columns(
+        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"), pl.col("GEO_NODE_ABBR").alias("stop_id")
+    ).join(
+        tm_sequences,
+        on="TRIP_ID",
+        how="left",
+        coalesce=True,
     )
 
     tm_schedule = tm_schedule.filter(pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique()))
@@ -285,8 +298,8 @@ def _(tm_schedule):
 
 @app.cell
 def _(tm_schedule):
-    tm_schedule.select(["TRIP_ID", "stop_id", "PATTERN_GEO_NODE_SEQ"]).unique().height # trip id unique
-    tm_schedule.select(["trip_id", "stop_id", "PATTERN_GEO_NODE_SEQ"]).unique().height #trip serial number not unique
+    tm_schedule.select(["TRIP_ID", "stop_id", "PATTERN_GEO_NODE_SEQ"]).unique().height  # trip id unique
+    tm_schedule.select(["trip_id", "stop_id", "PATTERN_GEO_NODE_SEQ"]).unique().height  # trip serial number not unique
     return
 
 
@@ -310,7 +323,10 @@ def _(tm_schedule):
 
 @app.cell
 def _(tm_schedule):
-    assert(tm_schedule.select(["trip_id", "stop_id", "PATTERN_GEO_NODE_SEQ"]).height == tm_schedule.select(["trip_id", "stop_id"]).height)
+    assert (
+        tm_schedule.select(["trip_id", "stop_id", "PATTERN_GEO_NODE_SEQ"]).height
+        == tm_schedule.select(["trip_id", "stop_id"]).height
+    )
     return
 
 
@@ -322,7 +338,7 @@ def _(tm_schedule):
 
 @app.cell
 def _(gtfs2):
-    assert(gtfs2.select(["trip_id", "stop_id", "stop_sequence"]).height == gtfs2.select(["trip_id", "stop_id"]).height)
+    assert gtfs2.select(["trip_id", "stop_id", "stop_sequence"]).height == gtfs2.select(["trip_id", "stop_id"]).height
     return
 
 
@@ -358,61 +374,20 @@ def _(tm_schedule):
 
 @app.cell
 def _(gtfs2, pl, tm, tm_schedule):
-    abc = ( gtfs2.join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True).join(tm.tm_pattern_geo_node_xref.collect(), on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"], how="left", coalesce=True).with_columns(
-                pl.col(
-                    [
-                        "trip_id",
-                        # "stop_id"
-                        # "stop_sequence",
-                        "block_id",
-                        "route_id",
-                        "service_id",
-                        "route_pattern_id",
-                        "route_pattern_typicality",
-                        "direction_id",
-                        "direction",
-                        "direction_destination",
-                        # "stop_name",
-                        "plan_stop_count",
-                        "plan_start_time",
-                        "plan_start_dt",
-                        "PATTERN_ID",
-                        # "plan_travel_time_seconds",
-                        # "plan_route_direction_headway_seconds",
-                        # "plan_direction_destination_headway_seconds"
-                    ]
-                )
-                .fill_null(strategy="forward")  # handle added non-rev stops that are at the beginning
-                .fill_null(strategy="backward")  # handle added non-rev stops that are at the end
-                .over(["trip_id"])
-            )
-            # add a column describing what data was used to form it.
-            # to form the original datasets -
-            # TM + JOIN = TM
-            # GTFS + JOIN = GTFS
-            .with_columns(
-                pl.when(pl.col("stop_sequence").is_null())
-                .then(pl.lit("TM"))
-                .when(pl.col("timepoint_order").is_null())  # ?
-                .then(pl.lit("GTFS"))
-                .otherwise(pl.lit("JOIN"))
-                .alias("tm_joined")
-            )
-            .with_columns(
-                (
-                    pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
-                    pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
-                    pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
-                    pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-                    pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
-                )
-            )
-            # explicitly define the columns that we are grabbing at the end of the operation
-            .select(
+    abc = (
+        gtfs2.join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
+        .join(
+            tm.tm_pattern_geo_node_xref.collect(),
+            on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
+            how="left",
+            coalesce=True,
+        )
+        .with_columns(
+            pl.col(
                 [
                     "trip_id",
-                    "stop_id",
-                    "stop_sequence",
+                    # "stop_id"
+                    # "stop_sequence",
                     "block_id",
                     "route_id",
                     "service_id",
@@ -421,26 +396,75 @@ def _(gtfs2, pl, tm, tm_schedule):
                     "direction_id",
                     "direction",
                     "direction_destination",
-                    "stop_name",
+                    # "stop_name",
                     "plan_stop_count",
                     "plan_start_time",
                     "plan_start_dt",
-                    "plan_travel_time_seconds",
-                    "plan_route_direction_headway_seconds",
-                    "plan_direction_destination_headway_seconds",
-                    "tm_joined",
-                    "timepoint_order",
-                    "tm_stop_sequence",
-                    "tm_planned_sequence_start",
-                    "tm_planned_sequence_end",
-                    "timepoint_id",
-                    "timepoint_abbr",
-                    "timepoint_name",
-                    "pattern_id",
+                    "PATTERN_ID",
+                    # "plan_travel_time_seconds",
+                    # "plan_route_direction_headway_seconds",
+                    # "plan_direction_destination_headway_seconds"
                 ]
             )
-            .sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
+            .fill_null(strategy="forward")  # handle added non-rev stops that are at the beginning
+            .fill_null(strategy="backward")  # handle added non-rev stops that are at the end
+            .over(["trip_id"])
         )
+        # add a column describing what data was used to form it.
+        # to form the original datasets -
+        # TM + JOIN = TM
+        # GTFS + JOIN = GTFS
+        .with_columns(
+            pl.when(pl.col("stop_sequence").is_null())
+            .then(pl.lit("TM"))
+            .when(pl.col("timepoint_order").is_null())  # ?
+            .then(pl.lit("GTFS"))
+            .otherwise(pl.lit("JOIN"))
+            .alias("tm_joined")
+        )
+        .with_columns(
+            (
+                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
+                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
+                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
+                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
+            )
+        )
+        # explicitly define the columns that we are grabbing at the end of the operation
+        .select(
+            [
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "block_id",
+                "route_id",
+                "service_id",
+                "route_pattern_id",
+                "route_pattern_typicality",
+                "direction_id",
+                "direction",
+                "direction_destination",
+                "stop_name",
+                "plan_stop_count",
+                "plan_start_time",
+                "plan_start_dt",
+                "plan_travel_time_seconds",
+                "plan_route_direction_headway_seconds",
+                "plan_direction_destination_headway_seconds",
+                "tm_joined",
+                "timepoint_order",
+                "tm_stop_sequence",
+                "tm_planned_sequence_start",
+                "tm_planned_sequence_end",
+                "timepoint_id",
+                "timepoint_abbr",
+                "timepoint_name",
+                "pattern_id",
+            ]
+        )
+        .sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
+    )
     return (abc,)
 
 
@@ -460,11 +484,11 @@ def _():
 
 @app.cell
 def _(abc, pl):
-    # all routes with a null in tm_stop_sequence - why? 
+    # all routes with a null in tm_stop_sequence - why?
     # shuttles - ok
-    # 716/714 - contracted? 
+    # 716/714 - contracted?
     # 47?
-    abc.filter(pl.col.tm_stop_sequence.is_null())['route_id'].unique()
+    abc.filter(pl.col.tm_stop_sequence.is_null())["route_id"].unique()
     return
 
 
@@ -533,75 +557,34 @@ app._unparsable_cell(
     r"""
     gtfs2.sort(by=\"stop_sequence\").
     """,
-    name="_"
+    name="_",
 )
 
 
 @app.cell
 def _(gtfs3, pl, tm, tm_schedule):
     # can't do join asof because that won't give us the "non-revenue" timepoints that we're aiming for
-    abc2 = ( gtfs3.join_asof(
-        tm_schedule.sort(by="PATTERN_GEO_NODE_SEQ"),
-        left_on="stop_sequence",
-        right_on="PATTERN_GEO_NODE_SEQ",
-        by=["trip_id", "stop_id"],
-        strategy="nearest",
-        coalesce=True,
-    ).join(tm.tm_pattern_geo_node_xref.collect(), on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"], how="left", coalesce=True).with_columns(
-                pl.col(
-                    [
-                        "trip_id",
-                        # "stop_id"
-                        # "stop_sequence",
-                        "block_id",
-                        "route_id",
-                        "service_id",
-                        "route_pattern_id",
-                        "route_pattern_typicality",
-                        "direction_id",
-                        "direction",
-                        "direction_destination",
-                        # "stop_name",
-                        "plan_stop_count",
-                        "plan_start_time",
-                        "plan_start_dt",
-                        "PATTERN_ID",
-                        # "plan_travel_time_seconds",
-                        # "plan_route_direction_headway_seconds",
-                        # "plan_direction_destination_headway_seconds"
-                    ]
-                )
-                .fill_null(strategy="forward")  # handle added non-rev stops that are at the beginning
-                .fill_null(strategy="backward")  # handle added non-rev stops that are at the end
-                .over(["trip_id"])
-            )
-            # add a column describing what data was used to form it.
-            # to form the original datasets -
-            # TM + JOIN = TM
-            # GTFS + JOIN = GTFS
-            .with_columns(
-                pl.when(pl.col("stop_sequence").is_null())
-                .then(pl.lit("TM"))
-                .when(pl.col("timepoint_order").is_null())  # ?
-                .then(pl.lit("GTFS"))
-                .otherwise(pl.lit("JOIN"))
-                .alias("tm_joined")
-            )
-            .with_columns(
-                (
-                    pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
-                    pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
-                    pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
-                    pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-                    pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
-                )
-            )
-            # explicitly define the columns that we are grabbing at the end of the operation
-            .select(
+    abc2 = (
+        gtfs3.join_asof(
+            tm_schedule.sort(by="PATTERN_GEO_NODE_SEQ"),
+            left_on="stop_sequence",
+            right_on="PATTERN_GEO_NODE_SEQ",
+            by=["trip_id", "stop_id"],
+            strategy="nearest",
+            coalesce=True,
+        )
+        .join(
+            tm.tm_pattern_geo_node_xref.collect(),
+            on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
+            how="left",
+            coalesce=True,
+        )
+        .with_columns(
+            pl.col(
                 [
                     "trip_id",
-                    "stop_id",
-                    "stop_sequence",
+                    # "stop_id"
+                    # "stop_sequence",
                     "block_id",
                     "route_id",
                     "service_id",
@@ -610,26 +593,75 @@ def _(gtfs3, pl, tm, tm_schedule):
                     "direction_id",
                     "direction",
                     "direction_destination",
-                    "stop_name",
+                    # "stop_name",
                     "plan_stop_count",
                     "plan_start_time",
                     "plan_start_dt",
-                    "plan_travel_time_seconds",
-                    "plan_route_direction_headway_seconds",
-                    "plan_direction_destination_headway_seconds",
-                    "tm_joined",
-                    "timepoint_order",
-                    "tm_stop_sequence",
-                    "tm_planned_sequence_start",
-                    "tm_planned_sequence_end",
-                    "timepoint_id",
-                    "timepoint_abbr",
-                    "timepoint_name",
-                    "pattern_id",
+                    "PATTERN_ID",
+                    # "plan_travel_time_seconds",
+                    # "plan_route_direction_headway_seconds",
+                    # "plan_direction_destination_headway_seconds"
                 ]
             )
-            .sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
+            .fill_null(strategy="forward")  # handle added non-rev stops that are at the beginning
+            .fill_null(strategy="backward")  # handle added non-rev stops that are at the end
+            .over(["trip_id"])
         )
+        # add a column describing what data was used to form it.
+        # to form the original datasets -
+        # TM + JOIN = TM
+        # GTFS + JOIN = GTFS
+        .with_columns(
+            pl.when(pl.col("stop_sequence").is_null())
+            .then(pl.lit("TM"))
+            .when(pl.col("timepoint_order").is_null())  # ?
+            .then(pl.lit("GTFS"))
+            .otherwise(pl.lit("JOIN"))
+            .alias("tm_joined")
+        )
+        .with_columns(
+            (
+                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
+                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
+                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
+                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
+            )
+        )
+        # explicitly define the columns that we are grabbing at the end of the operation
+        .select(
+            [
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "block_id",
+                "route_id",
+                "service_id",
+                "route_pattern_id",
+                "route_pattern_typicality",
+                "direction_id",
+                "direction",
+                "direction_destination",
+                "stop_name",
+                "plan_stop_count",
+                "plan_start_time",
+                "plan_start_dt",
+                "plan_travel_time_seconds",
+                "plan_route_direction_headway_seconds",
+                "plan_direction_destination_headway_seconds",
+                "tm_joined",
+                "timepoint_order",
+                "tm_stop_sequence",
+                "tm_planned_sequence_start",
+                "tm_planned_sequence_end",
+                "timepoint_id",
+                "timepoint_abbr",
+                "timepoint_name",
+                "pattern_id",
+            ]
+        )
+        .sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
+    )
     return (abc2,)
 
 
@@ -693,7 +725,7 @@ def _(abc2, pl):
         .fill_null(strategy="forward")  # handle added non-rev stops that are at the beginning
         .fill_null(strategy="backward")  # handle added non-rev stops that are at the end
         .over(["trip_id"])
-        )
+    )
     #     # add a column describing what data was used to form it.
     #     # to form the original datasets -
     #     # TM + JOIN = TM
@@ -774,7 +806,7 @@ app._unparsable_cell(
     single1 = abc.filter(pl.col.trip_id == \"69363363\")
     single1.
     """,
-    name="_"
+    name="_",
 )
 
 
@@ -815,8 +847,9 @@ def _(tm_trips):
 @app.cell
 def _(pl, tm_pattern_geo_node_xref_file):
     tm_pattern_geo_node_xref_full = (
-        pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
-        .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
+        pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri).select(
+            "PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID"
+        )
     ).collect()
     return (tm_pattern_geo_node_xref_full,)
 
