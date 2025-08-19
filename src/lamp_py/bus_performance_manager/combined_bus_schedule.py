@@ -11,16 +11,15 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
     )
     gtfs2 = gtfs.rename({"plan_trip_id": "trip_id"})
 
-    
     # breakpoint()
 
     # gtfs has extra trips that tm doesn't, but tm should not have ANY
     # scheduled trips that are not in gtfs -
 
     # this assumes that for a given trip, we do not hit the same stop_id more
-    # than once. 
-    
-    # don't want to join left or asof because we want the rows that are in 
+    # than once.
+
+    # don't want to join left or asof because we want the rows that are in
     # tm that are not in gtfs i.e. the non -revenue stops
     # these will come in via the full join
     schedule = (
@@ -115,28 +114,53 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
                 "pattern_id",
             ]
         )
-    )
+    ).with_row_index()
 
-    # add logic to remove duplicated rows from the full join. this is necessary to deduplicate for trips that stop at the same stop_id more than once. 
-    # it is not possible to join_asof becuase gtfs is on the left to get shuttles and non TM trips, and there is no guarantee that the sequences joined 
-    # will be valid given that there are additional unjoined non-rev stop sequences that would not match.  
-    schedule = schedule.with_row_index()
+    # add logic to remove duplicated rows from the full join. this is necessary to deduplicate for trips that stop at the same stop_id more than once.
+    # it is not possible to join_asof becuase gtfs is on the left to get shuttles and non TM trips, and there is no guarantee that the sequences joined
+    # will be valid given that there are additional unjoined non-rev stop sequences that would not match.
+    # schedule = schedule0.filter(pl.col.trip_id == "70040149")
+    # Limitation: Route 238 looks like an outlier where this processing is not successfully being handles by this logic
 
+    # we are unable to use unique(subset=) due to the mis
+
+    # this is an example of one of the remaining cases that are not handled correctly by the below logic. The hypothesis is that the non-deterministic sorting of 
+    # stop_sequence and tm_stop_sequence is causing the "diff" values calculated to be assigned to one row or another, which is not being properly handled
+    # by this logic
+
+    # schedule.filter(pl.col.trip_id == "70040149").sort("tm_stop_sequence").filter(pl.col.stop_sequence.is_in([33,36])).
+    # select(["stop_sequence", "tm_stop_sequence", "sequence_diff", "tm_sequence_diff", "tm_gtfs_sequence_diff"])
+    # shape: (4, 5)
+    # ┌───────────────┬──────────────────┬───────────────┬──────────────────┬───────────────────────┐
+    # │ stop_sequence ┆ tm_stop_sequence ┆ sequence_diff ┆ tm_sequence_diff ┆ tm_gtfs_sequence_diff │
+    # │ ---           ┆ ---              ┆ ---           ┆ ---              ┆ ---                   │
+    # │ i64           ┆ i64              ┆ i64           ┆ i64              ┆ i64                   │
+    # ╞═══════════════╪══════════════════╪═══════════════╪══════════════════╪═══════════════════════╡
+    # │ 33            ┆ 33               ┆ 0             ┆ 0                ┆ 0                     │
+    # │ 36            ┆ 33               ┆ 0             ┆ 1                ┆ 3                     │
+    # │ 33            ┆ 36               ┆ 1             ┆ 0                ┆ 3                     │
+    # │ 36            ┆ 36               ┆ 1             ┆ 1                ┆ 0                     │
+    # └───────────────┴──────────────────┴───────────────┴──────────────────┴───────────────────────┘
+
+    filter_out_gtfs = (pl.col.tm_sequence_diff < 1) & (pl.col("tm_gtfs_sequence_diff").ne(0)
+    ).over(["trip_id", "stop_sequence"])    
+    filter_out_tm = (pl.col.sequence_diff < 1)  & (pl.col("tm_gtfs_sequence_diff").ne(0)
+    ).over(["trip_id", "stop_sequence"])    
+
+    
     schedule = schedule.sort(["trip_id", "stop_sequence"]).with_columns(
-    (pl.col("stop_sequence").shift(-1)-pl.col("stop_sequence")).alias("sequence_diff").over("trip_id"), 
-    (pl.col("tm_stop_sequence").shift(-1)-pl.col("tm_stop_sequence")).alias("tm_sequence_diff").over("trip_id"), 
-    (pl.col("stop_sequence")-pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff")
+        (pl.col("stop_sequence").shift(-1) - pl.col("stop_sequence")).alias("sequence_diff").abs().over("trip_id"),
+        (pl.col("stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
     )
     schedule = schedule.sort(["trip_id", "tm_stop_sequence"]).with_columns(
-        (pl.col("tm_stop_sequence").shift(-1)-pl.col("tm_stop_sequence")).alias("tm_sequence_diff").over("trip_id"), 
+        (pl.col("tm_stop_sequence").shift(-1) - pl.col("tm_stop_sequence")).alias("tm_sequence_diff").over("trip_id"),
     )
 
-    filter_out_gtfs = ((pl.col.sequence_diff < 1) & pl.col("tm_gtfs_sequence_diff").eq(pl.col("tm_gtfs_sequence_diff").max()).over("trip_id"))
-    filter_out_tm = ((pl.col.tm_sequence_diff < 1) & pl.col("tm_gtfs_sequence_diff").eq(pl.col("tm_gtfs_sequence_diff").min()).over("trip_id"))
-
     filter_out = schedule.filter(filter_out_gtfs | filter_out_tm)["index"].implode()
-    schedule = schedule.filter(~pl.col("index").is_in(filter_out)).drop()
 
-    schedule.drop(["index","sequence_diff", "tm_sequence_diff", "tm_gtfs_sequence_diff"]).sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
+    schedule2 = schedule.filter(~pl.col("index").is_in(filter_out)).drop()
+    schedule2 = schedule2.drop(["index", "sequence_diff", "tm_sequence_diff", "tm_gtfs_sequence_diff"]).sort(
+        ["trip_id", "tm_stop_sequence", "stop_sequence"]
+    )
 
-    return schedule
+    return schedule2
