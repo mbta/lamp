@@ -158,23 +158,35 @@ for idx, combined in combined_schedule.group_by("trip_id"):
     res2 = check_all_unique(combined, all_unique_combined, trip_id=idx[0], prefix="combined")
     res3 = check_static_cols(combined, static_cols_combined, trip_id=idx[0], prefix="combined")
 
-    if combined.filter(pl.col("trip_id").str.contains("Blue")):
+    if combined["route_id"].drop_nulls().unique().item() == "47":
+        continue
+        print(f"trip: {idx} 47 bus detour")
+        
+    if combined["trip_id"].str.contains("Blue").any():
+        continue
+        print(f"trip: {idx} shuttle")
+
         # add something to a dataframe...
-        pass
+    elif combined["service_id"].str.contains("PRIV").any():
+        continue
+        print(f"trip: {idx} 714/715")
 
-    
-    try:
-        # for the schedule, make sure no missing rows in any trip
-        assert combined.filter(pl.col("tm_joined").is_in(["JOIN", "GTFS"])).height == combined.select("plan_stop_count").head(1).item()
-    except AssertionError as err:
-        print(f"GTFS has record not present in TM {err} --- trip: {idx} {combined.head(1)['trip_id'].item()} joined no TM records")
-    
-    if (combined["tm_joined"].is_in(["JOIN", "TM"]).any()):
-        try:
-            assert combined.height == combined['tm_planned_sequence_end'].drop_nulls().unique().item()
-        except AssertionError as err:
-            print(f"{err} --- trip: {idx} {combined.head(1)['trip_id'].item()} Total trip record height does not match expected TM height ")
-
+        # add something to a dataframe...        
     else:
-        print(f"trip: {idx} {combined.head(1)['trip_id'].item()} joined no TM records")
-    # breakpoint()
+
+
+        try:
+            # for the schedule, make sure no missing rows in any trip
+            assert combined.filter(pl.col("tm_joined").is_in(["JOIN", "GTFS"])).height == combined.select("plan_stop_count").head(1).item()
+        except AssertionError as err:
+            print(f"GTFS has record not present in TM {err} --- trip: {idx} {combined.head(1)['trip_id'].item()} joined no TM records")
+        
+        if (combined["tm_joined"].is_in(["JOIN", "TM"]).any()):
+            try:
+                assert combined.height == combined['tm_planned_sequence_end'].drop_nulls().unique().item()
+            except AssertionError as err:
+                print(f"{err} --- trip: {idx} {combined.head(1)['trip_id'].item()} Total trip record height does not match expected TM height ")
+
+        else:
+            print(f"trip: {idx} {combined.head(1)['trip_id'].item()} joined no TM records")
+        # breakpoint()
