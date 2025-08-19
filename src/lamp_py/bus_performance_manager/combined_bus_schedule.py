@@ -117,6 +117,9 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
         )
     )
 
+    # add logic to remove duplicated rows from the full join. this is necessary to deduplicate for trips that stop at the same stop_id more than once. 
+    # it is not possible to join_asof becuase gtfs is on the left to get shuttles and non TM trips, and there is no guarantee that the sequences joined 
+    # will be valid given that there are additional unjoined non-rev stop sequences that would not match.  
     schedule = schedule.with_row_index()
 
     schedule = schedule.sort(["trip_id", "stop_sequence"]).with_columns(
