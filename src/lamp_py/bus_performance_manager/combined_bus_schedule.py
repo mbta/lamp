@@ -7,7 +7,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
 
     # filter tm on trip ids that are in the gtfs set - tm has all trip ids ever, gtfs only has the ids scheduled for a single days
     tm_schedule = tm.tm_schedule.collect().filter(
-        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique())
+        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique().implode())
     )
     gtfs2 = gtfs.rename({"plan_trip_id": "trip_id"})
 
@@ -23,13 +23,14 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
     # don't want to join left or asof because we want the rows that are in 
     # tm that are not in gtfs i.e. the non -revenue stops
     # these will come in via the full join
-    combined_schedule = (
+    schedule = (
         gtfs2.join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
             tm.tm_pattern_geo_node_xref.collect(),
             on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
             how="left",
             coalesce=True,
+            # validate="1:1" # this won't validate 1 to 1 because some trips stop at the same stop multiple times. correcting this below
         )
         # this operation fills in the nulls for the selected columns after the join- the commented out ones do not make sense to fill in
         # leaving them in as comments to make clear that this is a conscious choice
@@ -114,6 +115,25 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
                 "pattern_id",
             ]
         )
-        .sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
     )
-    return combined_schedule
+
+    schedule = schedule.with_row_index()
+
+    schedule = schedule.sort(["trip_id", "stop_sequence"]).with_columns(
+    (pl.col("stop_sequence").shift(-1)-pl.col("stop_sequence")).alias("sequence_diff").over("trip_id"), 
+    (pl.col("tm_stop_sequence").shift(-1)-pl.col("tm_stop_sequence")).alias("tm_sequence_diff").over("trip_id"), 
+    (pl.col("stop_sequence")-pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff")
+    )
+    schedule = schedule.sort(["trip_id", "tm_stop_sequence"]).with_columns(
+        (pl.col("tm_stop_sequence").shift(-1)-pl.col("tm_stop_sequence")).alias("tm_sequence_diff").over("trip_id"), 
+    )
+
+    filter_out_gtfs = ((pl.col.sequence_diff < 1) & pl.col("tm_gtfs_sequence_diff").eq(pl.col("tm_gtfs_sequence_diff").max()).over("trip_id"))
+    filter_out_tm = ((pl.col.tm_sequence_diff < 1) & pl.col("tm_gtfs_sequence_diff").eq(pl.col("tm_gtfs_sequence_diff").min()).over("trip_id"))
+
+    filter_out = schedule.filter(filter_out_gtfs | filter_out_tm)["index"].implode()
+    schedule = schedule.filter(~pl.col("index").is_in(filter_out)).drop()
+
+    schedule.drop(["index","sequence_diff", "tm_sequence_diff", "tm_gtfs_sequence_diff"]).sort(["trip_id", "tm_stop_sequence", "stop_sequence"])
+
+    return schedule
