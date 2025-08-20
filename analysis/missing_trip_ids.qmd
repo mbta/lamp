@@ -197,7 +197,7 @@ Then, we filter to the Woodland stop:
 incoming_vehicle_position.filter(pl.col("stop_id") == "70162")
 ```
 
-The `trip_id` is `69329457`---it didn't change between ingestion and publication to Tableau.
+The `trip_id` is `69329457`---it didn't change between ingestion and publication to Tableau---so, from now on, I'll refer to the Tableau trip data as GTFS-RT data.
 
 
 2. The scheduled trip times are off of the departure times reported by Prediction Analyzer by several minutes but are somewhat close to the scheduled trip times.

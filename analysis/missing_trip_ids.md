@@ -331,7 +331,8 @@ incoming_vehicle_position.filter(pl.col("stop_id") == "70162")
 <small>shape: (1, 18)</small><table border="1" class="dataframe"><thead><tr><th>id</th><th>current_status</th><th>current_stop_sequence</th><th>multi_carriage_details</th><th>position</th><th>stop_id</th><th>timestamp</th><th>trip_id</th><th>route_id</th><th>schedule_relationship</th><th>last_trip</th><th>revenue</th><th>start_time</th><th>direction_id</th><th>start_date</th><th>vehicle</th><th>occupancy_percentage</th><th>occupancy_status</th></tr><tr><td>str</td><td>str</td><td>i64</td><td>list[struct[5]]</td><td>struct[4]</td><td>str</td><td>i64</td><td>str</td><td>str</td><td>str</td><td>bool</td><td>bool</td><td>str</td><td>i64</td><td>str</td><td>struct[2]</td><td>i64</td><td>str</td></tr></thead><tbody><tr><td>&quot;G-10238&quot;</td><td>&quot;INCOMING_AT&quot;</td><td>320</td><td>[{&quot;3859&quot;,&quot;NO_DATA_AVAILABLE&quot;,1,&quot;AB&quot;,null}, {&quot;3713&quot;,&quot;NO_DATA_AVAILABLE&quot;,2,&quot;BA&quot;,null}]</td><td>{135,42.33443,-71.24654,17.0}</td><td>&quot;70162&quot;</td><td>1754505609</td><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;SCHEDULED&quot;</td><td>false</td><td>true</td><td>&quot;14:38:00&quot;</td><td>1</td><td>&quot;20250806&quot;</td><td>{&quot;G-10238&quot;,&quot;3859-3713&quot;}</td><td>null</td><td>null</td></tr></tbody></table></div>
 
 The `trip_id` is `69329457`—it didn’t change between ingestion and
-publication to Tableau.
+publication to Tableau—so, from now on, I’ll refer to the Tableau trip
+data as GTFS-RT data.
 
 2.  The scheduled trip times are off of the departure times reported by
     Prediction Analyzer by several minutes but are somewhat close to the
