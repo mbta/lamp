@@ -215,7 +215,6 @@ for idx, trip_df in combined_schedule.group_by("trip_id"):
         continue
         # foxboro shuttle?
 
-
     try:
         # for the schedule, make sure no missing rows in any trip
         assert (
@@ -227,7 +226,6 @@ for idx, trip_df in combined_schedule.group_by("trip_id"):
             f"GTFS has record not present in TM {err} --- trip: {idx} {trip_df.head(1)['trip_id'].item()} joined no TM records"
         )
         err_dfs.append(trip_df.with_columns(pl.col("error_reason").list.concat(pl.lit("GTFS_RECORDS_NOT_IN_TM"))))
-
 
     if trip_df["tm_joined"].is_in(["JOIN", "TM"]).any():
         try:
