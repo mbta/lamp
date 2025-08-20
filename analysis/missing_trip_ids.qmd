@@ -5,6 +5,7 @@ format:
         code-fold: true
         code-summary: "Show the code"
         toc: true
+        html-table-processing: none
 execute:
     cache: true
     warning: false

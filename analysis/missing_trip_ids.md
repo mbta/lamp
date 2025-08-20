@@ -143,14 +143,7 @@ Tableau data for August 6.
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (1, 7)</small>
-
-| trip_id | consist | PA_departure_time | TB_departure_time | mismatch_reason | vehicle.trip.start_time | vehicle.timestamp |
-|----|----|----|----|----|----|----|
-| str | str | str | str | str | str | datetime\[μs\] |
-| "69329457" | "3845-3633" | "2025-08-06 14:53:03 EDT" | null | "No matching trip_id in Tableau" | "14:38:00" | 2025-08-06 14:39:40 |
-
-</div>
+<small>shape: (1, 7)</small><table border="1" class="dataframe"><thead><tr><th>trip_id</th><th>consist</th><th>PA_departure_time</th><th>TB_departure_time</th><th>mismatch_reason</th><th>vehicle.trip.start_time</th><th>vehicle.timestamp</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>datetime[μs]</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;2025-08-06 14:53:03 EDT&quot;</td><td>null</td><td>&quot;No matching trip_id in Tableau&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:39:40</td></tr></tbody></table></div>
 
 Interesting—there is one trip ID among the GTFS data. Let’s look more
 closely at this trip:
@@ -187,15 +180,7 @@ closely at this trip:
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (2, 6)</small>
-
-| vehicle.trip.trip_id | vehicle.trip.route_id | vehicle.vehicle.label | vehicle.trip.start_time | earliest_timestamp | first_stop |
-|----|----|----|----|----|----|
-| str | str | str | str | datetime\[μs\] | str |
-| "69329457" | "Green-D" | "3859-3713" | "14:38:00" | 2025-08-06 14:40:13 | "70162" |
-| "69329457" | "Green-D" | "3713-3859" | "14:38:00" | 2025-08-06 14:39:40 | "70162" |
-
-</div>
+<small>shape: (2, 6)</small><table border="1" class="dataframe"><thead><tr><th>vehicle.trip.trip_id</th><th>vehicle.trip.route_id</th><th>vehicle.vehicle.label</th><th>vehicle.trip.start_time</th><th>earliest_timestamp</th><th>first_stop</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>datetime[μs]</td><td>str</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;3859-3713&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:40:13</td><td>&quot;70162&quot;</td></tr><tr><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;3713-3859&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:39:40</td><td>&quot;70162&quot;</td></tr></tbody></table></div>
 
 Okay, so GTFS-RT has this trip ID but:
 
@@ -247,39 +232,7 @@ other service dates:
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (43, 2)</small>
-
-| Service Date | Count of Missing Trip IDs Present in GFTS-RT |
-|--------------|----------------------------------------------|
-| date         | u32                                          |
-| 2025-06-20   | 6                                            |
-| 2025-06-23   | 10                                           |
-| 2025-06-24   | 14                                           |
-| 2025-06-25   | 10                                           |
-| 2025-06-26   | 11                                           |
-| 2025-06-27   | 19                                           |
-| 2025-06-30   | 12                                           |
-| 2025-07-01   | 14                                           |
-| 2025-07-02   | 20                                           |
-| 2025-07-03   | 19                                           |
-| 2025-07-07   | 12                                           |
-| 2025-07-08   | 20                                           |
-| 2025-07-09   | 17                                           |
-| …            | …                                            |
-| 2025-08-05   | 18                                           |
-| 2025-08-06   | 1                                            |
-| 2025-08-07   | 14                                           |
-| 2025-08-08   | 18                                           |
-| 2025-08-11   | 8                                            |
-| 2025-08-12   | 12                                           |
-| 2025-08-13   | 10                                           |
-| 2025-08-14   | 18                                           |
-| 2025-08-15   | 17                                           |
-| 2025-08-18   | 7                                            |
-| 2025-08-19   | 18                                           |
-| 2025-08-20   | 2                                            |
-
-</div>
+<small>shape: (43, 2)</small><table border="1" class="dataframe"><thead><tr><th>Service Date</th><th>Count of Missing Trip IDs Present in GFTS-RT</th></tr><tr><td>date</td><td>u32</td></tr></thead><tbody><tr><td>2025-06-20</td><td>6</td></tr><tr><td>2025-06-23</td><td>10</td></tr><tr><td>2025-06-24</td><td>14</td></tr><tr><td>2025-06-25</td><td>10</td></tr><tr><td>2025-06-26</td><td>11</td></tr><tr><td>2025-06-27</td><td>19</td></tr><tr><td>2025-06-30</td><td>12</td></tr><tr><td>2025-07-01</td><td>14</td></tr><tr><td>2025-07-02</td><td>20</td></tr><tr><td>2025-07-03</td><td>19</td></tr><tr><td>2025-07-07</td><td>12</td></tr><tr><td>2025-07-08</td><td>20</td></tr><tr><td>2025-07-09</td><td>17</td></tr><tr><td>&hellip;</td><td>&hellip;</td></tr><tr><td>2025-08-05</td><td>18</td></tr><tr><td>2025-08-06</td><td>1</td></tr><tr><td>2025-08-07</td><td>14</td></tr><tr><td>2025-08-08</td><td>18</td></tr><tr><td>2025-08-11</td><td>8</td></tr><tr><td>2025-08-12</td><td>12</td></tr><tr><td>2025-08-13</td><td>10</td></tr><tr><td>2025-08-14</td><td>18</td></tr><tr><td>2025-08-15</td><td>17</td></tr><tr><td>2025-08-18</td><td>7</td></tr><tr><td>2025-08-19</td><td>18</td></tr><tr><td>2025-08-20</td><td>2</td></tr></tbody></table></div>
 
 Can the GTFS Schedule tell us more about these trip IDs? If they appear
 on other service dates, chances are they’re on our schedule. To check
@@ -335,38 +288,7 @@ departure times from Boston College (`70106`).
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (25, 5)</small>
-
-| trip_id | consist | PA_departure_time | Scheduled departure time | Scheduled terminal |
-|----|----|----|----|----|
-| str | str | str | str | str |
-| "69329457" | "3845-3633" | "2025-08-06 14:53:03 EDT" | null | null |
-| "69329966" | "3809-3696" | "2025-08-06 18:40:21 EDT" | "18:26:00" | "70106" |
-| "69329986" | "3917" | "2025-08-06 11:06:25 EDT" | "10:56:00" | "70106" |
-| "69329992" | "3845-3633" | "2025-08-06 16:42:31 EDT" | "16:45:00" | "70106" |
-| "69330000" | "3821-3682" | "2025-08-06 11:13:09 EDT" | "11:05:00" | "70106" |
-| "69330008" | "3849-3673" | "2025-08-06 19:02:45 EDT" | "18:55:00" | "70106" |
-| "69330036" | "3914-3917" | "2025-08-06 19:23:04 EDT" | "19:13:00" | "70106" |
-| "69330040" | "3921" | "2025-08-06 09:27:06 EDT" | "09:35:00" | "70106" |
-| "69330048" | "3821-3682" | "2025-08-06 17:20:37 EDT" | "17:20:00" | "70106" |
-| "69330056" | "3861-3659" | "2025-08-06 11:39:39 EDT" | "11:38:00" | "70106" |
-| "69330062" | "3717-3880" | "2025-08-06 17:28:41 EDT" | "17:28:00" | "70106" |
-| "69330064" | "3717-3880" | "2025-08-06 19:38:03 EDT" | "19:29:00" | "70106" |
-| "69330068" | "3861-3659" | "2025-08-06 09:44:35 EDT" | "09:51:00" | "70106" |
-| "69330080" | "3805-3647" | "2025-08-06 10:04:34 EDT" | "09:59:00" | "70106" |
-| "69330090" | "3805-3647" | "2025-08-06 08:06:55 EDT" | "08:15:00" | "70106" |
-| "69330112" | "3604-3871" | null | "18:00:00" | "70106" |
-| "69330124" | "3805-3647" | "2025-08-06 18:20:35 EDT" | "18:09:00" | "70106" |
-| "69330132" | "3849-3673" | "2025-08-06 14:54:46 EDT" | "14:21:00" | "70106" |
-| "69330138" | "3919-3915" | "2025-08-06 19:48:05 EDT" | "19:38:00" | "70106" |
-| "69330142" | "3921" | "2025-08-06 20:04:50 EDT" | "19:56:00" | "70106" |
-| "69330148" | "3805-3647" | "2025-08-06 20:21:25 EDT" | "20:22:00" | "70106" |
-| "69330152" | "3809-3696" | "2025-08-06 20:34:40 EDT" | "20:41:00" | "70106" |
-| "69330162" | "3821-3682" | "2025-08-06 21:23:07 EDT" | "21:27:00" | "70106" |
-| "69330166" | "3919-3915" | "2025-08-06 21:46:25 EDT" | "21:45:00" | "70106" |
-| "69330172" | "3604-3871" | "2025-08-06 22:23:06 EDT" | "22:13:00" | "70106" |
-
-</div>
+<small>shape: (25, 5)</small><table border="1" class="dataframe"><thead><tr><th>trip_id</th><th>consist</th><th>PA_departure_time</th><th>Scheduled departure time</th><th>Scheduled terminal</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;2025-08-06 14:53:03 EDT&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;69329966&quot;</td><td>&quot;3809-3696&quot;</td><td>&quot;2025-08-06 18:40:21 EDT&quot;</td><td>&quot;18:26:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69329986&quot;</td><td>&quot;3917&quot;</td><td>&quot;2025-08-06 11:06:25 EDT&quot;</td><td>&quot;10:56:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69329992&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;2025-08-06 16:42:31 EDT&quot;</td><td>&quot;16:45:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330000&quot;</td><td>&quot;3821-3682&quot;</td><td>&quot;2025-08-06 11:13:09 EDT&quot;</td><td>&quot;11:05:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330008&quot;</td><td>&quot;3849-3673&quot;</td><td>&quot;2025-08-06 19:02:45 EDT&quot;</td><td>&quot;18:55:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330036&quot;</td><td>&quot;3914-3917&quot;</td><td>&quot;2025-08-06 19:23:04 EDT&quot;</td><td>&quot;19:13:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330040&quot;</td><td>&quot;3921&quot;</td><td>&quot;2025-08-06 09:27:06 EDT&quot;</td><td>&quot;09:35:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330048&quot;</td><td>&quot;3821-3682&quot;</td><td>&quot;2025-08-06 17:20:37 EDT&quot;</td><td>&quot;17:20:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330056&quot;</td><td>&quot;3861-3659&quot;</td><td>&quot;2025-08-06 11:39:39 EDT&quot;</td><td>&quot;11:38:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330062&quot;</td><td>&quot;3717-3880&quot;</td><td>&quot;2025-08-06 17:28:41 EDT&quot;</td><td>&quot;17:28:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330064&quot;</td><td>&quot;3717-3880&quot;</td><td>&quot;2025-08-06 19:38:03 EDT&quot;</td><td>&quot;19:29:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330068&quot;</td><td>&quot;3861-3659&quot;</td><td>&quot;2025-08-06 09:44:35 EDT&quot;</td><td>&quot;09:51:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330080&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 10:04:34 EDT&quot;</td><td>&quot;09:59:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330090&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 08:06:55 EDT&quot;</td><td>&quot;08:15:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330112&quot;</td><td>&quot;3604-3871&quot;</td><td>null</td><td>&quot;18:00:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330124&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 18:20:35 EDT&quot;</td><td>&quot;18:09:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330132&quot;</td><td>&quot;3849-3673&quot;</td><td>&quot;2025-08-06 14:54:46 EDT&quot;</td><td>&quot;14:21:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330138&quot;</td><td>&quot;3919-3915&quot;</td><td>&quot;2025-08-06 19:48:05 EDT&quot;</td><td>&quot;19:38:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330142&quot;</td><td>&quot;3921&quot;</td><td>&quot;2025-08-06 20:04:50 EDT&quot;</td><td>&quot;19:56:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330148&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 20:21:25 EDT&quot;</td><td>&quot;20:22:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330152&quot;</td><td>&quot;3809-3696&quot;</td><td>&quot;2025-08-06 20:34:40 EDT&quot;</td><td>&quot;20:41:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330162&quot;</td><td>&quot;3821-3682&quot;</td><td>&quot;2025-08-06 21:23:07 EDT&quot;</td><td>&quot;21:27:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330166&quot;</td><td>&quot;3919-3915&quot;</td><td>&quot;2025-08-06 21:46:25 EDT&quot;</td><td>&quot;21:45:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330172&quot;</td><td>&quot;3604-3871&quot;</td><td>&quot;2025-08-06 22:23:06 EDT&quot;</td><td>&quot;22:13:00&quot;</td><td>&quot;70106&quot;</td></tr></tbody></table></div>
 
 The first thing I see is that the only trip present in the Prediction
 Analyzer dataset that has no match in our schedule is the D-line trip
@@ -424,14 +346,7 @@ the nearest LTRP timestamp on the B-line.
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (1, 7)</small>
-
-| PA_departure_time | vehicle.timestamp | trip_id | vehicle.trip.trip_id | vehicle.trip.route_id | consist | vehicle.vehicle.label |
-|----|----|----|----|----|----|----|
-| datetime\[μs\] | datetime\[μs\] | str | str | str | str | str |
-| 2025-08-06 14:53:03 | 2025-08-06 14:53:03 | "69329457" | "69329990" | "Green-B" | "3845-3633" | "3845-3633" |
-
-</div>
+<small>shape: (1, 7)</small><table border="1" class="dataframe"><thead><tr><th>PA_departure_time</th><th>vehicle.timestamp</th><th>trip_id</th><th>vehicle.trip.trip_id</th><th>vehicle.trip.route_id</th><th>consist</th><th>vehicle.vehicle.label</th></tr><tr><td>datetime[μs]</td><td>datetime[μs]</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>2025-08-06 14:53:03</td><td>2025-08-06 14:53:03</td><td>&quot;69329457&quot;</td><td>&quot;69329990&quot;</td><td>&quot;Green-B&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;3845-3633&quot;</td></tr></tbody></table></div>
 
 Woah, this strategy returns an exact time match. What’s more, it also
 returns an exact consist match. **Can we use consist and time but ignore
@@ -498,39 +413,7 @@ consist_time_join
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (80, 6)</small>
-
-| consist | PA_departure_time | vehicle.timestamp | trip_id | vehicle.trip.trip_id | vehicle.trip.route_id |
-|----|----|----|----|----|----|
-| str | datetime\[μs\] | datetime\[μs\] | i64 | str | str |
-| "3805-3647" | 2025-08-06 06:29:36 | 2025-08-06 06:29:36 | 69329950 | "69329928" | "Green-B" |
-| "3634-3817" | 2025-08-06 07:04:49 | 2025-08-06 07:04:49 | 69329968 | "69329968" | "Green-B" |
-| "3695-3844" | 2025-08-06 07:10:54 | 2025-08-06 07:10:54 | 69329996 | "69329982" | "Green-B" |
-| "3914-3917" | 2025-08-06 07:17:06 | 2025-08-06 07:17:06 | 69330010 | "69329936" | "Green-B" |
-| "3821-3682" | 2025-08-06 07:28:55 | 2025-08-06 07:28:55 | 69330024 | "69329939" | "Green-B" |
-| "3717-3880" | 2025-08-06 07:34:55 | 2025-08-06 07:34:55 | 69330052 | "69330024" | "Green-B" |
-| "3905-3921" | 2025-08-06 07:45:01 | 2025-08-06 07:45:01 | 69330066 | "69330038" | "Green-B" |
-| "3805-3647" | 2025-08-06 08:06:55 | 2025-08-06 08:06:55 | 69330090 | "69330078" | "Green-B" |
-| "3922" | 2025-08-06 08:15:05 | 2025-08-06 08:15:05 | 69330102 | "ADDED-1582982918" | "Green-B" |
-| "3809-3696" | 2025-08-06 08:26:52 | 2025-08-06 08:26:52 | 69330114 | "69329951" | "Green-B" |
-| "3706-3830" | 2025-08-06 08:39:04 | 2025-08-06 08:39:04 | 69329956 | "69329954" | "Green-B" |
-| "3634-3817" | 2025-08-06 08:46:52 | 2025-08-06 08:46:52 | 69329970 | "69329956" | "Green-B" |
-| "3914-3917" | 2025-08-06 09:02:50 | 2025-08-06 09:02:50 | 69329998 | "69329984" | "Green-B" |
-| … | … | … | … | … | … |
-| "3914-3917" | 2025-08-06 21:13:11 | 2025-08-06 21:13:11 | 69330160 | "69330158" | "Green-B" |
-| "3821-3682" | 2025-08-06 21:23:07 | 2025-08-06 21:23:07 | 69330162 | "69330160" | "Green-B" |
-| "3919-3915" | 2025-08-06 21:46:25 | 2025-08-06 21:46:25 | 69330166 | "ADDED-1582984672" | "Green-B" |
-| "3861-3659" | 2025-08-06 21:59:40 | 2025-08-06 21:59:40 | 69330168 | "69330168" | "Green-B" |
-| "3604-3871" | 2025-08-06 22:23:06 | 2025-08-06 22:23:06 | 69330172 | "69330174" | "Green-B" |
-| "3805-3647" | 2025-08-06 22:31:38 | 2025-08-06 22:31:38 | 69330174 | "69330176" | "Green-B" |
-| "3845-3633" | 2025-08-06 22:34:45 | 2025-08-06 22:59:42 | 69330178 | "ADDED-1582984792" | "Green-B" |
-| "3809-3696" | 2025-08-06 22:41:25 | 2025-08-06 22:41:25 | 69330176 | "69330178" | "Green-B" |
-| "3852-3634" | 2025-08-06 22:50:03 | 2025-08-06 22:50:03 | 69330182 | "69330157" | "Green-B" |
-| "3821-3682" | 2025-08-06 23:19:31 | 2025-08-06 23:19:31 | 69330184 | "69330186" | "Green-B" |
-| "3717-3880" | 2025-08-06 23:31:34 | 2025-08-06 23:31:34 | 69330188 | "69330188" | "Green-B" |
-| "3919-3915" | 2025-08-06 23:43:00 | 2025-08-06 23:43:00 | 69330190 | "69330190" | "Green-B" |
-
-</div>
+<small>shape: (80, 6)</small><table border="1" class="dataframe"><thead><tr><th>consist</th><th>PA_departure_time</th><th>vehicle.timestamp</th><th>trip_id</th><th>vehicle.trip.trip_id</th><th>vehicle.trip.route_id</th></tr><tr><td>str</td><td>datetime[μs]</td><td>datetime[μs]</td><td>i64</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;3805-3647&quot;</td><td>2025-08-06 06:29:36</td><td>2025-08-06 06:29:36</td><td>69329950</td><td>&quot;69329928&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3634-3817&quot;</td><td>2025-08-06 07:04:49</td><td>2025-08-06 07:04:49</td><td>69329968</td><td>&quot;69329968&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3695-3844&quot;</td><td>2025-08-06 07:10:54</td><td>2025-08-06 07:10:54</td><td>69329996</td><td>&quot;69329982&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3914-3917&quot;</td><td>2025-08-06 07:17:06</td><td>2025-08-06 07:17:06</td><td>69330010</td><td>&quot;69329936&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3821-3682&quot;</td><td>2025-08-06 07:28:55</td><td>2025-08-06 07:28:55</td><td>69330024</td><td>&quot;69329939&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3717-3880&quot;</td><td>2025-08-06 07:34:55</td><td>2025-08-06 07:34:55</td><td>69330052</td><td>&quot;69330024&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3905-3921&quot;</td><td>2025-08-06 07:45:01</td><td>2025-08-06 07:45:01</td><td>69330066</td><td>&quot;69330038&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3805-3647&quot;</td><td>2025-08-06 08:06:55</td><td>2025-08-06 08:06:55</td><td>69330090</td><td>&quot;69330078&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3922&quot;</td><td>2025-08-06 08:15:05</td><td>2025-08-06 08:15:05</td><td>69330102</td><td>&quot;ADDED-1582982918&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3809-3696&quot;</td><td>2025-08-06 08:26:52</td><td>2025-08-06 08:26:52</td><td>69330114</td><td>&quot;69329951&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3706-3830&quot;</td><td>2025-08-06 08:39:04</td><td>2025-08-06 08:39:04</td><td>69329956</td><td>&quot;69329954&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3634-3817&quot;</td><td>2025-08-06 08:46:52</td><td>2025-08-06 08:46:52</td><td>69329970</td><td>&quot;69329956&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3914-3917&quot;</td><td>2025-08-06 09:02:50</td><td>2025-08-06 09:02:50</td><td>69329998</td><td>&quot;69329984&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td></tr><tr><td>&quot;3914-3917&quot;</td><td>2025-08-06 21:13:11</td><td>2025-08-06 21:13:11</td><td>69330160</td><td>&quot;69330158&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3821-3682&quot;</td><td>2025-08-06 21:23:07</td><td>2025-08-06 21:23:07</td><td>69330162</td><td>&quot;69330160&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3919-3915&quot;</td><td>2025-08-06 21:46:25</td><td>2025-08-06 21:46:25</td><td>69330166</td><td>&quot;ADDED-1582984672&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3861-3659&quot;</td><td>2025-08-06 21:59:40</td><td>2025-08-06 21:59:40</td><td>69330168</td><td>&quot;69330168&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3604-3871&quot;</td><td>2025-08-06 22:23:06</td><td>2025-08-06 22:23:06</td><td>69330172</td><td>&quot;69330174&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3805-3647&quot;</td><td>2025-08-06 22:31:38</td><td>2025-08-06 22:31:38</td><td>69330174</td><td>&quot;69330176&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3845-3633&quot;</td><td>2025-08-06 22:34:45</td><td>2025-08-06 22:59:42</td><td>69330178</td><td>&quot;ADDED-1582984792&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3809-3696&quot;</td><td>2025-08-06 22:41:25</td><td>2025-08-06 22:41:25</td><td>69330176</td><td>&quot;69330178&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3852-3634&quot;</td><td>2025-08-06 22:50:03</td><td>2025-08-06 22:50:03</td><td>69330182</td><td>&quot;69330157&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3821-3682&quot;</td><td>2025-08-06 23:19:31</td><td>2025-08-06 23:19:31</td><td>69330184</td><td>&quot;69330186&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3717-3880&quot;</td><td>2025-08-06 23:31:34</td><td>2025-08-06 23:31:34</td><td>69330188</td><td>&quot;69330188&quot;</td><td>&quot;Green-B&quot;</td></tr><tr><td>&quot;3919-3915&quot;</td><td>2025-08-06 23:43:00</td><td>2025-08-06 23:43:00</td><td>69330190</td><td>&quot;69330190&quot;</td><td>&quot;Green-B&quot;</td></tr></tbody></table></div>
 
 None of the trip IDs match but the right car is at the right stop at the
 right time.
