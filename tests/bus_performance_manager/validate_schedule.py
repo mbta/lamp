@@ -5,6 +5,7 @@ from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedu
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
+# pylint: disable=R0801
 def check_non_null(df: pl.DataFrame, cols: list) -> pl.DataFrame | None:
     """
     verifies columns that should be non-null
