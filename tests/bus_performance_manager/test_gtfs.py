@@ -180,7 +180,7 @@ def test_gtfs_events_for_date_2(exists_patch: mock.MagicMock) -> None:
     # mock files from S3 with https://performancedata paths
     exists_patch.return_value = True
 
-    bus_events = bus_gtfs_events_for_date(date(2025, 6, 24))
+    bus_events = bus_gtfs_schedule_events_for_date(date(2025, 6, 24))
 
     #
     should_not_be_in_set = [

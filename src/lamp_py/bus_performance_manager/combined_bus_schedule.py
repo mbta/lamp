@@ -4,7 +4,12 @@ from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSche
 
 
 def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSchedule) -> pl.DataFrame:
+    """
+    :param gtfs: gtfs schedule
+    :param tm: transit master schedule - this gets filtered down immediately to just the trip_ids that are available in the gtfs schedule
 
+    :return combined schedule
+    """
     # filter tm on trip ids that are in the gtfs set - tm has all trip ids ever, gtfs only has the ids scheduled for a single days
     tm_schedule = tm.tm_schedule.collect().filter(
         pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique().implode())
@@ -124,7 +129,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
 
     # we are unable to use unique(subset=) due to the mis
 
-    # this is an example of one of the remaining cases that are not handled correctly by the below logic. The hypothesis is that the non-deterministic sorting of 
+    # this is an example of one of the remaining cases that are not handled correctly by the below logic. The hypothesis is that the non-deterministic sorting of
     # stop_sequence and tm_stop_sequence is causing the "diff" values calculated to be assigned to one row or another, which is not being properly handled
     # by this logic
 
@@ -142,12 +147,13 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
     # │ 36            ┆ 36               ┆ 1             ┆ 1                ┆ 0                     │
     # └───────────────┴──────────────────┴───────────────┴──────────────────┴───────────────────────┘
 
-    filter_out_gtfs = (pl.col.tm_sequence_diff < 1) & (pl.col("tm_gtfs_sequence_diff").ne(0)
-    ).over(["trip_id", "stop_sequence"])    
-    filter_out_tm = (pl.col.sequence_diff < 1)  & (pl.col("tm_gtfs_sequence_diff").ne(0)
-    ).over(["trip_id", "stop_sequence"])    
+    filter_out_gtfs = (pl.col.tm_sequence_diff < 1) & (pl.col("tm_gtfs_sequence_diff").ne(0)).over(
+        ["trip_id", "stop_sequence"]
+    )
+    filter_out_tm = (pl.col.sequence_diff < 1) & (pl.col("tm_gtfs_sequence_diff").ne(0)).over(
+        ["trip_id", "stop_sequence"]
+    )
 
-    
     schedule = schedule.sort(["trip_id", "stop_sequence"]).with_columns(
         (pl.col("stop_sequence").shift(-1) - pl.col("stop_sequence")).alias("sequence_diff").abs().over("trip_id"),
         (pl.col("stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
