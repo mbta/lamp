@@ -1,5 +1,6 @@
 # Why are trips missing from LRTP data?
-
+crunkel@mbta.com
+2025-08-20
 
 - [The Problem](#the-problem)
   - [Replicating the problem](#replicating-the-problem)
@@ -185,15 +186,7 @@ closely at this trip:
 Okay, so GTFS-RT has this trip ID but:
 
 1.  on the D line
-2.  with a different consist than expected
-
-<div class="column-margin">
-
-We also see that this trip has 2 rows with the consist flipped. Why? Did
-a pullout inspector assign the trip and then change the consist from the
-last trip?
-
-</div>
+2.  with a different consist than expected[^1]
 
 # Where are the missing trips?
 
@@ -294,7 +287,7 @@ The first thing I see is that the only trip present in the Prediction
 Analyzer dataset that has no match in our schedule is the D-line trip
 that GTFS-RT reported. This begs the question **how does an unscheduled
 trip get 1 trip ID in Prediction Analyzer and a different trip ID in
-GTFS-RT?**
+GTFS-RT?**[^2]
 
 The second thing I see is that the scheduled trip times are off of the
 departure times reported by Prediction Analyzer by several minutes but
@@ -423,3 +416,11 @@ right time.
 Prediction Analyzer and GTFS-RT agree on which Green Line trains are
 running on a track but do not agree on which trip IDs to assign those
 cars. Why do trip IDs not match between the 2 systems?
+
+[^1]: We also see that this trip has 2 rows with the consist flipped.
+    Why? Did a pullout inspector assign the trip and then change the
+    consist from the last trip?
+
+[^2]: I say “GFTS-RT” and not “LAMP” or “Tableau” because I checked and,
+    the same trips are defined in our incoming data streams from GFTS.
+    LAMP doesn’t transform these fields after ingestion
