@@ -1,6 +1,7 @@
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSchedule) -> pl.DataFrame:
@@ -36,6 +37,15 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
             coalesce=True,
             # validate="1:1" # this won't validate 1 to 1 because some trips stop at the same stop multiple times. correcting this below
         )
+        .with_columns(
+            (
+                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
+                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
+                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
+                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
+            )
+        )        
         # this operation fills in the nulls for the selected columns after the join- the commented out ones do not make sense to fill in
         # leaving them in as comments to make clear that this is a conscious choice
         .with_columns(
@@ -56,7 +66,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
                     "plan_stop_count",
                     "plan_start_time",
                     "plan_start_dt",
-                    "PATTERN_ID",
+                    "pattern_id",
                     # "plan_travel_time_seconds",
                     # "plan_route_direction_headway_seconds",
                     # "plan_direction_destination_headway_seconds"
@@ -73,20 +83,11 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
         .with_columns(
             pl.when(pl.col("stop_sequence").is_null())
             .then(pl.lit("TM"))
-            .when(pl.col("timepoint_order").is_null())  # ?
+            .when(pl.col("tm_stop_sequence").is_null())  # ?
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("tm_joined")
-        )
-        .with_columns(
-            (
-                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
-                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
-                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
-                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
-            )
-        )
+        )        
         # explicitly define the columns that we are grabbing at the end of the operation
         .select(
             [
@@ -121,52 +122,30 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
         )
     ).with_row_index()
 
-    # add logic to remove duplicated rows from the full join. this is necessary to deduplicate for trips that stop at the same stop_id more than once.
-    # it is not possible to join_asof becuase gtfs is on the left to get shuttles and non TM trips, and there is no guarantee that the sequences joined
-    # will be valid given that there are additional unjoined non-rev stop sequences that would not match.
-    # schedule = schedule0.filter(pl.col.trip_id == "70040149")
-    # Limitation: Route 238 looks like an outlier where this processing is not successfully being handles by this logic
-
-    # we are unable to use unique(subset=) due to the mis
-
-    # this is an example of one of the remaining cases that are not handled correctly by the below logic. The hypothesis is that the non-deterministic sorting of
-    # stop_sequence and tm_stop_sequence is causing the "diff" values calculated to be assigned to one row or another, which is not being properly handled
-    # by this logic
-
-    # schedule.filter(pl.col.trip_id == "70040149").sort("tm_stop_sequence").filter(pl.col.stop_sequence.is_in([33,36])).
-    # select(["stop_sequence", "tm_stop_sequence", "sequence_diff", "tm_sequence_diff", "tm_gtfs_sequence_diff"])
-    # shape: (4, 5)
-    # ┌───────────────┬──────────────────┬───────────────┬──────────────────┬───────────────────────┐
-    # │ stop_sequence ┆ tm_stop_sequence ┆ sequence_diff ┆ tm_sequence_diff ┆ tm_gtfs_sequence_diff │
-    # │ ---           ┆ ---              ┆ ---           ┆ ---              ┆ ---                   │
-    # │ i64           ┆ i64              ┆ i64           ┆ i64              ┆ i64                   │
-    # ╞═══════════════╪══════════════════╪═══════════════╪══════════════════╪═══════════════════════╡
-    # │ 33            ┆ 33               ┆ 0             ┆ 0                ┆ 0                     │
-    # │ 36            ┆ 33               ┆ 0             ┆ 1                ┆ 3                     │
-    # │ 33            ┆ 36               ┆ 1             ┆ 0                ┆ 3                     │
-    # │ 36            ┆ 36               ┆ 1             ┆ 1                ┆ 0                     │
-    # └───────────────┴──────────────────┴───────────────┴──────────────────┴───────────────────────┘
-
-    filter_out_gtfs = (pl.col.tm_sequence_diff < 1) & (pl.col("tm_gtfs_sequence_diff").ne(0)).over(
-        ["trip_id", "stop_sequence"]
-    )
-    filter_out_tm = (pl.col.sequence_diff < 1) & (pl.col("tm_gtfs_sequence_diff").ne(0)).over(
-        ["trip_id", "stop_sequence"]
-    )
-
-    schedule = schedule.sort(["trip_id", "stop_sequence"]).with_columns(
-        (pl.col("stop_sequence").shift(-1) - pl.col("stop_sequence")).alias("sequence_diff").abs().over("trip_id"),
+    schedule = schedule.with_columns(
         (pl.col("stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
     )
-    schedule = schedule.sort(["trip_id", "tm_stop_sequence"]).with_columns(
-        (pl.col("tm_stop_sequence").shift(-1) - pl.col("tm_stop_sequence")).alias("tm_sequence_diff").over("trip_id"),
-    )
+    schedule = schedule.remove(pl.col('index').is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode()))
 
-    filter_out = schedule.filter(filter_out_gtfs | filter_out_tm)["index"].implode()
+    non_rev_rows = tm_schedule.join(gtfs2, on=["trip_id", "stop_id"], how="anti", coalesce=True).height
+    expected_row_diff = schedule.height - gtfs.height - non_rev_rows
+    
+    # print this out 
 
-    schedule2 = schedule.filter(~pl.col("index").is_in(filter_out)).drop()
-    schedule2 = schedule2.drop(["index", "sequence_diff", "tm_sequence_diff", "tm_gtfs_sequence_diff"]).sort(
-        ["trip_id", "tm_stop_sequence", "stop_sequence"]
-    )
-
-    return schedule2
+    process_logger = ProcessLogger(
+                "join_tm_schedule_to_gtfs_schedule",
+                gtfs_rows=gtfs.height,
+                tm_rows=tm_schedule.height,
+                tm_rows_non_rev=non_rev_rows,
+                expected_rows=gtfs.height+non_rev_rows,
+                returned_rows=schedule.height
+            )
+    process_logger.log_start()
+    
+    if expected_row_diff != 0:
+        process_logger.log_failure(ValueError(f"Unexpected schedule rows!"))
+    else:
+        process_logger.log_complete()
+    
+    
+    return schedule
