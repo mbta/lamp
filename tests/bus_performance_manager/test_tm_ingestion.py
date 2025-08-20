@@ -8,7 +8,6 @@ from lamp_py.bus_performance_manager.events_tm import generate_tm_events
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 from ..test_resources import (
-    tm_route_file,
     tm_trip_file,
     tm_vehicle_file,
     tm_stop_crossings,
@@ -22,10 +21,6 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     """
     run tests on each file in the test files tm stop crossings directory
     """
-    monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_route_file",
-        tm_route_file,
-    )
     monkeypatch.setattr(
         "lamp_py.bus_performance_manager.events_tm.tm_trip_file",
         tm_trip_file,
