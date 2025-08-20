@@ -102,7 +102,7 @@ missing.glimpse()
 Starting with missing trips will focus the problem a bit, because it’s
 easier to check for something that is misisng entirely. Now, let’s
 double-check that we see the same thing, that these trip IDs are not
-present in LAMP data for August 6.
+present in LAMP’s Tableau data for August 6.
 
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -146,7 +146,7 @@ Tableau data for August 6.
 </style>
 <small>shape: (1, 7)</small><table border="1" class="dataframe"><thead><tr><th>trip_id</th><th>consist</th><th>PA_departure_time</th><th>TB_departure_time</th><th>mismatch_reason</th><th>vehicle.trip.start_time</th><th>vehicle.timestamp</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>datetime[μs]</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;2025-08-06 14:53:03 EDT&quot;</td><td>null</td><td>&quot;No matching trip_id in Tableau&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:39:40</td></tr></tbody></table></div>
 
-Interesting—there is one trip ID among the GTFS data. Let’s look more
+Interesting—there is one trip ID among the Tableau data. Let’s look more
 closely at this trip:
 
 <details class="code-fold">
@@ -181,11 +181,11 @@ closely at this trip:
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (2, 6)</small><table border="1" class="dataframe"><thead><tr><th>vehicle.trip.trip_id</th><th>vehicle.trip.route_id</th><th>vehicle.vehicle.label</th><th>vehicle.trip.start_time</th><th>earliest_timestamp</th><th>first_stop</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>datetime[μs]</td><td>str</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;3859-3713&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:40:13</td><td>&quot;70162&quot;</td></tr><tr><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;3713-3859&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:39:40</td><td>&quot;70162&quot;</td></tr></tbody></table></div>
+<small>shape: (2, 6)</small><table border="1" class="dataframe"><thead><tr><th>vehicle.trip.trip_id</th><th>vehicle.trip.route_id</th><th>vehicle.vehicle.label</th><th>vehicle.trip.start_time</th><th>earliest_timestamp</th><th>first_stop</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>datetime[μs]</td><td>str</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;3713-3859&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:39:40</td><td>&quot;70162&quot;</td></tr><tr><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;3859-3713&quot;</td><td>&quot;14:38:00&quot;</td><td>2025-08-06 14:40:13</td><td>&quot;70162&quot;</td></tr></tbody></table></div>
 
-Okay, so GTFS-RT has this trip ID but:
+Okay, so Tableau has this trip ID but:
 
-1.  on the D line
+1.  on the D line (at Woodland)
 2.  with a different consist than expected[^1]
 
 # Where are the missing trips?
@@ -225,7 +225,7 @@ other service dates:
   white-space: pre-wrap;
 }
 </style>
-<small>shape: (43, 2)</small><table border="1" class="dataframe"><thead><tr><th>Service Date</th><th>Count of Missing Trip IDs Present in GFTS-RT</th></tr><tr><td>date</td><td>u32</td></tr></thead><tbody><tr><td>2025-06-20</td><td>6</td></tr><tr><td>2025-06-23</td><td>10</td></tr><tr><td>2025-06-24</td><td>14</td></tr><tr><td>2025-06-25</td><td>10</td></tr><tr><td>2025-06-26</td><td>11</td></tr><tr><td>2025-06-27</td><td>19</td></tr><tr><td>2025-06-30</td><td>12</td></tr><tr><td>2025-07-01</td><td>14</td></tr><tr><td>2025-07-02</td><td>20</td></tr><tr><td>2025-07-03</td><td>19</td></tr><tr><td>2025-07-07</td><td>12</td></tr><tr><td>2025-07-08</td><td>20</td></tr><tr><td>2025-07-09</td><td>17</td></tr><tr><td>&hellip;</td><td>&hellip;</td></tr><tr><td>2025-08-05</td><td>18</td></tr><tr><td>2025-08-06</td><td>1</td></tr><tr><td>2025-08-07</td><td>14</td></tr><tr><td>2025-08-08</td><td>18</td></tr><tr><td>2025-08-11</td><td>8</td></tr><tr><td>2025-08-12</td><td>12</td></tr><tr><td>2025-08-13</td><td>10</td></tr><tr><td>2025-08-14</td><td>18</td></tr><tr><td>2025-08-15</td><td>17</td></tr><tr><td>2025-08-18</td><td>7</td></tr><tr><td>2025-08-19</td><td>18</td></tr><tr><td>2025-08-20</td><td>2</td></tr></tbody></table></div>
+<small>shape: (43, 2)</small><table border="1" class="dataframe"><thead><tr><th>Service Date</th><th>Count of Missing Trip IDs Present in GFTS-RT</th></tr><tr><td>date</td><td>u32</td></tr></thead><tbody><tr><td>2025-06-20</td><td>6</td></tr><tr><td>2025-06-23</td><td>10</td></tr><tr><td>2025-06-24</td><td>14</td></tr><tr><td>2025-06-25</td><td>10</td></tr><tr><td>2025-06-26</td><td>11</td></tr><tr><td>2025-06-27</td><td>19</td></tr><tr><td>2025-06-30</td><td>12</td></tr><tr><td>2025-07-01</td><td>14</td></tr><tr><td>2025-07-02</td><td>20</td></tr><tr><td>2025-07-03</td><td>19</td></tr><tr><td>2025-07-07</td><td>12</td></tr><tr><td>2025-07-08</td><td>20</td></tr><tr><td>2025-07-09</td><td>17</td></tr><tr><td>&hellip;</td><td>&hellip;</td></tr><tr><td>2025-08-05</td><td>18</td></tr><tr><td>2025-08-06</td><td>1</td></tr><tr><td>2025-08-07</td><td>14</td></tr><tr><td>2025-08-08</td><td>18</td></tr><tr><td>2025-08-11</td><td>8</td></tr><tr><td>2025-08-12</td><td>12</td></tr><tr><td>2025-08-13</td><td>10</td></tr><tr><td>2025-08-14</td><td>18</td></tr><tr><td>2025-08-15</td><td>17</td></tr><tr><td>2025-08-18</td><td>7</td></tr><tr><td>2025-08-19</td><td>18</td></tr><tr><td>2025-08-20</td><td>3</td></tr></tbody></table></div>
 
 Can the GTFS Schedule tell us more about these trip IDs? If they appear
 on other service dates, chances are they’re on our schedule. To check
@@ -283,16 +283,60 @@ departure times from Boston College (`70106`).
 </style>
 <small>shape: (25, 5)</small><table border="1" class="dataframe"><thead><tr><th>trip_id</th><th>consist</th><th>PA_departure_time</th><th>Scheduled departure time</th><th>Scheduled terminal</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;69329457&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;2025-08-06 14:53:03 EDT&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;69329966&quot;</td><td>&quot;3809-3696&quot;</td><td>&quot;2025-08-06 18:40:21 EDT&quot;</td><td>&quot;18:26:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69329986&quot;</td><td>&quot;3917&quot;</td><td>&quot;2025-08-06 11:06:25 EDT&quot;</td><td>&quot;10:56:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69329992&quot;</td><td>&quot;3845-3633&quot;</td><td>&quot;2025-08-06 16:42:31 EDT&quot;</td><td>&quot;16:45:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330000&quot;</td><td>&quot;3821-3682&quot;</td><td>&quot;2025-08-06 11:13:09 EDT&quot;</td><td>&quot;11:05:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330008&quot;</td><td>&quot;3849-3673&quot;</td><td>&quot;2025-08-06 19:02:45 EDT&quot;</td><td>&quot;18:55:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330036&quot;</td><td>&quot;3914-3917&quot;</td><td>&quot;2025-08-06 19:23:04 EDT&quot;</td><td>&quot;19:13:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330040&quot;</td><td>&quot;3921&quot;</td><td>&quot;2025-08-06 09:27:06 EDT&quot;</td><td>&quot;09:35:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330048&quot;</td><td>&quot;3821-3682&quot;</td><td>&quot;2025-08-06 17:20:37 EDT&quot;</td><td>&quot;17:20:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330056&quot;</td><td>&quot;3861-3659&quot;</td><td>&quot;2025-08-06 11:39:39 EDT&quot;</td><td>&quot;11:38:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330062&quot;</td><td>&quot;3717-3880&quot;</td><td>&quot;2025-08-06 17:28:41 EDT&quot;</td><td>&quot;17:28:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330064&quot;</td><td>&quot;3717-3880&quot;</td><td>&quot;2025-08-06 19:38:03 EDT&quot;</td><td>&quot;19:29:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330068&quot;</td><td>&quot;3861-3659&quot;</td><td>&quot;2025-08-06 09:44:35 EDT&quot;</td><td>&quot;09:51:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330080&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 10:04:34 EDT&quot;</td><td>&quot;09:59:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330090&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 08:06:55 EDT&quot;</td><td>&quot;08:15:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330112&quot;</td><td>&quot;3604-3871&quot;</td><td>null</td><td>&quot;18:00:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330124&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 18:20:35 EDT&quot;</td><td>&quot;18:09:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330132&quot;</td><td>&quot;3849-3673&quot;</td><td>&quot;2025-08-06 14:54:46 EDT&quot;</td><td>&quot;14:21:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330138&quot;</td><td>&quot;3919-3915&quot;</td><td>&quot;2025-08-06 19:48:05 EDT&quot;</td><td>&quot;19:38:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330142&quot;</td><td>&quot;3921&quot;</td><td>&quot;2025-08-06 20:04:50 EDT&quot;</td><td>&quot;19:56:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330148&quot;</td><td>&quot;3805-3647&quot;</td><td>&quot;2025-08-06 20:21:25 EDT&quot;</td><td>&quot;20:22:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330152&quot;</td><td>&quot;3809-3696&quot;</td><td>&quot;2025-08-06 20:34:40 EDT&quot;</td><td>&quot;20:41:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330162&quot;</td><td>&quot;3821-3682&quot;</td><td>&quot;2025-08-06 21:23:07 EDT&quot;</td><td>&quot;21:27:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330166&quot;</td><td>&quot;3919-3915&quot;</td><td>&quot;2025-08-06 21:46:25 EDT&quot;</td><td>&quot;21:45:00&quot;</td><td>&quot;70106&quot;</td></tr><tr><td>&quot;69330172&quot;</td><td>&quot;3604-3871&quot;</td><td>&quot;2025-08-06 22:23:06 EDT&quot;</td><td>&quot;22:13:00&quot;</td><td>&quot;70106&quot;</td></tr></tbody></table></div>
 
-The first thing I see is that the only trip present in the Prediction
-Analyzer dataset that has no match in our schedule is the D-line trip
-that GTFS-RT reported. This begs the question **how does an unscheduled
-trip get 1 trip ID in Prediction Analyzer and a different trip ID in
-GTFS-RT?**[^2]
+I see 2 things:
 
-The second thing I see is that the scheduled trip times are off of the
-departure times reported by Prediction Analyzer by several minutes but
-are somewhat close to the scheduled trip times. **Can we use the times
-to re-connect Prediction Analyzer to a GTFS-RT?**
+1.  The only trip present in the Prediction Analyzer dataset that has no
+    match in our schedule is the D-line trip that Tableau reported. This
+    begs the question **how does an unscheduled trip get a trip ID in
+    Prediction Analyzer and a different trip ID in Tableau?** Let’s
+    check which trip ID we received from GTFS-RT for that
+    possibly-D-line, possibly-B-line trip. To check, we download the
+    zipped JSON archived at 2025-08-06 14:39:40 EDT, when we supposedly
+    saw trip `69329457` and explode it to a dataframe.
+
+<details class="code-fold">
+<summary>Show the code</summary>
+
+``` python
+incoming_vehicle_position = (
+    pl.read_ndjson("s3://mbta-ctd-dataplatform-dev-archive/lamp/delta/2025/08/06/2025-08-06T18:40:13Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz") # UTC timestamp is 4 hours ahead
+    .select("entity")
+    .explode("entity")
+    .unnest("entity")
+    .unnest("vehicle")
+    .unnest("trip")
+)
+```
+
+</details>
+
+Then, we filter to the Woodland stop:
+
+<details class="code-fold">
+<summary>Show the code</summary>
+
+``` python
+incoming_vehicle_position.filter(pl.col("stop_id") == "70162")
+```
+
+</details>
+
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (1, 18)</small><table border="1" class="dataframe"><thead><tr><th>id</th><th>current_status</th><th>current_stop_sequence</th><th>multi_carriage_details</th><th>position</th><th>stop_id</th><th>timestamp</th><th>trip_id</th><th>route_id</th><th>schedule_relationship</th><th>last_trip</th><th>revenue</th><th>start_time</th><th>direction_id</th><th>start_date</th><th>vehicle</th><th>occupancy_percentage</th><th>occupancy_status</th></tr><tr><td>str</td><td>str</td><td>i64</td><td>list[struct[5]]</td><td>struct[4]</td><td>str</td><td>i64</td><td>str</td><td>str</td><td>str</td><td>bool</td><td>bool</td><td>str</td><td>i64</td><td>str</td><td>struct[2]</td><td>i64</td><td>str</td></tr></thead><tbody><tr><td>&quot;G-10238&quot;</td><td>&quot;INCOMING_AT&quot;</td><td>320</td><td>[{&quot;3859&quot;,&quot;NO_DATA_AVAILABLE&quot;,1,&quot;AB&quot;,null}, {&quot;3713&quot;,&quot;NO_DATA_AVAILABLE&quot;,2,&quot;BA&quot;,null}]</td><td>{135,42.33443,-71.24654,17.0}</td><td>&quot;70162&quot;</td><td>1754505609</td><td>&quot;69329457&quot;</td><td>&quot;Green-D&quot;</td><td>&quot;SCHEDULED&quot;</td><td>false</td><td>true</td><td>&quot;14:38:00&quot;</td><td>1</td><td>&quot;20250806&quot;</td><td>{&quot;G-10238&quot;,&quot;3859-3713&quot;}</td><td>null</td><td>null</td></tr></tbody></table></div>
+
+The `trip_id` is `69329457`—it didn’t change between ingestion and
+publication to Tableau.
+
+2.  The scheduled trip times are off of the departure times reported by
+    Prediction Analyzer by several minutes but are somewhat close to the
+    scheduled trip times. **Can we use the times to re-connect
+    Prediction Analyzer to a GTFS-RT?**
 
 # A different way of connecting trips
 
@@ -420,7 +464,3 @@ cars. Why do trip IDs not match between the 2 systems?
 [^1]: We also see that this trip has 2 rows with the consist flipped.
     Why? Did a pullout inspector assign the trip and then change the
     consist from the last trip?
-
-[^2]: I say “GFTS-RT” and not “LAMP” or “Tableau” because I checked and,
-    the same trips are defined in our incoming data streams from GFTS.
-    LAMP doesn’t transform these fields after ingestion

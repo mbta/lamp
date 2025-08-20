@@ -62,7 +62,7 @@ missing.glimpse()
 ```
 
 Starting with missing trips will focus the problem a bit, because it's easier to check for something that is misisng entirely.
-Now, let's double-check that we see the same thing, that these trip IDs are not present in LAMP data for August 6.
+Now, let's double-check that we see the same thing, that these trip IDs are not present in LAMP's Tableau data for August 6.
 
 ```{python}
 tableau = pl.read_parquet("s3://mbta-performance/lamp/tableau/gtfs-rt/LAMP_RT_VehiclePositions_LR_60_day.parquet")
@@ -86,7 +86,7 @@ If this join returns no rows, then all the trips are missing in the Tableau data
 )
 ```
 
-Interesting---there is one trip ID among the GTFS data.
+Interesting---there is one trip ID among the Tableau data.
 Let's look more closely at this trip:
 
 ```{python}
@@ -109,10 +109,9 @@ Let's look more closely at this trip:
 )
 ```
 
+Okay, so Tableau has this trip ID but:
 
-Okay, so GTFS-RT has this trip ID but:
-
-1. on the D line
+1. on the D line (at Woodland)
 2. with a different consist than expected^[We also see that this trip has 2 rows with the consist flipped. Why? Did a pullout inspector assign the trip and then change the consist from the last trip?]
 
 # Where are the missing trips?
@@ -174,11 +173,34 @@ I've pulled in the first `stop_id` and `departure_time` for each scheduled trip 
 )
 ```
 
-The first thing I see is that the only trip present in the Prediction Analyzer dataset that has no match in our schedule is the D-line trip that GTFS-RT reported.
-This begs the question **how does an unscheduled trip get 1 trip ID in Prediction Analyzer and a different trip ID in GTFS-RT?**^[I say "GFTS-RT" and not "LAMP" or "Tableau" because I checked and, the same trips are defined in our incoming data streams from GFTS.
-LAMP doesn't transform these fields after ingestion]
+I see 2 things:
 
-The second thing I see is that the scheduled trip times are off of the departure times reported by Prediction Analyzer by several minutes but are somewhat close to the scheduled trip times.
+1. The only trip present in the Prediction Analyzer dataset that has no match in our schedule is the D-line trip that Tableau reported.
+This begs the question **how does an unscheduled trip get a trip ID in Prediction Analyzer and a different trip ID in Tableau?**
+Let's check which trip ID we received from GTFS-RT for that possibly-D-line, possibly-B-line trip.
+To check, we download the zipped JSON archived at 2025-08-06 14:39:40 EDT, when we supposedly saw trip `69329457` and explode it to a dataframe.
+
+```{python}
+incoming_vehicle_position = (
+    pl.read_ndjson("s3://mbta-ctd-dataplatform-dev-archive/lamp/delta/2025/08/06/2025-08-06T18:40:13Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz") # UTC timestamp is 4 hours ahead
+    .select("entity")
+    .explode("entity")
+    .unnest("entity")
+    .unnest("vehicle")
+    .unnest("trip")
+)
+```
+
+Then, we filter to the Woodland stop:
+
+```{python}
+incoming_vehicle_position.filter(pl.col("stop_id") == "70162")
+```
+
+The `trip_id` is `69329457`---it didn't change between ingestion and publication to Tableau.
+
+
+2. The scheduled trip times are off of the departure times reported by Prediction Analyzer by several minutes but are somewhat close to the scheduled trip times.
 **Can we use the times to re-connect Prediction Analyzer to a GTFS-RT?**
 
 # A different way of connecting trips
