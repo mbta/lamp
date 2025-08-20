@@ -45,7 +45,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
                 pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
                 pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
             )
-        )        
+        )
         # this operation fills in the nulls for the selected columns after the join- the commented out ones do not make sense to fill in
         # leaving them in as comments to make clear that this is a conscious choice
         .with_columns(
@@ -87,7 +87,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("tm_joined")
-        )        
+        )
         # explicitly define the columns that we are grabbing at the end of the operation
         .select(
             [
@@ -125,27 +125,28 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
     schedule = schedule.with_columns(
         (pl.col("stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
     )
-    schedule = schedule.remove(pl.col('index').is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode()))
+    schedule = schedule.remove(
+        pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
+    )
 
     non_rev_rows = tm_schedule.join(gtfs2, on=["trip_id", "stop_id"], how="anti", coalesce=True).height
     expected_row_diff = schedule.height - gtfs.height - non_rev_rows
-    
-    # print this out 
+
+    # print this out
 
     process_logger = ProcessLogger(
-                "join_tm_schedule_to_gtfs_schedule",
-                gtfs_rows=gtfs.height,
-                tm_rows=tm_schedule.height,
-                tm_rows_non_rev=non_rev_rows,
-                expected_rows=gtfs.height+non_rev_rows,
-                returned_rows=schedule.height
-            )
+        "join_tm_schedule_to_gtfs_schedule",
+        gtfs_rows=gtfs.height,
+        tm_rows=tm_schedule.height,
+        tm_rows_non_rev=non_rev_rows,
+        expected_rows=gtfs.height + non_rev_rows,
+        returned_rows=schedule.height,
+    )
     process_logger.log_start()
-    
+
     if expected_row_diff != 0:
-        process_logger.log_failure(ValueError(f"Unexpected schedule rows!"))
+        process_logger.log_failure(ValueError("Unexpected schedule rows!"))
     else:
         process_logger.log_complete()
-    
-    
+
     return schedule

@@ -5,59 +5,64 @@ from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedu
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
-def check_non_null(df: pl.DataFrame, cols: list, trip_id: str = "", prefix: str = "") -> pl.DataFrame | None:
+def check_non_null(df: pl.DataFrame, cols: list) -> pl.DataFrame | None:
     """
     verifies columns that should be non-null
     """
     stats = df.describe()
+    has_error = False
 
     for col in cols:
-        if stats.row(by_predicate=pl.col("statistic") == "null_count")[stats.get_column_index(name=col)] in [
+        if not stats.row(by_predicate=pl.col("statistic") == "null_count")[stats.get_column_index(name=col)] in [
             0,
             "0",
             float(0),
         ]:
-            continue
-        else:
-            return df
-            # df.write_parquet(f"{tmp_dir}/{prefix}_{trip_id}__fail_non_null_{col}.parquet")
+            df = df.with_columns(pl.col("error_reason").list.concat(pl.lit(f"NON_NULL_{col}")))
+            has_error = True
 
+    if has_error:
+        return df
     return None
 
 
-def check_all_unique(df: pl.DataFrame, cols: list, trip_id: str = "", prefix: str = "") -> pl.DataFrame | None:
+def check_all_unique(df: pl.DataFrame, cols: list) -> pl.DataFrame | None:
     """
     verifies columns that should be all unique
-    """    
+    """
+    has_error = False
+
     for col in cols:
-        if (df[col].drop_nulls().unique_counts() == 1).all():
-            continue
-        else:
-            return df
-            # df[col].drop_nulls().value_counts().filter(pl.col.count == 2).select('stop_name').item().replace(' ', '-')
-            # df.write_parquet(f"{tmp_dir}/{prefix}_{trip_id}__fail_unique_{col}.parquet")
+        if not (df[col].drop_nulls().unique_counts() == 1).all():
+            df = df.with_columns(pl.col("error_reason").list.concat(pl.lit(f"ALL_UNIQUE_{col}")))
+            has_error = True
+
+    if has_error:
+        return df
     return None
 
 
-def check_static_cols(df: pl.DataFrame, cols: list, trip_id: str = "", prefix: str = "") -> pl.DataFrame | None:
+def check_static_cols(df: pl.DataFrame, cols: list) -> pl.DataFrame | None:
     """
     verifies columns that should have only a single, unique value
     """
     stats = df.describe()
+    has_error = False
 
     for col in cols:
-        if (
+        if not (
             stats.row(by_predicate=pl.col("statistic") == "min")[stats.get_column_index(name=col)]
             == stats.row(by_predicate=pl.col("statistic") == "max")[stats.get_column_index(name=col)]
         ):
-            continue
-        else:
-            return df
-            # df.write_parquet(f'{tmp_dir}/{prefix}_{trip_id}__fail_static_{col}.parquet')
+            df = df.with_columns(pl.col("error_reason").list.concat(pl.lit(f"STATIC_{col}")))
+            has_error = True
+
+    if has_error:
+        return df
     return None
 
 
-tmp_dir = "tmp"
+TMP_DIR = "tmp"
 REGENERATE = True
 service_date = datetime.date(year=2025, month=8, day=12)
 
@@ -98,12 +103,12 @@ static_cols_tm = [
     "tm_planned_sequence_start",
 ]
 
-skip_tm = True
-if not skip_tm:
+SKIP_TM = True
+if not SKIP_TM:
     for idx, tm in tm_schedule.group_by("TRIP_ID"):
-        check_non_null(tm, non_null_tm, trip_id=idx[0], prefix="tm")
-        check_all_unique(tm, all_unique_tm, trip_id=idx[0], prefix="tm")
-        check_static_cols(tm, static_cols_tm, trip_id=idx[0], prefix="tm")
+        check_non_null(tm, non_null_tm)
+        check_all_unique(tm, all_unique_tm)
+        check_static_cols(tm, static_cols_tm)
 
 
 # incrementing = ['PATTERN_GEO_NODE_SEQ', 'TIME_POINT_ID', 'GEO_NODE_ID', 'GEO_NODE_ABBR', 'TIME_POINT_ABBR', 'TIME_PT_NAME', 'stop_id', ]
@@ -130,12 +135,12 @@ static_cols_gtfs = [
     "plan_start_dt",
 ]
 
-skip_gtfs = True
-if not skip_gtfs:
+SKIP_GTFS = True
+if not SKIP_GTFS:
     for idx, gtfs in gtfs_schedule.group_by("plan_trip_id"):
-        check_non_null(gtfs, non_null_tm, trip_id=idx[0], prefix="gtfs")
-        check_all_unique(gtfs, all_unique_gtfs, trip_id=idx[0], prefix="gtfs")
-        check_static_cols(gtfs, static_cols_gtfs, trip_id=idx[0], prefix="gtfs")
+        check_non_null(gtfs, non_null_tm)
+        check_all_unique(gtfs, all_unique_gtfs)
+        check_static_cols(gtfs, static_cols_gtfs)
 
 
 # incrementing = ['PATTERN_GEO_NODE_SEQ', 'TIME_POINT_ID', 'GEO_NODE_ID', 'GEO_NODE_ABBR', 'TIME_POINT_ABBR', 'TIME_PT_NAME', 'stop_id', ]
@@ -178,51 +183,67 @@ static_cols_combined = [
     "pattern_id",
 ]
 
-err_combined = pl.DataFrame(schema=combined_schedule.schema)
+err_dfs = []
+combined_schedule = combined_schedule.with_columns(pl.lit([]).alias("error_reason"))
+for idx, trip_df in combined_schedule.group_by("trip_id"):
 
-for idx, combined in combined_schedule.group_by("trip_id"):
+    res1 = check_non_null(trip_df, non_null_combined)
+    res2 = check_all_unique(trip_df, all_unique_combined)
+    res3 = check_static_cols(trip_df, static_cols_combined)
 
-    res1 = check_non_null(combined, non_null_combined, trip_id=idx[0], prefix="combined")
-    res2 = check_all_unique(combined, all_unique_combined, trip_id=idx[0], prefix="combined")
-    res3 = check_static_cols(combined, static_cols_combined, trip_id=idx[0], prefix="combined")
+    if res1 is not None:
+        err_dfs.append(res1)
+    if res2 is not None:
+        err_dfs.append(res2)
+    if res3 is not None:
+        err_dfs.append(res3)
 
-    if combined["route_id"].drop_nulls().unique().item() == "47":
+    if trip_df["route_id"].drop_nulls().unique().item() == "47":
         continue
         # print(f"trip: {idx} 47 bus detour")
 
-    if combined["trip_id"].str.contains("Blue").any():
+    if trip_df["trip_id"].str.contains("Blue").any():
         continue
         # print(f"trip: {idx} shuttle")
 
         # add something to a dataframe...
-    elif combined["service_id"].str.contains("PRIV").any():
+    if trip_df["service_id"].str.contains("PRIV").any():
         continue
         # print(f"trip: {idx} 714/715")
 
-    elif combined["service_id"].str.contains("Foxboro").any():
+    if trip_df["service_id"].str.contains("Foxboro").any():
         continue
         # foxboro shuttle?
-    else:
 
+
+    try:
+        # for the schedule, make sure no missing rows in any trip
+        assert (
+            trip_df.filter(pl.col("tm_joined").is_in(["JOIN", "GTFS"])).height
+            == trip_df.select("plan_stop_count").head(1).item()
+        )
+    except AssertionError as err:
+        print(
+            f"GTFS has record not present in TM {err} --- trip: {idx} {trip_df.head(1)['trip_id'].item()} joined no TM records"
+        )
+        err_dfs.append(trip_df.with_columns(pl.col("error_reason").list.concat(pl.lit("GTFS_RECORDS_NOT_IN_TM"))))
+
+
+    if trip_df["tm_joined"].is_in(["JOIN", "TM"]).any():
         try:
-            # for the schedule, make sure no missing rows in any trip
-            assert (
-                combined.filter(pl.col("tm_joined").is_in(["JOIN", "GTFS"])).height
-                == combined.select("plan_stop_count").head(1).item()
-            )
+            assert trip_df.height == trip_df["tm_planned_sequence_end"].drop_nulls().unique().item()
         except AssertionError as err:
             print(
-                f"GTFS has record not present in TM {err} --- trip: {idx} {combined.head(1)['trip_id'].item()} joined no TM records"
+                f"{err} --- trip: {idx} {trip_df.head(1)['trip_id'].item()} Total trip record height does not match expected TM height "
+            )
+            err_dfs.append(
+                trip_df.with_columns(pl.col("error_reason").list.concat(pl.lit("TM_EXPECTED_RECORDS_MISMATCH")))
             )
 
-        if combined["tm_joined"].is_in(["JOIN", "TM"]).any():
-            try:
-                assert combined.height == combined["tm_planned_sequence_end"].drop_nulls().unique().item()
-            except AssertionError as err:
-                print(
-                    f"{err} --- trip: {idx} {combined.head(1)['trip_id'].item()} Total trip record height does not match expected TM height "
-                )
+    else:
+        print(f"trip: {idx} {trip_df.head(1)['trip_id'].item()} joined no TM records")
+        err_dfs.append(trip_df.with_columns(pl.col("error_reason").list.concat(pl.lit("NOT_EXPECTED_GTFS_ONLY"))))
 
-        else:
-            print(f"trip: {idx} {combined.head(1)['trip_id'].item()} joined no TM records")
-        # breakpoint()
+err_df = pl.concat(err_dfs, how="vertical")
+
+err_df.write_parquet("trips_with_issues.parquet")
