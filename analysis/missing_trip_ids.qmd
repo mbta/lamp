@@ -1,12 +1,10 @@
 ---
 title: "Why are trips missing from LRTP data?"
 format:
-    html:
+    gfm:
         code-fold: true
         code-summary: "Show the code"
         toc: true
-date: 2025-08-18
-author: crunkel@mbta.com
 execute:
     cache: true
     warning: false
@@ -24,7 +22,7 @@ import polars as pl
 from lamp_py.aws import s3
 from lamp_py.runtime_utils import remote_files as rf
 
-pl.Config(tbl_rows=50)
+pl.Config(tbl_rows=25)
 
 service_date = date(2025, 8, 6)
 ```
@@ -87,8 +85,6 @@ If this join returns no rows, then all the trips are missing in the Tableau data
 Interesting---there is one trip ID among the GTFS data.
 Let's look more closely at this trip:
 
-::: {#tbl-existing-trip}
-
 ```{python}
 (
     tableau
@@ -109,8 +105,6 @@ Let's look more closely at this trip:
 )
 ```
 
-:::
-
 
 Okay, so GTFS-RT has this trip ID but:
 
@@ -123,9 +117,7 @@ We also see that this trip has 2 rows with the consist flipped. Why? Did a pullo
 
 # Where are the missing trips?
 
-As for the other trip IDs, it's worth noting that some *do* exist for other dates:
-
-::: {#tbl-existing-trips-other-dates}
+As for the other trip IDs, it's worth noting that some *do* exist for other service dates:
 
 ```{python}
 (
@@ -146,10 +138,6 @@ As for the other trip IDs, it's worth noting that some *do* exist for other date
     })
 )
 ```
-
-Trips missing from August 6 that appear on other service dates
-
-:::
 
 Can the GTFS Schedule tell us more about these trip IDs?
 If they appear on other service dates, chances are they're on our schedule.
@@ -237,6 +225,7 @@ To test this, I'll join all the trips Firas listed as unmatched to the trips in 
 ```{python}
 consist_time_join = (
     unmatched
+    .filter(pl.col("PA_departure_time").is_not_null())
     .with_columns(pl.col("PA_departure_time").str.to_datetime("%Y-%m-%d %H:%M:%S %Z"))
     .sort("PA_departure_time")
     .join_asof(
