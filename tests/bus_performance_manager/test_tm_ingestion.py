@@ -8,6 +8,8 @@ from lamp_py.bus_performance_manager.events_tm import generate_tm_events
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 from ..test_resources import (
+    tm_geo_node_file,
+    tm_route_file,
     tm_trip_file,
     tm_vehicle_file,
     tm_stop_crossings,
@@ -22,19 +24,27 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     run tests on each file in the test files tm stop crossings directory
     """
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_trip_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_geo_node_file",
+        tm_geo_node_file,
+    )
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_route_file",
+        tm_route_file,
+    )    
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_trip_file",
         tm_trip_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_vehicle_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_vehicle_file",
         tm_vehicle_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_time_point_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_time_point_file",
         tm_time_point_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_pattern_geo_node_xref_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_pattern_geo_node_xref_file",
         tm_pattern_geo_node_xref_file,
     )
     tm_sc_dir = tm_stop_crossings.s3_uri
