@@ -4,6 +4,7 @@ from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSche
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
+# pylint: disable=R0801
 def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSchedule) -> pl.DataFrame:
     """
     :param gtfs: gtfs schedule
