@@ -232,6 +232,14 @@ We'll connect the trip by using the nearest LTRP timestamp on the B-line.
         "consist",
         "vehicle.vehicle.label"
     )
+    .rename({
+        "consist": "Consist",
+        "PA_departure_time": "PA Departure",
+        "trip_id": "PA Trip ID",
+        "vehicle.trip.trip_id": "GTFS Trip ID",
+        "vehicle.timestamp": "GTFS Timestamp",
+        "vehicle.trip.route_id": "GTFS Route"
+    })
 )
 ```
 
@@ -270,6 +278,14 @@ consist_time_join = (
         "vehicle.trip.trip_id",
         "vehicle.trip.route_id"
     )
+    .rename({
+        "consist": "Consist",
+        "PA_departure_time": "PA Departure",
+        "trip_id": "PA Trip ID",
+        "vehicle.trip.trip_id": "GTFS Trip ID",
+        "vehicle.timestamp": "GTFS Timestamp",
+        "vehicle.trip.route_id": "GTFS Route"
+    })
 )
 ```
 
