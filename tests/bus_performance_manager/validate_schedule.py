@@ -1,4 +1,5 @@
 import datetime
+import json
 import polars as pl
 from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
@@ -63,30 +64,27 @@ def check_static_cols(df: pl.DataFrame, cols: list) -> pl.DataFrame | None:
     return None
 
 
+DEBUG = False
 TMP_DIR = "tmp"
-REGENERATE = True
-service_date = datetime.date(year=2025, month=8, day=12)
+REGENERATE = False
+service_date = datetime.date(year=2025, month=6, day=26)
 
 if REGENERATE:
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
     tm_schedule = generate_tm_schedule()
     combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule)
 
-    gtfs_schedule.write_parquet("gtfs_schedule.parquet")
-    tm_schedule.tm_schedule.collect().write_parquet("tm_schedule.parquet")
-    tm_schedule = tm_schedule.tm_schedule.collect()
-    combined_schedule.write_parquet("combined_schedule.parquet")
+    gtfs_schedule.write_parquet(f"gtfs_schedule__service_date_{str(service_date)}.parquet")
+    tm_schedule = tm_schedule.tm_schedule.filter(
+        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs_schedule["plan_trip_id"].unique().implode())
+    ).collect()
+    tm_schedule = tm_schedule.write_parquet(f"tm_schedule__service_date_{str(service_date)}.parquet")
+    combined_schedule.write_parquet(f"combined_schedule__service_date_{str(service_date)}.parquet")
 
 else:
-    gtfs_schedule = pl.read_parquet("gtfs_schedule.parquet")
-    tm_schedule = pl.read_parquet("tm_schedule.parquet")
-    combined_schedule = pl.read_parquet("combined_schedule.parquet")
-
-tm_schedule = tm_schedule.filter(
-    pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs_schedule["plan_trip_id"].unique().implode())
-)
-# check gtfs_schedule
-
+    gtfs_schedule = pl.read_parquet(f"gtfs_schedule__service_date_{str(service_date)}.parquet")
+    tm_schedule = pl.read_parquet(f"tm_schedule__service_date_{str(service_date)}.parquet")
+    combined_schedule = pl.read_parquet(f"combined_schedule__service_date_{str(service_date)}.parquet")
 
 # 'GEO_NODE_ID', 'GEO_NODE_ABBR', 'stop_id', - can have duplicates because trip stops at stop multiple times
 non_null_tm = ["PATTERN_GEO_NODE_SEQ"]
@@ -185,36 +183,29 @@ static_cols_combined = [
 ]
 
 err_dfs = []
+skipped_gtfs_trips = set()
 combined_schedule = combined_schedule.with_columns(pl.lit([]).alias("error_reason"))
 for idx, trip_df in combined_schedule.group_by("trip_id"):
 
-    res1 = check_non_null(trip_df, non_null_combined)
-    res2 = check_all_unique(trip_df, all_unique_combined)
-    res3 = check_static_cols(trip_df, static_cols_combined)
-
-    if res1 is not None:
-        err_dfs.append(res1)
-    if res2 is not None:
-        err_dfs.append(res2)
-    if res3 is not None:
-        err_dfs.append(res3)
-
+    # how to track this long term? feels wrong here...
     if trip_df["route_id"].drop_nulls().unique().item() == "47":
         continue
         # print(f"trip: {idx} 47 bus detour")
 
-    if trip_df["trip_id"].str.contains("Blue").any():
+    # contracted - does not show up in TM
+    if trip_df["route_id"].drop_nulls().unique().item() == "714":
         continue
-        # print(f"trip: {idx} shuttle")
+    # contracted - does not show up in TM
+    if trip_df["route_id"].drop_nulls().unique().item() == "716":
+        continue
+        # print(f"trip: {idx} 47 bus detour")
 
-        # add something to a dataframe...
-    if trip_df["service_id"].str.contains("PRIV").any():
+    # skip all trip ids with letters
+    if not trip_df["trip_id"].cast(pl.UInt32, strict=False).drop_nulls().len() > 0:
+        if DEBUG:
+            print(f"trip: {idx[0]}")
+        skipped_gtfs_trips.add(idx[0])
         continue
-        # print(f"trip: {idx} 714/715")
-
-    if trip_df["service_id"].str.contains("Foxboro").any():
-        continue
-        # foxboro shuttle?
 
     try:
         # for the schedule, make sure no missing rows in any trip
@@ -240,9 +231,25 @@ for idx, trip_df in combined_schedule.group_by("trip_id"):
             )
 
     else:
-        print(f"trip: {idx} {trip_df.head(1)['trip_id'].item()} joined no TM records")
+        print(
+            f"trip: {idx} {trip_df.head(1)['trip_id'].item()} {trip_df.head(1)['service_id'].item()} {trip_df.head(1)['route_id'].item()} joined no TM records"
+        )
         err_dfs.append(trip_df.with_columns(pl.col("error_reason").list.concat(pl.lit("NOT_EXPECTED_GTFS_ONLY"))))
 
-err_df = pl.concat(err_dfs, how="vertical")
+    res1 = check_non_null(trip_df, non_null_combined)
+    res2 = check_all_unique(trip_df, all_unique_combined)
+    res3 = check_static_cols(trip_df, static_cols_combined)
 
-err_df.write_parquet("trips_with_issues.parquet")
+    if res1 is not None:
+        err_dfs.append(res1)
+    if res2 is not None:
+        err_dfs.append(res2)
+    if res3 is not None:
+        err_dfs.append(res3)
+
+if len(err_dfs) > 0:
+    err_df = pl.concat(err_dfs, how="vertical")
+    err_df.write_parquet(f"trips_with_issues__service_date_{str(service_date)}.parquet")
+
+with open(f"gtfs_only_trips__service_date_{str(service_date)}.json", encoding="utf-8", mode="w+") as f:
+    json.dump(list(skipped_gtfs_trips), f, indent=4)
