@@ -276,7 +276,7 @@ def join_rt_to_schedule(gtfs: pl.DataFrame, tm: pl.DataFrame, schedule: pl.DataF
     )
 
     schedule_gtfs_tm = schedule_gtfs.sort(by="stop_sequence").join_asof(
-        gtfs.sort(by="tm_stop_sequence"),
+        tm.sort(by="tm_stop_sequence"),
         left_on="tm_stop_sequence",
         right_on="stop_sequence",
         by=["trip_id", "vehicle_label", "stop_id"],

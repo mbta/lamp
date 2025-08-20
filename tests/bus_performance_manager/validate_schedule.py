@@ -5,7 +5,10 @@ from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedu
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
-def check_non_null(df, cols, trip_id="", prefix="") -> pl.DataFrame | None:
+def check_non_null(df: pl.DataFrame, cols: list, trip_id: str = "", prefix: str = "") -> pl.DataFrame | None:
+    """
+    verifies columns that should be non-null
+    """
     stats = df.describe()
 
     for col in cols:
@@ -17,23 +20,32 @@ def check_non_null(df, cols, trip_id="", prefix="") -> pl.DataFrame | None:
             continue
         else:
             return df
-            df.write_parquet(f"{tmp_dir}/{prefix}_{trip_id}__fail_non_null_{col}.parquet")
+            # df.write_parquet(f"{tmp_dir}/{prefix}_{trip_id}__fail_non_null_{col}.parquet")
+
+    return None
 
 
-def check_all_unique(df, static_cols, trip_id="", prefix="") -> pl.DataFrame | None:
-    for col in static_cols:
+def check_all_unique(df: pl.DataFrame, cols: list, trip_id: str = "", prefix: str = "") -> pl.DataFrame | None:
+    """
+    verifies columns that should be all unique
+    """    
+    for col in cols:
         if (df[col].drop_nulls().unique_counts() == 1).all():
             continue
         else:
             return df
             # df[col].drop_nulls().value_counts().filter(pl.col.count == 2).select('stop_name').item().replace(' ', '-')
-            df.write_parquet(f"{tmp_dir}/{prefix}_{trip_id}__fail_unique_{col}.parquet")
+            # df.write_parquet(f"{tmp_dir}/{prefix}_{trip_id}__fail_unique_{col}.parquet")
+    return None
 
 
-def check_static_cols(df, static_cols, trip_id="", prefix="") -> pl.DataFrame | None:
+def check_static_cols(df: pl.DataFrame, cols: list, trip_id: str = "", prefix: str = "") -> pl.DataFrame | None:
+    """
+    verifies columns that should have only a single, unique value
+    """
     stats = df.describe()
 
-    for col in static_cols:
+    for col in cols:
         if (
             stats.row(by_predicate=pl.col("statistic") == "min")[stats.get_column_index(name=col)]
             == stats.row(by_predicate=pl.col("statistic") == "max")[stats.get_column_index(name=col)]
@@ -42,6 +54,7 @@ def check_static_cols(df, static_cols, trip_id="", prefix="") -> pl.DataFrame | 
         else:
             return df
             # df.write_parquet(f'{tmp_dir}/{prefix}_{trip_id}__fail_static_{col}.parquet')
+    return None
 
 
 tmp_dir = "tmp"
@@ -166,9 +179,6 @@ static_cols_combined = [
 ]
 
 err_combined = pl.DataFrame(schema=combined_schedule.schema)
-df_list = []
-
-# dataframe of all suspect trips
 
 for idx, combined in combined_schedule.group_by("trip_id"):
 
@@ -178,18 +188,20 @@ for idx, combined in combined_schedule.group_by("trip_id"):
 
     if combined["route_id"].drop_nulls().unique().item() == "47":
         continue
-        print(f"trip: {idx} 47 bus detour")
+        # print(f"trip: {idx} 47 bus detour")
 
     if combined["trip_id"].str.contains("Blue").any():
         continue
-        print(f"trip: {idx} shuttle")
+        # print(f"trip: {idx} shuttle")
 
         # add something to a dataframe...
     elif combined["service_id"].str.contains("PRIV").any():
         continue
-        print(f"trip: {idx} 714/715")
+        # print(f"trip: {idx} 714/715")
 
-        # add something to a dataframe...
+    elif combined["service_id"].str.contains("Foxboro").any():
+        continue
+        # foxboro shuttle?
     else:
 
         try:

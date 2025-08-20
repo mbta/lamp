@@ -8,7 +8,6 @@ from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_even
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
-from lamp_py.bus_performance_manager.events_joined import join_schedule_to_rt
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
