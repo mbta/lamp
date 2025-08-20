@@ -22,8 +22,9 @@ def service_ids_for_date(service_date: date) -> pl.DataFrame:
 
     calendar = gtfs_from_parquet("calendar", service_date)
     service_ids = calendar.filter(
-        pl.col(day_of_week) == True & (pl.col("start_date") <= service_date_int),
-        (pl.col("end_date") >= service_date_int),
+        pl.col(day_of_week).eq(True),
+        pl.col("start_date") <= service_date_int,
+        pl.col("end_date") >= service_date_int,
     ).select("service_id")
 
     calendar_dates = gtfs_from_parquet("calendar_dates", service_date)
