@@ -30,7 +30,7 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "lamp_py.bus_performance_manager.events_tm_schedule.tm_route_file",
         tm_route_file,
-    )    
+    )
     monkeypatch.setattr(
         "lamp_py.bus_performance_manager.events_tm_schedule.tm_trip_file",
         tm_trip_file,
