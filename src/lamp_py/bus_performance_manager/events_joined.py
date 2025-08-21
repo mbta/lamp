@@ -218,7 +218,7 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
     return gtfs
 
 
-def join_rt_to_schedule(gtfs: pl.DataFrame, tm: pl.DataFrame, schedule: pl.DataFrame) -> pl.DataFrame:
+def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     """
     Join gtfs-rt and transit master (tm) event dataframes
 
