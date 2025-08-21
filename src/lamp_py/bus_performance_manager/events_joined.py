@@ -267,18 +267,16 @@ def join_rt_to_schedule(gtfs: pl.DataFrame, tm: pl.DataFrame, schedule: pl.DataF
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
 
     schedule_gtfs = schedule.sort(by="stop_sequence").join_asof(
-        gtfs.sort(by="tm_stop_sequence"),
-        left_on="tm_stop_sequence",
-        right_on="stop_sequence",
+        gtfs.sort(by="stop_sequence"),
+        on="stop_sequence",
         by=["trip_id", "vehicle_label", "stop_id"],
         strategy="nearest",
         coalesce=True,
     )
 
-    schedule_gtfs_tm = schedule_gtfs.sort(by="stop_sequence").join_asof(
+    schedule_gtfs_tm = schedule_gtfs.sort(by="tm_stop_sequence").join_asof(
         tm.sort(by="tm_stop_sequence"),
-        left_on="tm_stop_sequence",
-        right_on="stop_sequence",
+        on="tm_stop_sequence",
         by=["trip_id", "vehicle_label", "stop_id"],
         strategy="nearest",
         coalesce=True,
