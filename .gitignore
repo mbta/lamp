@@ -27,3 +27,7 @@ dist
 
 # private enviroment overrides
 .env*
+
+# Quarto
+libs/
+.jupyter_cache

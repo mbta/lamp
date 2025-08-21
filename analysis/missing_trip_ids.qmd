@@ -1,0 +1,303 @@
+---
+title: "Why are trips missing from LRTP data?"
+date: 2025-08-20
+author: "crunkel@mbta.com"
+format:
+    gfm:
+        code-fold: true
+        code-summary: "Show the code"
+        toc: true
+        reference-location: margin
+        html-table-processing: none
+execute:
+    cache: true
+    warning: false
+    anchor-sections: true
+---
+
+# The Problem
+
+Crissy [reported](https://app.asana.com/1/15492006741476/project/1189492770004753/task/1211080535383270?focus=true) that LAMP Tableau data was missing trips that were available in Performance Analyzer.
+Where are those trips and why aren't they visible Performance Analyzer?
+
+```{python}
+from datetime import date
+import polars as pl
+from lamp_py.aws import s3
+from lamp_py.runtime_utils import remote_files as rf
+
+pl.Config(tbl_rows=25)
+
+service_date = date(2025, 8, 6)
+```
+
+## Replicating the problem
+
+Firas shared 89 trips from August 6, 2025 along the B line that were not matched by the data LAMP published in Tableau.
+
+```{python}
+#| code-fold: show
+unmatched = pl.read_csv("~/Downloads/unmatched_clean.csv")
+unmatched.glimpse()
+```
+
+Trips were matched by:
+
+> trip_ID, prediction generation time, predicted departure time, and actual departure time -- going one-way from Prediction Analyzer to Tableau (since Prediction Analyzer has a lower polling rate for predictions, we have much less data for any given service day there vs. Tableau);
+>
+> - I ignored the consists for the sake of analysis for now (and we're not focusing too much on predicted consist at this point in time);
+> - I allowed for a 5-second tolerance for actual departure time as we expect slight differences between Prediction Analyzer and Tableau for this field.
+> - I allowed for a 60-second tolerance for prediction generation time and predicted time as we should at least find a Tableau record that matches to within a minute of every Prediction Analyzer record.
+
+Any unmatched trip must violate one of these conditions.
+To start investigating this issue, I'll filter the unmatched dataset down to trips that are listed as totally missing, resulting in 25 trips.
+
+```{python}
+missing = (
+    unmatched
+    .filter(pl.col("TB_departure_time").is_null())
+    .with_columns(pl.col("trip_id").cast(str).alias("trip_id"))
+)
+missing.glimpse()
+```
+
+Starting with missing trips will focus the problem a bit, because it's easier to check for something that is misisng entirely.
+Now, let's double-check that we see the same thing, that these trip IDs are not present in LAMP's Tableau data for August 6.
+
+```{python}
+tableau = pl.read_parquet("s3://mbta-performance/lamp/tableau/gtfs-rt/LAMP_RT_VehiclePositions_LR_60_day.parquet")
+```
+
+We can do so by joining the Tableau parquet file to these missing trips.
+If this join returns no rows, then all the trips are missing in the Tableau data for August 6.
+
+```{python}
+(
+    missing
+    .join(
+        tableau
+        .filter(pl.col("vehicle.trip.start_date") == "20250806")
+        .group_by("vehicle.trip.trip_id", "vehicle.trip.start_time")
+        .agg(pl.min("vehicle.timestamp")),
+        right_on = "vehicle.trip.trip_id",
+        left_on = "trip_id",
+        how = "inner"
+    )
+)
+```
+
+Interesting---there is one trip ID among the Tableau data.
+Let's look more closely at this trip:
+
+```{python}
+(
+    tableau
+    .filter(
+        pl.col("vehicle.trip.trip_id") == "69329457",
+        pl.col("vehicle.trip.start_date") == "20250806"
+    )
+    .group_by(
+        "vehicle.trip.trip_id",
+        "vehicle.trip.route_id",
+        "vehicle.vehicle.label",
+        "vehicle.trip.start_time",
+    )
+    .agg(
+        pl.first("vehicle.timestamp").alias("earliest_timestamp"),
+        pl.first("vehicle.stop_id").alias("first_stop"),
+    )
+)
+```
+
+Okay, so Tableau has this trip ID but:
+
+1. on the D line (at Woodland)
+2. with a different consist than expected^[We also see that this trip has 2 rows with the consist flipped. Why? Did a pullout inspector assign the trip and then change the consist from the last trip?]
+
+# Where are the missing trips?
+
+As for the other trip IDs, it's worth noting that some *do* exist for other service dates:
+
+```{python}
+(
+    missing
+    .join(
+        tableau.select("vehicle.trip.trip_id", "vehicle.trip.start_date"),
+        right_on = "vehicle.trip.trip_id",
+        left_on = "trip_id",
+        how = "inner"
+    )
+    .select("trip_id", "vehicle.trip.start_date")
+    .group_by(pl.col("vehicle.trip.start_date").str.to_date("%Y%m%d"))
+    .n_unique()
+    .sort("vehicle.trip.start_date")
+    .rename({
+        "vehicle.trip.start_date": "Service Date",
+        "trip_id": "Count of Missing Trip IDs Present in GFTS-RT"
+    })
+)
+```
+
+Can the GTFS Schedule tell us more about these trip IDs?
+If they appear on other service dates, chances are they're on our schedule.
+To check this, we first need the GTFS Schedule tables for trips and stop times.
+
+```{python}
+trips = (
+    pl.scan_parquet("s3://mbta-performance/lamp/gtfs_archive/2025/stop_times.parquet")
+    .filter(pl.col("stop_sequence") == 1)
+    .join(
+        pl.scan_parquet("s3://mbta-performance/lamp/gtfs_archive/2025/trips.parquet"),
+        on = "trip_id",
+        how = "inner"
+    )
+    .select("trip_id", "departure_time", "stop_id")
+    .collect()
+)
+```
+
+I've pulled in the first `stop_id` and `departure_time` for each scheduled trip so that we can compare those to Prediction Analyzer's departure times from Boston College (`70106`).
+
+```{python}
+(
+    missing
+    .select("trip_id", "consist", "PA_departure_time")
+    .join(
+        trips.rename({
+            "departure_time": "Scheduled departure time",
+            "stop_id": "Scheduled terminal"
+        }),
+        on = "trip_id",
+        how = "left"
+    )
+)
+```
+
+I see 2 things:
+
+1. The only trip present in the Prediction Analyzer dataset that has no match in our schedule is the D-line trip that Tableau reported.
+This begs the question **how does an unscheduled trip get a trip ID in Prediction Analyzer and a different trip ID in Tableau?**
+Let's check which trip ID we received from GTFS-RT for that possibly-D-line, possibly-B-line trip.
+To check, we download the zipped JSON archived at 2025-08-06 14:39:40 EDT, when we supposedly saw trip `69329457` and explode it to a dataframe.
+
+```{python}
+incoming_vehicle_position = (
+    pl.read_ndjson("s3://mbta-ctd-dataplatform-dev-archive/lamp/delta/2025/08/06/2025-08-06T18:40:13Z_https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz") # UTC timestamp is 4 hours ahead
+    .select("entity")
+    .explode("entity")
+    .unnest("entity")
+    .unnest("vehicle")
+    .unnest("trip")
+)
+```
+
+Then, we filter to the Woodland stop:
+
+```{python}
+incoming_vehicle_position.filter(pl.col("stop_id") == "70162")
+```
+
+The `trip_id` is `69329457`---it didn't change between ingestion and publication to Tableau---so, from now on, I'll refer to the Tableau trip data as GTFS-RT data.
+
+
+2. The scheduled trip times are off of the departure times reported by Prediction Analyzer by several minutes but are somewhat close to the scheduled trip times.
+**Can we use the times to re-connect Prediction Analyzer to a GTFS-RT?**
+
+# A different way of connecting trips
+
+Instead of connecting trips in Prediction Analyzer to GFTS-RT by ID, can we connect trips using time?
+Let's start with one trip, the scheduled D-line trip that appeared on the B-line.
+We'll connect the trip by using the nearest LTRP timestamp on the B-line.
+
+```{python}
+(
+    missing
+    .filter(pl.col("trip_id") == "69329457")
+    .with_columns(pl.col("PA_departure_time").str.to_datetime("%Y-%m-%d %H:%M:%S %Z"))
+    .join_asof(
+        tableau
+        .filter(pl.col("vehicle.trip.route_id") == "Green-B")
+        .filter(pl.col("vehicle.trip.start_date") == "20250806")
+        .sort("vehicle.timestamp"),
+        left_on = "PA_departure_time",
+        right_on = "vehicle.timestamp",
+        strategy = "nearest"
+    )
+    .select(
+        "PA_departure_time",
+        "vehicle.timestamp",
+        "trip_id",
+        "vehicle.trip.trip_id",
+        "vehicle.trip.route_id",
+        "consist",
+        "vehicle.vehicle.label"
+    )
+    .rename({
+        "consist": "Consist",
+        "PA_departure_time": "PA Departure",
+        "trip_id": "PA Trip ID",
+        "vehicle.trip.trip_id": "GTFS Trip ID",
+        "vehicle.timestamp": "GTFS Timestamp",
+        "vehicle.trip.route_id": "GTFS Route"
+    })
+)
+```
+
+Woah, this strategy returns an exact time match.
+What's more, it also returns an exact consist match.
+**Can we use consist and time but ignore `trip_id` to find the unmatched trips?**
+
+To test this, I'll join all the trips Firas listed as unmatched to the trips in our Tableau data but, instead of joining on trip ID, I'll join on
+
+- consist
+- stop (in this case, the second-to-last stop on the B-line `South Street`)
+- closest time point
+
+```{python}
+consist_time_join = (
+    unmatched
+    .filter(pl.col("PA_departure_time").is_not_null())
+    .with_columns(pl.col("PA_departure_time").str.to_datetime("%Y-%m-%d %H:%M:%S %Z"))
+    .sort("PA_departure_time")
+    .join_asof(
+        tableau
+        .filter(pl.col("vehicle.trip.route_id") == "Green-B")
+        .filter(pl.col("vehicle.trip.start_date") == "20250806")
+        .sort("vehicle.timestamp"),
+        left_on = "PA_departure_time",
+        right_on = "vehicle.timestamp",
+        by_left = "consist",
+        by_right = "vehicle.vehicle.label",
+        strategy = "nearest"
+    )
+    .select(
+        "consist",
+        "PA_departure_time",
+        "vehicle.timestamp",
+        "trip_id",
+        "vehicle.trip.trip_id",
+        "vehicle.trip.route_id"
+    )
+    .rename({
+        "consist": "Consist",
+        "PA_departure_time": "PA Departure",
+        "trip_id": "PA Trip ID",
+        "vehicle.trip.trip_id": "GTFS Trip ID",
+        "vehicle.timestamp": "GTFS Timestamp",
+        "vehicle.trip.route_id": "GTFS Route"
+    })
+)
+```
+
+Doing so results in an exact match for each trip with a listed departure time in Prediction Analyzer:
+
+```{python}
+consist_time_join
+```
+
+None of the trip IDs match but the right car is at the right stop at the right time.
+
+# tl;dr
+
+Prediction Analyzer and GTFS-RT agree on which Green Line trains are running on a track but do not agree on which trip IDs to assign those cars.
+Why do trip IDs not match between the 2 systems?
