@@ -266,13 +266,20 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
 
-    schedule_gtfs = schedule.sort(by="stop_sequence").join_asof(
-        gtfs.sort(by="stop_sequence"),
-        on="stop_sequence",
-        by=["trip_id", "stop_id"],
-        strategy="nearest",
-        coalesce=True,
-        suffix="_right_gtfs",
+    schedule_gtfs = (
+        schedule.sort(by="stop_sequence")
+        .join_asof(
+            gtfs.sort(by="stop_sequence"),
+            on="stop_sequence",
+            by=["trip_id", "stop_id"],
+            strategy="nearest",
+            coalesce=True,
+            suffix="_right_gtfs",
+        )
+        .drop(
+            "route_id_right_gtfs",
+            "direction_id_right_gtfs",
+        )
     )
 
     schedule_gtfs_tm = (
@@ -286,12 +293,12 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
             suffix="_right_tm",
         )
         .drop(
-            "route_id_right_tm"
-            "timepoint_order_right_tm"
-            "vehicle_label_right_tm"
-            "timepoint_id_right_tm"
-            "timepoint_abbr_right_tm"
-            "timepoint_name_right_tm"
+            "route_id_right_tm",
+            "timepoint_order_right_tm",
+            "vehicle_label_right_tm",
+            "timepoint_id_right_tm",
+            "timepoint_abbr_right_tm",
+            "timepoint_name_right_tm",
         )
     )
 
