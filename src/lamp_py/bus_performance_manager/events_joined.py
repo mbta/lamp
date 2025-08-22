@@ -272,17 +272,27 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
         by=["trip_id", "stop_id"],
         strategy="nearest",
         coalesce=True,
-        suffix="right_gtfs",
+        suffix="_right_gtfs",
     )
 
-    schedule_gtfs_tm = schedule_gtfs.sort(by="tm_stop_sequence").join_asof(
-        tm.sort(by="tm_stop_sequence"),
-        on="tm_stop_sequence",
-        by=["trip_id", "stop_id"],
-        strategy="nearest",
-        coalesce=True,
-        suffix="right_tm",
-
+    schedule_gtfs_tm = (
+        schedule_gtfs.sort(by="tm_stop_sequence")
+        .join_asof(
+            tm.sort(by="tm_stop_sequence"),
+            on="tm_stop_sequence",
+            by=["trip_id", "stop_id"],
+            strategy="nearest",
+            coalesce=True,
+            suffix="_right_tm",
+        )
+        .drop(
+            "route_id_right_tm"
+            "timepoint_order_right_tm"
+            "vehicle_label_right_tm"
+            "timepoint_id_right_tm"
+            "timepoint_abbr_right_tm"
+            "timepoint_name_right_tm"
+        )
     )
 
     return schedule_gtfs_tm
