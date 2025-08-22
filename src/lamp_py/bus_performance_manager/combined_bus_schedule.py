@@ -126,6 +126,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
                 "plan_stop_count",
                 "plan_start_time",
                 "plan_start_dt",
+                "plan_stop_departure_dt",
                 "plan_travel_time_seconds",
                 "plan_route_direction_headway_seconds",
                 "plan_direction_destination_headway_seconds",
