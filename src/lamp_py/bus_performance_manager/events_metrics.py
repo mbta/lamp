@@ -81,6 +81,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         plan_stop_count -> UInt32
         plan_start_time -> Int64
         plan_start_dt -> Datetime(time_unit='us', time_zone=None)
+        plan_stop_departure_dt -> Datetime(time_unit='us', time_zone=None)
         stop_name -> String
         plan_travel_time_seconds -> Int64
         plan_route_direction_headway_seconds -> Int64
