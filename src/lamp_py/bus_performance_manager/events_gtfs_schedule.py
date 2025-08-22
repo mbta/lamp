@@ -178,6 +178,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         departure_seconds -> Int64
         plan_start_time -> Int64
         plan_start_dt -> Datetime
+        plan_stop_departure_dt -> Datetime
     """
     trips = trips_for_date(service_date)
 
@@ -201,7 +202,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
     # canonical stop sequence logic currently under review
     # canon_stop_sequences = canonical_stop_sequence(service_date)
 
-    return (
+    stop_events = (
         stop_times.join(
             trips,
             on="trip_id",
@@ -242,13 +243,17 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
                 pl.datetime(service_date.year, service_date.month, service_date.day)
                 + pl.duration(seconds=pl.col("plan_start_time"))
             ).alias("plan_start_dt"),
-        )
-        .drop(
+            (
+                pl.datetime(service_date.year, service_date.month, service_date.day)
+                + pl.duration(seconds=pl.col("departure_seconds"))
+            ).alias("plan_stop_departure_dt"),
+        ).drop(
             "arrival_time",
             "departure_time",
         )
     )
 
+    return stop_events
 
 def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     """
