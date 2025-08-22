@@ -7,8 +7,8 @@ from datetime import date
 import polars as pl
 import polars.testing as pl_test
 
-from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_events_for_date
 from lamp_py.bus_performance_manager.events_gtfs_schedule import service_ids_for_date
+from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
 from lamp_py.runtime_utils.remote_files import GTFSArchive
 
 current_dir = os.path.join(os.path.dirname(__file__))
@@ -93,7 +93,7 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     # mock files from S3 with https://performancedata paths
     exists_patch.return_value = True
 
-    bus_events = bus_gtfs_events_for_date(SERVICE_DATE)
+    bus_events = bus_gtfs_schedule_events_for_date(SERVICE_DATE)
 
     # CSV Bus events
     expected_bus_events = pl.read_csv(
@@ -180,7 +180,7 @@ def test_gtfs_events_for_date_2(exists_patch: mock.MagicMock) -> None:
     # mock files from S3 with https://performancedata paths
     exists_patch.return_value = True
 
-    bus_events = bus_gtfs_events_for_date(date(2025, 6, 24))
+    bus_events = bus_gtfs_schedule_events_for_date(date(2025, 6, 24))
 
     #
     should_not_be_in_set = [

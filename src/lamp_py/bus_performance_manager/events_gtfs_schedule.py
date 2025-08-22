@@ -292,7 +292,7 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     return stop_events
 
 
-def bus_gtfs_events_for_date(service_date: date) -> pl.DataFrame:
+def bus_gtfs_schedule_events_for_date(service_date: date) -> pl.DataFrame:
     """
     Create data frame of all GTFS data needed by Bus PM app for a service_date
 
@@ -316,7 +316,7 @@ def bus_gtfs_events_for_date(service_date: date) -> pl.DataFrame:
         plan_route_direction_headway_seconds -> Int64
         plan_direction_destination_headway_seconds -> Int64
     """
-    logger = ProcessLogger("bus_gtfs_events_for_date", service_date=service_date)
+    logger = ProcessLogger("bus_gtfs_schedule_events_for_date", service_date=service_date)
     logger.log_start()
 
     stop_events = stop_events_for_date(service_date)
