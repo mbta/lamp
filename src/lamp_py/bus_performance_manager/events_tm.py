@@ -103,12 +103,6 @@ def generate_tm_events(
                 coalesce=True,
             )
             .join(
-                tm_scheduled.tm_sequences,
-                on="TRIP_ID",
-                how="left",
-                coalesce=True,
-            )
-            .join(
                 tm_scheduled.tm_trip_geo_tp,
                 on=["TRIP_ID", "TIME_POINT_ID", "GEO_NODE_ID", "PATTERN_GEO_NODE_SEQ"],
                 how="left",
@@ -129,13 +123,10 @@ def generate_tm_events(
                 pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
                 pl.col("timepoint_order"),
-                pl.col("tm_planned_sequence_start"),
-                pl.col("tm_planned_sequence_end"),
                 pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
                 pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
                 pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
                 pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
                 (
                     (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
                     .dt.replace_time_zone("America/New_York", ambiguous="earliest")
