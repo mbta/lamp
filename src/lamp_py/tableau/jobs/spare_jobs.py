@@ -6,9 +6,12 @@ from lamp_py.runtime_utils.remote_files_spare import (
     springboard_spare_vehicles,
     tableau_spare_vehicles,
 )
-from lamp_py.tableau.conversions.convert_types import get_default_tableau_schema_from_s3
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema, get_default_tableau_schema_from_s3
+from lamp_py.tableau.spare.default_converter import default_converter, default_converter_from_s3
 
+from lamp_py.tableau.spare.wip_1_autogen_schema_printer import spare_resources
+
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 
 def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
     """
@@ -20,10 +23,7 @@ def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
         explode_table_column(flatten_table_schema(table), "accessibilityFeatures")
     )  # .drop(['accessibilityFeatures'])
 
-    return (
-        pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align")
-        .to_arrow().drop("accessibilityFeatures")
-    )
+    return pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align").to_arrow().drop("accessibilityFeatures")
 
 
 SPARE_TABLEAU_PROJECT = "GTFS-RT"
@@ -44,3 +44,28 @@ HyperSpareVehicles = FilteredHyperJob(
     parquet_filter=None,
     tableau_project_name=SPARE_TABLEAU_PROJECT,
 )
+
+spare_job_list = []
+spare_job_list_singles = [
+    "admins",
+    "appointmentTypes",
+    "appointments",
+]
+
+# generically create jobs
+for resource, (springboard_input, tableau_output) in spare_resources.items():
+
+    spare_job_list.append(
+        FilteredHyperJob(
+            remote_input_location=springboard_input,
+            remote_output_location=tableau_output,
+            rollup_num_days=None,
+            processed_schema=default_converter_from_s3(
+                springboard_input
+            ),
+            parquet_preprocess=None,
+            dataframe_filter=default_converter,
+            parquet_filter=None,
+            tableau_project_name=SPARE_TABLEAU_PROJECT,
+        )
+    )
