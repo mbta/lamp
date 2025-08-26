@@ -31,7 +31,7 @@ from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
 from lamp_py.aws.ecs import check_for_parallel_tasks
-from lamp_py.tableau.jobs.spare_jobs import HyperSpareVehicles
+from lamp_py.tableau.jobs.spare_jobs import spare_job_list
 
 
 def start_hyper_updates() -> None:
@@ -141,9 +141,5 @@ def start_spare_updates() -> None:
     called from Tableau Publisher
     """
 
-    jobs: List[HyperJob] = [
-        HyperSpareVehicles,
-    ]
-
-    for job in jobs:
+    for job in spare_job_list:
         job.run_parquet_hyper_combined_job(None)

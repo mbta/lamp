@@ -1,3 +1,6 @@
+# type: ignore
+# pylint: skip-file
+
 # prefix constants
 import os
 from pyarrow.fs import S3FileSystem
@@ -96,8 +99,10 @@ def template_springboard_single_input(name):
 def template_springboard_prefix_input(name):
     return f'springboard_spare_{name} = S3Location(bucket=S3_SPRINGBOARD,prefix=os.path.join(SPARE, "{name}/"))'
 
+
 def template_resource_map_all_resources(name):
     return f'spare_resources["{name}"] = (springboard_spare_{name}, tableau_spare_{name})'
+
 
 # files output from SPARE
 def template_springboard_output(name):
@@ -214,7 +219,6 @@ spare_resources = {}
         print(template_springboard_prefix_input(name), file=f)
         print(template_springboard_output(name), file=f)
         print(template_resource_map_all_resources(name), file=f)
-
 
     # INCEPTION
 

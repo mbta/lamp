@@ -9,7 +9,6 @@ from pyarrow.fs import S3FileSystem
 import polars as pl
 
 from lamp_py.tableau.conversions.convert_types import (
-    convert_to_tableau_compatible_schema,
     get_default_tableau_schema_from_s3,
 )
 from lamp_py.tableau.hyper import HyperJob
@@ -107,15 +106,12 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
 
-            try:
-                polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)  # type: ignore[union-attr]
+            polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)  # type: ignore[union-attr]
 
-                if not isinstance(polars_df, pl.DataFrame):
-                    raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+            if not isinstance(polars_df, pl.DataFrame):
+                raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-                    writer.write_table(apply_bus_analysis_conversions(polars_df))
-            except:
-                print("why?")
+            writer.write_table(apply_bus_analysis_conversions(polars_df))
 
 
 class HyperBusPerformanceAll(HyperJob):

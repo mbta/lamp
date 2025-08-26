@@ -12,8 +12,12 @@ from typing import List
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.bus_performance_manager.write_events import regenerate_bus_metrics_recent, write_bus_metrics
-from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
+from lamp_py.bus_performance_manager.write_events import write_bus_metrics
+
+# disable for now
+# from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
+# from lamp_py.bus_performance_manager.write_events import regenerate_bus_metrics_recent
+
 from lamp_py.tableau.pipeline import start_bus_parquet_updates
 
 logging.getLogger().setLevel("INFO")

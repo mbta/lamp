@@ -1,4 +1,9 @@
+# type: ignore
+# pylint: skip-file
+
 import pyarrow
+
+
 def convert_spare_admins_for_tableau() -> pyarrow.schema:
     pass
 
@@ -233,4 +238,3 @@ def convert_spare_vehicleLocations_for_tableau() -> pyarrow.schema:
 
 def convert_spare_walletTransactions_for_tableau() -> pyarrow.schema:
     pass
-

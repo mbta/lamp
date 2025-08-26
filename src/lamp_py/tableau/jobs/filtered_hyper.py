@@ -57,7 +57,7 @@ class FilteredHyperJob(HyperJob):
     def update_parquet(self, _: None) -> bool:
         return self.create_tableau_parquet(num_days=self.rollup_num_days)
 
-    # pylint: disable=R0914
+    # pylint: disable=R0914, R0912
     # pylint too many local variables (more than 15)
     def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
         """
@@ -140,13 +140,12 @@ class FilteredHyperJob(HyperJob):
                     try:
                         # for methods that populate/explode dataframe...creating its own "added" cols.
                         polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
-                    except:
-                        # # revisit...do i want this here? 
+                    except Exception as _:
+                        # # revisit...do i want this here?
                         # for methods that expect all the columns to be there already
                         for col in added_columns:
-                            polars_df = polars_df.with_columns(pl.lit(None).alias(col))   
-                        polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)   
-                
+                            polars_df = polars_df.with_columns(pl.lit(None).alias(col))
+                        polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
 
                     writer.write_table(polars_df.to_arrow())
                 else:
