@@ -135,12 +135,18 @@ class FilteredHyperJob(HyperJob):
                     if not isinstance(polars_df, pl.DataFrame):
                         raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-                    for col in added_columns:
-                        polars_df = polars_df.with_columns(pl.lit(None).alias(col))
-
                     # filter, then reorder the columns to get them in pyarrow write order,
                     # otherwise the write_table call fails
-                    polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
+                    try:
+                        # for methods that populate/explode dataframe...creating its own "added" cols.
+                        polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
+                    except:
+                        # # revisit...do i want this here? 
+                        # for methods that expect all the columns to be there already
+                        for col in added_columns:
+                            polars_df = polars_df.with_columns(pl.lit(None).alias(col))   
+                        polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)   
+                
 
                     writer.write_table(polars_df.to_arrow())
                 else:

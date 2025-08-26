@@ -17,7 +17,47 @@ from lamp_py.tableau.conversions.convert_types import get_default_tableau_schema
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 
 
-def default_converter_from_s3(input_location: S3Location) -> pl.DataFrame:
+def unnest_all(self: pl.DataFrame, seperator="."):
+    """
+    Polars does not have nested struct string expansion on their roadmap - this 
+    thanks legout: https://github.com/pola-rs/polars/issues/9613#issuecomment-1658376392
+    """
+    def _unnest_all(struct_columns):
+        return self.with_columns(
+            [
+                pl.col(col).struct.rename_fields(
+                    [
+                        f"{col}{seperator}{field_name}"
+                        for field_name in self[col].struct.fields
+                    ]
+                )
+                for col in struct_columns
+            ]
+        ).unnest(struct_columns)
+        
+    struct_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Struct)]
+    list_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.List)]
+    categorical_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Categorical)]
+
+    fully_flattened = not (len(struct_columns) | len(list_columns) | len(categorical_columns))
+    while not fully_flattened: 
+        if len(struct_columns):
+            self = _unnest_all(struct_columns=struct_columns)
+        if len(list_columns):
+            for col in list_columns:
+                self = self.explode(columns=col)
+        if len(categorical_columns):
+            self = self.with_columns(pl.col(categorical_columns).cast(pl.String))
+
+        struct_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Struct)]
+        list_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.List)]
+        categorical_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Categorical)]
+        fully_flattened = not (len(struct_columns) | len(list_columns) | len(categorical_columns))
+    return self
+
+pl.DataFrame.unnest_all = unnest_all
+
+def default_converter_from_s3(input_location: S3Location) -> pl.DataFrame | None:
     """
     Apply transforms to spare vehicle.parquet
     """
@@ -25,52 +65,34 @@ def default_converter_from_s3(input_location: S3Location) -> pl.DataFrame:
     # grab a single file in the dataset to get the schema
     s3_uris = file_list_from_s3(bucket_name=input_location.bucket, file_prefix=input_location.prefix, max_list_size=1)
     ds_paths = [s.replace("s3://", "") for s in s3_uris]
+    try:
+        ds = pd.dataset(
+            ds_paths,
+            format="parquet",
+            filesystem=pyarrow.fs.S3FileSystem(),
+        )
+        first_batch = next(ds.to_batches(batch_size=10, batch_readahead=0, fragment_readahead=0))
+        table = pl.from_arrow(first_batch)
 
-    ds = pd.dataset(
-        ds_paths,
-        format="parquet",
-        filesystem=pyarrow.fs.S3FileSystem(),
-    )
-    table = pl.from_arrow(ds.to_batches(batch_size=1))
+        table = default_converter(table)
 
-    table = default_converter(table)
+        return table.to_arrow().schema
+        
+    except pyarrow.lib.ArrowInvalid:
+        print(f"{ds_paths[0]} is not pyarrow")
+        raise
+    except Exception as e:
+        print(f"Caught an unexpected error: {e}")
 
-    ret = table.to_arrow().schema
-    return ret 
+
+
 
 def default_converter(table: pl.DataFrame) -> pl.DataFrame:
     """
     Apply transforms to spare vehicle.parquet
     """
 
-    # need to recurse here..
-    for col_name,col_type, in table.collect_schema().items():
-        if isinstance(col_type, pl.List):
-            table = table.explode(columns=col_name)
-            print(f"explode {col_name}")
-            col_type = table[col_name].dtype
-            
-        if isinstance(col_type, pl.Struct):
-            table = table.unnest(col_name)
-            print(f"unnest {col_name}")
-
-        if isinstance(col_type, pl.Categorical):
-            table = table.with_columns(pl.col(col_name).cast(pl.String))
-            print(f"decategorize {col_name}")
-    return table 
-
-    # table = table.drop(["metadata.providerId", "metadata.owner", "emissionsRate", "createdAt", "updatedAt"])
-
-
-# def explode_all(table: pyarrow.Table, columns: list):
-
-#     for col in columns:
-#         df = pl.from_arrow(table)
-#         exploded_rows = flatten_table_schema(
-#             explode_table_column(flatten_table_schema(table), col)
-#         )
-#         return pl.concat([df, pl.from_arrow(exploded_rows)], how="align").to_arrow().drop(col)
-
+    return table.unnest_all()
 
 if __name__ == "__main__":
 
@@ -117,4 +139,3 @@ if __name__ == "__main__":
     output_df = pl.Schema(schema=output_schema).to_frame()
     assert vehicle.schema == input_df.schema
     print("done")
-
