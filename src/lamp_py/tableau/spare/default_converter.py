@@ -19,8 +19,8 @@ from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 
 def unnest_all(self: pl.DataFrame, seperator="."):
     """
-    Polars does not have nested struct string expansion on their roadmap - this 
-    thanks legout: https://github.com/pola-rs/polars/issues/9613#issuecomment-1658376392
+    Polars does not have nested struct string expansion on their roadmap - this implementation is adapted
+    from user legout's solution: https://github.com/pola-rs/polars/issues/9613#issuecomment-1658376392
     """
     def _unnest_all(struct_columns):
         return self.with_columns(
