@@ -2,7 +2,7 @@ from lamp_py.tableau.spare.default_converter import convert_to_tableau_flat_sche
 from lamp_py.tableau.spare.autogen_01_schema_printer import spare_resources
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 
-SPARE_TABLEAU_PROJECT = "GTFS-RT"
+SPARE_TABLEAU_PROJECT = "Spare"
 
 spare_job_list = []
 
