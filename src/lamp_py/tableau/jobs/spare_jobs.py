@@ -27,27 +27,10 @@ def flatten_spare_vehicle(table: pyarrow.Table) -> pyarrow.Table:
         explode_table_column(flatten_table_schema(table), "accessibilityFeatures")
     )  # .drop(['accessibilityFeatures'])
 
-    return pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align").to_arrow().drop("accessibilityFeatures")
+    return pl.concat([df, pl.from_arrow(accessibilty_rows)], how="align").to_arrow().drop("accessibilityFeatures") # type: ignore
 
 
 SPARE_TABLEAU_PROJECT = "GTFS-RT"
-# overrides1 = {"emissionsRate": pyarrow.int64()}
-excludes1 = {"accessibilityFeatures": ""}
-HyperSpareVehicles = FilteredHyperJob(
-    remote_input_location=springboard_spare_vehicles,
-    remote_output_location=tableau_spare_vehicles,
-    rollup_num_days=None,
-    processed_schema=get_default_tableau_schema_from_s3(
-        springboard_spare_vehicles,
-        preprocess=flatten_spare_vehicle,
-        # overrides=overrides1,
-        excludes=excludes1,
-    ),
-    parquet_preprocess=flatten_spare_vehicle,
-    dataframe_filter=None,
-    parquet_filter=None,
-    tableau_project_name=SPARE_TABLEAU_PROJECT,
-)
 
 spare_job_list = []
 
