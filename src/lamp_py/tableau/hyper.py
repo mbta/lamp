@@ -3,7 +3,6 @@ from abc import ABC
 from abc import abstractmethod
 from itertools import chain
 from typing import Dict
-from typing import Optional
 
 import pyarrow
 from pyarrow import fs
@@ -70,13 +69,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
         """
 
     @abstractmethod
-    def create_parquet(self, db_manager: Optional[DatabaseManager]) -> None:
+    def create_parquet(self, db_manager: DatabaseManager | None = None) -> None:
         """
         Business logic to create new Job parquet file
         """
 
     @abstractmethod
-    def update_parquet(self, db_manager: Optional[DatabaseManager]) -> bool:
+    def update_parquet(self, db_manager: DatabaseManager | None = None) -> bool:
         """
         Business logic to update existing Job parquet file
 
@@ -268,7 +267,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
                 if retry_count == max_retries:
                     process_log.log_failure(exception=exception)
 
-    def run_parquet(self, db_manager: Optional[DatabaseManager]) -> None:
+    def run_parquet(self, db_manager: DatabaseManager | None = None) -> None:
         """
         Remote parquet Create / Update runner
 
