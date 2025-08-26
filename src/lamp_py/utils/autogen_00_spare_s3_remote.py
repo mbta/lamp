@@ -19,48 +19,48 @@ VERSION_KEY = "spare_version"
 singles = [
     "admins",
     "appointmentTypes",
-    "appointments",
+    # "appointments",
     "appointments_with_history",
-    "caseForms",
+    # "caseForms",
     "caseForms_with_history",
-    "caseLetters",
+    # "caseLetters",
     "caseLetters_with_history",
     "caseStatuses",
     "caseTypes",
-    "cases",
+    # "cases",
     "cases_with_history",
-    "charges",
+    # "charges",
     "charges_with_history",
-    "constraintOverrideActions",
+    # "constraintOverrideActions",
     "constraintOverrideActions_with_history",
     "drivers",
-    "duties",
+    # "duties",
     "duties_with_history",
-    "favoriteLocations",
+    # "favoriteLocations",
     "favoriteLocations_with_history",
     "fleets",
     "forms",
     "groupConditions",
-    "groupMemberships",
+    # "groupMemberships",
     "groups",
     "letters",
     "paymentMethodTypes",
-    "paymentMethods",
+    # "paymentMethods",
     "quickReplies",
-    "requestConstraintOverrides",
+    # "requestConstraintOverrides",
     "requestConstraintOverrides_with_history",
-    "requestRecurrences",
-    "requests",
+    # "requestRecurrences",
+    # "requests",
     "requests_with_history",
-    "riders",
+    # "riders",
     "services",
     "stops",
     "timeRules",
     "userBans",
-    "userFleetAgreements",
+    # "userFleetAgreements",
     "vehicleTypes",
     "vehicles",
-    "walletTransactions",
+    # "walletTransactions",
     "walletTransactions_with_history",
     "zones",
 ]
@@ -73,7 +73,7 @@ multis = [
     "charges",
     "constraintOverrideActions",
     "duties",
-    "fallback",
+    # "fallback",
     "favoriteLocations",
     "groupMemberships",
     "paymentMethods",
@@ -82,7 +82,7 @@ multis = [
     "requests",
     "riders",
     "userFleetAgreements",
-    "vehicleLocation",
+    # "vehicleLocation",
     "vehicleLocations",
     "walletTransactions",
 ]
@@ -96,10 +96,12 @@ def template_springboard_single_input(name):
 def template_springboard_prefix_input(name):
     return f'springboard_spare_{name} = S3Location(bucket=S3_SPRINGBOARD,prefix=os.path.join(SPARE, "{name}/"))'
 
+def template_resource_map_all_resources(name):
+    return f'spare_resources["{name}"] = (springboard_spare_{name}, tableau_spare_{name})'
 
 # files output from SPARE
 def template_springboard_output(name):
-    return f'tableau_spare_{name} = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(SPARE_TABLEAU, "spare_testing.parquet"))'
+    return f'tableau_spare_{name} = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(SPARE_TABLEAU, "{name}.parquet"))'
 
 
 # def template_springboard_prefix_output(name):
@@ -113,7 +115,7 @@ def convert_spare_{name}_for_tableau() -> pyarrow.schema:
 """
 
 
-with open("src/lamp_py/tableau/spare/spare_tableau_converters_autogen.py", "w+") as f:
+with open("src/lamp_py/tableau/spare/3_autogen_spare_tableau_converters.py", "w+") as f:
     # create empty converters
     f.write("import pyarrow")
     for name in singles:
@@ -178,7 +180,7 @@ def read_schema_template(name) -> None:
 # print("done")
 # """
 
-with open("src/lamp_py/tableau/spare/schema_printer.py", "w+") as f:
+with open("src/lamp_py/tableau/spare/1_autogen_schema_printer.py", "w+") as f:
     # f.write("")
 
     f.write(
@@ -199,22 +201,26 @@ from lamp_py.runtime_utils.remote_files_spare import SPARE, SPARE_TABLEAU
 ### --- THIS FILE IS AUTOGEN FROM AUTOGEN_S3_REMOTE.PY --- DO NOT MODIFY --- ###
 ### --- THIS FILE IS AUTOGEN FROM AUTOGEN_S3_REMOTE.PY --- DO NOT MODIFY --- ###
 
+spare_resources = {}
+
 """
     )
 
     for name in singles:
         print(template_springboard_single_input(name), file=f)
         print(template_springboard_output(name), file=f)
-
+        print(template_resource_map_all_resources(name), file=f)
     for name in multis:
         print(template_springboard_prefix_input(name), file=f)
         print(template_springboard_output(name), file=f)
+        print(template_resource_map_all_resources(name), file=f)
 
-# INCEPTION
+
+    # INCEPTION
 
     f.write(
         """
-with open('src/lamp_py/tableau/spare/spare_schemas.py', 'w+') as ff:
+with open('src/lamp_py/tableau/spare/2_autogen_spare_schemas.py', 'w+') as ff:
 
     ff.write(\"\"\"
 from polars import Schema
@@ -228,5 +234,3 @@ from polars import String, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, L
         print(read_schema_template(name), file=f)
     for name in multis:
         print(read_schema_template(name), file=f)
-
-    f.write("ff.close()")
