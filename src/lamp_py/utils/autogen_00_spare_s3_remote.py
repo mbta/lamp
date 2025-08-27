@@ -22,72 +22,72 @@ VERSION_KEY = "spare_version"
 singles = [
     "admins",
     "appointmentTypes",
-    # "appointments",
+    "appointments",
     "appointments_with_history",
-    # "caseForms",
+    "caseForms",
     "caseForms_with_history",
-    # "caseLetters",
+    "caseLetters",
     "caseLetters_with_history",
     "caseStatuses",
     "caseTypes",
-    # "cases",
+    "cases",
     "cases_with_history",
-    # "charges",
+    "charges",
     "charges_with_history",
-    # "constraintOverrideActions",
+    "constraintOverrideActions",
     "constraintOverrideActions_with_history",
     "drivers",
-    # "duties",
+    "duties",
     "duties_with_history",
-    # "favoriteLocations",
+    "favoriteLocations",
     "favoriteLocations_with_history",
     "fleets",
     "forms",
     "groupConditions",
-    # "groupMemberships",
+    "groupMemberships",
     "groups",
     "letters",
     "paymentMethodTypes",
-    # "paymentMethods",
+    "paymentMethods",
     "quickReplies",
-    # "requestConstraintOverrides",
+    "requestConstraintOverrides",
     "requestConstraintOverrides_with_history",
-    # "requestRecurrences",
-    # "requests",
+    "requestRecurrences",
+    "requests",
     "requests_with_history",
-    # "riders",
+    "riders",
     "services",
     "stops",
     "timeRules",
     "userBans",
-    # "userFleetAgreements",
+    "userFleetAgreements",
     "vehicleTypes",
     "vehicles",
-    # "walletTransactions",
+    "walletTransactions",
     "walletTransactions_with_history",
     "zones",
 ]
 
 multis = [
-    "appointments",
-    "caseForms",
-    "caseLetters",
-    "cases",
-    "charges",
-    "constraintOverrideActions",
-    "duties",
-    # "fallback",
-    "favoriteLocations",
-    "groupMemberships",
-    "paymentMethods",
-    "requestConstraintOverrides",
-    "requestRecurrences",
-    "requests",
-    "riders",
-    "userFleetAgreements",
-    # "vehicleLocation",
-    "vehicleLocations",
-    "walletTransactions",
+    # "appointments",
+    # "caseForms",
+    # "caseLetters",
+    # "cases",
+    # "charges",
+    # "constraintOverrideActions",
+    # "duties",
+    # # "fallback",
+    # "favoriteLocations",
+    # "groupMemberships",
+    # "paymentMethods",
+    # "requestConstraintOverrides",
+    # "requestRecurrences",
+    # "requests",
+    # "riders",
+    # "userFleetAgreements",
+    # # "vehicleLocation",
+    # "vehicleLocations",
+    # "walletTransactions",
 ]
 
 
@@ -120,7 +120,7 @@ def convert_spare_{name}_for_tableau() -> pyarrow.schema:
 """
 
 
-with open("src/lamp_py/tableau/spare/3_autogen_spare_tableau_converters.py", "w+") as f:
+with open("src/lamp_py/tableau/spare/autogen_03_spare_tableau_converters.py", "w+") as f:
     # create empty converters
     f.write("import pyarrow")
     for name in singles:
@@ -185,11 +185,14 @@ def read_schema_template(name) -> None:
 # print("done")
 # """
 
-with open("src/lamp_py/tableau/spare/1_autogen_schema_printer.py", "w+") as f:
+with open("src/lamp_py/tableau/spare/autogen_01_schema_printer.py", "w+") as f:
     # f.write("")
 
     f.write(
         """
+# type: ignore
+# pylint: skip-file
+        
 import os
 import polars as pl
 import polars as plspringboard_spare_admins
@@ -222,19 +225,19 @@ spare_resources = {}
 
     # INCEPTION
 
-    f.write(
-        """
-with open('src/lamp_py/tableau/spare/2_autogen_spare_schemas.py', 'w+') as ff:
+#     f.write(
+#         """
+# with open('src/lamp_py/tableau/spare/2_autogen_spare_schemas.py', 'w+') as ff:
 
-    ff.write(\"\"\"
-from polars import Schema
-from polars import String, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, List, Struct, Boolean, Categorical, Float64
-\"\"\")
-"""
-    )
+#     ff.write(\"\"\"
+# from polars import Schema
+# from polars import String, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, List, Struct, Boolean, Categorical, Float64
+# \"\"\")
+# """
+#     )
 
-    # create empty converters
-    for name in singles:
-        print(read_schema_template(name), file=f)
-    for name in multis:
-        print(read_schema_template(name), file=f)
+#     # create empty converters
+#     for name in singles:
+#         print(read_schema_template(name), file=f)
+#     for name in multis:
+#         print(read_schema_template(name), file=f)

@@ -1,6 +1,3 @@
-# type: ignore
-# pylint: skip-file
-
 import pyarrow
 
 
@@ -12,7 +9,15 @@ def convert_spare_appointmentTypes_for_tableau() -> pyarrow.schema:
     pass
 
 
+def convert_spare_appointments_for_tableau() -> pyarrow.schema:
+    pass
+
+
 def convert_spare_appointments_with_history_for_tableau() -> pyarrow.schema:
+    pass
+
+
+def convert_spare_caseForms_for_tableau() -> pyarrow.schema:
     pass
 
 
@@ -36,11 +41,23 @@ def convert_spare_caseTypes_for_tableau() -> pyarrow.schema:
     pass
 
 
+def convert_spare_cases_for_tableau() -> pyarrow.schema:
+    pass
+
+
 def convert_spare_cases_with_history_for_tableau() -> pyarrow.schema:
     pass
 
 
+def convert_spare_charges_for_tableau() -> pyarrow.schema:
+    pass
+
+
 def convert_spare_charges_with_history_for_tableau() -> pyarrow.schema:
+    pass
+
+
+def convert_spare_constraintOverrideActions_for_tableau() -> pyarrow.schema:
     pass
 
 
@@ -49,6 +66,10 @@ def convert_spare_constraintOverrideActions_with_history_for_tableau() -> pyarro
 
 
 def convert_spare_drivers_for_tableau() -> pyarrow.schema:
+    pass
+
+
+def convert_spare_duties_for_tableau() -> pyarrow.schema:
     pass
 
 
@@ -161,80 +182,4 @@ def convert_spare_walletTransactions_with_history_for_tableau() -> pyarrow.schem
 
 
 def convert_spare_zones_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_appointments_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_caseForms_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_caseLetters_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_cases_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_charges_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_constraintOverrideActions_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_duties_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_fallback_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_favoriteLocations_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_groupMemberships_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_paymentMethods_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_requestConstraintOverrides_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_requestRecurrences_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_requests_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_riders_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_userFleetAgreements_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_vehicleLocation_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_vehicleLocations_for_tableau() -> pyarrow.schema:
-    pass
-
-
-def convert_spare_walletTransactions_for_tableau() -> pyarrow.schema:
     pass
