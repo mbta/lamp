@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import List
 
 from lamp_py.aws.ecs import check_for_parallel_tasks
@@ -7,7 +8,7 @@ from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll, HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.tableau.jobs.spare_jobs import HyperSpareVehicles, spare_job_list
+from lamp_py.tableau.jobs.spare_jobs import spare_job_list
 from lamp_py.tableau.jobs.spare_jobs import SPARE_TABLEAU_PROJECT
 from lamp_py.tableau.pipeline import (
     start_bus_parquet_updates,
@@ -87,21 +88,49 @@ def start_spare_single() -> None:
 
 def start_spare() -> None:
     """Run all HyperFile Update Jobs"""
+    local_parquet = False
+    run_pq_remote = False
+    local_hyper = False
+    run_hyper_remote = False
+    combined = True
 
-    # hyper_jobs: List[HyperJob] = [
-    #     HyperSpareVehicles,
-    # ]
-    # for job in hyper_jobs:
-    #     outs = job.run_parquet_hyper_combined_job()
+    if local_parquet:
+        for job in spare_job_list:
+            try:
+                outs = job.create_parquet(None)
+                shutil.copy(job.local_parquet_path, job.local_hyper_path.replace(".hyper", ".parquet"))
+            except Exception as e:
+                print(f"{job.remote_parquet_path} parquet/local unable to generate - {e}")
 
-    # spare_job_list = []
-    for job in spare_job_list:
-        # outs = job.run_parquet_hyper_combined_job()
-        try:
-            outs = job.run_parquet(None)
-            outs2 = job.create_local_hyper()
-        except Exception as e:
-            print(f"{job.remote_parquet_path} unable to generate - {e}")
+    if run_pq_remote:
+        for job in spare_job_list:
+            try:
+                outs = job.run_parquet(None)
+            except Exception as e:
+                print(f"{job.remote_parquet_path} parquet/upload unable to generate - {e}")
+
+    if local_hyper:
+        for job in spare_job_list:
+            try:
+                shutil.copy(job.local_hyper_path.replace(".hyper", ".parquet"), job.local_parquet_path)
+                outs = job.create_local_hyper(use_local=True)
+            except Exception as e:
+                print(f"{job.remote_parquet_path} hyper/local unable to generate - {e}")
+
+    if run_hyper_remote:
+        for job in spare_job_list:
+            try:
+                outs = job.run_hyper()
+            except Exception as e:
+                print(f"{job.remote_parquet_path} hyper/upload unable to generate - {e}")
+
+    if combined:
+        for job in spare_job_list:
+            try:
+                outs = job.run_parquet_hyper_combined_job()
+            except Exception as e:
+                print(f"{job.remote_parquet_path} combined unable to generate - {e}")
+            #
 
 
 def start_hyper() -> None:
