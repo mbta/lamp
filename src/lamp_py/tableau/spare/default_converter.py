@@ -28,21 +28,28 @@ def convert_to_tableau_flat_schema(self: pl.DataFrame, seperator="."):
     struct_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Struct)]
     list_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.List)]
     categorical_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Categorical)]
+    u64_unsupported = [col for col in self.columns if isinstance(self[col].dtype, pl.UInt64)]
 
-    fully_flattened = not len(struct_columns) | len(list_columns) | len(categorical_columns)
+    fully_flattened = not len(struct_columns) | len(list_columns) | len(categorical_columns) | len(u64_unsupported)
     while not fully_flattened:
         if len(struct_columns):
             self = _unnest_all(struct_columns=struct_columns)
         if len(list_columns):
+            # need to loop here as the vectorize explode on all columns only works
+            # if all columns explode into the same number of new rows
             for col in list_columns:
                 self = self.explode(columns=col)
         if len(categorical_columns):
             self = self.with_columns(pl.col(categorical_columns).cast(pl.String))
+        if len(u64_unsupported):
+            self = self.with_columns(pl.col(u64_unsupported).cast(pl.Int64))
 
         struct_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Struct)]
         list_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.List)]
         categorical_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Categorical)]
-        fully_flattened = not len(struct_columns) | len(list_columns) | len(categorical_columns)
+        u64_unsupported = [col for col in self.columns if isinstance(self[col].dtype, pl.UInt64)]
+
+        fully_flattened = not len(struct_columns) | len(list_columns) | len(categorical_columns) | len(u64_unsupported)
     return self
 
 
