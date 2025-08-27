@@ -29,6 +29,9 @@ def convert_to_tableau_flat_schema(self: pl.DataFrame, seperator="."):
     list_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.List)]
     categorical_columns = [col for col in self.columns if isinstance(self[col].dtype, pl.Categorical)]
     u64_unsupported = [col for col in self.columns if isinstance(self[col].dtype, pl.UInt64)]
+    # fold in the timezone stripping logic into here eventually...
+    # dt_With_timezone = [col for col in self.columns if isinstance(self[col].dtype, pl.Datetime) and self[col].dtype.time_zone is not None]
+
 
     fully_flattened = not len(struct_columns) | len(list_columns) | len(categorical_columns) | len(u64_unsupported)
     while not fully_flattened:
