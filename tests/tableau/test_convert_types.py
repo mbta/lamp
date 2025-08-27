@@ -21,6 +21,6 @@ def test_convert_to_tableau_flat_schema() -> None:
     )
     print(df1)
 
-    expected = pl.read_json('tests/tableau/test_convert_types_expected.json')
+    expected = pl.read_json("tests/tableau/test_convert_types_expected.json")
 
     pt.assert_frame_equal(expected, convert_to_tableau_flat_schema(df1))
