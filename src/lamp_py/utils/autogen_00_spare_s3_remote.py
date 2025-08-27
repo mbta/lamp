@@ -122,7 +122,14 @@ def convert_spare_{name}_for_tableau() -> pyarrow.schema:
 
 with open("src/lamp_py/tableau/spare/autogen_03_spare_tableau_converters.py", "w+") as f:
     # create empty converters
-    f.write("import pyarrow")
+
+    f.write(
+        """
+# type: ignore
+# pylint: skip-file
+import pyarrow
+            """
+    )
     for name in singles:
         print(filter_gen(name), file=f)
     for name in multis:

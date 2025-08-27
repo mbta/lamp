@@ -1,3 +1,5 @@
+# type: ignore
+# pylint: skip-file
 import pyarrow
 
 
