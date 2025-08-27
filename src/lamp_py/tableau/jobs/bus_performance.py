@@ -8,9 +8,6 @@ from pyarrow.fs import S3FileSystem
 
 import polars as pl
 
-from lamp_py.tableau.conversions.convert_types import (
-    get_default_tableau_schema_from_s3,
-)
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 
@@ -96,7 +93,6 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
     )
 
     with pq.ParquetWriter(job.local_parquet_path, schema=job.output_processed_schema) as writer:
-        # tableau_schema = convert_to_tableau_compatible_schema(ds.schema, overrides)
 
         for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
             # this select() is here to make sure the order of the polars_df
@@ -161,9 +157,7 @@ class HyperBusPerformanceRecent(HyperJob):
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
-        overrides = {"service_date": pyarrow.date32()}
-        return get_default_tableau_schema_from_s3(input_location=bus_events, overrides=overrides)
-        # return bus_schema
+        return bus_schema
 
     def create_parquet(self, _: None) -> None:
         self.update_parquet(None)
