@@ -37,10 +37,24 @@ def convert_to_tableau_flat_schema(self: pl.DataFrame, seperator="."):
         if len(struct_columns):
             self = _unnest_all(struct_columns=struct_columns)
         if len(list_columns):
-            # need to loop here as the vectorize explode on all columns only works
-            # if all columns explode into the same number of new rows
+            # don't expand lists - leave it as a string repr for now. 
+            # self = self.explode(list_columns).with_columns(pl.col(list_columns).cast(pl.String))
+            # self['roles'].dtype.inner
             for col in list_columns:
-                self = self.explode(columns=col)
+                # self = self.explode(columns=col)            
+                try:
+                    if isinstance(self[col].dtype.inner, pl.Categorical) | isinstance(self[col].dtype.inner, pl.String):
+                        self = self.with_columns(pl.col(col).cast(pl.List(pl.String)).list.join(','))
+                        continue
+                    if isinstance(self[col].dtype.inner, pl.Struct):
+                        self  = self.with_columns(pl.col(col).list.eval(pl.element().struct.json_encode()).list.join(','))
+                        continue
+                    if isinstance(self[col].dtype.inner, pl.String):
+                        self = self.with_columns(pl.col(col).cast(pl.List(pl.String)).list.join(','))
+                except Exception as e:
+                    print(e)
+                    print("oops")
+                print(self[list_columns[0].dtype])
         if len(categorical_columns):
             self = self.with_columns(pl.col(categorical_columns).cast(pl.String))
         if len(u64_unsupported):

@@ -21,7 +21,6 @@ def test_convert_to_tableau_flat_schema() -> None:
     )
     print(df1)
 
-    json_str = '[{"data.name":"Alice","data.age":30,"data2.name":"Darcy","data2.age":30},{"data.name":"Alice","data.age":30,"data2.name":"Effie","data2.age":25},{"data.name":"Bob","data.age":25,"data2.name":"Darcy","data2.age":30},{"data.name":"Bob","data.age":25,"data2.name":"Effie","data2.age":25},{"data.name":"Charlie","data.age":40,"data2.name":"Gerard","data2.age":40},{"data.name":"Charlie","data.age":40,"data2.name":"Henry","data2.age":30},{"data.name":"Charlie","data.age":40,"data2.name":"Iggy","data2.age":25},{"data.name":null,"data.age":null,"data2.name":"Juliet","data2.age":40}]'
-    expected = pl.read_json(StringIO(json_str))
+    expected = pl.read_json('tests/tableau/test_convert_types_expected.json')
 
     pt.assert_frame_equal(expected, convert_to_tableau_flat_schema(df1))
