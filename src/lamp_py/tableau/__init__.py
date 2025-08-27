@@ -9,14 +9,21 @@ from lamp_py.postgres.postgres_utils import DatabaseManager
 # pylint: disable=C0103 (invalid-name)
 # pylint wants pipeline to conform to an UPPER_CASE constant naming style. its
 # a module though, so disabling to allow it to use normal import rules.
-pipeline: Optional[ModuleType]
 
-try:
-    from . import pipeline
-except ModuleNotFoundError:
-    pipeline = None
 
-# pylint: enable=C0103 (invalid-name)
+# pylint: enable=C0103 (invalid-name), disable=C0415
+def import_pipeline() -> Optional[ModuleType]:
+    """
+    import pipeline in a method to reduce module-level loading overhead when importing "tableau"
+    """
+    pipeline: Optional[ModuleType]
+
+    try:
+        from . import pipeline
+    except ModuleNotFoundError:
+        pipeline = None
+
+    return pipeline
 
 
 def start_parquet_updates(db_manager: DatabaseManager) -> None:
@@ -25,6 +32,7 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
     found error occurs (which happens when using osx arm64 dependencies), log
     an error and do nothing. else, run the function.
     """
+    pipeline = import_pipeline()
     if pipeline is None:
         logging.error("Unable to run parquet files on this machine due to Module Not Found error")
     else:
@@ -37,6 +45,8 @@ def clean_parquet_paths() -> None:
     found error occurs (which happens when using osx arm64 dependencies), log
     an error and do nothing. else, run the function.
     """
+    pipeline = import_pipeline()
+
     if pipeline is None:
         logging.error("Unable to run parquet files on this machine due to Module Not Found error")
     else:
