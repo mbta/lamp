@@ -76,7 +76,7 @@ pretty = true
 python_version = "3.12"
 warn_unreachable = true
 warn_unused_ignores = true
-exclude = ["investigation/", "runners", "analysis/"]
+exclude = ["investigation/", "runners", "analysis/", "src/lamp_py/tableau/spare/"]
 
 [tool.pytest]
 log_cli = true
@@ -116,4 +116,4 @@ min-similarity-lines = 10
 # https://github.com/PyCQA/pylint/issues/7090
 ignored-classes = ['sqlalchemy.orm.session.sessionmaker', 'pyarrow.compute']
 # ignore the migrations directory. its going to have duplication and _that is ok_.
-ignore-paths = ["^src/lamp_py/migrations/.*$"]
+ignore-paths = ["^src/lamp_py/migrations/.*$", "src/lamp_py/tableau/spare/*"]
