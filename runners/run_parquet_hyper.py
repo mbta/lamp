@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import List
 
 from lamp_py.aws.ecs import check_for_parallel_tasks
@@ -7,14 +8,22 @@ from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll, HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.jobs.spare_jobs import spare_job_list
+from lamp_py.tableau.jobs.spare_jobs import SPARE_TABLEAU_PROJECT
 from lamp_py.tableau.pipeline import (
-    GTFS_RT_TABLEAU_PROJECT,
     start_bus_parquet_updates,
+)
+from lamp_py.tableau.jobs.lamp_jobs import (
+    GTFS_RT_TABLEAU_PROJECT,
     HyperDevGreenGtfsRtTripUpdates,
     HyperGtfsRtTripUpdatesHeavyRail,
 )
+from lamp_py.tableau.spare.default_converter import convert_to_tableau_flat_schema, default_converter_from_s3
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
-
+from lamp_py.tableau.spare.autogen_01_schema_printer import (
+    springboard_spare_cases_with_history,
+    tableau_spare_cases_with_history,
+)
 from lamp_py.runtime_utils.remote_files import (
     # springboard_rt_vehicle_positions,
     # springboard_devgreen_rt_vehicle_positions,
@@ -61,51 +70,105 @@ TestHyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
 )
 
 
+def start_spare_single() -> None:
+
+    job = FilteredHyperJob(
+        remote_input_location=springboard_spare_cases_with_history,
+        remote_output_location=tableau_spare_cases_with_history,
+        rollup_num_days=None,
+        processed_schema=default_converter_from_s3(springboard_spare_cases_with_history),
+        parquet_preprocess=None,
+        dataframe_filter=convert_to_tableau_flat_schema,
+        parquet_filter=None,
+        tableau_project_name=SPARE_TABLEAU_PROJECT,
+    )
+    outs = job.run_parquet(None)
+    outs2 = job.create_local_hyper()
+
+
+def start_spare() -> None:
+    """Run all HyperFile Update Jobs"""
+    local_parquet = False
+    run_pq_remote = False
+    local_hyper = False
+    run_hyper_remote = False
+    combined = True
+
+    if local_parquet:
+        for job in spare_job_list:
+            try:
+                outs = job.create_parquet(None)
+                shutil.copy(job.local_parquet_path, job.local_hyper_path.replace(".hyper", ".parquet"))
+            except Exception as e:
+                print(f"{job.remote_parquet_path} parquet/local unable to generate - {e}")
+
+    if run_pq_remote:
+        for job in spare_job_list:
+            try:
+                outs = job.run_parquet(None)
+            except Exception as e:
+                print(f"{job.remote_parquet_path} parquet/upload unable to generate - {e}")
+
+    if local_hyper:
+        for job in spare_job_list:
+            try:
+                shutil.copy(job.local_hyper_path.replace(".hyper", ".parquet"), job.local_parquet_path)
+                outs = job.create_local_hyper(use_local=True)
+            except Exception as e:
+                print(f"{job.remote_parquet_path} hyper/local unable to generate - {e}")
+
+    if run_hyper_remote:
+        for job in spare_job_list:
+            try:
+                outs = job.run_hyper()
+            except Exception as e:
+                print(f"{job.remote_parquet_path} hyper/upload unable to generate - {e}")
+
+    if combined:
+        for job in spare_job_list:
+            try:
+                outs = job.run_parquet_hyper_combined_job()
+            except Exception as e:
+                print(f"{job.remote_parquet_path} combined unable to generate - {e}")
+            #
+
+
 def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
-    # configure the environment
-    # os.environ["SERVICE_NAME"] = "tableau_hyper_update"
-
-    # validate_environment(
-    #     required_variables=[
-    #         "TABLEAU_USER",
-    #         "TABLEAU_PASSWORD",
-    #         "TABLEAU_SERVER",
-    #         "TABLEAU_PROJECT",
-    #         "PUBLIC_ARCHIVE_BUCKET",
-    #         "ECS_CLUSTER",
-    #         "ECS_TASK_GROUP",
-    #     ],
-    #     private_variables=[
-    #         "TABLEAU_PASSWORD",
-    #     ],
-    # )
-
-    # make sure only one publisher runs at a time
-    # check_for_parallel_tasks()
 
     hyper_jobs: List[HyperJob] = [
         # HyperBusPerformanceAll(),
-        # HyperBusPerformanceRecent(),
+        HyperBusPerformanceRecent(),
         # HyperDevGreenGtfsRtTripUpdates,
         # HyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdates,
-        TestHyperDevGreenGtfsRtTripUpdates,
+        # TestHyperDevGreenGtfsRtTripUpdates,
     ]
     # breakpoint()
+
+    run_create_pq = False
+    if run_create_pq:
+        for job in hyper_jobs:
+            outs = job.create_parquet(None)
 
     run_pq = True
     if run_pq:
         for job in hyper_jobs:
-            outs = job.create_parquet(None)
+            outs = job.run_parquet(None)
 
-    hyper = False
-    if hyper:
+    local_hyper = False
+    if local_hyper:
         for job in hyper_jobs:
             outs = job.create_local_hyper()
 
+    hyper = True
+    if hyper:
+        for job in hyper_jobs:
+            outs = job.run_hyper()
+
 
 if __name__ == "__main__":
-    start_hyper()
-    # start_bus_parquet_updates()
+    start_spare()
+    # start_spare_single()
+    # start_hyper()

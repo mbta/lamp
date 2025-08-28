@@ -76,7 +76,7 @@ pretty = true
 python_version = "3.12"
 warn_unreachable = true
 warn_unused_ignores = true
-exclude = ["investigation/", "runners"]
+exclude = ["investigation/", "runners", "analysis/"]
 
 [tool.pytest]
 log_cli = true
@@ -106,6 +106,8 @@ disable = [
   "too-few-public-methods",
   # l1_rt_trips.py over 1000 lines
   "too-many-lines",
+  # fstring negligable performance issues in logging - keep
+  "logging-fstring-interpolation",
 ]
 good-names = ["e", "i", "s"]
 max-line-length = 120

@@ -178,11 +178,11 @@ def file_as_bytes_buf(file: str) -> BytesIO:
         return BytesIO(f.read())
 
 
-def flatten_schema(table: pyarrow.table) -> pyarrow.table:
+def flatten_table_schema(table: pyarrow.table) -> pyarrow.table:
     """flatten pyarrow table if struct column type exists"""
     for field in table.schema:
         if str(field.type).startswith("struct"):
-            return flatten_schema(table.flatten())
+            return flatten_table_schema(table.flatten())
     return table
 
 
