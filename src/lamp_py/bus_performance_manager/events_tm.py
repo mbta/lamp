@@ -83,8 +83,7 @@ def generate_tm_events(
         tm_stop_crossings = (
             pl.scan_parquet(tm_files)
             .filter(
-                (pl.col("IsRevenue") == "R")
-                & pl.col("ROUTE_ID").is_not_null()
+                pl.col("ROUTE_ID").is_not_null()
                 & pl.col("GEO_NODE_ID").is_not_null()
                 & pl.col("TRIP_ID").is_not_null()
                 & pl.col("VEHICLE_ID").is_not_null()
