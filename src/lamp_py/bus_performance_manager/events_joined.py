@@ -281,13 +281,18 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
             "direction_id_right_gtfs",
         )
     )
-
+    schedule_gtfs = schedule_gtfs.with_columns(
+        pl.col(["vehicle_label", "vehicle_id"])
+        .fill_null(strategy="forward")  # handle missing vehicle label at beginning
+        .fill_null(strategy="backward")  # handle missing vehicle label at end
+        .over(["trip_id"])
+    )
     schedule_gtfs_tm = (
         schedule_gtfs.sort(by="tm_stop_sequence")
         .join_asof(
             tm.sort(by="tm_stop_sequence"),
             on="tm_stop_sequence",
-            by=["trip_id", "stop_id"],
+            by=["trip_id", "stop_id", "vehicle_label"],
             strategy="nearest",
             coalesce=True,
             suffix="_right_tm",
@@ -295,7 +300,6 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
         .drop(
             "route_id_right_tm",
             "timepoint_order_right_tm",
-            "vehicle_label_right_tm",
             "timepoint_id_right_tm",
             "timepoint_abbr_right_tm",
             "timepoint_name_right_tm",
