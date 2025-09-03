@@ -13,16 +13,16 @@ from pyarrow.fs import S3FileSystem
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 import polars as pl
 
-from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
-from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
+from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions, convert_bus_recent_to_tableau_compatible_schema
+# from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 
 
 def run_bus_events() -> None:
     # stage 1 - regenerate range
     ##################
     # this is a good runner - 6/17/25
-    end_date = datetime(year=2025, month=8, day=15)
-    start_date = end_date - timedelta(days=3)
+    end_date = datetime(year=2025, month=8, day=14)
+    start_date = end_date - timedelta(days=0)
     write_bus_metrics(start_date=start_date, end_date=end_date, write_local_only=True)
     # regenerate_bus_metrics_recent(num_days=2, write_local_only=True)
     # exit()
@@ -44,7 +44,7 @@ def run_bus_events() -> None:
     )
 
     overrides = {"service_date": pyarrow.date32()}
-    tableau_schema = convert_to_tableau_compatible_schema(ds.schema, overrides)
+    tableau_schema = convert_bus_recent_to_tableau_compatible_schema(ds.schema, overrides, exclude=None)
 
     # rint("You entered:", prefix)
     with pq.ParquetWriter(f"/tmp/{prefix}_bus_recent.parquet", schema=tableau_schema) as writer:
