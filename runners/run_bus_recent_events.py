@@ -13,7 +13,11 @@ from pyarrow.fs import S3FileSystem
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 import polars as pl
 
-from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions, convert_bus_recent_to_tableau_compatible_schema
+from lamp_py.tableau.conversions.convert_bus_performance_data import (
+    apply_bus_analysis_conversions,
+    convert_bus_recent_to_tableau_compatible_schema,
+)
+
 # from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 
 

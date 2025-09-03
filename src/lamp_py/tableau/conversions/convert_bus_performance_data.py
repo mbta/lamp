@@ -4,7 +4,7 @@ import pyarrow
 
 
 def convert_bus_recent_to_tableau_compatible_schema(
-    input_schema: pyarrow.schema, overrides: dict = None, exclude: list = None
+    input_schema: pyarrow.schema, overrides: dict | None = None, exclude: list | None = None
 ) -> pyarrow.schema:
     """
     generic converter for known types (dates, timezones, etc)
@@ -33,6 +33,7 @@ def convert_bus_recent_to_tableau_compatible_schema(
         auto_schema.append(field)
 
     return pyarrow.schema(auto_schema)
+
 
 def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
     """
