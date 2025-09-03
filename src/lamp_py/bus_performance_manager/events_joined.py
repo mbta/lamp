@@ -282,10 +282,10 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
         )
     )
 
-    # fill in vehicle_label and vehicle_id for each scheduled trip if available from gtfs events join - 
+    # fill in vehicle_label and vehicle_id for each scheduled trip if available from gtfs events join -
     # this will allow TM join to join on vehicle id, which will eliminte multiple vehicle_id for the same trip_id
     # gtfs trip_ids may have ADDED or -OL trip_ids to denote added service,, but TM does not have those
-    # trip_ids in its database, so overloads them into the existing trip_ids causing data inconsistency    
+    # trip_ids in its database, so overloads them into the existing trip_ids causing data inconsistency
     schedule_gtfs = schedule_gtfs.with_columns(
         pl.col(["vehicle_label", "vehicle_id"])
         .fill_null(strategy="forward")  # handle missing vehicle label at beginning
