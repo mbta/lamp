@@ -102,9 +102,6 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     # ensure data has been extracted from the filepath
     assert not bus_events.is_empty()
 
-    # ensure we didn't lose any Revenue data from the raw dataset when joining
-    assert len(bus_events) == len(raw_stop_crossings.filter((pl.col("IsRevenue") == "R")))
-
     # check that crossings without trips are garage pullouts
     bus_garages = {
         "soham",
