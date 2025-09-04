@@ -89,12 +89,6 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     ).dt.replace_time_zone("America/New_York")
 
     service_date_utc = service_date_est.dt.convert_time_zone("UTC")
-    # this is the df of all useful records from the stop crossings files
-    raw_stop_crossings = (
-        pl.scan_parquet(stop_crossings_filepath)
-        .filter(pl.col("ACT_ARRIVAL_TIME").is_not_null() | pl.col("ACT_DEPARTURE_TIME").is_not_null())
-        .collect()
-    )
 
     # run the generate tm events function on our input files
     bus_events = generate_tm_events(tm_files=[stop_crossings_filepath], tm_scheduled=generate_tm_schedule())
