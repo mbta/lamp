@@ -107,6 +107,12 @@ def generate_tm_events(
                 how="left",
                 coalesce=True,
             )
+            .join(
+                tm_scheduled.tm_sequences,
+                on=["TRIP_ID"],
+                how="left",
+                coalesce=True,
+            )
             .with_columns(
                 (
                     pl.col("CALENDAR_ID")
@@ -116,56 +122,58 @@ def generate_tm_events(
                     .alias("service_date")
                 ),
             )
-            .select(
-                (pl.col("ROUTE_ABBR").cast(pl.String).str.strip_chars_start("0").alias("route_id")),
-                pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
-                pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
-                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
-                pl.col("timepoint_order"),
-                pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
-                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
-                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
-                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-                (
-                    (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
-                    .alias("tm_scheduled_time_dt")
-                ),
-                (
-                    (pl.col("service_date") + pl.duration(seconds="ACT_ARRIVAL_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
-                    .alias("tm_actual_arrival_dt")
-                ),
-                (
-                    (pl.col("service_date") + pl.duration(seconds="ACT_DEPARTURE_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
-                    .alias("tm_actual_departure_dt")
-                ),
-                pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
-                pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
-                pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
-            )
             .collect()
         )
+        tm_stop_crossings = tm_stop_crossings.select(
+            (pl.col("ROUTE_ABBR").cast(pl.String).str.strip_chars_start("0").alias("route_id")),
+            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
+            pl.col("GEO_NODE_ABBR").cast(pl.String).alias("stop_id"),
+            pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+            pl.col("timepoint_order"),
+            pl.col("tm_planned_sequence_start"),
+            pl.col("tm_planned_sequence_end"),
+            pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
+            pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
+            pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
+            pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
+            (
+                (pl.col("service_date") + pl.duration(seconds="SCHEDULED_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                .dt.convert_time_zone("UTC")
+                .alias("tm_scheduled_time_dt")
+            ),
+            (
+                (pl.col("service_date") + pl.duration(seconds="ACT_ARRIVAL_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                .dt.convert_time_zone("UTC")
+                .alias("tm_actual_arrival_dt")
+            ),
+            (
+                (pl.col("service_date") + pl.duration(seconds="ACT_DEPARTURE_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                .dt.convert_time_zone("UTC")
+                .alias("tm_actual_departure_dt")
+            ),
+            pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
+            pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
+            pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
+        )
 
-    # tm_stop_crossings = tm_stop_crossings.with_columns(
-    #     pl.coalesce(
-    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
-    #         pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
-    #         pl.lit(1),
-    #     )
-    #     .over("trip_id", "pattern_id", "vehicle_label")
-    #     .alias("tm_point_type"),
-    # ).with_columns(
-    #     pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
-    #     .then(1)
-    #     .otherwise(0)
-    #     .over("trip_id", "pattern_id", "vehicle_label")
-    #     .alias("is_full_trip")
-    # )
+    tm_stop_crossings = tm_stop_crossings.with_columns(
+        pl.coalesce(
+            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
+            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
+            pl.lit(1),
+        )
+        .over("trip_id", "vehicle_label")
+        .alias("tm_point_type"),
+    ).with_columns(
+        pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
+        .then(1)
+        .otherwise(0)
+        .over("trip_id", "vehicle_label")
+        .alias("is_full_trip")
+    )
 
     if tm_stop_crossings.shape[0] == 0:
         tm_stop_crossings = _empty_stop_crossing()
