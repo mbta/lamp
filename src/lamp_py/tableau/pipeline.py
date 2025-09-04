@@ -31,7 +31,6 @@ from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
 from lamp_py.aws.ecs import check_for_parallel_tasks
-from lamp_py.tableau.jobs.spare_jobs import spare_job_list
 
 
 def start_hyper_updates() -> None:
@@ -140,6 +139,12 @@ def start_spare_updates() -> None:
     Run all Spare Parquet Update jobs
     called from Tableau Publisher
     """
+    # move this expensive import into here and only call when start_spare_updates() is called
+    # this import checks the whitelist of spare jobs, and dynamically generates
+    # input and output schemas based on what is in the spare s3 bucket
+
+    # an improvement could be to add some caching to this..
+    from lamp_py.tableau.jobs.spare_jobs import spare_job_list
 
     for job in spare_job_list:
         job.run_parquet_hyper_combined_job(None)
