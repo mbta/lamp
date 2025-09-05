@@ -80,7 +80,6 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         )
         .rename({"Pattern_ID": "PATTERN_ID"})
         .filter(pl.col("TRIP_SERIAL_NUMBER").is_not_null() & pl.col("PATTERN_ID").is_not_null())
-        #          "TRIP_SERIAL_NUMBER": "trip_id"})
         .unique()
     )
 
