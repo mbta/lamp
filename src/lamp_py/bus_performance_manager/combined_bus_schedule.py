@@ -20,17 +20,6 @@ Returns a schedule including GTFS stops, TransitMaster timepoints, and shuttle t
     )
     gtfs2 = gtfs.rename({"plan_trip_id": "trip_id"})
 
-    # breakpoint()
-
-    # gtfs has extra trips that tm doesn't, but tm should not have ANY
-    # scheduled trips that are not in gtfs -
-
-    # this assumes that for a given trip, we do not hit the same stop_id more
-    # than once.
-
-    # don't want to join left or asof because we want the rows that are in
-    # tm that are not in gtfs i.e. the non -revenue stops
-    # these will come in via the full join
     schedule = (
         gtfs2.join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
