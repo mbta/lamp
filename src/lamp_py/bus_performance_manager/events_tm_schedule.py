@@ -102,9 +102,6 @@ def generate_tm_schedule() -> TransitMasterSchedule:
             "TIME_POINT_ABBR",
             "TIME_PT_NAME",
         )
-        # .rename({"TIME_POINT_ID": "time_point_id",
-        #          "TIME_POINT_ABBR": "time_point_abbr",
-        #          "TIME_PT_NAME" : "time_pt_name"})
     )
 
     # Pattern 1
