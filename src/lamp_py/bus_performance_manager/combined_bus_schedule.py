@@ -74,7 +74,7 @@ Returns a schedule including GTFS stops, TransitMaster timepoints, and shuttle t
         .with_columns(
             pl.when(pl.col("stop_sequence").is_null())
             .then(pl.lit("TM"))
-            .when(pl.col("tm_stop_sequence").is_null())  # ?
+            .when(pl.col("tm_stop_sequence").is_null())
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("tm_joined")
