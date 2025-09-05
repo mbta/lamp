@@ -95,12 +95,10 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         .unique()
     )
 
-    tm_time_points = (
-        pl.scan_parquet(tm_time_point_file.s3_uri).select(
-            "TIME_POINT_ID",
-            "TIME_POINT_ABBR",
-            "TIME_PT_NAME",
-        )
+    tm_time_points = pl.scan_parquet(tm_time_point_file.s3_uri).select(
+        "TIME_POINT_ID",
+        "TIME_POINT_ABBR",
+        "TIME_PT_NAME",
     )
 
     # Pattern 1
@@ -185,5 +183,3 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         tm_sequences=tm_sequences,
         tm_schedule=tm_schedule,
     )
-
-
