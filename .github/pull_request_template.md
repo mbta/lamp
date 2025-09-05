@@ -1,1 +1,9 @@
-Asana Task: <asana_ticket_url>
+Asana Ticket:  [ticket]()
+
+## Background
+
+## Changes
+
+## Testing/Validation
+
+## Highlights

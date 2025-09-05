@@ -294,6 +294,7 @@ def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataF
         .fill_null(strategy="backward")  # handle missing vehicle label at end
         .over(["trip_id"])
     )
+
     schedule_gtfs_tm = (
         schedule_gtfs.sort(by="tm_stop_sequence")
         .join_asof(
