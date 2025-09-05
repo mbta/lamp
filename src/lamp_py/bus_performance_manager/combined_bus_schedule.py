@@ -7,6 +7,8 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 # pylint: disable=R0801
 def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSchedule) -> pl.DataFrame:
     """
+Returns a schedule including GTFS stops, TransitMaster timepoints, and shuttle trips not sourced from TransitMaster.
+
     :param gtfs: gtfs schedule
     :param tm: transit master schedule - this gets filtered down immediately to just the trip_ids that are available in the gtfs schedule
 

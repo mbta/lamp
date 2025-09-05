@@ -220,7 +220,9 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
 def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     """
-    Join gtfs-rt and transit master (tm) event dataframes
+    Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
+    There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.
+    By matching the nearest stop sequence, we can align the two datasets.
 
     :return dataframe:
         service_date -> String
