@@ -36,7 +36,6 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
             on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
             how="left",
             coalesce=True,
-            # validate="1:1" # this won't validate 1 to 1 because some trips stop at the same stop multiple times. correcting this below
         )
         .with_columns(
             (
