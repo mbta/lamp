@@ -171,26 +171,6 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         how="left",
         coalesce=True,
     )
-    # tm_schedule = (
-    #     tm_trip_xref
-    #     .join(tm_routes,
-    #         on="ROUTE_ID",
-    #         how="left",
-    #         coalesce=True,
-    #     )
-    #     .join(
-    #         tm_vehicles,
-    #         on="VEHICLE_ID",
-    #         how="left",
-    #         coalesce=True,
-    #     )
-    #     .join(
-    #         tm_sequences,
-    #         on="TRIP_ID",
-    #         how="left",
-    #         coalesce=True,
-    #     )
-    # ).collect()
 
     return TransitMasterSchedule(
         tm_geo_nodes=tm_geo_nodes,
