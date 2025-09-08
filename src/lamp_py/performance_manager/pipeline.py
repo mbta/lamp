@@ -133,7 +133,7 @@ def start() -> None:
     )
 
     # run rail performance manager rds migrations
-    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_RPM_DB_NAME"))
+    alembic_upgrade_to_head(db_name=os.getenv("ALEMBIC_RPM_DB_NAME"))  # type: ignore[arg-type]
 
     # run one time actions at every application deployment
     run_on_app_start()

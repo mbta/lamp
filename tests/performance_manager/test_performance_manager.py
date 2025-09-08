@@ -454,7 +454,8 @@ def test_static_tables(
     with rpm_db_manager.session.begin() as session:
         for table, should_count in row_counts.items():
             actual_count = session.query(table).count()
-            tablename = table.__tablename__
+            # see sa.orm.decl_api.declared_attr for why to ignore the type error
+            tablename = table.__tablename__  # type: ignore[attr-defined]
             assert actual_count == should_count, f"Table {tablename} has incorrect row count"
 
     unprocessed_static_schedules = md_db_manager.select_as_list(

@@ -49,6 +49,7 @@ def validate_environment(
         # do not log private variables
         if key in private_variables:
             value = "**********"
+        assert isinstance(value, str)  # assert value is not none for type safety
         metadata[key] = value
 
     # for optional variables, access ones that exist and add them to logs.

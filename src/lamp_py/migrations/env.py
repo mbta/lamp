@@ -85,10 +85,10 @@ def run_migrations_online() -> None:
     db_name = db_name_env.rsplit("_", 1)[0]
     connectable = db_details[db_name]["engine"]
 
-    with connectable.connect() as connection:
+    with connectable.connect() as connection:  # type: ignore[attr-defined]
         context.configure(
             connection=connection,
-            target_metadata=db_details[db_name]["target_metadata"],
+            target_metadata=db_details[db_name]["target_metadata"],  # type: ignore[arg-type]
         )
 
         with context.begin_transaction():

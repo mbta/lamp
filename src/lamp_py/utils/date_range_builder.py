@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 
 
 # Create a DataFrame with two date columns
-def build_data_range_paths(template_string: str, start_date: datetime, end_date: datetime) -> list[str]:
+def build_data_range_paths(template_string: str, start_date: date, end_date: date) -> list[str]:
     """
     Given an f-string template, fill in the {} in template with all the days between
     start_date and end_date (inclusive) and return the result as a list of strings

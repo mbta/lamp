@@ -27,7 +27,7 @@ class FilteredHyperJob(HyperJob):
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
-        rollup_num_days: int = 7,  # default this to a week of data
+        rollup_num_days: Optional[int] = 7,  # default this to a week of data
         parquet_preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
         parquet_filter: pc.Expression | None = None,
         dataframe_filter: Callable[[pl.DataFrame], pl.DataFrame] | None = None,

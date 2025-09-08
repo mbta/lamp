@@ -18,16 +18,16 @@ class TransitMasterSchedule:
     Class holding collection of TM schedule inputs and the resultant tm_schedule for joining with GTFS
     """
 
-    tm_geo_nodes: pl.DataFrame | pl.LazyFrame
-    tm_routes: pl.DataFrame | pl.LazyFrame
-    tm_vehicles: pl.DataFrame | pl.LazyFrame
-    tm_time_points: pl.DataFrame | pl.LazyFrame
-    tm_pattern_geo_node_xref: pl.DataFrame | pl.LazyFrame  # to get actual timepoints (non_null)
-    tm_pattern_geo_node_xref_full: pl.DataFrame | pl.LazyFrame  # to get all stop sequence (including non-timepoint)
-    tm_trip_geo_tp: pl.DataFrame | pl.LazyFrame  # derived
-    tm_trip_geo_tp_full: pl.DataFrame | pl.LazyFrame  # derived
-    tm_sequences: pl.DataFrame | pl.LazyFrame  # derived
-    tm_schedule: pl.DataFrame | pl.LazyFrame
+    tm_geo_nodes: pl.LazyFrame
+    tm_routes: pl.LazyFrame
+    tm_vehicles: pl.LazyFrame
+    tm_time_points: pl.LazyFrame
+    tm_pattern_geo_node_xref: pl.LazyFrame  # to get actual timepoints (non_null)
+    tm_pattern_geo_node_xref_full: pl.LazyFrame  # to get all stop sequence (including non-timepoint)
+    tm_trip_geo_tp: pl.LazyFrame  # derived
+    tm_trip_geo_tp_full: pl.LazyFrame  # derived
+    tm_sequences: pl.LazyFrame  # derived
+    tm_schedule: pl.LazyFrame
 
 
 def generate_tm_schedule() -> TransitMasterSchedule:
