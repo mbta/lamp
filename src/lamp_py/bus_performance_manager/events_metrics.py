@@ -3,10 +3,12 @@ from datetime import date
 
 import polars as pl
 
+from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
+from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events
-from lamp_py.bus_performance_manager.events_joined import join_tm_to_rt
-from lamp_py.bus_performance_manager.events_joined import join_schedule_to_rt
+from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
+from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
@@ -78,12 +80,18 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         direction_destination_headway_seconds -> Int64
     """
     # gtfs-rt events from parquet
+
+    gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
+    tm_schedule = generate_tm_schedule()
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule)
+
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
 
     # transit master events from parquet
-    tm_df = generate_tm_events(tm_files)
+    tm_df = generate_tm_events(tm_files, tm_schedule)
+
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
-    bus_df = join_schedule_to_rt(join_tm_to_rt(gtfs_df, tm_df))
+    bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df)
     bus_df = (
         bus_df.with_columns(
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
