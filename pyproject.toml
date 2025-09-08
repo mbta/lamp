@@ -77,7 +77,7 @@ pretty = true
 python_version = "3.12"
 warn_unreachable = true
 warn_unused_ignores = true
-exclude = ["investigation/", "runners", "analysis/", "src/lamp_py/tableau/spare/"]
+exclude = ["investigation/", "runners", "analysis/", "tests/bus_performance_manager/validate_schedule.py"]
 
 [tool.pytest]
 log_cli = true

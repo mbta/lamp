@@ -262,8 +262,8 @@ def hash_gtfs_rt_parquet(path: str) -> None:
             for batch in ds.iter_batches(batch_size=512 * 1024):
                 batch = pl.from_arrow(batch)
                 batch = (
-                    batch.with_columns(  # type: ignore
-                        batch.select(hash_columns)  # type: ignore
+                    batch.with_columns(
+                        batch.select(hash_columns)
                         .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
                         .to_series(0)
                         .alias(GTFS_RT_HASH_COL)

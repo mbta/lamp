@@ -1,5 +1,3 @@
-# type: ignore
-
 import pyarrow
 import pyarrow.dataset as pd
 
@@ -7,15 +5,16 @@ import polars as pl
 
 from lamp_py.aws.s3 import file_list_from_s3
 from lamp_py.runtime_utils.remote_files import S3Location
+from typing import List
 
 
-def convert_to_tableau_flat_schema(self: pl.DataFrame, seperator="."):
+def convert_to_tableau_flat_schema(self: pl.DataFrame, seperator: str = ".") -> pl.DataFrame:
     """
     Polars does not have nested struct string expansion on their roadmap - this implementation is adapted
     from user legout's solution: https://github.com/pola-rs/polars/issues/9613#issuecomment-1658376392
     """
 
-    def _unnest_all(struct_columns):
+    def _unnest_all(struct_columns: List[str]) -> pl.DataFrame:
         return self.with_columns(
             [
                 pl.col(col).struct.rename_fields(
@@ -43,20 +42,20 @@ def convert_to_tableau_flat_schema(self: pl.DataFrame, seperator="."):
             for col in list_columns:
                 # self = self.explode(columns=col)
                 try:
-                    if isinstance(self[col].dtype.inner, pl.Categorical) | isinstance(self[col].dtype.inner, pl.String):
+                    if isinstance(self[col].dtype.inner, pl.Categorical) | isinstance(self[col].dtype.inner, pl.String):  # type: ignore[attr-defined]
                         self = self.with_columns(pl.col(col).cast(pl.List(pl.String)).list.join(","))
                         continue
-                    if isinstance(self[col].dtype.inner, pl.Struct):
+                    if isinstance(self[col].dtype.inner, pl.Struct):  # type: ignore[attr-defined]
                         self = self.with_columns(
                             pl.col(col).list.eval(pl.element().struct.json_encode()).list.join(",")
                         )
                         continue
-                    if isinstance(self[col].dtype.inner, pl.String):
+                    if isinstance(self[col].dtype.inner, pl.String):  # type: ignore[attr-defined]
                         self = self.with_columns(pl.col(col).cast(pl.List(pl.String)).list.join(","))
                 except Exception as e:
                     print(e)
                     print("oops")
-                print(self[list_columns[0].dtype])
+                print(self[list_columns[0]].dtype)
         if len(categorical_columns):
             self = self.with_columns(pl.col(categorical_columns).cast(pl.String))
         if len(u64_unsupported):

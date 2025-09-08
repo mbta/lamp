@@ -102,7 +102,7 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
 
-            polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)  # type: ignore[union-attr]
+            polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)
 
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")

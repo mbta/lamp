@@ -199,7 +199,7 @@ class HyperRtRail(HyperJob):
 
         max_stats = self.max_stats_of_parquet()
 
-        max_start_date: datetime.date = max_stats["service_date"]
+        max_start_date: datetime.date = max_stats["service_date"]  # type: ignore[assignment]
         # subtract additional day incase of early spurious service_date record
         max_start_date -= datetime.timedelta(days=1)
 
