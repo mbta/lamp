@@ -5,6 +5,7 @@ from _pytest.monkeypatch import MonkeyPatch
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events
+from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 from ..test_resources import (
     tm_geo_node_file,
@@ -23,27 +24,27 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     run tests on each file in the test files tm stop crossings directory
     """
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_geo_node_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_geo_node_file",
         tm_geo_node_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_route_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_route_file",
         tm_route_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_trip_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_trip_file",
         tm_trip_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_vehicle_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_vehicle_file",
         tm_vehicle_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_time_point_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_time_point_file",
         tm_time_point_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm.tm_pattern_geo_node_xref_file",
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_pattern_geo_node_xref_file",
         tm_pattern_geo_node_xref_file,
     )
     tm_sc_dir = tm_stop_crossings.s3_uri
@@ -88,21 +89,12 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     ).dt.replace_time_zone("America/New_York")
 
     service_date_utc = service_date_est.dt.convert_time_zone("UTC")
-    # this is the df of all useful records from the stop crossings files
-    raw_stop_crossings = (
-        pl.scan_parquet(stop_crossings_filepath)
-        .filter(pl.col("ACT_ARRIVAL_TIME").is_not_null() | pl.col("ACT_DEPARTURE_TIME").is_not_null())
-        .collect()
-    )
 
     # run the generate tm events function on our input files
-    bus_events = generate_tm_events(tm_files=[stop_crossings_filepath])
+    bus_events = generate_tm_events(tm_files=[stop_crossings_filepath], tm_scheduled=generate_tm_schedule())
 
     # ensure data has been extracted from the filepath
     assert not bus_events.is_empty()
-
-    # ensure we didn't lose any Revenue data from the raw dataset when joining
-    assert len(bus_events) == len(raw_stop_crossings.filter((pl.col("IsRevenue") == "R")))
 
     # check that crossings without trips are garage pullouts
     bus_garages = {

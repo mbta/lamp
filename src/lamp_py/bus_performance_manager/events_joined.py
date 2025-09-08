@@ -2,7 +2,7 @@ from datetime import datetime
 
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_events_for_date
+from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
 from lamp_py.runtime_utils import lamp_exception
 
 
@@ -156,7 +156,7 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
     service_date = datetime.strptime(service_dates[0], "%Y%m%d")
 
-    schedule = bus_gtfs_events_for_date(service_date)
+    schedule = bus_gtfs_schedule_events_for_date(service_date)
 
     # get a plan_trip_id from the schedule for every rt trip_id
     gtfs = gtfs.join(
@@ -218,9 +218,11 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
     return gtfs
 
 
-def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
+def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     """
-    Join gtfs-rt and transit master (tm) event dataframes
+    Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
+    There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.
+    By matching the nearest stop sequence, we can align the two datasets.
 
     :return dataframe:
         service_date -> String
@@ -265,13 +267,51 @@ def join_tm_to_rt(gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
-    gtfs_tm_df = gtfs.sort(by="stop_sequence").join_asof(
-        tm.sort(by="tm_stop_sequence"),
-        left_on="stop_sequence",
-        right_on="tm_stop_sequence",
-        by=["trip_id", "route_id", "vehicle_label", "stop_id"],
-        strategy="nearest",
-        coalesce=True,
+
+    schedule_gtfs = (
+        schedule.sort(by="stop_sequence")
+        .join_asof(
+            gtfs.sort(by="stop_sequence"),
+            on="stop_sequence",
+            by=["trip_id", "stop_id"],
+            strategy="nearest",
+            coalesce=True,
+            suffix="_right_gtfs",
+        )
+        .drop(
+            "route_id_right_gtfs",
+            "direction_id_right_gtfs",
+        )
     )
 
-    return gtfs_tm_df
+    # fill in vehicle_label and vehicle_id for each scheduled trip if available from gtfs events join -
+    # this will allow TM join to join on vehicle id, which will eliminte multiple vehicle_id for the same trip_id
+    # gtfs trip_ids may have ADDED or -OL trip_ids to denote added service,, but TM does not have those
+    # trip_ids in its database, so overloads them into the existing trip_ids causing data inconsistency
+    schedule_gtfs = schedule_gtfs.with_columns(
+        pl.col(["vehicle_label", "vehicle_id"])
+        .fill_null(strategy="forward")  # handle missing vehicle label at beginning
+        .fill_null(strategy="backward")  # handle missing vehicle label at end
+        .over(["trip_id"])
+    )
+
+    schedule_gtfs_tm = (
+        schedule_gtfs.sort(by="tm_stop_sequence")
+        .join_asof(
+            tm.sort(by="tm_stop_sequence"),
+            on="tm_stop_sequence",
+            by=["trip_id", "stop_id", "vehicle_label"],
+            strategy="nearest",
+            coalesce=True,
+            suffix="_right_tm",
+        )
+        .drop(
+            "route_id_right_tm",
+            "timepoint_order_right_tm",
+            "timepoint_id_right_tm",
+            "timepoint_abbr_right_tm",
+            "timepoint_name_right_tm",
+        )
+    )
+
+    return schedule_gtfs_tm
