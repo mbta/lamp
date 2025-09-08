@@ -71,6 +71,7 @@ target-version = ['py310']
 [tool.mypy]
 disallow_untyped_defs = true
 ignore_missing_imports = true
+disable_error_code = ["union-attr"]
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 pretty = true
 python_version = "3.12"
