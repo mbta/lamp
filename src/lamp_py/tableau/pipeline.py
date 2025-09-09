@@ -143,8 +143,7 @@ def start_spare_updates() -> None:
     # this import checks the whitelist of spare jobs, and dynamically generates
     # input and output schemas based on what is in the spare s3 bucket
 
-    # an improvement could be to add some caching to this..
-    from lamp_py.tableau.jobs.spare_jobs import spare_job_list
+    from lamp_py.tableau.jobs.spare_jobs import spare_job_list  # pylint: disable=C0415
 
     for job in spare_job_list:
         job.run_parquet_hyper_combined_job(None)
