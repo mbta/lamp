@@ -1,8 +1,12 @@
 from datetime import datetime
 
+import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
+from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
+from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
+from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
 from lamp_py.runtime_utils import lamp_exception
 
 
@@ -218,7 +222,9 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
     return gtfs
 
 
-def join_rt_to_schedule(schedule: pl.DataFrame, gtfs: pl.DataFrame, tm: pl.DataFrame) -> pl.DataFrame:
+def join_rt_to_schedule(
+    schedule: dy.DataFrame[CombinedSchedule], gtfs: pl.DataFrame, tm: dy.DataFrame[TransitMasterEvents]
+) -> pl.DataFrame:
     """
     Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
     There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.

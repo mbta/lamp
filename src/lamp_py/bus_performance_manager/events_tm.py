@@ -1,8 +1,9 @@
 from typing import List
 
+import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
 from lamp_py.runtime_utils.remote_files import (
     tm_trip_file,
     tm_vehicle_file,
@@ -14,30 +15,32 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-def _empty_stop_crossing() -> pl.DataFrame:
-    """
-    create empty stop crossing dataframe with expected columns
-    """
-    schema = {
-        "vehicle_label": pl.String,
-        "route_id": pl.String,
-        "trip_id": pl.String,
-        "stop_id": pl.String,
-        "tm_stop_sequence": pl.Int64,
-        "tm_scheduled_time_dt": pl.Datetime(time_zone="UTC"),
-        "tm_actual_arrival_dt": pl.Datetime(time_zone="UTC"),
-        "tm_actual_departure_dt": pl.Datetime(time_zone="UTC"),
-        "tm_scheduled_time_sam": pl.Int64,
-        "tm_actual_arrival_time_sam": pl.Int64,
-        "tm_actual_departure_time_sam": pl.Int64,
-    }
-    return pl.DataFrame(schema=schema)  # type: ignore
+class BusTrips(dy.Schema):
+    trip_id = dy.String(primary_key=True, nullable=False)
+    stop_id = dy.String(nullable=False)
+    route_id = dy.String(nullable=False)
+
+
+class TransitMasterSchedule(BusTrips):
+    timepoint_abbr = dy.String(nullable = True)
+    timepoint_id = dy.Int64(nullable = True)
+    timepoint_name = dy.String(nullable = True)
+    timepoint_order = dy.UInt32(nullable = True)
+    tm_stop_sequence = dy.Int64(primary_key=True, nullable=False)
+
+
+class TransitMasterEvents(TransitMasterSchedule):
+    tm_actual_arrival_dt = dy.Datetime(nullable = True, time_zone="UTC")
+    tm_actual_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
+    tm_scheduled_time_dt = dy.Datetime(nullable = True, time_zone="UTC")
+    tm_actual_departure_time_sam = dy.Int64(nullable = True)
+    vehicle_label = dy.String(nullable = True)
 
 
 def generate_tm_events(
     tm_files: List[str],
-    tm_scheduled: TransitMasterSchedule,
-) -> pl.DataFrame:
+    tm_scheduled: TransitMasterTables,
+) -> dy.DataFrame[TransitMasterEvents]:
     """
     Build out events from transit master stop crossing data after joining it
     with static Transit Master data describing stops, routes, trips, and
@@ -45,28 +48,7 @@ def generate_tm_events(
 
     :param tm_files: transit master parquet files from the StopCrossings table.
 
-    :return dataframe:
-        route_id -> String
-        trip_id -> String
-        stop_id -> String
-        tm_stop_sequence -> Int64
-        timepoint_order -> UInt32
-        tm_planned_sequence_start -> Int64
-        tm_planned_sequence_end -> Int64
-        vehicle_label -> String
-        timepoint_id -> Int64
-        timepoint_abbr -> String
-        timepoint_name -> String
-        pattern_id -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_scheduled_time_sam -> Int64
-        tm_actual_arrival_time_sam -> Int64
-        tm_actual_departure_time_sam -> Int64
-        tm_point_type -> Int32
-        is_full_trip -> Int32
-
+    :return TransitMasterEvents:
     """
     logger = ProcessLogger("generate_tm_events", tm_files=tm_files)
     logger.log_start()
@@ -78,7 +60,6 @@ def generate_tm_events(
     # remove leading zeros from route ids where they exist
     # convert arrival and departure times to utc datetimes
     # cast everything else as a string
-    tm_stop_crossings = _empty_stop_crossing()
     if len(tm_files) > 0:
         tm_stop_crossings = (
             pl.scan_parquet(tm_files)
@@ -175,12 +156,11 @@ def generate_tm_events(
         .alias("is_full_trip")
     )
 
-    if tm_stop_crossings.shape[0] == 0:
-        tm_stop_crossings = _empty_stop_crossing()
+    valid, invalid = TransitMasterEvents.filter(tm_stop_crossings)
 
-    logger.add_metadata(events_for_day=tm_stop_crossings.shape[0])
+    logger.add_metadata(events_for_day=valid.height, invalidities=sum(invalid.counts().values()))
     logger.log_complete()
-    return tm_stop_crossings
+    return valid
 
 
 def get_daily_work_pieces(daily_work_piece_files: List[str]) -> pl.DataFrame:
