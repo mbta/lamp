@@ -70,13 +70,13 @@ class HyperJob(ABC):  # pylint: disable=R0902
         """
 
     @abstractmethod
-    def create_parquet(self, db_manager: DatabaseManager | None) -> None:
+    def create_parquet(self, db_manager) -> None:  # type: ignore[no-untyped-def]
         """
         Business logic to create new Job parquet file
         """
 
     @abstractmethod
-    def update_parquet(self, db_manager: DatabaseManager | None) -> bool:
+    def update_parquet(self, db_manager) -> bool:  # type: ignore[no-untyped-def]
         """
         Business logic to update existing Job parquet file
 
