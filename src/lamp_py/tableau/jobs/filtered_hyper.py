@@ -10,7 +10,7 @@ import polars as pl
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.tableau.hyper import HyperJob
-
+from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.remote_files import S3Location
 
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
@@ -51,10 +51,10 @@ class FilteredHyperJob(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         return self.processed_schema
 
-    def create_parquet(self, _: None) -> None:
+    def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
-    def update_parquet(self, _: None) -> bool:
+    def update_parquet(self, _: DatabaseManager | None) -> bool:
         return self.create_tableau_parquet(num_days=self.rollup_num_days)
 
     # pylint: disable=R0914, R0912
