@@ -2,7 +2,7 @@ import polars as pl
 import polars.testing as pt
 from io import StringIO
 
-from lamp_py.tableau.spare.default_converter import convert_to_tableau_flat_schema
+from lamp_py.tableau.spare.default_converter import PolarsDataFrameConverter
 
 
 def test_convert_to_tableau_flat_schema() -> None:
@@ -23,4 +23,4 @@ def test_convert_to_tableau_flat_schema() -> None:
 
     expected = pl.read_json("tests/tableau/test_convert_types_expected.json")
 
-    pt.assert_frame_equal(expected, convert_to_tableau_flat_schema(df1))
+    pt.assert_frame_equal(expected, PolarsDataFrameConverter.convert_to_tableau_flat_schema(df1))

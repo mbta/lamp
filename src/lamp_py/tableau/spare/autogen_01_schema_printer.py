@@ -1,4 +1,3 @@
-# type: ignore
 # pylint: skip-file
 
 import os
