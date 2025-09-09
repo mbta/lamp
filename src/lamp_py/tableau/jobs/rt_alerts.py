@@ -21,10 +21,10 @@ class HyperRtAlerts(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         return AlertsS3Info.parquet_schema
 
-    def create_parquet(self, _: DatabaseManager) -> None:
+    def create_parquet(self, _: DatabaseManager | None) -> None:
         raise NotImplementedError("Alerts Hyper Job does not create parquet file")
 
-    def update_parquet(self, _: DatabaseManager) -> bool:
+    def update_parquet(self, _: DatabaseManager | None) -> bool:
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,

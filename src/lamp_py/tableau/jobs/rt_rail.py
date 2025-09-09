@@ -172,12 +172,12 @@ class HyperRtRail(HyperJob):
             ]
         )
 
-    def create_parquet(self, db_manager: DatabaseManager) -> None:
+    def create_parquet(self, db_manager: DatabaseManager | None) -> None:
         create_query = self.table_query % ""
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
-
+        assert isinstance(db_manager, DatabaseManager)
         db_manager.write_to_parquet(
             select_query=sa.text(create_query),
             write_path=self.local_parquet_path,
@@ -188,7 +188,7 @@ class HyperRtRail(HyperJob):
     # pylint: disable=R0914
     # there are a lot of vars in here used for logging and it pushes the total
     # method variables past the threshold.
-    def update_parquet(self, db_manager: DatabaseManager) -> bool:
+    def update_parquet(self, db_manager: DatabaseManager | None) -> bool:
         process_logger = ProcessLogger("update_rt_rail_parquet")
         process_logger.log_start()
 
@@ -205,6 +205,7 @@ class HyperRtRail(HyperJob):
 
         update_query = self.table_query % (f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",)
 
+        assert isinstance(db_manager, DatabaseManager)
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
             write_path=self.db_parquet_path,
