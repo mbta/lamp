@@ -177,7 +177,8 @@ class HyperRtRail(HyperJob):
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
-        assert isinstance(db_manager, DatabaseManager)
+        if not isinstance(db_manager, DatabaseManager):
+            raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         db_manager.write_to_parquet(
             select_query=sa.text(create_query),
             write_path=self.local_parquet_path,
@@ -205,7 +206,8 @@ class HyperRtRail(HyperJob):
 
         update_query = self.table_query % (f" AND vt.service_date >= {max_start_date.strftime('%Y%m%d')} ",)
 
-        assert isinstance(db_manager, DatabaseManager)
+        if not isinstance(db_manager, DatabaseManager):
+            raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         db_manager.write_to_parquet(
             select_query=sa.text(update_query),
             write_path=self.db_parquet_path,

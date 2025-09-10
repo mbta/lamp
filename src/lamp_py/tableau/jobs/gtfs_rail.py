@@ -72,7 +72,8 @@ class HyperGTFS(HyperJob):
 
         max_key_query = f"SELECT MAX(static_version_key) FROM {self.gtfs_table_name};"
 
-        assert isinstance(db_manager, DatabaseManager)
+        if not isinstance(db_manager, DatabaseManager):
+            raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         max_db_key = db_manager.select_as_list(sa.text(max_key_query))[0]["max"]
 
         # no update needed
