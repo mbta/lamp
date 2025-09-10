@@ -55,7 +55,7 @@ def lrtp_prod(polars_df: pl.DataFrame) -> pl.DataFrame:
     return polars_df
 
 
-def lrtp_devgreen(polars_df: pl.DataFrame) -> pl.DataFrame:
+def lrtp_devgreen(trip_updates: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     This is intended for more complicated transformations than is feasible to perform in pyarrow
@@ -72,14 +72,87 @@ def lrtp_devgreen(polars_df: pl.DataFrame) -> pl.DataFrame:
 
     """
 
+    def append_prediction_valid_duration(trip_updates: pl.DataFrame) -> pl.DataFrame:
+        """
+        Append feed_timestamp_first_prediction and feed_timestamp_last_prediction columns to the dataframe
+
+        Predictions are valid only instantaneously from the upstream producer (RTR)
+        This method attempts to derive a rough "validity period" by checking when the
+        first prediction is made vs the last one grouped by trip_id, feed_timestamp, and predicted time
+
+        The intent is to isolate timestamps that are sent by RTR that are meant for the
+        same trip_id, but has not changed the prediction (departure.time) since the previous query.
+
+        Parameters
+        ----------
+        polars_df : Dataframe filtered down to light rail trip updates
+
+        Returns
+        -------
+        pl.Dataframe : dataframe with feed_timestamp_first_prediction and feed_timestamp_last_prediction columns
+                    to signify a validity duration of a prediction
+                    these columns are all null if enable_calculation argument is False
+                    these columns are calculated and valid if enable_calculation is True
+        """
+
+        trip_updates = trip_updates.with_columns(
+            pl.col("feed_timestamp")
+            .min()
+            .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
+            .alias("feed_timestamp_first_prediction"),
+            pl.col("feed_timestamp")
+            .max()
+            .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
+            .alias("feed_timestamp_last_prediction"),
+        ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
+
+        return trip_updates
+
+    def temporary_lrtp_assign_new_trip_ids(trip_updates: pl.DataFrame, threshold_sec: int = 60 * 15) -> pl.DataFrame:
+        trip_updates = (
+            trip_updates.sort("trip_update.timestamp")
+            .with_columns(
+                pl.col("trip_update.timestamp")
+                .diff()
+                .alias("mdiff")
+                .over("trip_update.trip.trip_id", "trip_update.trip.start_date")
+            )
+            .with_columns(
+                pl.when(pl.col("mdiff") < threshold_sec)
+                .then(0)
+                .otherwise(1)
+                .fill_null(0)
+                .cum_sum()
+                .cast(pl.String)
+                .alias("new_id")
+                .over("trip_update.trip.trip_id", "trip_update.trip.start_date")
+            )
+            .with_columns(
+                pl.when(pl.col("new_id").ne("1"))
+                .then(
+                    pl.concat_str(
+                        [pl.col("trip_update.trip.trip_id"), pl.lit("_LAMP"), pl.col("new_id")], ignore_nulls=True
+                    )
+                )
+                .alias("trip_update.trip.trip_id1")
+            )
+            .with_columns(
+                pl.coalesce("trip_update.trip.trip_id1", "trip_update.trip.trip_id").alias("trip_update.trip.trip_id")
+            )
+            .drop("trip_update.trip.trip_id1")
+            .filter(pl.col("trip_update.trip.trip_id") == "69330269_LAMP2")
+        )
+        return trip_updates
+
     # filter down to only terminals - original data
-    polars_df = polars_df.filter(
+    trip_updates = trip_updates.filter(
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
         & pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
     )
-    polars_df = append_prediction_valid_duration(polars_df)
-    polars_df = apply_timezone_conversions(polars_df)
-    return polars_df
+    trip_updates = temporary_lrtp_assign_new_trip_ids(trip_updates)
+    trip_updates = append_prediction_valid_duration(trip_updates)
+    trip_updates = apply_timezone_conversions(trip_updates)
+    return trip_updates
 
 
 def heavyrail(polars_df: pl.DataFrame) -> pl.DataFrame:
@@ -127,40 +200,3 @@ def schema() -> pyarrow.schema:
     Function returns schema of the processed gtfs-rt trip updates
     """
     return gtfs_rt_trip_updates_processed_schema
-
-
-def append_prediction_valid_duration(polars_df: pl.DataFrame) -> pl.DataFrame:
-    """
-    Append feed_timestamp_first_prediction and feed_timestamp_last_prediction columns to the dataframe
-
-    Predictions are valid only instantaneously from the upstream producer (RTR)
-    This method attempts to derive a rough "validity period" by checking when the
-    first prediction is made vs the last one grouped by trip_id, feed_timestamp, and predicted time
-
-    The intent is to isolate timestamps that are sent by RTR that are meant for the
-    same trip_id, but has not changed the prediction (departure.time) since the previous query.
-
-    Parameters
-    ----------
-    polars_df : Dataframe filtered down to light rail trip updates
-
-    Returns
-    -------
-    pl.Dataframe : dataframe with feed_timestamp_first_prediction and feed_timestamp_last_prediction columns
-                   to signify a validity duration of a prediction
-                   these columns are all null if enable_calculation argument is False
-                   these columns are calculated and valid if enable_calculation is True
-    """
-
-    polars_df = polars_df.with_columns(
-        pl.col("feed_timestamp")
-        .min()
-        .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
-        .alias("feed_timestamp_first_prediction"),
-        pl.col("feed_timestamp")
-        .max()
-        .over(["trip_update.trip.trip_id", "trip_update.timestamp", "trip_update.stop_time_update.departure.time"])
-        .alias("feed_timestamp_last_prediction"),
-    ).sort(["trip_update.trip.trip_id", "trip_update.stop_time_update.stop_sequence", "feed_timestamp"])
-
-    return polars_df
