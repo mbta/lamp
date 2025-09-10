@@ -140,7 +140,6 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> pl.DataFrame:
                 pl.coalesce("trip_update.trip.trip_id1", "trip_update.trip.trip_id").alias("trip_update.trip.trip_id")
             )
             .drop("trip_update.trip.trip_id1")
-            .filter(pl.col("trip_update.trip.trip_id") == "69330269_LAMP2")
         )
         return trip_updates
 
