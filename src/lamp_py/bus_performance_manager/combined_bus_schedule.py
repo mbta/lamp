@@ -106,7 +106,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
             .when(pl.col("tm_stop_sequence").is_null())
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
-            .alias("tm_joined")
+            .alias("schedule_joined")
         )
         # explicitly define the columns that we are grabbing at the end of the operation
         .select(
@@ -130,7 +130,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
                 "plan_travel_time_seconds",
                 "plan_route_direction_headway_seconds",
                 "plan_direction_destination_headway_seconds",
-                "tm_joined",
+                "schedule_joined",
                 "timepoint_order",
                 "tm_stop_sequence",
                 "tm_planned_sequence_start",
