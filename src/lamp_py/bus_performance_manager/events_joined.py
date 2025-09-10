@@ -262,7 +262,7 @@ def join_rt_to_schedule(
         tm_actual_departure_time_sam -> Int64
         tm_point_type -> Int32
         is_full_trip -> Int32
-        tm_joined -> Boolean
+        schedule_joined -> Boolean
     """
 
     # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
