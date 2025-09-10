@@ -51,7 +51,8 @@ class HyperGTFS(HyperJob):
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
-        assert isinstance(db_manager, DatabaseManager)
+        if not isinstance(db_manager, DatabaseManager):
+            raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
             write_path=self.local_parquet_path,
