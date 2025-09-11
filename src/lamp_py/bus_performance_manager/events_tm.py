@@ -22,19 +22,21 @@ class BusTrips(dy.Schema):
 
 
 class TransitMasterSchedule(BusTrips):
-    timepoint_abbr = dy.String(nullable = True)
-    timepoint_id = dy.Int64(nullable = True)
-    timepoint_name = dy.String(nullable = True)
-    timepoint_order = dy.UInt32(nullable = True)
+    timepoint_abbr = dy.String(nullable=True)
+    timepoint_id = dy.Int64(nullable=True)
+    timepoint_name = dy.String(nullable=True)
+    timepoint_order = dy.UInt32(nullable=True)
     tm_stop_sequence = dy.Int64(primary_key=True, nullable=False)
 
 
 class TransitMasterEvents(TransitMasterSchedule):
-    tm_actual_arrival_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    tm_actual_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    tm_scheduled_time_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    tm_actual_departure_time_sam = dy.Int64(nullable = True)
-    vehicle_label = dy.String(nullable = True)
+    tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    tm_scheduled_time_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    tm_actual_arrival_time_sam = dy.Int64(nullable=True)
+    tm_scheduled_time_sam = dy.Int64(nullable=True)
+    tm_actual_departure_time_sam = dy.Int64(nullable=True)
+    vehicle_label = dy.String(nullable=False)
 
 
 def generate_tm_events(

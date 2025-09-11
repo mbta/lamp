@@ -12,22 +12,47 @@ from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):
+class BusEvents(TransitMasterEvents, GTFSEvents, CombinedSchedule):
     trip_id = dy.String(
         primary_key=True, nullable=False
     )  # TODO : regex = r"[\\w-]+" to exclude underscores and other extraneous stuff
-    gtfs_sort_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    gtfs_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    previous_stop_id = dy.String(nullable = True)
-    stop_arrival_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    stop_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    gtfs_travel_to_seconds = dy.Int64(nullable = True)
-    stop_arrival_seconds = dy.Int64(nullable = True)
-    stop_departure_seconds = dy.Int64(nullable = True)
-    travel_time_seconds = dy.Int64(nullable = True)
-    dwell_time_seconds = dy.Int64(nullable = True)
-    route_direction_headway_seconds = dy.Int64(nullable = True)
-    direction_destination_headway_seconds = dy.Int64(nullable = True)
+    gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    previous_stop_id = dy.String(nullable=True)
+    stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_travel_to_seconds = dy.Int64(nullable=True)
+    stop_arrival_seconds = dy.Int64(nullable=True)
+    stop_departure_seconds = dy.Int64(nullable=True)
+    travel_time_seconds = dy.Int64(nullable=True)
+    dwell_time_seconds = dy.Int64(nullable=True)
+    route_direction_headway_seconds = dy.Int64(nullable=True)
+    direction_destination_headway_seconds = dy.Int64(nullable=True)
+
+
+class BusPerformanceMetrics(dy.Collection):
+    tm_events: dy.LazyFrame[TransitMasterEvents]
+    bus_events: dy.LazyFrame[BusEvents]
+
+    @dy.filter()
+    def preserve_non_null_tm_values(self) -> pl.LazyFrame:
+        """
+        Any rows in tm_events with non-null values must also be non-null in bus_events.
+        """
+        return self.tm_events.join(
+            self.bus_events,
+            on=[
+                "trip_id",
+                "tm_stop_sequence",
+                "tm_actual_arrival_dt",
+                "tm_actual_departure_dt",
+                "tm_scheduled_time_dt",
+                "tm_actual_departure_time_sam",
+            ],
+            how="inner",
+            validate="1:1",
+            nulls_equal=True,
+        )
 
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:

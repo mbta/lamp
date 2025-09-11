@@ -308,18 +308,20 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
 
 
 class GTFSEvents(BusTrips):
-    service_date = dy.String(nullable = True, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]")  # coercable to a date
-    start_time = dy.Int64(nullable = True)
-    start_dt = dy.Datetime(nullable = True)
-    stop_sequence = dy.Int64(nullable = True)
-    stop_count = dy.UInt32(nullable = True)
-    direction_id = dy.Int8(nullable = True)
-    vehicle_id = dy.String(nullable = True)
-    vehicle_label = dy.String(nullable = True)
-    gtfs_travel_to_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    gtfs_arrival_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    latitude = dy.Float64(nullable = True)
-    longitude = dy.Float64(nullable = True)
+    service_date = dy.String(
+        nullable=False, primary_key=True, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]"
+    )  # coercable to a date
+    start_time = dy.Int64(nullable=True)
+    start_dt = dy.Datetime(nullable=True)
+    stop_sequence = dy.Int64(nullable=True, primary_key=True)
+    stop_count = dy.UInt32(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    vehicle_id = dy.String(nullable=True)
+    vehicle_label = dy.String(nullable=True)
+    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    latitude = dy.Float64(nullable=True)
+    longitude = dy.Float64(nullable=True)
 
 
 def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:

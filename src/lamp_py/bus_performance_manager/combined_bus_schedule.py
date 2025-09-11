@@ -7,25 +7,28 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class CombinedSchedule(TransitMasterSchedule):
-    index = dy.UInt32(nullable = False)
-    stop_sequence = dy.Int64(nullable = True)
-    block_id = dy.String(nullable = True)
-    service_id = dy.String(nullable = True)
-    route_pattern_id = dy.String(nullable = True)
-    route_pattern_typicality = dy.Int64(nullable = True)
-    direction_id = dy.Int8(nullable = True)
-    direction_destination = dy.String(nullable = True)
-    stop_name = dy.String(nullable = True)
-    plan_stop_count = dy.UInt32(nullable = True)
-    plan_start_time = dy.Int64(nullable = True)
-    plan_start_dt = dy.Datetime(nullable = True)
-    plan_travel_time_seconds = dy.Int64(nullable = True)
-    plan_route_direction_headway_seconds = dy.Int64(nullable = True)
-    tm_joined = dy.String(nullable = True)
-    tm_planned_sequence_start = dy.Int64(nullable = True)
-    tm_planned_sequence_end = dy.Int64(nullable = True)
-    pattern_id = dy.Int64(nullable = True)
-    tm_gtfs_sequence_diff = dy.Int64(nullable = True)
+    index = dy.UInt32(nullable=False)
+    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    service_date = dy.String(
+        nullable=True, primary_key=False, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]"
+    )  # coercable to a date
+    block_id = dy.String(nullable=True)
+    service_id = dy.String(nullable=True)
+    route_pattern_id = dy.String(nullable=True)
+    route_pattern_typicality = dy.Int64(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    direction_destination = dy.String(nullable=True)
+    stop_name = dy.String(nullable=True)
+    plan_stop_count = dy.UInt32(nullable=True)
+    plan_start_time = dy.Int64(nullable=True)
+    plan_start_dt = dy.Datetime(nullable=True)
+    plan_travel_time_seconds = dy.Int64(nullable=True)
+    plan_route_direction_headway_seconds = dy.Int64(nullable=True)
+    tm_joined = dy.String(nullable=True)
+    tm_planned_sequence_start = dy.Int64(nullable=True)
+    tm_planned_sequence_end = dy.Int64(nullable=True)
+    pattern_id = dy.Int64(nullable=True)
+    tm_gtfs_sequence_diff = dy.Int64(nullable=True)
 
 
 # pylint: disable=R0801
