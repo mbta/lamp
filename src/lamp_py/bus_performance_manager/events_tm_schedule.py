@@ -13,7 +13,7 @@ from lamp_py.runtime_utils.remote_files import (
 
 # pylint: disable=R0902
 @dataclass(frozen=True)
-class TransitMasterSchedule:
+class TransitMasterTables:
     """
     Class holding collection of TM schedule inputs and the resultant tm_schedule for joining with GTFS
     """
@@ -30,7 +30,7 @@ class TransitMasterSchedule:
     tm_schedule: pl.LazyFrame
 
 
-def generate_tm_schedule() -> TransitMasterSchedule:
+def generate_tm_schedule() -> TransitMasterTables:
     """
 
     non service tiemepoints
@@ -170,7 +170,7 @@ def generate_tm_schedule() -> TransitMasterSchedule:
         coalesce=True,
     )
 
-    return TransitMasterSchedule(
+    return TransitMasterTables(
         tm_geo_nodes=tm_geo_nodes,
         # tm_trips=tm_trips,
         tm_routes=tm_routes,
