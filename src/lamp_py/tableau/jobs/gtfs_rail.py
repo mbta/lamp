@@ -47,10 +47,12 @@ class HyperGTFS(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         """Define GTFS Table Schema"""
 
-    def create_parquet(self, db_manager: DatabaseManager) -> None:
+    def create_parquet(self, db_manager: DatabaseManager | None) -> None:
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
 
+        if not isinstance(db_manager, DatabaseManager):
+            raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         db_manager.write_to_parquet(
             select_query=sa.text(self.create_query),
             write_path=self.local_parquet_path,
@@ -58,7 +60,7 @@ class HyperGTFS(HyperJob):
             batch_size=self.ds_batch_size,
         )
 
-    def update_parquet(self, db_manager: DatabaseManager) -> bool:
+    def update_parquet(self, db_manager: DatabaseManager | None) -> bool:
         download_file(
             object_path=self.remote_parquet_path,
             file_name=self.local_parquet_path,
@@ -70,6 +72,8 @@ class HyperGTFS(HyperJob):
 
         max_key_query = f"SELECT MAX(static_version_key) FROM {self.gtfs_table_name};"
 
+        if not isinstance(db_manager, DatabaseManager):
+            raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         max_db_key = db_manager.select_as_list(sa.text(max_key_query))[0]["max"]
 
         # no update needed

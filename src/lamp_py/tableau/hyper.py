@@ -1,8 +1,9 @@
 import os
 from abc import ABC
 from abc import abstractmethod
+from datetime import date
 from itertools import chain
-from typing import Dict
+from typing import Dict, Union
 
 import pyarrow
 from pyarrow import fs
@@ -120,7 +121,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
 
         return SqlType.text()
 
-    def max_stats_of_parquet(self) -> Dict[str, str]:
+    def max_stats_of_parquet(self) -> Dict[str, Union[str, date]]:
         """
         Create dictionary of maximum value for each column of locally saved
         parquet file

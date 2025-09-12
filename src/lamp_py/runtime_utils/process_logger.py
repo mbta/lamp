@@ -4,11 +4,12 @@ import time
 import traceback
 import uuid
 import shutil
-from typing import Any, Dict, Union, Optional
+from datetime import date
+from typing import Any, Dict, Union, Optional, List
 
 import psutil
 
-MdValues = Optional[Union[str, int, float, bool]]
+MdValues = Optional[Union[str, int, float, bool, date, BaseException, List[str]]]
 
 
 class ProcessLogger:

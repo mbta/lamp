@@ -53,7 +53,7 @@ class StaticTableDetails:
 
     table_name: str
     insert_table: sa.sql.schema.Table
-    static_version_key_column: sa.sql.schema.Column
+    static_version_key_column: sa.sql.expression.SQLColumnExpression
     column_info: StaticTableColumns
     data_table: pandas.DataFrame = field(default_factory=pandas.DataFrame)
     allow_empty_dataframe: bool = False

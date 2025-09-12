@@ -9,6 +9,7 @@ from pyarrow.fs import S3FileSystem
 import polars as pl
 
 from lamp_py.tableau.hyper import HyperJob
+from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 
 from lamp_py.runtime_utils.remote_files import bus_events
@@ -102,7 +103,7 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             # if the bus_schema above is in the same order as the batch
             # schema, then the select will do nothing - as expected
 
-            polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)  # type: ignore[union-attr]
+            polars_df = pl.from_arrow(batch).select(job.output_processed_schema.names)
 
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
@@ -125,10 +126,10 @@ class HyperBusPerformanceAll(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         return bus_schema
 
-    def create_parquet(self, _: None) -> None:
+    def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
-    def update_parquet(self, _: None) -> bool:
+    def update_parquet(self, _: DatabaseManager | None) -> bool:
         # only run once per day after 11AM UTC
         if object_exists(tableau_bus_all.s3_uri):
             now_utc = datetime.now(tz=timezone.utc)
@@ -159,9 +160,9 @@ class HyperBusPerformanceRecent(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         return bus_schema
 
-    def create_parquet(self, _: None) -> None:
+    def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
-    def update_parquet(self, _: None) -> bool:
+    def update_parquet(self, _: DatabaseManager | None) -> bool:
         create_bus_parquet(self, BUS_RECENT_NDAYS)
         return True

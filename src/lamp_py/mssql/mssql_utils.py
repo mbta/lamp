@@ -99,14 +99,18 @@ class MSSQLManager:
 
         return result
 
-    def select_as_dataframe(self, select_query: sa.sql.selectable.Select) -> pandas.DataFrame:
+    def select_as_dataframe(
+        self, select_query: Union[sa.sql.expression.Select, sa.sql.expression.TextClause]
+    ) -> pandas.DataFrame:
         """
         select data from db table and return pandas dataframe
         """
         with self.session.begin() as cursor:
             return pandas.DataFrame([row._asdict() for row in cursor.execute(select_query)])
 
-    def select_as_list(self, select_query: sa.sql.selectable.Select) -> Union[List[Any], List[Dict[str, Any]]]:
+    def select_as_list(
+        self, select_query: Union[sa.sql.expression.Select, sa.sql.expression.TextClause]
+    ) -> Union[List[Any], List[Dict[str, Any]]]:
         """
         select data from db table and return list
         """
@@ -115,7 +119,7 @@ class MSSQLManager:
 
     def write_to_parquet(
         self,
-        select_query: sa.sql.selectable.Select,
+        select_query: Union[sa.sql.expression.Select, sa.sql.expression.TextClause],
         write_path: str,
         schema: pyarrow.schema,
         batch_size: int = 1024 * 1024,

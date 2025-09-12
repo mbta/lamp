@@ -8,6 +8,7 @@ from pyarrow.fs import S3FileSystem
 import polars as pl
 
 from lamp_py.tableau.hyper import HyperJob
+from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.remote_files import (
     glides_trips_updated,
     glides_operator_signed_in,
@@ -184,10 +185,10 @@ class HyperGlidesTripUpdates(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         return glides_trips_updated_schema
 
-    def create_parquet(self, _: None) -> None:
+    def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
-    def update_parquet(self, _: None) -> bool:
+    def update_parquet(self, _: DatabaseManager | None) -> bool:
 
         create_trips_updated_glides_parquet(self, None)
         return True
@@ -209,10 +210,10 @@ class HyperGlidesOperatorSignIns(HyperJob):
     def output_processed_schema(self) -> pyarrow.schema:
         return glides_operator_signed_in_schema
 
-    def create_parquet(self, _: None) -> None:
+    def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
-    def update_parquet(self, _: None) -> bool:
+    def update_parquet(self, _: DatabaseManager | None) -> bool:
 
         create_operator_signed_in_glides_parquet(self, None)
         return True
