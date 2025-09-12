@@ -324,7 +324,7 @@ class GTFSEvents(BusTrips):
     longitude = dy.Float64(nullable=True)
 
 
-def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:
+def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.DataFrame[GTFSEvents]:
     """
     generate a polars dataframe for bus vehicle events from gtfs realtime
     vehicle position files for a given service date
@@ -346,7 +346,10 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.
     vehicle_positions = read_vehicle_positions(service_date=service_date, gtfs_rt_files=gtfs_rt_files)
     logger.add_metadata(rows_from_parquet=vehicle_positions.shape[0])
     vehicle_events = positions_to_events(vehicle_positions=vehicle_positions)
-    logger.add_metadata(events_for_day=vehicle_events.shape[0])
+
+    valid, invalid = GTFSEvents.filter(vehicle_events)
+
+    logger.add_metadata(valid_events_for_day=valid.height, validation_errors = sum(invalid.counts().values()))
 
     logger.log_complete()
-    return vehicle_events
+    return valid

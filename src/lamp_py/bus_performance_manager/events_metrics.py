@@ -16,6 +16,11 @@ class BusEvents(TransitMasterEvents, GTFSEvents, CombinedSchedule):
     trip_id = dy.String(
         primary_key=True, nullable=False
     )  # TODO : regex = r"[\\w-]+" to exclude underscores and other extraneous stuff
+    service_date = dy.String(
+        nullable=False, primary_key=True, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]"
+    )  # coercable to a date
+    tm_stop_sequence = dy.Int64(nullable = False, primary_key = True)
+    index = dy.UInt32(nullable = True, primary_key = False)
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     previous_stop_id = dy.String(nullable=True)
