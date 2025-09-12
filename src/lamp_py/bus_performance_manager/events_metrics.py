@@ -12,22 +12,22 @@ from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):
-    trip_id = dy.String(
-        primary_key=True, nullable=False
-    )  # TODO : regex = r"[\\w-]+" to exclude underscores and other extraneous stuff
-    gtfs_sort_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    gtfs_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    previous_stop_id = dy.String(nullable = True)
-    stop_arrival_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    stop_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    gtfs_travel_to_seconds = dy.Int64(nullable = True)
-    stop_arrival_seconds = dy.Int64(nullable = True)
-    stop_departure_seconds = dy.Int64(nullable = True)
-    travel_time_seconds = dy.Int64(nullable = True)
-    dwell_time_seconds = dy.Int64(nullable = True)
-    route_direction_headway_seconds = dy.Int64(nullable = True)
-    direction_destination_headway_seconds = dy.Int64(nullable = True)
+class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
+    "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
+    trip_id = dy.String(primary_key=True, nullable=False)
+    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    previous_stop_id = dy.String(nullable=True)
+    stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_travel_to_seconds = dy.Int64(nullable=True)
+    stop_arrival_seconds = dy.Int64(nullable=True)
+    stop_departure_seconds = dy.Int64(nullable=True)
+    travel_time_seconds = dy.Int64(nullable=True)
+    dwell_time_seconds = dy.Int64(nullable=True)
+    route_direction_headway_seconds = dy.Int64(nullable=True)
+    direction_destination_headway_seconds = dy.Int64(nullable=True)
 
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:

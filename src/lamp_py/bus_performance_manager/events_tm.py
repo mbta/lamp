@@ -16,25 +16,30 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class BusTrips(dy.Schema):
+    "Common schema for bus schedule and event datasets."
     trip_id = dy.String(primary_key=True, nullable=False)
     stop_id = dy.String(nullable=False)
     route_id = dy.String(nullable=False)
 
 
 class TransitMasterSchedule(BusTrips):
-    timepoint_abbr = dy.String(nullable = True)
-    timepoint_id = dy.Int64(nullable = True)
-    timepoint_name = dy.String(nullable = True)
-    timepoint_order = dy.UInt32(nullable = True)
+    "Scheduled stops in TransitMaster."
+    timepoint_abbr = dy.String(nullable=True)
+    timepoint_id = dy.Int64(nullable=True)
+    timepoint_name = dy.String(nullable=True)
+    timepoint_order = dy.UInt32(nullable=True)
     tm_stop_sequence = dy.Int64(primary_key=True, nullable=False)
 
 
 class TransitMasterEvents(TransitMasterSchedule):
-    tm_actual_arrival_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    tm_actual_departure_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    tm_scheduled_time_dt = dy.Datetime(nullable = True, time_zone="UTC")
-    tm_actual_departure_time_sam = dy.Int64(nullable = True)
-    vehicle_label = dy.String(nullable = True)
+    "Scheduled and actual stops in TransitMaster."
+    tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    tm_scheduled_time_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    tm_actual_arrival_time_sam = dy.Int64(nullable=True)
+    tm_actual_departure_time_sam = dy.Int64(nullable=True)
+    tm_scheduled_time_sam = dy.Int64(nullable=True)
+    vehicle_label = dy.String(nullable=True)
 
 
 def generate_tm_events(
