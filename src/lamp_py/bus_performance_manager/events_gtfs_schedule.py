@@ -242,18 +242,24 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
             (
                 pl.datetime(service_date.year, service_date.month, service_date.day)
                 + pl.duration(seconds=pl.col("plan_start_time"))
-            ).alias("plan_start_dt").dt.replace_time_zone("America/New_York"),
+            )
+            .alias("plan_start_dt")
+            .dt.replace_time_zone("America/New_York"),
             (
                 pl.datetime(service_date.year, service_date.month, service_date.day)
                 + pl.duration(seconds=pl.col("departure_seconds"))
-            ).alias("plan_stop_departure_dt").dt.replace_time_zone("America/New_York"),
-        ).drop(
+            )
+            .alias("plan_stop_departure_dt")
+            .dt.replace_time_zone("America/New_York"),
+        )
+        .drop(
             "arrival_time",
             "departure_time",
         )
     )
 
     return stop_events
+
 
 def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     """
