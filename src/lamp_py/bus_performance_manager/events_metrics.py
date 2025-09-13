@@ -62,6 +62,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         plan_stop_count -> UInt32
         plan_start_time -> Int64
         plan_start_dt -> Datetime(time_unit='us', time_zone=None)
+        plan_stop_departure_dt -> Datetime(time_unit='us', time_zone=None)
         stop_name -> String
         plan_travel_time_seconds -> Int64
         plan_route_direction_headway_seconds -> Int64
@@ -86,9 +87,10 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule)
 
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
-
+    gtfs_df.write_parquet('/tmp/gtfs_events.parquet')
     # transit master events from parquet
     tm_df = generate_tm_events(tm_files, tm_schedule)
+    tm_df.write_parquet('/tmp/tm_events.parquet')
 
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
     bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df)
