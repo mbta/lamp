@@ -95,6 +95,12 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
 
     bus_events = bus_gtfs_schedule_events_for_date(SERVICE_DATE)
 
+    # regeneration line:
+    # drop new lines in expected_bus_events
+    # read it in
+    # run this
+    # bus_events.filter(pl.col.plan_trip_id.is_in(expected_bus_events['plan_trip_id'].unique())).sort(by=["plan_trip_id", "stop_sequence"]).write_csv('bus_test_gtfs.csv')
+    
     # CSV Bus events
     expected_bus_events = pl.read_csv(
         os.path.join(current_dir, "bus_test_gtfs.csv"),
@@ -102,7 +108,6 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     ).sort(by=["plan_trip_id", "stop_sequence"])
     # CSV trips
     expected_trips = expected_bus_events.select("plan_trip_id").unique()
-
     # Filter and sort pipeline events for CSV trips
     bus_events = bus_events.join(expected_trips, on="plan_trip_id", how="right").sort(
         by=["plan_trip_id", "stop_sequence"]
