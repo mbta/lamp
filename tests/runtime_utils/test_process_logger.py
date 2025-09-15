@@ -28,3 +28,10 @@ def test_unraised_exception(caplog: pytest.LogCaptureFixture) -> None:
 
     assert not exception.__traceback__
     assert "NoneType: None" not in caplog.text.splitlines()
+
+def test_start_logging_explicitly(caplog: pytest.LogCaptureFixture) -> None:
+    "It doesn't start the log when it initializes."
+
+    ProcessLogger("test_not_none", foo="bar")
+
+    assert caplog.text == ""
