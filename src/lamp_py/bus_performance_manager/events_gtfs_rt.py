@@ -11,6 +11,19 @@ from lamp_py.utils.gtfs_utils import bus_route_ids_for_service_date
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
+class GTFSEvents(BusTrips):
+    service_date = dy.Date(primary_key = True)
+    start_time = dy.Int64(nullable=True)
+    start_dt = dy.Datetime(nullable=True)
+    stop_sequence = dy.Int64(nullable=True, primary_key=True)
+    stop_count = dy.UInt32(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    vehicle_id = dy.String(nullable=True)
+    vehicle_label = dy.String(nullable=True)
+    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    latitude = dy.Float64(nullable=True)
+    longitude = dy.Float64(nullable=True)
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
     """
@@ -176,29 +189,14 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
     return vehicle_positions
 
 
-def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
+def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEvents]:
     """
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.
 
     :param vehicle_positions: Dataframe of vehicles positions
 
-    :return dataframe:
-        service_date -> String
-        route_id -> String
-        trip_id -> String
-        start_time -> String
-        start_dt -> Datetime
-        stop_count -> UInt32
-        direction_id -> Int8
-        stop_id -> String
-        stop_sequence -> Int64
-        vehicle_id -> String
-        vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime
-        gtfs_arrival_dt -> Datetime
-        latitude -> Float64
-        longitude -> Float64
+    :return GTFSEvents:
     """
     vehicle_events = vehicle_positions.pivot(
         values=["vehicle_timestamp"],
@@ -277,9 +275,10 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
             pl.col("gtfs_arrival_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
             pl.col("gtfs_travel_to_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
             (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
+            pl.col("service_date").str.to_date("%Y%m%d").alias("service_date")
         )
         .with_columns(
-            (pl.col("service_date").str.to_datetime("%Y%m%d") + pl.duration(seconds=pl.col("start_time"))).alias(
+            (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias(
                 "start_dt"
             ),
         )
@@ -304,24 +303,13 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         )
     )
 
-    return vehicle_events
+    valid, invalid = GTFSEvents.filter(vehicle_events)
 
+    logger = ProcessLogger("positions_to_events", valid_events_for_day=valid.height, validation_errors = sum(invalid.counts().values()))
 
-class GTFSEvents(BusTrips):
-    service_date = dy.String(
-        nullable=False, primary_key=True, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]"
-    )  # coercable to a date
-    start_time = dy.Int64(nullable=True)
-    start_dt = dy.Datetime(nullable=True)
-    stop_sequence = dy.Int64(nullable=True, primary_key=True)
-    stop_count = dy.UInt32(nullable=True)
-    direction_id = dy.Int8(nullable=True)
-    vehicle_id = dy.String(nullable=True)
-    vehicle_label = dy.String(nullable=True)
-    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    latitude = dy.Float64(nullable=True)
-    longitude = dy.Float64(nullable=True)
+    logger.log_complete()
+
+    return valid
 
 
 def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.DataFrame[GTFSEvents]:
@@ -347,9 +335,4 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
     logger.add_metadata(rows_from_parquet=vehicle_positions.shape[0])
     vehicle_events = positions_to_events(vehicle_positions=vehicle_positions)
 
-    valid, invalid = GTFSEvents.filter(vehicle_events)
-
-    logger.add_metadata(valid_events_for_day=valid.height, validation_errors = sum(invalid.counts().values()))
-
-    logger.log_complete()
-    return valid
+    return vehicle_events
