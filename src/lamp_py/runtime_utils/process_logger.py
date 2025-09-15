@@ -60,9 +60,8 @@ class ProcessLogger:
             logging_list.append(f"{key}={value}")
 
         # add metadata to log output
-        if self.metadata:
-            for key, value in self.metadata.items():
-                logging_list.append(f"{key}={value}")
+        for key, value in self.metadata.items():
+            logging_list.append(f"{key}={value}")
 
         return ", ".join(logging_list)
 
