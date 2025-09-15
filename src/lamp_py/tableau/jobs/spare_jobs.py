@@ -11,7 +11,7 @@ spare_job_list = []
 
 
 if os.path.exists(SPARE_JOB_LIST_CACHE):
-    with open(SPARE_JOB_LIST_CACHE, 'rb') as spare_cache:
+    with open(SPARE_JOB_LIST_CACHE, "rb") as spare_cache:
         spare_job_list = pickle.load(spare_cache)
 else:
     # generically create jobs
