@@ -46,7 +46,7 @@ class ProcessLogger:
 
         self.start_time = 0.0
 
-        self.add_metadata(**metadata)
+        self.add_metadata(**metadata, print_log=False)  # wait to start the logger
 
     def _get_log_string(self) -> str:
         """create logging string for log write"""
@@ -60,11 +60,12 @@ class ProcessLogger:
             logging_list.append(f"{key}={value}")
 
         # add metadata to log output
-        for key, value in self.metadata.items():
-            logging_list.append(f"{key}={value}")
+        if self.metadata:
+            for key, value in self.metadata.items():
+                logging_list.append(f"{key}={value}")
 
         return ", ".join(logging_list)
-    
+
     def _start_if_unstarted(self) -> None:
         try:
             self.default_data["uuid"]
@@ -77,7 +78,6 @@ class ProcessLogger:
 
         :param print_log: if True(default), print log after metadata is added
         """
-        self._start_if_unstarted()
         metadata.setdefault("print_log", True)
         print_log = bool(metadata.get("print_log"))
         for key, value in metadata.items():
@@ -88,6 +88,7 @@ class ProcessLogger:
             self.metadata[str(key)] = str(value)
 
         if self.default_data.get("status") is not None and print_log:
+            self._start_if_unstarted()
             self.default_data["status"] = "add_metadata"
             logging.info(self._get_log_string())
 
@@ -131,4 +132,5 @@ class ProcessLogger:
             logging.error(f"uuid={self.default_data["uuid"]}, {line.strip('\n')}")
 
         # Log Process Failure
-        logging.exception(self._get_log_string())
+        has_exception_info = bool(exception.__traceback__)
+        logging.exception(self._get_log_string(), exc_info=has_exception_info)

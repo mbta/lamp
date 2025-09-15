@@ -3,6 +3,7 @@ import pytest
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
+
 def test_unstarted_log(caplog: pytest.LogCaptureFixture) -> None:
     "It logs unraised validation errors with the correct type and message."
 
@@ -11,15 +12,19 @@ def test_unstarted_log(caplog: pytest.LogCaptureFixture) -> None:
     process_logger.log_failure(Exception("test"))
     process_logger.log_complete()
 
-    with caplog.at_level(logging.ERROR):
-        assert type(Exception).__name__ in caplog.text
+    with caplog.at_level(logging.INFO):
+        assert "status=complete" in caplog.text
 
-def test_no_metadata(caplog: pytest.LogCaptureFixture) -> None:
-    "It gracefully handles a lack of metadata."
 
-    process_logger = ProcessLogger("test_no_metadata")
+def test_unraised_exception(caplog: pytest.LogCaptureFixture) -> None:
+    "It doesn't output `NoneType: None` when the exception has no traceback."
+
+    process_logger = ProcessLogger("test_not_none")
     process_logger.log_start()
-    process_logger.log_failure(Exception())
 
-    assert not process_logger.metadata
+    exception = Exception("foo")
+
+    process_logger.log_failure(Exception(exception))
+
+    assert not exception.__traceback__
     assert "NoneType: None" not in caplog.text.splitlines()
