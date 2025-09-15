@@ -88,7 +88,7 @@ def default_converter_from_s3(input_location: S3Location) -> pyarrow.Schema:
             filesystem=pyarrow.fs.S3FileSystem(),
         )
         first_batch = next(ds.to_batches(batch_size=10, batch_readahead=0, fragment_readahead=0))
-        table = pl.from_arrow(first_batch).convert_to_tableau_flat_schema()
+        table = PolarsDataFrameConverter(pl.from_arrow(first_batch)).convert_to_tableau_flat_schema()
 
         return table.to_arrow().schema
 

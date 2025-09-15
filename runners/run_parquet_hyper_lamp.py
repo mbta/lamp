@@ -16,7 +16,6 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     HyperDevGreenGtfsRtTripUpdates,
     HyperGtfsRtTripUpdatesHeavyRail,
 )
-from lamp_py.tableau.spare.default_converter import convert_to_tableau_flat_schema, default_converter_from_s3
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
 from lamp_py.runtime_utils.remote_files import (
