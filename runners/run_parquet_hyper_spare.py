@@ -4,26 +4,29 @@ from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.tableau.jobs.spare_jobs import spare_job_list
 from lamp_py.tableau.jobs.spare_jobs import SPARE_TABLEAU_PROJECT
 
-from lamp_py.tableau.spare.default_converter import convert_to_tableau_flat_schema, default_converter_from_s3
+from lamp_py.tableau.spare.default_converter import PolarsDataFrameConverter, default_converter_from_s3
 from lamp_py.tableau.spare.autogen_01_schema_printer import (
     springboard_spare_cases_with_history,
     tableau_spare_cases_with_history,
+    tableau_spare_walletTransactions_with_history,
+    springboard_spare_walletTransactions_with_history,
 )
 
 
 def start_spare_single() -> None:
 
     job = FilteredHyperJob(
-        remote_input_location=springboard_spare_cases_with_history,
-        remote_output_location=tableau_spare_cases_with_history,
+        remote_input_location=springboard_spare_walletTransactions_with_history,
+        remote_output_location=tableau_spare_walletTransactions_with_history,
         rollup_num_days=None,
-        processed_schema=default_converter_from_s3(springboard_spare_cases_with_history),
+        processed_schema=default_converter_from_s3(springboard_spare_walletTransactions_with_history),
         parquet_preprocess=None,
-        dataframe_filter=convert_to_tableau_flat_schema,
+        dataframe_filter=PolarsDataFrameConverter.convert_to_tableau_flat_schema,
         parquet_filter=None,
         tableau_project_name=SPARE_TABLEAU_PROJECT,
     )
     outs = job.run_parquet(None)
+    # outs1 = job.create_parquet(None)
     outs2 = job.create_local_hyper()
 
 
@@ -75,5 +78,5 @@ def start_spare() -> None:
 
 
 if __name__ == "__main__":
-    start_spare()
-    # start_spare_single()
+    # start_spare()
+    start_spare_single()
