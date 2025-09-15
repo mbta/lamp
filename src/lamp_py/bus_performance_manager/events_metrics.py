@@ -15,9 +15,7 @@ from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_sched
 class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True, nullable=False)
-    service_date = dy.String(
-        nullable=False, primary_key=True, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]"
-    )  # coercable to a date
+    service_date = dy.Date(nullable=False, primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=False, primary_key=True)
     index = dy.UInt32(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -70,7 +68,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     :param tm_files: list of TM/STOP_CROSSING parquet file paths, from S3, that cover service date
 
     :return dataframe:
-        service_date -> String
+        service_date -> Date
         route_id -> String
         trip_id -> String
         start_time -> Int64
@@ -180,15 +178,9 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
         )
         # convert dt columns to seconds after midnight
         .with_columns(
-            (pl.col("gtfs_travel_to_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            .dt.total_seconds()
-            .alias("gtfs_travel_to_seconds"),
-            (pl.col("stop_arrival_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            .dt.total_seconds()
-            .alias("stop_arrival_seconds"),
-            (pl.col("stop_departure_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            .dt.total_seconds()
-            .alias("stop_departure_seconds"),
+            (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
+            (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
+            (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
         )
         # add metrics columns to events
         .with_columns(
