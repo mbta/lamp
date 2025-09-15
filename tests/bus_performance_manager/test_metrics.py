@@ -1,34 +1,35 @@
+from datetime import datetime
+
 import dataframely as dy
 import pytest
 
-from datetime import datetime
 from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_metrics import enrich_bus_performance_metrics, BusPerformanceMetrics
 
+@pytest.fixture(name = "rng")
+def fixture_rng(seed: int = 1) -> dy.random.Generator:
+    """
+    Returns random data generator using seed of parameter.
+    
+    :param seed:
+    :type seed: int
+    """
+    return dy.random.Generator(seed)
 
-@pytest.fixture(params=[1])
-def rng(request: pytest.FixtureRequest) -> dy.random.Generator:
-    return dy.random.Generator(request.param)
-
-
-@pytest.fixture(params=[100])
-def num_rows(request: pytest.FixtureRequest) -> int:
-    return request.param
-
-
-@pytest.fixture
-def bus_metrics_dataframes(rng: dy.random.Generator, num_rows: int) -> tuple:
+@pytest.fixture(name = "bus_metrics_dataframes", params = [100])
+def fixture_bus_metrics_dataframes(rng: dy.random.Generator, request: pytest.FixtureRequest) -> tuple:
+    "Necessary fixtures for `join_rt_to_schedule`."
     tm_events = TransitMasterEvents.sample(
         overrides={  # introduce null values into tm_events
-            "trip_id": rng.sample_string(num_rows, regex=r"[a-zA-Z0-9-]+"),
-            "stop_id": rng.sample_string(num_rows, regex=r"[a-zA-Z0-9]+"),
+            "trip_id": rng.sample_string(request.param, regex=r"[a-zA-Z0-9-]+"),
+            "stop_id": rng.sample_string(request.param, regex=r"[a-zA-Z0-9]+"),
             "tm_actual_arrival_dt": rng.sample_datetime(
-                num_rows, min=datetime(2022, 1, 1), max=None, time_zone="UTC", null_probability=0.2
+                request.param, min=datetime(2022, 1, 1), max=None, time_zone="UTC", null_probability=0.2
             ),
-            "vehicle_label": rng.sample_string(num_rows, regex=r"[a-zA-Z0-9_]+"),
+            "vehicle_label": rng.sample_string(request.param, regex=r"[a-zA-Z0-9_]+"),
         },
     )
 
