@@ -64,6 +64,12 @@ class ProcessLogger:
             logging_list.append(f"{key}={value}")
 
         return ", ".join(logging_list)
+    
+    def _start_if_unstarted(self) -> None:
+        try:
+            self.default_data["uuid"]
+        except KeyError:
+            self.log_start()
 
     def add_metadata(self, **metadata: MdValues) -> None:
         """
@@ -71,6 +77,7 @@ class ProcessLogger:
 
         :param print_log: if True(default), print log after metadata is added
         """
+        self._start_if_unstarted()
         metadata.setdefault("print_log", True)
         print_log = bool(metadata.get("print_log"))
         for key, value in metadata.items():
@@ -106,6 +113,8 @@ class ProcessLogger:
 
     def log_failure(self, exception: Exception) -> None:
         """log the failure of a process with exception type"""
+        self._start_if_unstarted()
+
         duration = time.monotonic() - self.start_time
         self.default_data["status"] = "failed"
         self.default_data["duration"] = f"{duration:.2f}"
