@@ -1,18 +1,43 @@
+import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
+from lamp_py.bus_performance_manager.events_tm import TransitMasterSchedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
+class CombinedSchedule(TransitMasterSchedule):
+    "Union of GTFS and TransitMaster bus schedules."
+    index = dy.UInt32(nullable=False)
+    stop_sequence = dy.Int64(nullable=True)
+    block_id = dy.String(nullable=True)
+    service_id = dy.String(nullable=True)
+    route_pattern_id = dy.String(nullable=True)
+    route_pattern_typicality = dy.Int64(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    direction_destination = dy.String(nullable=True)
+    stop_name = dy.String(nullable=True)
+    plan_stop_count = dy.UInt32(nullable=True)
+    plan_start_time = dy.Int64(nullable=True)
+    plan_start_dt = dy.Datetime(nullable=True)
+    plan_travel_time_seconds = dy.Int64(nullable=True)
+    plan_route_direction_headway_seconds = dy.Int64(nullable=True)
+    tm_joined = dy.String(nullable=True)
+    tm_planned_sequence_start = dy.Int64(nullable=True)
+    tm_planned_sequence_end = dy.Int64(nullable=True)
+    pattern_id = dy.Int64(nullable=True)
+    tm_gtfs_sequence_diff = dy.Int64(nullable=True)
+
+
 # pylint: disable=R0801
-def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSchedule) -> pl.DataFrame:
+def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTables) -> dy.DataFrame[CombinedSchedule]:
     """
     Returns a schedule including GTFS stops, TransitMaster timepoints, and shuttle trips not sourced from TransitMaster.
 
         :param gtfs: gtfs schedule
         :param tm: transit master schedule - this gets filtered down immediately to just the trip_ids that are available in the gtfs schedule
 
-        :return combined schedule
+        :return CombinedSchedule:
     """
     # filter tm on trip ids that are in the gtfs set - tm has all trip ids ever, gtfs only has the ids scheduled for a single days
     tm_schedule = tm.tm_schedule.collect().filter(
@@ -120,24 +145,18 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterSched
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
     )
 
-    non_rev_rows = tm_schedule.join(gtfs2, on=["trip_id", "stop_id"], how="anti", coalesce=True).height
-    expected_row_diff = schedule.height - gtfs.height - non_rev_rows
+    valid, invalid = CombinedSchedule.filter(schedule, cast=True)
 
     # print this out
 
     process_logger = ProcessLogger(
-        "join_tm_schedule_to_gtfs_schedule",
-        gtfs_rows=gtfs.height,
-        tm_rows=tm_schedule.height,
-        tm_rows_non_rev=non_rev_rows,
-        expected_rows=gtfs.height + non_rev_rows,
-        returned_rows=schedule.height,
+        "join_tm_schedule_to_gtfs_schedule", valid_rows=valid.height, invalidities=sum(invalid.counts().values())
     )
     process_logger.log_start()
 
-    if expected_row_diff != 0:
-        process_logger.log_failure(ValueError("Unexpected schedule rows!"))
+    if invalid.counts():
+        process_logger.log_failure(dy.exc.ValidationError("Noncompliant schedule rows!"))
     else:
         process_logger.log_complete()
 
-    return schedule
+    return valid

@@ -1,13 +1,36 @@
 from datetime import date
 from typing import List
 
+import dataframely as dy
 import polars as pl
 from pyarrow.fs import S3FileSystem
 import pyarrow.compute as pc
 
+from lamp_py.bus_performance_manager.events_tm import BusTrips
 from lamp_py.utils.gtfs_utils import bus_route_ids_for_service_date
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
+class GTFSEvents(BusTrips):
+    "GTFS-RT vehicle position states transformed into bus stop events."
+    service_date = dy.String(nullable=True, primary_key=True)  # coercable to a date
+    start_time = dy.Int64(nullable=True)
+    start_dt = dy.Datetime(nullable=True)
+    stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    stop_count = dy.UInt32(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    vehicle_id = dy.String(nullable=True)
+    vehicle_label = dy.String(nullable=True)
+    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    latitude = dy.Float64(nullable=True)
+    longitude = dy.Float64(nullable=True)
+
+    @dy.rule()
+    def service_date_coercible_to_date() -> pl.Expr:  # pylint: disable=no-method-argument
+        "It can be cast as a date with the supplied format."
+        return pl.col("service_date").str.to_date("%Y%m%d").is_not_null()
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -174,7 +197,7 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
     return vehicle_positions
 
 
-def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
+def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEvents]:
     """
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.
@@ -198,6 +221,11 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         latitude -> Float64
         longitude -> Float64
     """
+
+    logger = ProcessLogger(
+        "position_to_events",
+    )
+
     vehicle_events = vehicle_positions.pivot(
         values=["vehicle_timestamp"],
         # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
@@ -302,7 +330,17 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> pl.DataFrame:
         )
     )
 
-    return vehicle_events
+    valid, invalid = GTFSEvents.filter(vehicle_events)
+
+    logger.log_start()
+    logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
+
+    if invalid.counts():
+        logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+
+    logger.log_complete()
+
+    return valid
 
 
 def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:
@@ -314,20 +352,7 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.
     :param gtfs_rt_files: a list of gtfs realtime files, either s3 urls or a
         local path
 
-    :return dataframe:
-        service_date -> String
-        route_id -> String
-        trip_id -> String
-        start_time -> Int64
-        start_dt -> Datetime
-        stop_count -> UInt32
-        direction_id -> Int8
-        stop_id -> String
-        stop_sequence -> Int64
-        vehicle_id -> String
-        vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime
-        gtfs_arrival_dt -> Datetime
+    :return GTFSEvents:
     """
     logger = ProcessLogger("generate_gtfs_rt_events", service_date=service_date)
     logger.log_start()

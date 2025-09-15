@@ -1,14 +1,33 @@
 from typing import List
 from datetime import date
 
+import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
-from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
+from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule, CombinedSchedule
+from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events, GTFSEvents
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
-from lamp_py.bus_performance_manager.events_tm import generate_tm_events
+from lamp_py.bus_performance_manager.events_tm import generate_tm_events, TransitMasterEvents
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
+
+
+class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
+    "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
+    trip_id = dy.String(primary_key=True, nullable=False)
+    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    previous_stop_id = dy.String(nullable=True)
+    stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_travel_to_seconds = dy.Int64(nullable=True)
+    stop_arrival_seconds = dy.Int64(nullable=True)
+    stop_departure_seconds = dy.Int64(nullable=True)
+    travel_time_seconds = dy.Int64(nullable=True)
+    dwell_time_seconds = dy.Int64(nullable=True)
+    route_direction_headway_seconds = dy.Int64(nullable=True)
+    direction_destination_headway_seconds = dy.Int64(nullable=True)
 
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
@@ -66,18 +85,6 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         plan_travel_time_seconds -> Int64
         plan_route_direction_headway_seconds -> Int64
         plan_direction_destination_headway_seconds -> Int64
-        gtfs_sort_dt -> Datetime(time_unit='us', time_zone='UTC')
-        gtfs_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
-        previous_stop_id -> String
-        stop_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        stop_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
-        gtfs_travel_to_seconds -> Int64
-        stop_arrival_seconds -> Int64
-        stop_departure_seconds -> Int64
-        travel_time_seconds -> Int64
-        dwell_time_seconds -> Int64
-        route_direction_headway_seconds -> Int64
-        direction_destination_headway_seconds -> Int64
     """
     # gtfs-rt events from parquet
 
@@ -92,6 +99,18 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
 
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
     bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df)
+
+    return enrich_bus_performance_metrics(bus_df)
+
+
+def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEvents]:
+    """
+    Derive new fields from the schedule and joined RT data.
+
+    :param bus_df: pl.DataFrame returned by lamp_py.bus_performance_manager.events_joined.join_rt_to_schedule
+
+    :return BusEvents:
+    """
     bus_df = (
         bus_df.with_columns(
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
@@ -169,14 +188,8 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
         )
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
-        #
-        # drop temp fields and dev validation fields
-        # .drop(
-        #     [
-        #         "gtfs_departure_dt",
-        #         "gtfs_arrival_dt",
-        #         "gtfs_sort_dt",
-        #     ]
-        # )
     )
-    return bus_df
+
+    valid = BusEvents.validate(bus_df)
+
+    return valid
