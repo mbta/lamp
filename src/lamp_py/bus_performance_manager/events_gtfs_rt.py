@@ -11,11 +11,13 @@ from lamp_py.utils.gtfs_utils import bus_route_ids_for_service_date
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
+
 class GTFSEvents(BusTrips):
-    service_date = dy.Date(primary_key = True)
+    "GTFS-RT vehicle position states transformed into bus stop events."
+    service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
-    stop_sequence = dy.Int64(nullable=True, primary_key=True)
+    stop_sequence = dy.Int64(nullable=False, primary_key=True)
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
@@ -24,6 +26,7 @@ class GTFSEvents(BusTrips):
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
+
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
     """
@@ -198,6 +201,11 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     :return GTFSEvents:
     """
+
+    logger = ProcessLogger(
+        "position_to_events",
+    )
+
     vehicle_events = vehicle_positions.pivot(
         values=["vehicle_timestamp"],
         # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
@@ -275,12 +283,10 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             pl.col("gtfs_arrival_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
             pl.col("gtfs_travel_to_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
             (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
-            pl.col("service_date").str.to_date("%Y%m%d").alias("service_date")
+            pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
         )
         .with_columns(
-            (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias(
-                "start_dt"
-            ),
+            (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
         )
         .select(
             [
@@ -305,7 +311,10 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     valid, invalid = GTFSEvents.filter(vehicle_events)
 
-    logger = ProcessLogger("positions_to_events", valid_events_for_day=valid.height, validation_errors = sum(invalid.counts().values()))
+    logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
+
+    if invalid.counts():
+        logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
 
     logger.log_complete()
 

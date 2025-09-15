@@ -4,7 +4,6 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
-from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
 from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
 from lamp_py.runtime_utils import lamp_exception

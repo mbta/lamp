@@ -7,9 +7,10 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class CombinedSchedule(TransitMasterSchedule):
-    index = dy.UInt32(nullable=False, primary_key = True)
+    "Union of GTFS and TransitMaster bus schedules."
+    index = dy.UInt32(nullable=False, primary_key=True)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    trip_id = dy.String(nullable = False, primary_key=False)
+    trip_id = dy.String(nullable=False, primary_key=False)
     block_id = dy.String(nullable=True)
     service_id = dy.String(nullable=True)
     route_pattern_id = dy.String(nullable=True)
@@ -24,7 +25,7 @@ class CombinedSchedule(TransitMasterSchedule):
     plan_route_direction_headway_seconds = dy.Int64(nullable=True)
     tm_joined = dy.String(nullable=True)
     tm_planned_sequence_start = dy.Int64(nullable=True)
-    tm_stop_sequence = dy.Int64(nullable = True, primary_key = False)
+    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = dy.Int64(nullable=True)
     tm_gtfs_sequence_diff = dy.Int64(nullable=True)
@@ -156,7 +157,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
     process_logger.log_start()
 
     if invalid.counts():
-        process_logger.log_failure(ValueError("Noncompliant schedule rows!"))
+        process_logger.log_failure(dy.exc.ValidationError("Noncompliant schedule rows!"))
     else:
         process_logger.log_complete()
 

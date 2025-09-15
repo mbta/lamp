@@ -9,17 +9,19 @@ from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_metrics import enrich_bus_performance_metrics, BusPerformanceMetrics
 
-@pytest.fixture(name = "rng")
+
+@pytest.fixture(name="rng")
 def fixture_rng(seed: int = 1) -> dy.random.Generator:
     """
     Returns random data generator using seed of parameter.
-    
+
     :param seed:
     :type seed: int
     """
     return dy.random.Generator(seed)
 
-@pytest.fixture(name = "bus_metrics_dataframes", params = [100])
+
+@pytest.fixture(name="bus_metrics_dataframes", params=[100])
 def fixture_bus_metrics_dataframes(rng: dy.random.Generator, request: pytest.FixtureRequest) -> tuple:
     "Necessary fixtures for `join_rt_to_schedule`."
     tm_events = TransitMasterEvents.sample(

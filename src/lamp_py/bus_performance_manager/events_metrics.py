@@ -12,15 +12,15 @@ from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 
 
-class BusEvents(TransitMasterEvents, GTFSEvents, CombinedSchedule):
-    trip_id = dy.String(
-        primary_key=True, nullable=False
-    )  # TODO : regex = r"[\\w-]+" to exclude underscores and other extraneous stuff
+class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
+    "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
+    trip_id = dy.String(primary_key=True, nullable=False)
     service_date = dy.String(
         nullable=False, primary_key=True, regex=r"20[1-3][0-9]0[3-9][1-2][0-9]"
     )  # coercable to a date
-    tm_stop_sequence = dy.Int64(nullable = False, primary_key = True)
-    index = dy.UInt32(nullable = True, primary_key = False)
+    tm_stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    index = dy.UInt32(nullable=True, primary_key=False)
+    stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     previous_stop_id = dy.String(nullable=True)
@@ -36,6 +36,7 @@ class BusEvents(TransitMasterEvents, GTFSEvents, CombinedSchedule):
 
 
 class BusPerformanceMetrics(dy.Collection):
+    "Relationship between TransitMaster [stop crossing] events and joined bus events."
     tm_events: dy.LazyFrame[TransitMasterEvents]
     bus_events: dy.LazyFrame[BusEvents]
 
