@@ -15,11 +15,11 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
-    trip_id = dy.String(primary_key=True, nullable=False)
-    service_date = dy.Date(nullable=False, primary_key=True)
-    tm_stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    trip_id = dy.String(primary_key=True)
+    service_date = dy.Date(primary_key=True)
+    stop_index = dy.String(primary_key=True, regex=r"[0-9_]{2}\|[0-9_]{2}\|(\w|_)+")
+    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
-    index = dy.UInt32(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -50,7 +50,7 @@ def timestamp_to_service_date(timestamp_column: pl.Expr, service_date_start_hour
     )
 
 
-def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
+def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> dy.DataFrame[BusEvents]:
     """
     create dataframe of Bus Performance metrics to write to S3
 
@@ -58,53 +58,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     :param gtfs_files: list of RT_VEHCILE_POSITION parquet file paths, from S3, that cover service date
     :param tm_files: list of TM/STOP_CROSSING parquet file paths, from S3, that cover service date
 
-    :return dataframe:
-        service_date -> Date
-        route_id -> String
-        trip_id -> String
-        start_time -> Int64
-        start_dt -> Datetime(time_unit='us', time_zone=None)
-        stop_count -> UInt32
-        direction_id -> Int8
-        stop_id -> String
-        stop_sequence -> Int64
-        vehicle_id -> String
-        vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime(time_unit='us', time_zone='UTC')
-        gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        latitude -> Float64
-        longitude -> Float64
-        tm_stop_sequence -> Int64
-        timepoint_order -> UInt32
-        tm_planned_sequence_start -> Int64
-        tm_planned_sequence_end -> Int64
-        timepoint_id -> Int64
-        timepoint_abbr -> String
-        timepoint_name -> String
-        pattern_id -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_scheduled_time_sam -> Int64
-        tm_actual_arrival_time_sam -> Int64
-        tm_actual_departure_time_sam -> Int64
-        tm_point_type -> Int32
-        is_full_trip -> Int32
-        plan_trip_id -> String
-        exact_plan_trip_match -> Boolean
-        block_id -> String
-        service_id -> String
-        route_pattern_id -> String
-        route_pattern_typicality -> Int64
-        direction -> String
-        direction_destination -> String
-        plan_stop_count -> UInt32
-        plan_start_time -> Int64
-        plan_start_dt -> Datetime(time_unit='us', time_zone=None)
-        stop_name -> String
-        plan_travel_time_seconds -> Int64
-        plan_route_direction_headway_seconds -> Int64
-        plan_direction_destination_headway_seconds -> Int64
+    :return BusEvents:
     """
     # gtfs-rt events from parquet
 
@@ -138,6 +92,14 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
             pl.coalesce(pl.col("service_date"), timestamp_to_service_date(pl.col("plan_start_dt"))).alias(
                 "service_date"
             ),
+            pl.concat_str(
+                [
+                    pl.coalesce(pl.col("tm_stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
+                    pl.coalesce(pl.col("stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
+                    pl.coalesce(pl.col("vehicle_label"), pl.lit("_____")),
+                ],
+                separator="|",
+            ).alias("stop_index"),
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (

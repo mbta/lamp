@@ -8,7 +8,6 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class CombinedSchedule(TransitMasterSchedule):
     "Union of GTFS and TransitMaster bus schedules."
-    index = dy.UInt32(nullable=False, primary_key=True)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
     trip_id = dy.String(nullable=False, primary_key=False)
     block_id = dy.String(nullable=True)
@@ -42,13 +41,16 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
         :return CombinedSchedule:
     """
     # filter tm on trip ids that are in the gtfs set - tm has all trip ids ever, gtfs only has the ids scheduled for a single days
+    process_logger = ProcessLogger("join_tm_schedule_to_gtfs_schedule")
+    process_logger.log_start()
+
     tm_schedule = tm.tm_schedule.collect().filter(
         pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique().implode())
     )
-    gtfs2 = gtfs.rename({"plan_trip_id": "trip_id"})
 
     schedule = (
-        gtfs2.join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
+        gtfs.rename({"plan_trip_id": "trip_id"})
+        .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
             tm.tm_pattern_geo_node_xref.collect(),
             on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
@@ -145,20 +147,15 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
     )
     schedule = schedule.remove(
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
-    )
+    ).drop("index")
 
     valid, invalid = CombinedSchedule.filter(schedule, cast=True)
 
-    # print this out
-
-    process_logger = ProcessLogger(
-        "join_tm_schedule_to_gtfs_schedule", valid_rows=valid.height, invalidities=sum(invalid.counts().values())
-    )
-    process_logger.log_start()
+    process_logger.add_metadata(valid_rows=valid.height, invalidities=sum(invalid.counts().values()))
 
     if invalid.counts():
-        process_logger.log_failure(dy.exc.ValidationError("Noncompliant schedule rows!"))
-    else:
-        process_logger.log_complete()
+        process_logger.log_failure(dy.exc.ValidationError(",".join(invalid.counts().keys())))
+
+    process_logger.log_complete()
 
     return valid
