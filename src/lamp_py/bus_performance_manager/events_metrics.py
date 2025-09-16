@@ -10,6 +10,7 @@ from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedu
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events, TransitMasterEvents
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
@@ -57,6 +58,21 @@ class BusPerformanceMetrics(dy.Collection):
             validate="1:1",
             nulls_equal=True,
         )
+
+
+def timestamp_to_service_date(timestamp_column: pl.Expr, service_date_start_hour: int = 3) -> pl.Expr:
+    """
+    Return a column of service dates given a timestamp.
+    Differs from performance_manager.gtfs_utils.service_date_from_timestamp by operating on Polars columns.
+
+    :param timestamp_column: A Polars expression coercible to a datetime containing the timestamp to be transformed into service dates.
+    :param service_date_start_hour: An integer representing the hour of the day that the service date starts.
+    """
+    return (
+        pl.when(timestamp_column.dt.hour() < service_date_start_hour)
+        .then(timestamp_column.dt.offset_by("-1d").dt.date())
+        .otherwise(timestamp_column.dt.date())
+    )
 
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
@@ -140,8 +156,13 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
 
     :return BusEvents:
     """
+    process_logger = ProcessLogger("enrich_bus_performance_metrics")
+
     bus_df = (
         bus_df.with_columns(
+            pl.coalesce(pl.col("service_date"), timestamp_to_service_date(pl.col("plan_start_dt"))).alias(
+                "service_date"
+            ),
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (
@@ -213,6 +234,13 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
     )
 
-    valid = BusEvents.validate(bus_df)
+    valid, invalid = BusEvents.filter(bus_df)
+
+    process_logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
+
+    if invalid.counts():
+        process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+
+    process_logger.log_complete()
 
     return valid
