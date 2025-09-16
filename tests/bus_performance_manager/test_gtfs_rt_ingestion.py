@@ -4,12 +4,14 @@ from datetime import datetime, timedelta, date, timezone
 from typing import Tuple, List
 
 import polars as pl
+from polars.testing import assert_series_equal
 
 from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.bus_performance_manager.events_gtfs_rt import (
     read_vehicle_positions,
     positions_to_events,
     generate_gtfs_rt_events,
+    remove_overload_and_special_route_suffix,
 )
 
 from ..test_resources import rt_vehicle_positions as s3_vp
@@ -451,3 +453,16 @@ def test_positions_to_events() -> None:
             empty_events,
         ]
     )
+
+
+def test_remove_overload_and_special_route_suffix() -> None:
+    """
+    test OL and _1/_2 removal via regex works for GTFS trip ids
+    """
+    test_df = pl.DataFrame(
+        {
+            "trip_id": ["123-OL1", "123-OL2", "123", "456_1", "456_2", "456_3"],
+        }
+    )
+    test_df_out = remove_overload_and_special_route_suffix(test_df)
+    assert_series_equal(test_df_out["trip_id"], pl.Series("trip_id", ["123", "123", "123", "456", "456", "456"]))

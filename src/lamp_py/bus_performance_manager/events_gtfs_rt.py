@@ -26,6 +26,7 @@ class GTFSEvents(BusTrips):
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
+    trip_id_gtfs = dy.String(primary_key=True, nullable=False)
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -309,6 +310,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         )
     )
 
+    vehicle_events = remove_overload_and_special_route_suffix(vehicle_events)
+
     valid, invalid = GTFSEvents.filter(vehicle_events)
 
     logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
@@ -348,3 +351,15 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
     logger.log_complete()
 
     return vehicle_events
+
+
+def remove_overload_and_special_route_suffix(gtfs_events: pl.DataFrame) -> pl.DataFrame:
+    """
+    Removes "-OL\d" and "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
+    This is valid to do because the -OL trips are added trips...
+    """
+    gtfs_events_processed = gtfs_events.with_columns(
+        pl.col("trip_id").alias("trip_id_gtfs"), pl.col("trip_id").str.replace(r"-OL\d?", "")
+    ).with_columns(pl.col("trip_id").str.replace(r"_\d", "").alias("trip_id"))
+
+    return gtfs_events_processed
