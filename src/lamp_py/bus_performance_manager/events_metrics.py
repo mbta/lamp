@@ -35,20 +35,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
 
-def timestamp_to_service_date(timestamp_column: pl.Expr, service_date_start_hour: int = 3) -> pl.Expr:
-    """
-    Return a column of service dates given a timestamp.
-    Differs from performance_manager.gtfs_utils.service_date_from_timestamp by operating on Polars columns.
-
-    :param timestamp_column: A Polars expression coercible to a datetime containing the timestamp to be transformed into service dates.
-    :param service_date_start_hour: An integer representing the hour of the day that the service date starts.
-    """
-    return (
-        pl.when(timestamp_column.dt.hour() < service_date_start_hour)
-        .then(timestamp_column.dt.offset_by("-1d").dt.date())
-        .otherwise(timestamp_column.dt.date())
-    )
-
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
     """
@@ -135,9 +121,12 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
 
     bus_df = (
         bus_df.with_columns(
-            pl.coalesce(pl.col("service_date"), timestamp_to_service_date(pl.col("plan_start_dt"))).alias(
-                "service_date"
-            ),
+            pl.coalesce(
+                pl.col("service_date"),
+                pl.when(pl.col("plan_start_dt").dt.hour() < 3)
+                .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
+                .otherwise(pl.col("plan_start_dt").dt.date()),
+            ).alias("service_date"),
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (
