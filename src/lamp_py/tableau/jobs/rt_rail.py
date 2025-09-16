@@ -177,7 +177,6 @@ class HyperRtRail(HyperJob):
 
         if os.path.exists(self.local_parquet_path):
             os.remove(self.local_parquet_path)
-
         if not isinstance(db_manager, DatabaseManager):
             raise TypeError("db_manager must be of type DatabaseManager for Rail Performance Manager")
         db_manager.write_to_parquet(
