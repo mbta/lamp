@@ -18,6 +18,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     trip_id = dy.String(primary_key=True, nullable=False)
     service_date = dy.Date(nullable=False, primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    vehicle_label = dy.String(nullable = True, primary_key = False)
     index = dy.UInt32(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -32,32 +33,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     dwell_time_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True)
     direction_destination_headway_seconds = dy.Int64(nullable=True)
-
-
-class BusPerformanceMetrics(dy.Collection):
-    "Relationship between TransitMaster [stop crossing] events and joined bus events."
-    tm_events: dy.LazyFrame[TransitMasterEvents]
-    bus_events: dy.LazyFrame[BusEvents]
-
-    @dy.filter()
-    def preserve_non_null_tm_values(self) -> pl.LazyFrame:
-        """
-        Any rows in tm_events with non-null values must also be non-null in bus_events.
-        """
-        return self.tm_events.join(
-            self.bus_events,
-            on=[
-                "trip_id",
-                "tm_stop_sequence",
-                "tm_actual_arrival_dt",
-                "tm_actual_departure_dt",
-                "tm_scheduled_time_dt",
-                "tm_actual_departure_time_sam",
-            ],
-            how="inner",
-            validate="1:1",
-            nulls_equal=True,
-        )
 
 
 def timestamp_to_service_date(timestamp_column: pl.Expr, service_date_start_hour: int = 3) -> pl.Expr:

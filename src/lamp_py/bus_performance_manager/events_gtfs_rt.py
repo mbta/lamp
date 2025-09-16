@@ -343,5 +343,8 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
     vehicle_positions = read_vehicle_positions(service_date=service_date, gtfs_rt_files=gtfs_rt_files)
     logger.add_metadata(rows_from_parquet=vehicle_positions.shape[0])
     vehicle_events = positions_to_events(vehicle_positions=vehicle_positions)
+    logger.add_metadata(events_for_day=vehicle_events.shape[0])
+
+    logger.log_complete()
 
     return vehicle_events
