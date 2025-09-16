@@ -20,9 +20,10 @@ class CombinedSchedule(TransitMasterSchedule):
     plan_stop_count = dy.UInt32(nullable=True)
     plan_start_time = dy.Int64(nullable=True)
     plan_start_dt = dy.Datetime(nullable=True)
+    plan_stop_departure_dt = dy.Datetime(nullable=True)
     plan_travel_time_seconds = dy.Int64(nullable=True)
     plan_route_direction_headway_seconds = dy.Int64(nullable=True)
-    tm_joined = dy.String(nullable=True)
+    schedule_joined = dy.String(nullable=False)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = dy.Int64(nullable=True)
@@ -82,6 +83,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
                     "plan_stop_count",
                     "plan_start_time",
                     "plan_start_dt",
+                    # "plan_stop_departure_dt",
                     "pattern_id",
                     # "plan_travel_time_seconds",
                     # "plan_route_direction_headway_seconds",
