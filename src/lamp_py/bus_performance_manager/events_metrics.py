@@ -18,7 +18,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     trip_id = dy.String(primary_key=True, nullable=False)
     service_date = dy.Date(nullable=False, primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=False, primary_key=True)
-    vehicle_label = dy.String(nullable = True, primary_key = False)
+    vehicle_label = dy.String(nullable=True, primary_key=False)
     index = dy.UInt32(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
