@@ -1,23 +1,8 @@
 Asana Task: <asana_ticket_url>
 
-## Why do we need changes?
-
-A sentence describing what motivated this PR. Maybe it's 2 sentences long if it's complex.
-
-
 ## What changes does this PR propose?
 
-### Adds
-1. A new thing (remove this section if you didn't add anything)
-
-### Edits
-1. List
-2. The
-3. Changes
-4. Remove this section if you didn't edit anything existing
-
-### Removes
-1. Something that's gone (like this subsection could be, if you didn't remove anything)
+Describe the changes, details you want to call attention to, and any context you want to add.
 
 
 ## How were these changes validated?
