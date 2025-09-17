@@ -35,7 +35,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
 
-
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
     """
     create dataframe of Bus Performance metrics to write to S3
