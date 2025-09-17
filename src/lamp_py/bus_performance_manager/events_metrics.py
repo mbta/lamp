@@ -11,6 +11,7 @@ from lamp_py.bus_performance_manager.events_tm import generate_tm_events, Transi
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
 class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
@@ -122,7 +123,7 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
         bus_df.with_columns(
             pl.coalesce(
                 pl.col("service_date"),
-                pl.when(pl.col("plan_start_dt").dt.hour() < 3)
+                pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
                 .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
                 .otherwise(pl.col("plan_start_dt").dt.date()),
             ).alias("service_date"),
