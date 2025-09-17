@@ -161,4 +161,4 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
 
     process_logger.log_complete()
 
-    return valid
+    return schedule
