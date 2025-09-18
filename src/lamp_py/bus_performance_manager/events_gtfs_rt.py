@@ -21,7 +21,7 @@ class GTFSEvents(BusTrips):
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
-    vehicle_label = dy.String(nullable=True)
+    vehicle_label = dy.String(primary_key=True)
     gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)

@@ -245,7 +245,6 @@ def join_rt_to_schedule(
         gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
         latitude -> Float64
         longitude -> Float64
-        index -> UInt32
         tm_stop_sequence -> Int64
         timepoint_order -> UInt32
         tm_planned_sequence_start -> Int64
