@@ -10,11 +10,17 @@ from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedu
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events, TransitMasterEvents
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
 class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True, nullable=False)
+    service_date = dy.Date(nullable=False, primary_key=True)
+    tm_stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    vehicle_label = dy.String(nullable=True, primary_key=False)
+    index = dy.UInt32(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -39,7 +45,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     :param tm_files: list of TM/STOP_CROSSING parquet file paths, from S3, that cover service date
 
     :return dataframe:
-        service_date -> String
+        service_date -> Date
         route_id -> String
         trip_id -> String
         start_time -> Int64
@@ -111,8 +117,16 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
 
     :return BusEvents:
     """
+    process_logger = ProcessLogger("enrich_bus_performance_metrics")
+
     bus_df = (
         bus_df.with_columns(
+            pl.coalesce(
+                pl.col("service_date"),
+                pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
+                .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
+                .otherwise(pl.col("plan_start_dt").dt.date()),
+            ).alias("service_date"),
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (
@@ -149,15 +163,9 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
         )
         # convert dt columns to seconds after midnight
         .with_columns(
-            (pl.col("gtfs_travel_to_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            .dt.total_seconds()
-            .alias("gtfs_travel_to_seconds"),
-            (pl.col("stop_arrival_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            .dt.total_seconds()
-            .alias("stop_arrival_seconds"),
-            (pl.col("stop_departure_dt") - pl.col("service_date").str.strptime(pl.Date, "%Y%m%d"))
-            .dt.total_seconds()
-            .alias("stop_departure_seconds"),
+            (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
+            (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
+            (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
         )
         # add metrics columns to events
         .with_columns(
@@ -190,6 +198,13 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
     )
 
-    valid = BusEvents.validate(bus_df)
+    valid, invalid = BusEvents.filter(bus_df)
+
+    process_logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
+
+    if invalid.counts():
+        process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+
+    process_logger.log_complete()
 
     return valid

@@ -106,9 +106,6 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
 
     assert not bus_vehicle_events.is_empty()
 
-    for col, data_type in bus_vehicle_events.schema.items():
-        assert VE_SCHEMA[col] == data_type
-
     # the following properties are known to be in the consumed dataset
     y1808_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1808") & (pl.col("trip_id") == "61348621"))
     assert not y1808_events.is_empty()
@@ -171,9 +168,6 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
     empty_bus_vehicle_events = generate_gtfs_rt_events(service_date=previous_service_date, gtfs_rt_files=vp_files)
 
     assert empty_bus_vehicle_events.is_empty()
-
-    for col, data_type in empty_bus_vehicle_events.schema.items():
-        assert VE_SCHEMA[col] == data_type
 
     pl.concat([bus_vehicle_events, empty_bus_vehicle_events])
 

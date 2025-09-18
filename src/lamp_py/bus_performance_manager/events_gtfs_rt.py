@@ -14,7 +14,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class GTFSEvents(BusTrips):
     "GTFS-RT vehicle position states transformed into bus stop events."
-    service_date = dy.String(nullable=True, primary_key=True)  # coercable to a date
+    service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
     stop_sequence = dy.Int64(nullable=False, primary_key=True)
@@ -26,11 +26,6 @@ class GTFSEvents(BusTrips):
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
-
-    @dy.rule()
-    def service_date_coercible_to_date() -> pl.Expr:  # pylint: disable=no-method-argument
-        "It can be cast as a date with the supplied format."
-        return pl.col("service_date").str.to_date("%Y%m%d").is_not_null()
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -204,22 +199,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     :param vehicle_positions: Dataframe of vehicles positions
 
-    :return dataframe:
-        service_date -> String
-        route_id -> String
-        trip_id -> String
-        start_time -> String
-        start_dt -> Datetime
-        stop_count -> UInt32
-        direction_id -> Int8
-        stop_id -> String
-        stop_sequence -> Int64
-        vehicle_id -> String
-        vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime
-        gtfs_arrival_dt -> Datetime
-        latitude -> Float64
-        longitude -> Float64
+    :return GTFSEvents:
     """
 
     logger = ProcessLogger(
@@ -303,11 +283,10 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             pl.col("gtfs_arrival_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
             pl.col("gtfs_travel_to_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
             (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
+            pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
         )
         .with_columns(
-            (pl.col("service_date").str.to_datetime("%Y%m%d") + pl.duration(seconds=pl.col("start_time"))).alias(
-                "start_dt"
-            ),
+            (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
         )
         .select(
             [
@@ -332,7 +311,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     valid, invalid = GTFSEvents.filter(vehicle_events)
 
-    logger.log_start()
     logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
 
     if invalid.counts():
@@ -343,7 +321,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     return valid
 
 
-def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:
+def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.DataFrame[GTFSEvents]:
     """
     generate a polars dataframe for bus vehicle events from gtfs realtime
     vehicle position files for a given service date
@@ -368,4 +346,5 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> pl.
     logger.add_metadata(events_for_day=vehicle_events.shape[0])
 
     logger.log_complete()
+
     return vehicle_events

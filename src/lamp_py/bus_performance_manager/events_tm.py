@@ -37,9 +37,9 @@ class TransitMasterEvents(TransitMasterSchedule):
     tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_scheduled_time_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_actual_arrival_time_sam = dy.Int64(nullable=True)
-    tm_actual_departure_time_sam = dy.Int64(nullable=True)
     tm_scheduled_time_sam = dy.Int64(nullable=True)
-    vehicle_label = dy.String(nullable=True)
+    tm_actual_departure_time_sam = dy.Int64(nullable=True)
+    vehicle_label = dy.String(nullable=False, primary_key=True)
 
 
 def generate_tm_events(
