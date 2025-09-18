@@ -2,6 +2,8 @@ import itertools
 import pyarrow.compute as pc
 import pyarrow as pa
 
+SERVICE_DATE_END_HOUR = 3
+
 
 class LightRailFilter:
     """

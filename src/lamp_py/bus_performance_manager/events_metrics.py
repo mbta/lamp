@@ -11,6 +11,7 @@ from lamp_py.bus_performance_manager.events_tm import generate_tm_events, Transi
 from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
 class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
@@ -35,22 +36,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
 
-def timestamp_to_service_date(timestamp_column: pl.Expr, service_date_start_hour: int = 3) -> pl.Expr:
-    """
-    Return a column of service dates given a timestamp.
-    Differs from performance_manager.gtfs_utils.service_date_from_timestamp by operating on Polars columns.
-
-    :param timestamp_column: A Polars expression coercible to a datetime containing the timestamp to be transformed into service dates.
-    :param service_date_start_hour: An integer representing the hour of the day that the service date starts.
-    """
-    return (
-        pl.when(timestamp_column.dt.hour() < service_date_start_hour)
-        .then(timestamp_column.dt.offset_by("-1d").dt.date())
-        .otherwise(timestamp_column.dt.date())
-    )
-
-
-def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> dy.DataFrame[BusEvents]:
+def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
     """
     create dataframe of Bus Performance metrics to write to S3
 
@@ -89,9 +75,6 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
 
     bus_df = (
         bus_df.with_columns(
-            pl.coalesce(pl.col("service_date"), timestamp_to_service_date(pl.col("plan_start_dt"))).alias(
-                "service_date"
-            ),
             pl.concat_str(
                 [
                     pl.coalesce(pl.col("tm_stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
@@ -100,6 +83,12 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
                 ],
                 separator="|",
             ).alias("stop_index"),
+            pl.coalesce(
+                pl.col("service_date"),
+                pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
+                .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
+                .otherwise(pl.col("plan_start_dt").dt.date()),
+            ).alias("service_date"),
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (
