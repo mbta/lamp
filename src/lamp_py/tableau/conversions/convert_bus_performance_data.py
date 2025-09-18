@@ -50,6 +50,8 @@ def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
         pl.col("gtfs_sort_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("gtfs_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("gtfs_arrival_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
+        pl.col("plan_start_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
+        pl.col("plan_stop_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
     )
 
     # Convert seconds columns to be aligned with Eastern Time
