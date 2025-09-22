@@ -9,6 +9,36 @@ from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedu
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
 from lamp_py.runtime_utils import lamp_exception
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
+
+
+class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
+    "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
+    trip_id = dy.String(primary_key=True)
+    service_date = dy.Date(primary_key=True)
+    stop_sequences_vehicle_label_key = dy.String(
+        primary_key=True, regex=r"[0-9_]{2}\|[0-9_]{2}\|(\w|_)+"
+    )  # zero-padded tm_stop_sequence, zero-padded stop_sequence, and vehicle_label separated by |
+    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    vehicle_label = dy.String(nullable=True, primary_key=False)
+    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+
+
+class BusPerformanceManager(dy.Collection):
+    "Relationships between BusPM datasets."
+    tm: dy.LazyFrame[TransitMasterEvents]
+    bus: dy.LazyFrame[BusEvents]
+
+    @dy.filter()
+    def preserve_tm_events(self) -> pl.LazyFrame:
+        "If values in TransitMaster are not null, then downstream records should also not be null for those columns."
+        keys = ["trip_id", "tm_stop_sequence", "tm_actual_arrival_dt", "tm_actual_departure_dt", "tm_scheduled_time_dt"]
+
+        missing_tm_events = self.tm.join(  # locate events that have mismatched event values
+            self.bus, how="anti", on=keys, nulls_equal=True
+        )
+
+        return self.bus.join(missing_tm_events, how="anti", on=self.common_primary_keys())  # filter out those events
 
 
 def match_plan_trips(gtfs: pl.DataFrame, schedule: pl.DataFrame) -> pl.DataFrame:
@@ -225,7 +255,7 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
 def join_rt_to_schedule(
     schedule: dy.DataFrame[CombinedSchedule], gtfs: dy.DataFrame[GTFSEvents], tm: dy.DataFrame[TransitMasterEvents]
-) -> pl.DataFrame:
+) -> dy.DataFrame[BusEvents]:
     """
     Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
     There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.
@@ -320,8 +350,36 @@ def join_rt_to_schedule(
             "timepoint_abbr_right_tm",
             "timepoint_name_right_tm",
         )
+        .with_columns(
+            pl.concat_str(
+                [
+                    pl.coalesce(pl.col("tm_stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
+                    pl.coalesce(pl.col("stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
+                    pl.coalesce(pl.col("vehicle_label"), pl.lit("_____")),
+                ],
+                separator="|",
+            ).alias("stop_sequences_vehicle_label_key"),
+            pl.coalesce(
+                pl.col("service_date"),
+                pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
+                .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
+                .otherwise(pl.col("plan_start_dt").dt.date()),
+            ).alias("service_date"),
+        )
     )
+
+    valid, invalid = BusEvents.filter(schedule_gtfs_tm)
+
+    process_logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
+
+    if invalid.counts():
+        process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+
+    valid_collection = BusPerformanceManager.is_valid({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy()})
+
+    if not valid_collection:
+        process_logger.log_failure(dy.exc.ValidationError(BusPerformanceManager.__name__ + " failed validation"))
 
     process_logger.log_complete()
 
-    return schedule_gtfs_tm
+    return valid

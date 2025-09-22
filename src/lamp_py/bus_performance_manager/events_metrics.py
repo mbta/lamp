@@ -4,26 +4,17 @@ from datetime import date
 import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule, CombinedSchedule
-from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events, GTFSEvents
+from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
+from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
-from lamp_py.bus_performance_manager.events_tm import generate_tm_events, TransitMasterEvents
-from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule
+from lamp_py.bus_performance_manager.events_tm import generate_tm_events
+from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule, BusEvents
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
-    "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
-    trip_id = dy.String(primary_key=True)
-    service_date = dy.Date(primary_key=True)
-    stop_sequences_vehicle_label_key = dy.String(
-        primary_key=True, regex=r"[0-9_]{2}\|[0-9_]{2}\|(\w|_)+"
-    )  # zero-padded tm_stop_sequence, zero-padded stop_sequence, and vehicle_label separated by |
-    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    vehicle_label = dy.String(nullable=True, primary_key=False)
-    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
+    "Bus events enriched with derived operational metrics."
     gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     previous_stop_id = dy.String(nullable=True)
@@ -65,7 +56,7 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     return enrich_bus_performance_metrics(bus_df)
 
 
-def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEvents]:
+def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFrame[BusPerformanceMetrics]:
     """
     Derive new fields from the schedule and joined RT data.
 
@@ -74,23 +65,10 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
     :return BusEvents:
     """
     process_logger = ProcessLogger("enrich_bus_performance_metrics")
+    process_logger.log_start()
 
-    bus_df = (
+    enriched_bus_df = (
         bus_df.with_columns(
-            pl.concat_str(
-                [
-                    pl.coalesce(pl.col("tm_stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
-                    pl.coalesce(pl.col("stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
-                    pl.coalesce(pl.col("vehicle_label"), pl.lit("_____")),
-                ],
-                separator="|",
-            ).alias("stop_sequences_vehicle_label_key"),
-            pl.coalesce(
-                pl.col("service_date"),
-                pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
-                .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
-                .otherwise(pl.col("plan_start_dt").dt.date()),
-            ).alias("service_date"),
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (
@@ -162,7 +140,7 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
     )
 
-    valid, invalid = BusEvents.filter(bus_df)
+    valid, invalid = BusPerformanceMetrics.filter(enriched_bus_df)
 
     process_logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
 
