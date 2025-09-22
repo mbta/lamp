@@ -28,6 +28,27 @@ class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
     tm: dy.LazyFrame[TransitMasterEvents]
     bus: dy.LazyFrame[BusEvents]
+    gtfs: dy.LazyFrame[GTFSEvents]
+
+    @dy.filter()
+    def preserve_all_trips(self) -> pl.LazyFrame:
+        "If trips appear in GTFS or TM, then they appear in downstream records."
+        missing_gtfs_trips = (
+            self.gtfs.select(self.common_primary_keys())
+            .unique()
+            .join(self.bus, how="anti", on=self.common_primary_keys())
+        )
+        missing_tm_trips = (
+            self.tm.select(self.common_primary_keys())
+            .unique()
+            .join(self.bus, how="anti", on=self.common_primary_keys())
+        )
+
+        return (
+            self.bus.select(self.common_primary_keys())
+            .unique()
+            .join(pl.concat([missing_gtfs_trips, missing_tm_trips]), on=self.common_primary_keys(), how="anti")
+        )
 
     @dy.filter()
     def preserve_tm_events(self) -> pl.LazyFrame:
@@ -305,7 +326,7 @@ def join_rt_to_schedule(
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     process_logger = ProcessLogger("join_rt_to_schedule")
     process_logger.log_start()
-    
+
     schedule_vehicles = schedule.join(
         pl.concat(
             [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
@@ -384,7 +405,9 @@ def join_rt_to_schedule(
     if invalid.counts():
         process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
 
-    valid_collection = BusPerformanceManager.is_valid({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy()})
+    valid_collection = BusPerformanceManager.is_valid(
+        {"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}
+    )
 
     if not valid_collection:
         process_logger.log_failure(dy.exc.ValidationError(BusPerformanceManager.__name__ + " failed validation"))
