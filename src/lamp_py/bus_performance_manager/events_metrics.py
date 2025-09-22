@@ -18,7 +18,9 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
-    stop_index = dy.String(primary_key=True, regex=r"[0-9_]{2}\|[0-9_]{2}\|(\w|_)+")
+    stop_sequences_vehicle_label_key = dy.String(
+        primary_key=True, regex=r"[0-9_]{2}\|[0-9_]{2}\|(\w|_)+"
+    )  # zero-padded tm_stop_sequence, zero-padded stop_sequence, and vehicle_label separated by |
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -82,7 +84,7 @@ def enrich_bus_performance_metrics(bus_df: pl.DataFrame) -> dy.DataFrame[BusEven
                     pl.coalesce(pl.col("vehicle_label"), pl.lit("_____")),
                 ],
                 separator="|",
-            ).alias("stop_index"),
+            ).alias("stop_sequences_vehicle_label_key"),
             pl.coalesce(
                 pl.col("service_date"),
                 pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
