@@ -305,13 +305,22 @@ def join_rt_to_schedule(
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     process_logger = ProcessLogger("join_rt_to_schedule")
     process_logger.log_start()
+    
+    schedule_vehicles = schedule.join(
+        pl.concat(
+            [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
+        ).unique(),
+        how="left",
+        on=["trip_id", "stop_id"],
+        coalesce=True,
+    )
 
     schedule_gtfs = (
-        schedule.sort(by="stop_sequence")
+        schedule_vehicles.sort(by="stop_sequence")
         .join_asof(
             gtfs.sort(by="stop_sequence"),
             on="stop_sequence",
-            by=["trip_id", "stop_id"],
+            by=["trip_id", "stop_id", "vehicle_label"],
             strategy="nearest",
             coalesce=True,
             suffix="_right_gtfs",
