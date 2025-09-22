@@ -32,7 +32,9 @@ class CombinedSchedule(TransitMasterSchedule):
 
 
 # pylint: disable=R0801
-def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTables) -> dy.DataFrame[CombinedSchedule]:
+def join_tm_schedule_to_gtfs_schedule(
+    gtfs: pl.DataFrame, tm: TransitMasterTables, **kwargs
+) -> dy.DataFrame[CombinedSchedule]:
     """
     Returns a schedule including GTFS stops, TransitMaster timepoints, and shuttle trips not sourced from TransitMaster.
 
@@ -48,6 +50,8 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
     tm_schedule = tm.tm_schedule.collect().filter(
         pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique().implode())
     )
+    if kwargs.get("write_intermediates"):
+        tm_schedule.write_parquet("tm_schedule.parquet")
 
     schedule = (
         gtfs.rename({"plan_trip_id": "trip_id"})
