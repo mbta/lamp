@@ -6,7 +6,9 @@ import polars as pl
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
 from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
+from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
 from lamp_py.runtime_utils import lamp_exception
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 def match_plan_trips(gtfs: pl.DataFrame, schedule: pl.DataFrame) -> pl.DataFrame:
@@ -222,7 +224,7 @@ def join_schedule_to_rt(gtfs: pl.DataFrame) -> pl.DataFrame:
 
 
 def join_rt_to_schedule(
-    schedule: dy.DataFrame[CombinedSchedule], gtfs: pl.DataFrame, tm: dy.DataFrame[TransitMasterEvents]
+    schedule: dy.DataFrame[CombinedSchedule], gtfs: dy.DataFrame[GTFSEvents], tm: dy.DataFrame[TransitMasterEvents]
 ) -> pl.DataFrame:
     """
     Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
@@ -271,6 +273,8 @@ def join_rt_to_schedule(
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
+    process_logger = ProcessLogger("join_rt_to_schedule")
+    process_logger.log_start()
 
     schedule_gtfs = (
         schedule.sort(by="stop_sequence")
@@ -317,5 +321,7 @@ def join_rt_to_schedule(
             "timepoint_name_right_tm",
         )
     )
+
+    process_logger.log_complete()
 
     return schedule_gtfs_tm
