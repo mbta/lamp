@@ -51,7 +51,7 @@ def join_tm_schedule_to_gtfs_schedule(
         pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].unique().implode())
     )
     if kwargs.get("write_intermediates"):
-        tm_schedule.write_parquet("tm_schedule.parquet")
+        tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
 
     schedule = (
         gtfs.rename({"plan_trip_id": "trip_id"})
