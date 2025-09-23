@@ -46,7 +46,6 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule)
 
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
-
     # transit master events from parquet
     tm_df = generate_tm_events(tm_files, tm_schedule)
 

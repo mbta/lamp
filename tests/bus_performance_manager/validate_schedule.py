@@ -153,7 +153,7 @@ non_null_combined = [
     "direction_id",
     "direction",
     "direction_destination",
-    "tm_joined",
+    "schedule_joined",
     "tm_stop_sequence",
     "pattern_id",
 ]
@@ -210,7 +210,7 @@ for idx, trip_df in combined_schedule.group_by("trip_id"):
     try:
         # for the schedule, make sure no missing rows in any trip
         assert (
-            trip_df.filter(pl.col("tm_joined").is_in(["JOIN", "GTFS"])).height
+            trip_df.filter(pl.col("schedule_joined").is_in(["JOIN", "GTFS"])).height
             == trip_df.select("plan_stop_count").head(1).item()
         )
     except AssertionError as err:
@@ -219,7 +219,7 @@ for idx, trip_df in combined_schedule.group_by("trip_id"):
         )
         err_dfs.append(trip_df.with_columns(pl.col("error_reason").list.concat(pl.lit("GTFS_RECORDS_NOT_IN_TM"))))
 
-    if trip_df["tm_joined"].is_in(["JOIN", "TM"]).any():
+    if trip_df["schedule_joined"].is_in(["JOIN", "TM"]).any():
         try:
             assert trip_df.height == trip_df["tm_planned_sequence_end"].drop_nulls().unique().item()
         except AssertionError as err:
