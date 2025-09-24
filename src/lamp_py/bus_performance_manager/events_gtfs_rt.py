@@ -26,9 +26,25 @@ class GTFSEvents(BusBaseSchema):
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
-    trip_id_gtfs = dy.String(primary_key=True, nullable=False)
+    trip_id_gtfs = dy.String(nullable=True)
 
+    # this does not hold, but it really should. 
+    # @dy.rule(group_by=["trip_id_gtfs"])
+    # def single_trip_single_vehicle() -> pl.Expr:
+    #     return pl.col('vehicle_label').drop_nulls().unique().len() <= 1 # allows for vehicle_label to be all null
 
+    @dy.rule()
+    def no_ol_trip_ids() -> pl.Expr:
+        return ~pl.col('trip_id').str.contains("OL")
+    
+    @dy.rule()
+    def no_split_trips1() -> pl.Expr:
+        return ~pl.col('trip_id').str.ends_with("_1")
+    
+    @dy.rule()
+    def no_split_trips2() -> pl.Expr:
+        return ~pl.col('trip_id').str.ends_with("_2")
+    
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
     """
     Read RT_VEHICLE_POSITIONS parquet files with polars engine
