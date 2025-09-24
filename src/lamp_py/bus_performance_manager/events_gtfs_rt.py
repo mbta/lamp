@@ -6,13 +6,13 @@ import polars as pl
 from pyarrow.fs import S3FileSystem
 import pyarrow.compute as pc
 
-from lamp_py.bus_performance_manager.events_tm import BusTrips
+from lamp_py.bus_performance_manager.events_tm import BusBaseSchema
 from lamp_py.utils.gtfs_utils import bus_route_ids_for_service_date
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class GTFSEvents(BusTrips):
+class GTFSEvents(BusBaseSchema):
     "GTFS-RT vehicle position states transformed into bus stop events."
     service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
