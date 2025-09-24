@@ -465,4 +465,7 @@ def test_remove_overload_and_special_route_suffix() -> None:
         }
     )
     test_df_out = remove_overload_and_special_route_suffix(test_df)
-    assert_series_equal(test_df_out["trip_id"], pl.Series("trip_id", ["123", "123", "123", "456", "456", "456"]))
+    assert_series_equal(
+        test_df_out["trip_id_suffix_removed_lamp_key"],
+        pl.Series("trip_id_suffix_removed_lamp_key", ["123", "123", "123", "456", "456", "456"]),
+    )
