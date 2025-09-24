@@ -28,23 +28,22 @@ class GTFSEvents(BusBaseSchema):
     longitude = dy.Float64(nullable=True)
     trip_id_gtfs = dy.String(nullable=True)
 
-    # this does not hold, but it really should. 
-    # @dy.rule(group_by=["trip_id_gtfs"])
-    # def single_trip_single_vehicle() -> pl.Expr:
-    #     return pl.col('vehicle_label').drop_nulls().unique().len() <= 1 # allows for vehicle_label to be all null
+    # pylint: disable=no-method-argument
+    @dy.rule()
+    def _no_ol_trip_ids() -> pl.Expr:
+        return ~pl.col("trip_id").str.contains("OL")
 
     @dy.rule()
-    def no_ol_trip_ids() -> pl.Expr:
-        return ~pl.col('trip_id').str.contains("OL")
-    
+    def _no_split_trips1() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_1")
+
     @dy.rule()
-    def no_split_trips1() -> pl.Expr:
-        return ~pl.col('trip_id').str.ends_with("_1")
-    
-    @dy.rule()
-    def no_split_trips2() -> pl.Expr:
-        return ~pl.col('trip_id').str.ends_with("_2")
-    
+    def _no_split_trips2() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_2")
+
+    # pylint: enable=no-method-argument
+
+
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
     """
     Read RT_VEHICLE_POSITIONS parquet files with polars engine
@@ -328,16 +327,16 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     vehicle_events = remove_overload_and_special_route_suffix(vehicle_events)
 
-    # valid, invalid = GTFSEvents.filter(vehicle_events)
+    valid, invalid = GTFSEvents.filter(vehicle_events)
 
-    # logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
+    logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
 
-    # if invalid.counts():
-    #     logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+    if invalid.counts():
+        logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
 
-    # logger.log_complete()
+    logger.log_complete()
 
-    return vehicle_events
+    return valid
 
 
 def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.DataFrame[GTFSEvents]:
@@ -371,7 +370,7 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
 
 def remove_overload_and_special_route_suffix(gtfs_events: pl.DataFrame) -> pl.DataFrame:
     """
-    Removes "-OL\d" and "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
+    Removes "-OL\\d" and "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
     This is valid to do because the -OL trips are added trips...
     """
     gtfs_events_processed = gtfs_events.with_columns(

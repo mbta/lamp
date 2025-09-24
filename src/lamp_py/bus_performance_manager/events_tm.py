@@ -161,11 +161,12 @@ def generate_tm_events(
         .alias("is_full_trip")
     )
 
-    # valid, invalid = TransitMasterEvents.filter(tm_stop_crossings)
+    valid, invalid = TransitMasterEvents.filter(tm_stop_crossings)
 
-    # logger.add_metadata(events_for_day=valid.height, invalidities=sum(invalid.counts().values()))
-    # logger.log_complete()
-    return tm_stop_crossings
+    logger.add_metadata(events_for_day=valid.height, invalidities=sum(invalid.counts().values()))
+    logger.log_complete()
+
+    return valid
 
 
 def get_daily_work_pieces(daily_work_piece_files: List[str]) -> pl.DataFrame:

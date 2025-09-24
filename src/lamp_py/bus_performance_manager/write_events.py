@@ -18,7 +18,7 @@ from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
 def write_bus_metrics(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    **kwargs,
+    **debug_flags: dict[str, bool],
 ) -> None:
     """
     Write bus-performance parquet files to S3 for latest service dates needing to be processed
@@ -59,12 +59,12 @@ def write_bus_metrics(
             continue
 
         try:
-            events_df = bus_performance_metrics(service_date, gtfs_files, tm_files, **kwargs)
+            events_df = bus_performance_metrics(service_date, gtfs_files, tm_files, **debug_flags)
             day_logger.add_metadata(bus_performance_rows=events_df.shape[0])
 
             write_file = f"{service_date.strftime('%Y%m%d')}.parquet"
 
-            if kwargs.get("write_local_only"):
+            if debug_flags.get("write_local_only"):
                 events_df.write_parquet(os.path.join("/tmp/", write_file), use_pyarrow=True)
             else:
                 with tempfile.TemporaryDirectory() as tempdir:

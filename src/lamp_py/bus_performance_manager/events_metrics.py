@@ -29,7 +29,9 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
 
-def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str], **kwargs) -> pl.DataFrame:
+def bus_performance_metrics(
+    service_date: date, gtfs_files: List[str], tm_files: List[str], **debug_flags: dict[str, bool]
+) -> pl.DataFrame:
     """
     create dataframe of Bus Performance metrics to write to S3
 
@@ -44,13 +46,13 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
 
     tm_schedule = generate_tm_schedule()
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule, **kwargs)
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule, **debug_flags)
 
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
     # transit master events from parquet
     tm_df = generate_tm_events(tm_files, tm_schedule)
 
-    if kwargs.get("write_intermediates"):
+    if debug_flags.get("write_intermediates"):
         gtfs_schedule.write_parquet("/tmp/gtfs_schedule.parquet")
         gtfs_df.write_parquet("/tmp/gtfs_events.parquet")
         tm_df.write_parquet("/tmp/tm_events.parquet")
