@@ -144,7 +144,7 @@ def join_rt_to_schedule(
         pl.col(["vehicle_label", "vehicle_id"])
         .fill_null(strategy="forward")  # handle missing vehicle label at beginning
         .fill_null(strategy="backward")  # handle missing vehicle label at end
-        .over(["trip_id_gtfs"])
+        .over(["trip_id"])
     )
 
     schedule_gtfs_tm = (

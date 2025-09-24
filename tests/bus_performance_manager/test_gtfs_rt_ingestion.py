@@ -141,7 +141,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
             )
 
     # the following properties are known to be in the consumed dataset
-    y1329_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1329") & (pl.col("trip_id_gtfs") == "61884885-OL1"))
+    y1329_events = bus_vehicle_events.filter((pl.col("vehicle_id") == "y1329") & (pl.col("trip_id") == "61884885-OL1"))
 
     assert not y1329_events.is_empty()
 

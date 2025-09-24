@@ -26,20 +26,20 @@ class GTFSEvents(BusBaseSchema):
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
-    trip_id_gtfs = dy.String(nullable=True)
+    trip_id_suffix_removed_lamp_key = dy.String(nullable=True)
 
     # pylint: disable=no-method-argument
     @dy.rule()
     def _no_ol_trip_ids() -> pl.Expr:
-        return ~pl.col("trip_id").str.contains("OL")
+        return ~pl.col("trip_id_suffix_removed_lamp_key").str.contains("OL")
 
     @dy.rule()
     def _no_split_trips1() -> pl.Expr:
-        return ~pl.col("trip_id").str.ends_with("_1")
+        return ~pl.col("trip_id_suffix_removed_lamp_key").str.ends_with("_1")
 
     @dy.rule()
     def _no_split_trips2() -> pl.Expr:
-        return ~pl.col("trip_id").str.ends_with("_2")
+        return ~pl.col("trip_id_suffix_removed_lamp_key").str.ends_with("_2")
 
     # pylint: enable=no-method-argument
 
@@ -374,7 +374,7 @@ def remove_overload_and_special_route_suffix(gtfs_events: pl.DataFrame) -> pl.Da
     This is valid to do because the -OL trips are added trips...
     """
     gtfs_events_processed = gtfs_events.with_columns(
-        pl.col("trip_id").alias("trip_id_gtfs"), pl.col("trip_id").str.replace(r"-OL\d?", "")
-    ).with_columns(pl.col("trip_id").str.replace(r"_\d", "").alias("trip_id"))
+        pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", "").alias("trip_id_suffix_removed_lamp_key")
+    )
 
     return gtfs_events_processed
