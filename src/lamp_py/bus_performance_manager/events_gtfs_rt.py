@@ -371,7 +371,6 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
 def remove_overload_and_special_route_suffix(gtfs_events: pl.DataFrame) -> pl.DataFrame:
     """
     Removes "-OL\\d" and "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
-    This is valid to do because the -OL trips are added trips...
     """
     gtfs_events_processed = gtfs_events.with_columns(
         pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", "").alias("trip_id_suffix_removed_lamp_key")
