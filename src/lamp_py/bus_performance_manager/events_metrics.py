@@ -71,16 +71,6 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
             (
-                pl.col("gtfs_travel_to_dt")
-                .shift(-1)
-                .over(
-                    # this should technically include pattern_id as well,
-                    # but the groups formed by [trip_id, pattern_id] == [trip_id]
-                    ["vehicle_label", "trip_id"],
-                    order_by="gtfs_sort_dt",
-                )
-            ).alias("gtfs_departure_dt"),
-            (
                 pl.col("stop_id")
                 .shift(1)
                 .over(
