@@ -22,10 +22,19 @@ class GTFSEvents(BusTrips):
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
     vehicle_label = dy.String(primary_key=True)
-    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_in_transit_to_dts = dy.Struct(
+        {
+            "first_timestamp": dy.Datetime(nullable=True, time_zone="UTC"),
+            "last_timestamp": dy.Datetime(nullable=True, time_zone="UTC"),
+        },
+        nullable=True,
+    )
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    latitude = dy.Float64(nullable=True)
-    longitude = dy.Float64(nullable=True)
+
+    @dy.rule()
+    def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
+        "The bus should always have a departure time from the first stop."
+        return pl.when(pl.col("stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_arrival_dt").is_not_null())
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -206,87 +215,46 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         "position_to_events",
     )
 
-    vehicle_events = vehicle_positions.pivot(
-        values=["vehicle_timestamp"],
-        # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
-        aggregate_function="min",
-        index=[
-            "route_id",
-            "direction_id",
-            "trip_id",
-            "stop_id",
-            "stop_sequence",
-            "start_time",
+    vehicle_events = (
+        vehicle_positions.with_columns(
+            pl.col("vehicle_timestamp").dt.replace_time_zone("UTC", ambiguous="earliest"),
+            pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
+            pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64).alias("start_time"),
+        )
+        .group_by(
             "service_date",
+            "trip_id",
+            "stop_sequence",
+            "route_id",
+            "stop_id",
+            "direction_id",
+            "start_time",
             "vehicle_id",
             "vehicle_label",
-        ],
-        on="current_status",
-    )
-
-    # this section adds in columns are for handling when the input dataframes are empty or if
-    # the pivot does not successfully add in the values=[x] columns. they must be added
-    # back in after the fact to maintain the expected interface further donwstream
-    for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
-        if column not in vehicle_events.columns:
-            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
-
-    # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
-    # align to actual trips than STOPPED_AT does - caused by
-    # vendor - details in linked Asana Ticket/PR #542
-
-    # ==== lat/lon ====
-    # Lat/Lon join via event_position is only being added for verification -
-    # leaving a note to explain deficiency
-
-    # This event position is grabbing the first time we declare "IN_TRANSIT_TO" a stop_id
-    # this group_by is very wide - looking for all the timestamps for a given bus, and then
-    # if there are multiple duplicate timestamps recorded for 1 bus at the same timestamp point,
-    # grabbing the first one. This will give us a single "IN_TRANSIT_TO" record for each
-    # timestamp for each bus, which should be joinable with the events further down.
-
-    # The left vehicle_events.IN_TRANSIT_TO that we pivoted actually points to the first
-    # time the bus declared IN_TRANSIT_TO this stop, which means the coordinate for that
-    # IN_TRANSIT_TO record is actually the DEPARTING timestamp of the previous stop, and
-    # thus we'd be getting the gps coordinate of the declared DEPARTURE.
-
-    event_position = (
-        vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
-        .group_by("vehicle_id", "vehicle_timestamp")
-        .agg(pl.col("latitude").first(), pl.col("longitude").first())
-    )
-    vehicle_events = vehicle_events.join(
-        event_position,
-        how="left",
-        right_on=["vehicle_id", "vehicle_timestamp"],
-        left_on=["vehicle_id", "IN_TRANSIT_TO"],
-        coalesce=True,
-        validate="m:1",
-    )
-    # ==== end lat/lon ====
-
-    stop_count = vehicle_events.group_by("trip_id").len("stop_count")
-
-    vehicle_events = (
-        vehicle_events.join(
-            stop_count,
-            on="trip_id",
-            how="left",
         )
-        .rename(
-            {
-                "STOPPED_AT": "gtfs_arrival_dt",
-                "IN_TRANSIT_TO": "gtfs_travel_to_dt",
-            }
-        )
-        .with_columns(
-            pl.col("gtfs_arrival_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
-            pl.col("gtfs_travel_to_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
-            (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
-            pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
+        .agg(
+            pl.struct(
+                pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
+                .then(pl.col("vehicle_timestamp"))
+                .min()
+                .alias("first_timestamp"),
+                pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
+                .then(pl.col("vehicle_timestamp"))
+                .max()
+                .alias("last_timestamp"),
+            ).alias("gtfs_in_transit_to_dts"),
+            pl.when(pl.col("current_status") == "STOPPED_AT")
+            .then(pl.col("vehicle_timestamp"))
+            .min()
+            .alias("gtfs_arrival_dt"),
+            pl.when(pl.col("current_status") == "STOPPED_AT")
+            .then(pl.col("vehicle_timestamp"))
+            .max()
+            .alias("gtfs_departure_dt"),
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
+            pl.col("stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
         )
         .select(
             [
@@ -301,10 +269,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
                 "stop_sequence",
                 "vehicle_id",
                 "vehicle_label",
-                "gtfs_travel_to_dt",
+                "gtfs_in_transit_to_dts",
                 "gtfs_arrival_dt",
-                "latitude",
-                "longitude",
+                "gtfs_departure_dt",
             ]
         )
     )

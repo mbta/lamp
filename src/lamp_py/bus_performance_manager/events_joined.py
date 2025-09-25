@@ -298,39 +298,7 @@ def join_rt_to_schedule(
     There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.
     By matching the nearest stop sequence, we can align the two datasets.
 
-    :return dataframe:
-        service_date -> String
-        route_id -> String
-        trip_id -> String
-        start_time -> Int64
-        start_dt -> Datetime(time_unit='us', time_zone=None)
-        stop_count -> UInt32
-        direction_id -> Int8
-        stop_id -> String
-        stop_sequence -> Int64
-        vehicle_id -> String
-        vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime(time_unit='us', time_zone='UTC')
-        gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        latitude -> Float64
-        longitude -> Float64
-        tm_stop_sequence -> Int64
-        timepoint_order -> UInt32
-        tm_planned_sequence_start -> Int64
-        tm_planned_sequence_end -> Int64
-        timepoint_id -> Int64
-        timepoint_abbr -> String
-        timepoint_name -> String
-        pattern_id -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_scheduled_time_sam -> Int64
-        tm_actual_arrival_time_sam -> Int64
-        tm_actual_departure_time_sam -> Int64
-        tm_point_type -> Int32
-        is_full_trip -> Int32
-        schedule_joined -> Boolean
+    :return BusEvents:
     """
 
     # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
@@ -389,13 +357,6 @@ def join_rt_to_schedule(
             coalesce=True,
             suffix="_right_tm",
         )
-        .drop(
-            "route_id_right_tm",
-            "timepoint_order_right_tm",
-            "timepoint_id_right_tm",
-            "timepoint_abbr_right_tm",
-            "timepoint_name_right_tm",
-        )
         .with_columns(
             pl.concat_str(
                 [
@@ -411,7 +372,17 @@ def join_rt_to_schedule(
                 .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
                 .otherwise(pl.col("plan_start_dt").dt.date()),
             ).alias("service_date"),
+            pl.coalesce(
+                pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
+                pl.when(
+                    pl.col("stop_sequence").eq(pl.col("plan_stop_count"))
+                ).then(  # and it's the last stop on the route
+                    pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp")
+                ),  # use the last IN_TRANSIT_TO datetime
+            ).alias("gtfs_arrival_dt"),
+            pl.col("gtfs_in_transit_to_dts").struct.field("first_timestamp").alias("gtfs_travel_to_dt"),
         )
+        .select(BusEvents.column_names())
     )
 
     valid, invalid = BusEvents.filter(schedule_gtfs_tm)
