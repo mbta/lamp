@@ -22,6 +22,9 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    stop_count = dy.UInt32(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    vehicle_id = dy.String(nullable=True)
 
 
 class BusPerformanceManager(dy.Collection):

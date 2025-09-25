@@ -290,11 +290,11 @@ def route_three() -> pl.DataFrame:
     No In Transit To data, only stopped at
     """
     data = {
-        "route_id": ["3", "3", "3", "3", "3", "3"],
-        "direction_id": [0, 0, 0, 0, 0, 0],
-        "trip_id": ["303", "303", "303", "303", "303", "303"],
-        "stop_id": ["1", "1", "1", "2", "2", "2"],
-        "stop_sequence": [1, 1, 1, 2, 2, 2],
+        "route_id": ["3", "3", "3", "3", "3", "3", "1"],
+        "direction_id": [0, 0, 0, 0, 0, 0, 1],
+        "trip_id": ["303", "303", "303", "303", "303", "303", "101"],
+        "stop_id": ["1", "1", "1", "2", "2", "2", "3"],
+        "stop_sequence": [1, 1, 1, 2, 2, 2, 1],
         "start_time": [
             "10:45:00",
             "10:45:00",
@@ -302,6 +302,7 @@ def route_three() -> pl.DataFrame:
             "10:45:00",
             "10:45:00",
             "10:45:00",
+            "11:45:00",
         ],
         "service_date": [
             "20240601",
@@ -310,9 +311,10 @@ def route_three() -> pl.DataFrame:
             "20240601",
             "20240601",
             "20240601",
+            "20240601"
         ],
-        "vehicle_id": ["y3003", "y3003", "y3003", "y3003", "y3003", "y3003"],
-        "vehicle_label": ["3003", "3003", "3003", "3003", "3003", "3003"],
+        "vehicle_id": ["y3003", "y3003", "y3003", "y3003", "y3003", "y3003", "y1234"],
+        "vehicle_label": ["3003", "3003", "3003", "3003", "3003", "3003", "1234"],
         "current_status": [
             "STOPPED_AT",
             "STOPPED_AT",
@@ -320,6 +322,7 @@ def route_three() -> pl.DataFrame:
             "STOPPED_AT",
             "STOPPED_AT",
             "STOPPED_AT",
+            "IN_TRANSIT_TO"
         ],
         "vehicle_timestamp": [
             datetime(year=2024, month=6, day=1, hour=10, minute=45),
@@ -328,6 +331,7 @@ def route_three() -> pl.DataFrame:
             datetime(year=2024, month=6, day=1, hour=10, minute=55),
             datetime(year=2024, month=6, day=1, hour=10, minute=57),
             datetime(year=2024, month=6, day=1, hour=10, minute=59),
+            datetime(year=2024, month=6, day=1, hour=11, minute=59)
         ],
         "latitude": [
             42.3516,
@@ -336,6 +340,7 @@ def route_three() -> pl.DataFrame:
             42.3516,
             42.3516,
             42.3516,
+            42.3516
         ],
         "longitude": [
             -71.0668,
@@ -344,6 +349,7 @@ def route_three() -> pl.DataFrame:
             -71.0668,
             -71.0668,
             -71.0668,
+            -71.0668
         ],
     }
 
@@ -352,15 +358,16 @@ def route_three() -> pl.DataFrame:
 
 def route_four() -> pl.DataFrame:
     """
-    No Sopped At data, only In Transit To
+    No Stopped At data, only In Transit To
     """
     data = {
-        "route_id": ["4", "4", "4", "4", "4", "4"],
-        "direction_id": [0, 0, 0, 0, 0, 0],
-        "trip_id": ["404", "404", "404", "404", "404", "404"],
-        "stop_id": ["1", "1", "1", "2", "2", "2"],
-        "stop_sequence": [1, 1, 1, 2, 2, 2],
+        "route_id": ["4", "4", "4", "4", "4", "4", "1"],
+        "direction_id": [0, 0, 0, 0, 0, 0, 1],
+        "trip_id": ["404", "404", "404", "404", "404", "404", "101"],
+        "stop_id": ["1", "1", "1", "2", "2", "2", "3"],
+        "stop_sequence": [1, 1, 1, 2, 2, 2, 1],
         "start_time": [
+            "11:45:00",
             "11:45:00",
             "11:45:00",
             "11:45:00",
@@ -376,8 +383,8 @@ def route_four() -> pl.DataFrame:
             "20240601",
             "20240601",
         ],
-        "vehicle_id": ["y4004", "y4004", "y4004", "y4004", "y4004", "y4004"],
-        "vehicle_label": ["4004", "4004", "4004", "4004", "4004", "4004"],
+        "vehicle_id": ["y4004", "y4004", "y4004", "y4004", "y4004", "y4004", "y1234"],
+        "vehicle_label": ["4004", "4004", "4004", "4004", "4004", "4004", "1234"],
         "current_status": [
             "IN_TRANSIT_TO",
             "IN_TRANSIT_TO",
@@ -385,6 +392,7 @@ def route_four() -> pl.DataFrame:
             "IN_TRANSIT_TO",
             "IN_TRANSIT_TO",
             "IN_TRANSIT_TO",
+            "STOPPED_AT",
         ],
         "vehicle_timestamp": [
             datetime(year=2024, month=6, day=1, hour=11, minute=45),
@@ -392,6 +400,7 @@ def route_four() -> pl.DataFrame:
             datetime(year=2024, month=6, day=1, hour=11, minute=47),
             datetime(year=2024, month=6, day=1, hour=11, minute=55),
             datetime(year=2024, month=6, day=1, hour=11, minute=57),
+            datetime(year=2024, month=6, day=1, hour=11, minute=59),
             datetime(year=2024, month=6, day=1, hour=11, minute=59),
         ],
         "latitude": [
@@ -401,8 +410,10 @@ def route_four() -> pl.DataFrame:
             42.3516,
             42.3516,
             42.3516,
+            42.3516,
         ],
         "longitude": [
+            -71.0668,
             -71.0668,
             -71.0668,
             -71.0668,

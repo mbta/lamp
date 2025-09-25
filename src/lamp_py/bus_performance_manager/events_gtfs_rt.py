@@ -24,10 +24,19 @@ class GTFSEvents(BusTrips):
     vehicle_label = dy.String(primary_key=True)
     gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+
+    @dy.rule()
+    def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
+        "The bus should always have a departure time from the first stop."
+        return pl.when(pl.col("stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_arrival_dt").is_not_null())
 
     @dy.rule()
     def final_stop_has_arrival_dt() -> pl.Expr:  # pylint: disable=no-method-argument
-        "The bus should always have an arrival time to the final stop."
+        """
+        The bus should always have an arrival time to the final stop.
+        Note that the final stop in GTFS-RT may not the final stop on the route.
+        """
         return pl.when(
             pl.col("stop_sequence").eq(pl.col("stop_sequence").max().over(partition_by=["trip_id", "vehicle_label"]))
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
@@ -211,50 +220,39 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         "position_to_events",
     )
 
-    vehicle_events = vehicle_positions.pivot(
-        values=["vehicle_timestamp"],
-        # think on this - this min is grabbing the earliest values and labeling them "STOPPED_AT or IN_TRANSIT_TO"
-        aggregate_function="min",
-        index=[
-            "route_id",
-            "direction_id",
-            "trip_id",
-            "stop_id",
-            "stop_sequence",
-            "start_time",
+    vehicle_events = (
+        vehicle_positions.group_by(
             "service_date",
+            "trip_id",
+            "stop_sequence",
+            "current_status",
+            "route_id",
+            "stop_id",
+            "direction_id",
+            "start_time",
             "vehicle_id",
             "vehicle_label",
-        ],
-        on="current_status",
-    )
-
-    # this section adds in columns are for handling when the input dataframes are empty or if
-    # the pivot does not successfully add in the values=[x] columns. they must be added
-    # back in after the fact to maintain the expected interface further donwstream
-    for column in ["STOPPED_AT", "IN_TRANSIT_TO"]:
-        if column not in vehicle_events.columns:
-            vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
-
-    stop_count = vehicle_events.group_by("trip_id").len("stop_count")
-
-    vehicle_events = (
-        vehicle_events.join(
-            stop_count,
-            on="trip_id",
-            how="left",
         )
-        .rename(
-            {
-                "STOPPED_AT": "gtfs_arrival_dt",
-                "IN_TRANSIT_TO": "gtfs_travel_to_dt",
-            }
-        )
+        .agg(pl.min("vehicle_timestamp").alias("first_timestamp"), pl.max("vehicle_timestamp").alias("last_timestamp"))
+        .pivot(on="current_status", values=["first_timestamp", "last_timestamp"])
         .with_columns(
-            pl.col("gtfs_arrival_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
-            pl.col("gtfs_travel_to_dt").dt.replace_time_zone("UTC", ambiguous="earliest"),
-            (pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)),
+            pl.col("first_timestamp_IN_TRANSIT_TO")
+            .dt.replace_time_zone("UTC", ambiguous="earliest")
+            .alias("gtfs_travel_to_dt"),
+            pl.col("last_timestamp_STOPPED_AT")
+            .dt.replace_time_zone("UTC", ambiguous="earliest")
+            .alias("gtfs_departure_dt"),
+            pl.coalesce(
+                pl.col("first_timestamp_STOPPED_AT"),
+                pl.col("last_timestamp_IN_TRANSIT_TO")
+                .shift(1)
+                .over(partition_by=["trip_id", "vehicle_label"], order_by="stop_sequence"),
+            )
+            .dt.replace_time_zone("UTC", ambiguous="earliest")
+            .alias("gtfs_arrival_dt"),
             pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
+            pl.col("stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
+            pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64).alias("start_time"),
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
@@ -274,6 +272,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
                 "vehicle_label",
                 "gtfs_travel_to_dt",
                 "gtfs_arrival_dt",
+                "gtfs_departure_dt",
             ]
         )
     )
