@@ -99,8 +99,7 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     # drop new lines in expected_bus_events
     # read it in
     # run this
-    # bus_events.filter(pl.col.plan_trip_id.is_in(expected_bus_events['plan_trip_id'].unique())).sort(by=["plan_trip_id", "stop_sequence"]).write_csv('bus_test_gtfs.csv')
-
+    # bus_events.filter(pl.col.plan_trip_id.is_in(expected_bus_events['plan_trip_id'].unique())).sort(by=["plan_trip_id", "stop_sequence"]).write_csv('tests/bus_performance_manager/bus_test_gtfs.csv')
     # CSV Bus events
     expected_bus_events = pl.read_csv(
         os.path.join(current_dir, "bus_test_gtfs.csv"),
