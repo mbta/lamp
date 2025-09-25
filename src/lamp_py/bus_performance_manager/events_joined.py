@@ -12,7 +12,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
+class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
@@ -22,6 +22,22 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    stop_count = dy.UInt32(nullable=True)
+    start_time = dy.Int64(nullable=True)
+    start_dt = dy.Datetime(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    vehicle_id = dy.String(nullable=True)
+    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+
+    @dy.rule()
+    def final_stop_has_arrival_dt() -> pl.Expr:  # pylint: disable=no-method-argument
+        """
+        The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
+        """
+        return pl.when(
+            pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.col("gtfs_travel_to_dt").is_not_null()
+        ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
 
 class BusPerformanceManager(dy.Collection):
