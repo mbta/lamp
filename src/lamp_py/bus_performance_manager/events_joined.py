@@ -152,7 +152,8 @@ def join_rt_to_schedule(
         .join_asof(
             tm.sort(by="tm_stop_sequence"),
             on="tm_stop_sequence",
-            by=["trip_id", "stop_id", "vehicle_label"],
+            by_left=["trip_id_suffix_removed_lamp_key", "stop_id", "vehicle_label"],
+            by_right=["trip_id", "stop_id", "vehicle_label"],
             strategy="nearest",
             coalesce=True,
             suffix="_right_tm",
