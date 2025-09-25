@@ -14,18 +14,23 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class GTFSEvents(BusTrips):
     "GTFS-RT vehicle position states transformed into bus stop events."
-    service_date = dy.Date(nullable=False, primary_key=True)
+    service_date = dy.Date(primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
-    stop_sequence = dy.Int64(nullable=False, primary_key=True)
-    stop_count = dy.UInt32(nullable=True)
-    direction_id = dy.Int8(nullable=True)
-    vehicle_id = dy.String(nullable=True)
+    stop_sequence = dy.Int64(primary_key=True)
+    stop_count = dy.UInt32(nullable=False)
+    direction_id = dy.Int8(nullable=False)
+    vehicle_id = dy.String(nullable=False)
     vehicle_label = dy.String(primary_key=True)
     gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    latitude = dy.Float64(nullable=True)
-    longitude = dy.Float64(nullable=True)
+
+    @dy.rule()
+    def final_stop_has_arrival_dt() -> pl.Expr:  # pylint: disable=no-method-argument
+        "The bus should always have an arrival time to the final stop."
+        return pl.when(
+            pl.col("stop_sequence").eq(pl.col("stop_sequence").max().over(partition_by=["trip_id", "vehicle_label"]))
+        ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -231,40 +236,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         if column not in vehicle_events.columns:
             vehicle_events = vehicle_events.with_columns(pl.lit(None).cast(pl.Datetime).alias(column))
 
-    # only grab the IN_TRANSIT_TO rows lat/lon because they seem to better
-    # align to actual trips than STOPPED_AT does - caused by
-    # vendor - details in linked Asana Ticket/PR #542
-
-    # ==== lat/lon ====
-    # Lat/Lon join via event_position is only being added for verification -
-    # leaving a note to explain deficiency
-
-    # This event position is grabbing the first time we declare "IN_TRANSIT_TO" a stop_id
-    # this group_by is very wide - looking for all the timestamps for a given bus, and then
-    # if there are multiple duplicate timestamps recorded for 1 bus at the same timestamp point,
-    # grabbing the first one. This will give us a single "IN_TRANSIT_TO" record for each
-    # timestamp for each bus, which should be joinable with the events further down.
-
-    # The left vehicle_events.IN_TRANSIT_TO that we pivoted actually points to the first
-    # time the bus declared IN_TRANSIT_TO this stop, which means the coordinate for that
-    # IN_TRANSIT_TO record is actually the DEPARTING timestamp of the previous stop, and
-    # thus we'd be getting the gps coordinate of the declared DEPARTURE.
-
-    event_position = (
-        vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
-        .group_by("vehicle_id", "vehicle_timestamp")
-        .agg(pl.col("latitude").first(), pl.col("longitude").first())
-    )
-    vehicle_events = vehicle_events.join(
-        event_position,
-        how="left",
-        right_on=["vehicle_id", "vehicle_timestamp"],
-        left_on=["vehicle_id", "IN_TRANSIT_TO"],
-        coalesce=True,
-        validate="m:1",
-    )
-    # ==== end lat/lon ====
-
     stop_count = vehicle_events.group_by("trip_id").len("stop_count")
 
     vehicle_events = (
@@ -303,8 +274,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
                 "vehicle_label",
                 "gtfs_travel_to_dt",
                 "gtfs_arrival_dt",
-                "latitude",
-                "longitude",
             ]
         )
     )
