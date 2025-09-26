@@ -11,7 +11,7 @@ from lamp_py.bus_performance_manager.events_gtfs_rt import (
     read_vehicle_positions,
     positions_to_events,
     generate_gtfs_rt_events,
-    remove_overload_and_special_route_suffix,
+    remove_overload_and_rare_variant_suffix,
 )
 
 from ..test_resources import rt_vehicle_positions as s3_vp
@@ -464,8 +464,15 @@ def test_remove_overload_and_special_route_suffix() -> None:
             "trip_id": ["123-OL1", "123-OL2", "123", "456_1", "456_2", "456_3"],
         }
     )
-    test_df_out = remove_overload_and_special_route_suffix(test_df)
+    test_df_out = test_df.with_columns(remove_overload_and_rare_variant_suffix(pl.col("trip_id")))
+    test_df_out2 = test_df.with_columns(remove_overload_and_rare_variant_suffix("trip_id"))
+
     assert_series_equal(
         test_df_out["trip_id"],
+        pl.Series("trip_id", ["123", "123", "123", "456", "456", "456"]),
+    )
+
+    assert_series_equal(
+        test_df_out2["trip_id"],
         pl.Series("trip_id", ["123", "123", "123", "456", "456", "456"]),
     )

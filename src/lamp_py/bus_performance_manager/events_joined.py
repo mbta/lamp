@@ -3,7 +3,7 @@ import polars as pl
 
 from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
-from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
+from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
@@ -132,7 +132,7 @@ def join_rt_to_schedule(
     # tm_events _1, _2 without suffix, -OL without suffix.
     gtfs = gtfs.with_columns(  # type: ignore[assignment]
         pl.col("trip_id").alias("trip_id_gtfs"),
-        pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", ""),
+        remove_overload_and_rare_variant_suffix(pl.col("trip_id")),
     )
     schedule_vehicles = schedule.join(
         pl.concat([gtfs.select("trip_id", "vehicle_label", "stop_id")]).unique(),

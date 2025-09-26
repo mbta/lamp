@@ -1,6 +1,7 @@
 import dataframely as dy
 import polars as pl
 
+from lamp_py.bus_performance_manager.events_gtfs_rt import remove_rare_variant_route_suffix
 from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
 from lamp_py.bus_performance_manager.events_tm import TransitMasterSchedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -50,7 +51,7 @@ def join_tm_schedule_to_gtfs_schedule(
     tm_schedule = tm.tm_schedule.collect().filter(
         pl.col("TRIP_SERIAL_NUMBER")
         .cast(pl.String)
-        .is_in(gtfs["plan_trip_id"].str.replace(r"_\d", "").unique().implode())
+        .is_in(remove_rare_variant_route_suffix(gtfs["plan_trip_id"]).unique().implode())
     )
     if debug_flags.get("write_intermediates"):
         tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
@@ -59,7 +60,7 @@ def join_tm_schedule_to_gtfs_schedule(
     # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
         gtfs.rename({"plan_trip_id": "trip_id"})
-        .with_columns(pl.col("trip_id").str.replace(r"_\d", ""))
+        .with_columns(remove_rare_variant_route_suffix(pl.col("trip_id")))
         .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
             tm.tm_pattern_geo_node_xref.collect(),

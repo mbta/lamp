@@ -350,12 +350,28 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
     return vehicle_events
 
 
-def remove_overload_and_special_route_suffix(gtfs_events: pl.DataFrame) -> pl.DataFrame:
+def remove_overload_and_rare_variant_suffix(col: str | pl.Expr) -> pl.Expr:
     """
-    Removes "-OL\\d" and "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
+    Removes "-OL\\d" and "_1", "_2" trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
     """
-    gtfs_events_processed = gtfs_events.with_columns(
-        pl.col("trip_id").alias("trip_id_gtfs"), pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", "")
-    )
+    return remove_rare_variant_route_suffix(remove_overload_suffix(col))
 
-    return gtfs_events_processed
+
+def remove_overload_suffix(col: str | pl.Expr) -> pl.Expr:
+    """
+    Removes "-OL\\d" trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
+    """
+    if isinstance(col, pl.Expr):
+        return col.str.replace(r"-OL\d?", "")
+    else:
+        return pl.col(col).str.replace(r"-OL\d?", "")
+
+
+def remove_rare_variant_route_suffix(col: str | pl.Expr) -> pl.Expr:
+    """
+    Removes "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
+    """
+    if isinstance(col, pl.Expr):
+        return col.str.replace(r"_\d", "")
+    else:
+        return pl.col(col).str.replace(r"_\d", "")
