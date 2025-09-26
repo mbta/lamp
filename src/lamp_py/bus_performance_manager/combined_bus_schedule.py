@@ -48,11 +48,12 @@ def join_tm_schedule_to_gtfs_schedule(
     process_logger = ProcessLogger("join_tm_schedule_to_gtfs_schedule")
     process_logger.log_start()
 
-    tm_schedule = tm.tm_schedule.collect().filter(
+    tm_schedule = tm.tm_schedule.filter(
         pl.col("TRIP_SERIAL_NUMBER")
         .cast(pl.String)
-        .is_in(remove_rare_variant_route_suffix(gtfs["plan_trip_id"]).unique().implode())
-    )
+        .is_in(gtfs.with_columns(remove_rare_variant_route_suffix("plan_trip_id"))["plan_trip_id"].unique().implode())
+    ).collect()
+
     if debug_flags.get("write_intermediates"):
         tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
 
