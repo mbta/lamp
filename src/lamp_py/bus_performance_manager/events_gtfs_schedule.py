@@ -340,14 +340,7 @@ def bus_gtfs_schedule_events_for_date(service_date: date) -> pl.DataFrame:
         "parent_station",
     ]
     stop_events = (
-        stop_events.drop(drop_columns)
-        .rename({"trip_id": "plan_trip_id"})
-        .with_columns(
-            pl.col("plan_trip_id")
-            .str.replace(r"_\d", "")
-            .alias("trip_id_suffix_removed_lamp_key"),  # keep gtfs_plan_trip_id as original
-            # Removes "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
-        )
+        stop_events.drop(drop_columns).rename({"trip_id": "plan_trip_id"})
     )
 
     logger.add_metadata(events_for_day=stop_events.shape[0])

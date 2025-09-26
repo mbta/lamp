@@ -26,20 +26,20 @@ class GTFSEvents(BusBaseSchema):
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
-    trip_id_suffix_removed_lamp_key = dy.String(nullable=True)
+    # trip_id_gtfs = dy.String(nullable=True)
 
-    # pylint: disable=no-method-argument
-    @dy.rule()
-    def _no_ol_trip_ids() -> pl.Expr:
-        return ~pl.col("trip_id_suffix_removed_lamp_key").str.contains("OL")
+    # # pylint: disable=no-method-argument
+    # @dy.rule()
+    # def _no_ol_trip_ids() -> pl.Expr:
+    #     return ~pl.col("trip_id").str.contains("OL")
 
-    @dy.rule()
-    def _no_split_trips1() -> pl.Expr:
-        return ~pl.col("trip_id_suffix_removed_lamp_key").str.ends_with("_1")
+    # @dy.rule()
+    # def _no_split_trips1() -> pl.Expr:
+    #     return ~pl.col("trip_id").str.ends_with("_1")
 
-    @dy.rule()
-    def _no_split_trips2() -> pl.Expr:
-        return ~pl.col("trip_id_suffix_removed_lamp_key").str.ends_with("_2")
+    # @dy.rule()
+    # def _no_split_trips2() -> pl.Expr:
+    #     return ~pl.col("trip_id").str.ends_with("_2")
 
     # pylint: enable=no-method-argument
 
@@ -325,7 +325,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         )
     )
 
-    vehicle_events = remove_overload_and_special_route_suffix(vehicle_events)
 
     valid, invalid = GTFSEvents.filter(vehicle_events)
 
@@ -336,7 +335,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     logger.log_complete()
 
-    return valid
+    return pl.concat([valid, invalid.invalid()])
 
 
 def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.DataFrame[GTFSEvents]:
@@ -373,7 +372,7 @@ def remove_overload_and_special_route_suffix(gtfs_events: pl.DataFrame) -> pl.Da
     Removes "-OL\\d" and "_1", "_2" from trip_ids in GTFS so they are joinable to the TM trip_ids without these suffixes
     """
     gtfs_events_processed = gtfs_events.with_columns(
-        pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", "").alias("trip_id_suffix_removed_lamp_key")
+        pl.col("trip_id").alias("trip_id_gtfs"), pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", "")
     )
 
     return gtfs_events_processed

@@ -53,6 +53,8 @@ def join_tm_schedule_to_gtfs_schedule(
     if debug_flags.get("write_intermediates"):
         tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
 
+    # gtfs_schedule: contains _1, _2. Does not contain -OL
+    # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
         gtfs.rename({"plan_trip_id": "trip_id"})
         .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)

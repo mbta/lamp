@@ -43,13 +43,20 @@ def bus_performance_metrics(
     """
     # gtfs-rt events from parquet
 
+    # _1, _2
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
 
+    # no OL, no _1, _2 trips??
     tm_schedule = generate_tm_schedule()
+
+    # full join results in _1, _2, all TM, all GTFS
     combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule, **debug_flags)
 
+    # _1, _2, -OL1, -OL2
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
     # transit master events from parquet
+
+    # _1, _2 without suffix, -OL without suffix.
     tm_df = generate_tm_events(tm_files, tm_schedule)
 
     if debug_flags.get("write_intermediates"):

@@ -18,7 +18,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
-
+    trip_id_gtfs = dy.String(nullable=True)
 
 class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
@@ -111,15 +111,19 @@ def join_rt_to_schedule(
     process_logger = ProcessLogger("join_rt_to_schedule")
     process_logger.log_start()
 
+    # combined sched: full join results in _1, _2, all TM, all GTFS
+    # gtfs_events _1, _2, -OL1, -OL2
+    # tm_events _1, _2 without suffix, -OL without suffix.
+    gtfs = gtfs.with_columns(pl.col("trip_id").alias("trip_id_gtfs"), pl.col("trip_id").str.replace(r"-OL\d?", ""))
     schedule_vehicles = schedule.join(
-        pl.concat(
-            [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
-        ).unique(),
+        pl.concat([gtfs.select("trip_id", "vehicle_label", "stop_id")]).unique(),
         how="left",
         on=["trip_id", "stop_id"],
         coalesce=True,
     )
 
+    # OL has been converted, so they should line up on vehicle_label
+    # _1 and _2 left alone, should join on trip id
     schedule_gtfs = (
         schedule_vehicles.sort(by="stop_sequence")
         .join_asof(
@@ -140,20 +144,36 @@ def join_rt_to_schedule(
     # this will allow TM join to join on vehicle id, which will eliminte multiple vehicle_id for the same trip_id
     # gtfs trip_ids may have ADDED or -OL trip_ids to denote added service,, but TM does not have those
     # trip_ids in its database, so overloads them into the existing trip_ids causing data inconsistency
-    schedule_gtfs = schedule_gtfs.with_columns(
-        pl.col(["vehicle_label", "vehicle_id"])
-        .fill_null(strategy="forward")  # handle missing vehicle label at beginning
-        .fill_null(strategy="backward")  # handle missing vehicle label at end
-        .over(["trip_id"])
+
+    schedule_gtfs = schedule_gtfs.with_columns(pl.col("trip_id").str.replace(r"_\d", ""))
+
+    confirmed_trip_vehicle_assignments = (
+        schedule_gtfs.filter(pl.col.trip_id.str.contains("68245216"))
+        .select("trip_id_gtfs", "vehicle_label", "vehicle_id")
+        .unique()
+        .drop_nulls()
+    )
+
+    # insane - if either vehicle or trip_id are set for a row, then fill in the other. there's 100% a better way to do this
+    schedule_gtfs_all = (
+        schedule_gtfs.join(confirmed_trip_vehicle_assignments, on="trip_id_gtfs", how="left", coalesce=True)
+        .with_columns(
+            pl.coalesce("vehicle_label", "vehicle_label_right"), pl.coalesce("vehicle_id", "vehicle_id_right")
+        )
+        .drop("vehicle_label_right", "vehicle_id_right")
+    )
+    schedule_gtfs_all = (
+        schedule_gtfs.join(confirmed_trip_vehicle_assignments, on="vehicle_label", how="left", coalesce=True)
+        .with_columns(pl.coalesce("trip_id_gtfs", "trip_id_gtfs_right"), pl.coalesce("vehicle_id", "vehicle_id_right"))
+        .drop("trip_id_gtfs_right", "vehicle_id_right")
     )
 
     schedule_gtfs_tm = (
-        schedule_gtfs.sort(by="tm_stop_sequence")
+        schedule_gtfs_all.sort(by="tm_stop_sequence")
         .join_asof(
             tm.sort(by="tm_stop_sequence"),
             on="tm_stop_sequence",
-            by_left=["trip_id_suffix_removed_lamp_key", "stop_id", "vehicle_label"],
-            by_right=["trip_id", "stop_id", "vehicle_label"],
+            by=["trip_id", "stop_id", "vehicle_label"],
             strategy="nearest",
             coalesce=True,
             suffix="_right_tm",
@@ -199,4 +219,4 @@ def join_rt_to_schedule(
 
     process_logger.log_complete()
 
-    return valid
+    return pl.concat([valid, invalid.invalid()])
