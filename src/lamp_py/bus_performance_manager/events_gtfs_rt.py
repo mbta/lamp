@@ -30,6 +30,9 @@ class GTFSEvents(BusTrips):
         nullable=True,
     )
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    latitude = dy.Float64(nullable=True)
+    longitude = dy.Float64(nullable=True)
 
     @dy.rule()
     def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
@@ -276,7 +279,38 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         )
     )
 
-    valid, invalid = GTFSEvents.filter(vehicle_events)
+    # ==== lat/lon ====
+    # Lat/Lon join via event_position is only being added for verification -
+    # leaving a note to explain deficiency
+
+    # This event position is grabbing the first time we declare "IN_TRANSIT_TO" a stop_id
+    # this group_by is very wide - looking for all the timestamps for a given bus, and then
+    # if there are multiple duplicate timestamps recorded for 1 bus at the same timestamp point,
+    # grabbing the first one. This will give us a single "IN_TRANSIT_TO" record for each
+    # timestamp for each bus, which should be joinable with the events further down.
+
+    # The left vehicle_events.IN_TRANSIT_TO that we pivoted actually points to the first
+    # time the bus declared IN_TRANSIT_TO this stop, which means the coordinate for that
+    # IN_TRANSIT_TO record is actually the DEPARTING timestamp of the previous stop, and
+    # thus we'd be getting the gps coordinate of the declared DEPARTURE.
+    event_position = (
+        vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
+        .group_by("vehicle_label", "trip_id", "stop_sequence")
+        .agg(
+            pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),
+            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_max()).alias("longitude"),
+        )
+    )
+
+    vehicle_events_plus_positions = vehicle_events.join(
+        event_position,
+        how="left",
+        on=["vehicle_label", "trip_id", "stop_sequence"],
+        coalesce=True,
+    )
+    # ==== end lat/lon ====
+
+    valid, invalid = GTFSEvents.filter(vehicle_events_plus_positions)
 
     logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
 

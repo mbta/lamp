@@ -29,6 +29,9 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     vehicle_id = dy.String(nullable=True)
     gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    latitude = dy.Float64(nullable=True)
+    longitude = dy.Float64(nullable=True)
 
     @dy.rule()
     def final_stop_has_arrival_dt() -> pl.Expr:  # pylint: disable=no-method-argument
