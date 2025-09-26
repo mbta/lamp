@@ -117,32 +117,26 @@ def join_rt_to_schedule(
         schedule_joined -> Boolean
     """
 
-    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
-    # asof strategy finds nearest value match between "asof" columns if exact match is not found
-    # will perform regular left join on "by" columns
-
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     process_logger = ProcessLogger("join_rt_to_schedule")
     process_logger.log_start()
 
-    # combined sched: full join results in _1, _2, all TM, all GTFS
-    # gtfs_events _1, _2, -OL1, -OL2
-    # tm_events _1, _2 without suffix, -OL without suffix.
+    # replace both now
     gtfs = gtfs.with_columns(  # type: ignore[assignment]
         pl.col("trip_id").alias("trip_id_gtfs"),
         remove_overload_and_rare_variant_suffix(pl.col("trip_id")),
     )
     schedule_vehicles = schedule.join(
-        pl.concat([gtfs.select("trip_id", "vehicle_label", "stop_id")]).unique(),
+        pl.concat(
+            [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
+        ).unique(),
         how="left",
         on=["trip_id", "stop_id"],
         coalesce=True,
     )
 
-    # OL has been converted, so they should line up on vehicle_label
-    # _1 and _2 left alone, should join on trip id
     schedule_gtfs = (
         schedule_vehicles.sort(by="stop_sequence")
         .join_asof(
@@ -159,6 +153,9 @@ def join_rt_to_schedule(
         )
     )
 
+    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
+    # asof strategy finds nearest value match between "asof" columns if exact match is not found
+    # will perform regular left join on "by" columns
     schedule_gtfs_tm = (
         schedule_gtfs.sort(by="tm_stop_sequence")
         .join_asof(

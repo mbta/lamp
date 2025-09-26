@@ -363,8 +363,7 @@ def remove_overload_suffix(col: str | pl.Expr) -> pl.Expr:
     """
     if isinstance(col, pl.Expr):
         return col.str.replace(r"-OL\d?", "")
-    else:
-        return pl.col(col).str.replace(r"-OL\d?", "")
+    return pl.col(col).str.replace(r"-OL\d?", "")
 
 
 def remove_rare_variant_route_suffix(col: str | pl.Expr) -> pl.Expr:
@@ -373,5 +372,4 @@ def remove_rare_variant_route_suffix(col: str | pl.Expr) -> pl.Expr:
     """
     if isinstance(col, pl.Expr):
         return col.str.replace(r"_\d", "")
-    else:
-        return pl.col(col).str.replace(r"_\d", "")
+    return pl.col(col).str.replace(r"_\d", "")
