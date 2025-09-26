@@ -325,7 +325,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         )
     )
 
-
     valid, invalid = GTFSEvents.filter(vehicle_events)
 
     logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
@@ -335,7 +334,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     logger.log_complete()
 
-    return pl.concat([valid, invalid.invalid()])
+    return valid
 
 
 def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.DataFrame[GTFSEvents]:

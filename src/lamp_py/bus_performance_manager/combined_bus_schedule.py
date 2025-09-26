@@ -48,7 +48,9 @@ def join_tm_schedule_to_gtfs_schedule(
     process_logger.log_start()
 
     tm_schedule = tm.tm_schedule.collect().filter(
-        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs["plan_trip_id"].str.replace(r"_\d", "").unique().implode())
+        pl.col("TRIP_SERIAL_NUMBER")
+        .cast(pl.String)
+        .is_in(gtfs["plan_trip_id"].str.replace(r"_\d", "").unique().implode())
     )
     if debug_flags.get("write_intermediates"):
         tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
@@ -56,7 +58,8 @@ def join_tm_schedule_to_gtfs_schedule(
     # gtfs_schedule: contains _1, _2. Does not contain -OL
     # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
-        gtfs.rename({"plan_trip_id": "trip_id"}).with_columns(pl.col('trip_id').str.replace(r"_\d", ""))
+        gtfs.rename({"plan_trip_id": "trip_id"})
+        .with_columns(pl.col("trip_id").str.replace(r"_\d", ""))
         .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
             tm.tm_pattern_geo_node_xref.collect(),
