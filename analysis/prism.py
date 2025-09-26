@@ -3,6 +3,7 @@ import os
 from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD
 import polars as pl
+import plotly.express as px
 
 # Problem: Looking into data quality issues is a very adhoc process right now. Expertise/knowledge
 # not centralized in code that is easily runnable (it's mostly in the app itself)
@@ -75,3 +76,11 @@ def assert_timepoint_order_timepoint_id_correspond(df: pl.DataFrame):
         .eq(1)
         .all()
     )
+
+
+def plot_lla(vp):
+    fig3 = px.scatter_map(vp, lat="latitude", lon="longitude", zoom=8, height=300)
+    fig3.update_layout(mapbox_style="open-street-map")
+    fig3.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+    config2 = {"scrollZoom": True}
+    return fig3.show(config2)

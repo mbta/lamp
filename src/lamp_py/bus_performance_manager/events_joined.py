@@ -3,7 +3,7 @@ import polars as pl
 
 from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
-from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
+from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
@@ -18,6 +18,22 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    trip_id_gtfs = dy.String(nullable=True)
+
+    # pylint: disable=no-method-argument
+    @dy.rule()
+    def _no_ol_trip_ids() -> pl.Expr:
+        return ~pl.col("trip_id").str.contains("OL")
+
+    @dy.rule()
+    def _no_split_trips1() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_1")
+
+    @dy.rule()
+    def _no_split_trips2() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_2")
+
+    # pylint: enable=no-method-argument
 
 
 class BusPerformanceManager(dy.Collection):
@@ -101,16 +117,17 @@ def join_rt_to_schedule(
         schedule_joined -> Boolean
     """
 
-    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
-    # asof strategy finds nearest value match between "asof" columns if exact match is not found
-    # will perform regular left join on "by" columns
-
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     process_logger = ProcessLogger("join_rt_to_schedule")
     process_logger.log_start()
 
+    # replace both now
+    gtfs = gtfs.with_columns(  # type: ignore[assignment]
+        pl.col("trip_id").alias("trip_id_gtfs"),
+        remove_overload_and_rare_variant_suffix(pl.col("trip_id")),
+    )
     schedule_vehicles = schedule.join(
         pl.concat(
             [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
@@ -136,17 +153,9 @@ def join_rt_to_schedule(
         )
     )
 
-    # fill in vehicle_label and vehicle_id for each scheduled trip if available from gtfs events join -
-    # this will allow TM join to join on vehicle id, which will eliminte multiple vehicle_id for the same trip_id
-    # gtfs trip_ids may have ADDED or -OL trip_ids to denote added service,, but TM does not have those
-    # trip_ids in its database, so overloads them into the existing trip_ids causing data inconsistency
-    schedule_gtfs = schedule_gtfs.with_columns(
-        pl.col(["vehicle_label", "vehicle_id"])
-        .fill_null(strategy="forward")  # handle missing vehicle label at beginning
-        .fill_null(strategy="backward")  # handle missing vehicle label at end
-        .over(["trip_id"])
-    )
-
+    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
+    # asof strategy finds nearest value match between "asof" columns if exact match is not found
+    # will perform regular left join on "by" columns
     schedule_gtfs_tm = (
         schedule_gtfs.sort(by="tm_stop_sequence")
         .join_asof(

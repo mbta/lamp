@@ -99,7 +99,9 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     # drop new lines in expected_bus_events
     # read it in
     # run this
-    # bus_events.filter(pl.col.plan_trip_id.is_in(expected_bus_events['plan_trip_id'].unique())).sort(by=["plan_trip_id", "stop_sequence"]).write_csv('bus_test_gtfs.csv')
+    # breakpoint()
+    # trip_id_list = ['63256578', '63361458', '63089353', '63071767', '63256596', '63101043', '63256882', '63072828', '63156984', '63362022', 'ElmSt2-684858-217-HaverhillBradfordVanV1', 'ElmSt2-684849-208-HaverhillBradfordVanV1', 'ElmSt2-684842-201-HaverhillBradfordVanV1', '63361157', '63070975', '63157369', '63157836', '63075088', '63070693']
+    # bus_events.filter(pl.col.plan_trip_id.is_in(trip_id_list)).sort(by=["plan_trip_id", "stop_sequence"]).write_csv('tests/bus_performance_manager/bus_test_gtfs.csv')
 
     # CSV Bus events
     expected_bus_events = pl.read_csv(
