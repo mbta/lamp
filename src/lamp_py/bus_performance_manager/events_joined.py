@@ -20,6 +20,21 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
     trip_id_gtfs = dy.String(nullable=True)
 
+    # pylint: disable=no-method-argument
+    @dy.rule()
+    def _no_ol_trip_ids() -> pl.Expr:
+        return ~pl.col("trip_id").str.contains("OL")
+
+    @dy.rule()
+    def _no_split_trips1() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_1")
+
+    @dy.rule()
+    def _no_split_trips2() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_2")
+
+    # pylint: enable=no-method-argument
+
 
 class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
