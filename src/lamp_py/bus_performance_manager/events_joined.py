@@ -115,7 +115,7 @@ def join_rt_to_schedule(
     # combined sched: full join results in _1, _2, all TM, all GTFS
     # gtfs_events _1, _2, -OL1, -OL2
     # tm_events _1, _2 without suffix, -OL without suffix.
-    gtfs = gtfs.with_columns( # type: ignore[assignment]
+    gtfs = gtfs.with_columns(  # type: ignore[assignment]
         pl.col("trip_id").alias("trip_id_gtfs"),
         pl.col("trip_id").str.replace(r"-OL\d?", "").str.replace(r"_\d", ""),
     )
