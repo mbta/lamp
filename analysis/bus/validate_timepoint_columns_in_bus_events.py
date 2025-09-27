@@ -33,7 +33,7 @@ def _():
 @app.cell
 def _(pl):
     df = pl.read_parquet(
-        "/Users/hhuang/Library/CloudStorage/OneDrive-MBTA/LAMP/Work/bus_data_opsanalytics/0_CombinedSchedule/20250904/20250814_bus_recent.parquet"
+        "20250904/20250814_bus_recent.parquet"
     )
     return (df,)
 
