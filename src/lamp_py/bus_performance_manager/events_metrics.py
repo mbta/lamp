@@ -28,6 +28,11 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     route_direction_headway_seconds = dy.Int64(nullable=True)
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
+    @dy.rule()
+    def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
+        "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
+        return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
+
 
 def bus_performance_metrics(
     service_date: date, gtfs_files: List[str], tm_files: List[str], **debug_flags: dict[str, bool]
@@ -85,16 +90,6 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
         bus_df.with_columns(
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
         ).with_columns(
-            (
-                pl.col("gtfs_travel_to_dt")
-                .shift(-1)
-                .over(
-                    # this should technically include pattern_id as well,
-                    # but the groups formed by [trip_id, pattern_id] == [trip_id]
-                    ["vehicle_label", "trip_id"],
-                    order_by="gtfs_sort_dt",
-                )
-            ).alias("gtfs_departure_dt"),
             (
                 pl.col("stop_id")
                 .shift(1)

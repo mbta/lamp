@@ -8,7 +8,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: disable=too-many-ancestors
+class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
@@ -18,9 +18,29 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     vehicle_label = dy.String(nullable=True, primary_key=False)
     stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    stop_count = dy.UInt32(nullable=True)
+    start_time = dy.Int64(nullable=True)
+    start_dt = dy.Datetime(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    vehicle_id = dy.String(nullable=True)
+    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    latitude = dy.Float64(nullable=True)
+    longitude = dy.Float64(nullable=True)
     trip_id_gtfs = dy.String(nullable=True)
 
     # pylint: disable=no-method-argument
+
+    @dy.rule()
+    def final_stop_has_arrival_dt() -> pl.Expr: 
+        """
+        The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
+        """
+        return pl.when(
+            pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.col("gtfs_travel_to_dt").is_not_null()
+        ).then(pl.col("gtfs_arrival_dt").is_not_null())
+
     @dy.rule()
     def _no_ol_trip_ids() -> pl.Expr:
         return ~pl.col("trip_id").str.contains("OL")
@@ -32,9 +52,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents, GTFSEvents):  # pylint: d
     @dy.rule()
     def _no_split_trips2() -> pl.Expr:
         return ~pl.col("trip_id").str.ends_with("_2")
-
     # pylint: enable=no-method-argument
-
 
 class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
@@ -82,39 +100,7 @@ def join_rt_to_schedule(
     There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.
     By matching the nearest stop sequence, we can align the two datasets.
 
-    :return dataframe:
-        service_date -> String
-        route_id -> String
-        trip_id -> String
-        start_time -> Int64
-        start_dt -> Datetime(time_unit='us', time_zone=None)
-        stop_count -> UInt32
-        direction_id -> Int8
-        stop_id -> String
-        stop_sequence -> Int64
-        vehicle_id -> String
-        vehicle_label -> String
-        gtfs_travel_to_dt -> Datetime(time_unit='us', time_zone='UTC')
-        gtfs_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        latitude -> Float64
-        longitude -> Float64
-        tm_stop_sequence -> Int64
-        timepoint_order -> UInt32
-        tm_planned_sequence_start -> Int64
-        tm_planned_sequence_end -> Int64
-        timepoint_id -> Int64
-        timepoint_abbr -> String
-        timepoint_name -> String
-        pattern_id -> Int64
-        tm_scheduled_time_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_arrival_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_actual_departure_dt -> Datetime(time_unit='us', time_zone='UTC')
-        tm_scheduled_time_sam -> Int64
-        tm_actual_arrival_time_sam -> Int64
-        tm_actual_departure_time_sam -> Int64
-        tm_point_type -> Int32
-        is_full_trip -> Int32
-        schedule_joined -> Boolean
+    :return BusEvents:
     """
 
     # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
@@ -166,13 +152,6 @@ def join_rt_to_schedule(
             coalesce=True,
             suffix="_right_tm",
         )
-        .drop(
-            "route_id_right_tm",
-            "timepoint_order_right_tm",
-            "timepoint_id_right_tm",
-            "timepoint_abbr_right_tm",
-            "timepoint_name_right_tm",
-        )
         .with_columns(
             pl.concat_str(
                 [
@@ -188,7 +167,17 @@ def join_rt_to_schedule(
                 .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
                 .otherwise(pl.col("plan_start_dt").dt.date()),
             ).alias("service_date"),
+            pl.coalesce(
+                pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
+                pl.when(
+                    pl.col("stop_sequence").eq(pl.col("plan_stop_count"))
+                ).then(  # and it's the last stop on the route
+                    pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp")
+                ),  # use the last IN_TRANSIT_TO datetime
+            ).alias("gtfs_arrival_dt"),
+            pl.col("gtfs_in_transit_to_dts").struct.field("first_timestamp").alias("gtfs_travel_to_dt"),
         )
+        .select(BusEvents.column_names())
     )
 
     valid, invalid = BusEvents.filter(schedule_gtfs_tm)
