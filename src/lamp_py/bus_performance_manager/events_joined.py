@@ -33,7 +33,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     # pylint: disable=no-method-argument
 
     @dy.rule()
-    def final_stop_has_arrival_dt() -> pl.Expr: 
+    def final_stop_has_arrival_dt() -> pl.Expr:
         """
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
@@ -52,7 +52,9 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     @dy.rule()
     def _no_split_trips2() -> pl.Expr:
         return ~pl.col("trip_id").str.ends_with("_2")
+
     # pylint: enable=no-method-argument
+
 
 class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
