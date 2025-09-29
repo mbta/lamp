@@ -1,0 +1,74 @@
+---
+title: "What would it take to creat a duckdb metastore?"
+date: 2025-09-26
+author: "crunkel@mbta.com"
+format:
+    gfm:
+        code-fold: true
+        code-summary: "Show the code"
+        toc: true
+        reference-location: margin
+        html-table-processing: none
+execute:
+    cache: true
+    warning: false
+    anchor-sections: true
+---
+
+Fares provides a duckdb *metastore*---a database that holds no records, just views of files---that allow analysts to query data as tables rather than files without needing database infrastructure.
+What would it take to do that ourselves?
+
+To find out, I'm going to see how easy it is to crawl our parquet files and create a metastore.
+
+```{python}
+import duckdb
+```
+
+First, I'll need to authenticate to our s3 buckets:
+
+```{python}
+duckdb.sql("INSTALL aws")
+duckdb.sql("""CREATE OR REPLACE SECRET secret (
+    TYPE s3,
+    PROVIDER credential_chain
+)""")
+```
+
+Now, let's make a view with just one file to make sure everything is working squeaky clean.
+
+```{python}
+(
+    duckdb
+    .from_parquet("s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet")
+    .create_view("vehicle_positions", replace = True)
+)
+```
+
+Did it work?
+
+```{python}
+duckdb.sql("SELECT * FROM vehicle_positions LIMIT 5")
+```
+
+Easy!
+Now, the point is to interact with these files as tables, so it would be useless if we were only interacting with one file.
+DuckDB allows users to create tables from file globs and Hive partitioning, which I *think* our datasets adhere to.
+To find out, let's try to replace this view with a view that represents *all* the bus VehiclePositions dataset:
+
+```{python}
+(
+    duckdb
+    .from_parquet("s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/*/*/*/*.parquet", hive_partitioning = True)
+    .create_view("vehicle_positions", replace = True)
+)
+```
+
+Now, let's check that we have done what we tried to do by querying another date.
+
+```{python}
+duckdb.sql("SELECT * FROM vehicle_positions WHERE year = 2025 AND month = 5 AND day = 1 LIMIT 5")
+```
+
+Cool, so, if we just list out all the top-level directories in `mbta-ctd-dataplatform-springboard/lamp`, then we'll have our database.
+We can [of course] go one step further and automate the listing of the directories.
+
