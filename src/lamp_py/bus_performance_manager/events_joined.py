@@ -189,11 +189,11 @@ def join_rt_to_schedule(
     if invalid.counts():
         process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
 
-    valid_collection = BusPerformanceManager.is_valid(
-        {"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}
-    )
-
-    if not valid_collection:
+    try:
+        valid_collection = BusPerformanceManager.is_valid(
+            {"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}
+        )
+    except dy.exc.ValidationError as v:
         process_logger.log_failure(dy.exc.ValidationError(BusPerformanceManager.__name__ + " failed validation"))
 
     process_logger.log_complete()
