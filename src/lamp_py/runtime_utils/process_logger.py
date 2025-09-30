@@ -5,8 +5,9 @@ import traceback
 import uuid
 import shutil
 from datetime import date
-from typing import Any, Dict, Union, Optional, List
+from typing import Any, Dict, Union, Optional, List, Tuple
 
+import dataframely as dy
 import psutil
 
 MdValues = Optional[Union[str, int, float, bool, date, BaseException, List[str]]]
@@ -86,10 +87,12 @@ class ProcessLogger:
                 continue
             self.metadata[str(key)] = str(value)
 
-        if self.default_data.get("status") is not None and print_log:
-            self._start_if_unstarted()
-            self.default_data["status"] = "add_metadata"
-            logging.info(self._get_log_string())
+        if print_log:
+            if self.default_data.get("status") is None:
+                self._start_if_unstarted()
+            if self.default_data.get("status") is not None:
+                self.default_data["status"] = "add_metadata"
+                logging.info(self._get_log_string())
 
     def log_start(self) -> None:
         """log the start of a proccess"""
@@ -133,3 +136,72 @@ class ProcessLogger:
         # Log Process Failure
         has_exception_info = bool(exception.__traceback__)
         logging.exception(self._get_log_string(), exc_info=has_exception_info)
+
+    def log_dataframely_filter_results(
+        self,
+        schema_filter: Tuple[dy.DataFrame, dy.FailureInfo],
+        *filter_results: Tuple[Union[dy.DataFrame, dy.LazyFrame, dy.Collection], Union[dy.FailureInfo, Any]],
+    ) -> dy.DataFrame:
+        """
+        Log results of .filter method on dataframely Schema and return its valid DataFrame.
+        Log results of additional filters but do not return their contents.
+        """
+
+        valid_records = schema_filter[0].height
+
+        validation_error_count = _sum_validation_errors(schema_filter[1], *[f[1] for f in filter_results])
+
+        self.add_metadata(valid_records=valid_records, validation_errors=validation_error_count)
+
+        validation_error_list = _list_validation_errors(schema_filter[1], *[f[1] for f in filter_results])
+
+        if validation_error_list:
+            self.log_failure(dy.exc.ValidationError(", ".join(validation_error_list)))
+
+        return schema_filter[0]
+
+
+def _sum_validation_errors(*invalids: Union[dy.FailureInfo, Any]) -> int:
+    """
+    Sum all count values from schema and collection validations.
+
+    Args:
+        *objects: Variable number of arguments, each can be either:
+                 - dy.FailureInfo
+                 - A dictionary of dy.FailureInfo objects
+
+    Returns:
+        Total sum of all count values
+    """
+    total = 0
+
+    for obj in invalids:
+        if not obj:
+            continue  # ignore empty dicts
+        # Check if it's a collection or a single object
+        if isinstance(obj, dy.FailureInfo):
+            # It's a single object - sum its counts directly
+            total += sum(obj.counts().values())
+        else:
+            # It's a collection - sum counts from all items in it
+            for item in obj.values():
+                total += sum(item.counts().values())
+    return total
+
+
+def _list_validation_errors(*invalids: Union[dy.FailureInfo, Any]) -> List[str]:
+    "Returns the types of validation errors present in the FailureInfos."
+    validation_errors: List[str] = []
+
+    for obj in invalids:
+        if not obj:
+            continue  # ignore empty dicts
+        # Check if it's a collection or a single object
+        if isinstance(obj, dy.FailureInfo):
+            # It's a single object - add its validation errors directly
+            validation_errors += obj.counts().keys()
+        else:
+            # It's a collection - add validation errors from all its items
+            for item in obj.values():
+                validation_errors += item.counts().keys()
+    return validation_errors
