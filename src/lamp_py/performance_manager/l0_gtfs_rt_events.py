@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Tuple
 
 import numpy
@@ -44,7 +45,16 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> D
 
     grouped_files = {}
 
-    vp_files = get_unprocessed_files("/RT_VEHICLE_POSITIONS/", md_db_manager)
+    # hardcode config dev to use devblue as the source for now - in the future would like
+    # a hot reconfigurable config to set this. 
+    if os.environ["ECS_TASK_GROUP"] is "dev":
+        vp_file_paths = "/DEV_BLUE_RT_VEHICLE_POSITIONS/"
+        tu_file_paths= "/DEV_BLUE_RT_TRIP_UPDATES/"
+    else:
+        vp_file_paths = "/RT_VEHICLE_POSITIONS/"
+        tu_file_paths = "/RT_TRIP_UPDATES/"
+
+    vp_files = get_unprocessed_files(vp_file_paths, md_db_manager)
     for record in vp_files:
         timestamp = dt_from_obj_path(record["paths"][0]).timestamp()
 
@@ -54,7 +64,7 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> D
             "tu_paths": [],
         }
 
-    tu_files = get_unprocessed_files("/RT_TRIP_UPDATES/", md_db_manager)
+    tu_files = get_unprocessed_files(tu_file_paths, md_db_manager)
     for record in tu_files:
         timestamp = dt_from_obj_path(record["paths"][0]).timestamp()
         if timestamp in grouped_files:
