@@ -47,7 +47,7 @@ class ConfigType(Enum):
         Figure out which config type to use for a given filename. Raise a
         ConfigTypeFromFilenameException if unable to determine.
         """
-        # pylint: disable-msg=R0911
+        # pylint: disable-msg=R0911,R0912
         # disable too many returns error message
         if "mbta.com_realtime_Alerts_enhanced" in filename:
             return cls.RT_ALERTS
