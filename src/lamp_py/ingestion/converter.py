@@ -81,12 +81,12 @@ class ConfigType(Enum):
             return cls.DEV_GREEN_RT_TRIP_UPDATES
         if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json" in filename:
             return cls.DEV_GREEN_RT_VEHICLE_POSITIONS
-        
+
         if "https_mbta_gtfs_s3_dev_blue.s3.amazonaws.com_rtr_TripUpdates_enhanced" in filename:
             return cls.DEV_GREEN_RT_TRIP_UPDATES
         if "https_mbta_gtfs_s3_dev_blue.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json" in filename:
             return cls.DEV_GREEN_RT_VEHICLE_POSITIONS
-        
+
         raise ConfigTypeFromFilenameException(filename)
 
     def is_gtfs(self) -> bool:
@@ -106,7 +106,7 @@ class ConfigType(Enum):
             self.DEV_GREEN_RT_VEHICLE_POSITIONS,
             self.DEV_GREEN_RT_TRIP_UPDATES,
             self.DEV_BLUE_RT_VEHICLE_POSITIONS,
-            self.DEV_BLUE_RT_TRIP_UPDATES,            
+            self.DEV_BLUE_RT_TRIP_UPDATES,
         ]
 
 

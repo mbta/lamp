@@ -109,7 +109,7 @@ class GtfsRtConverter(Converter):
         elif config_type == ConfigType.DEV_BLUE_RT_TRIP_UPDATES:
             self.detail = RtTripDetail()
         elif config_type == ConfigType.DEV_BLUE_RT_VEHICLE_POSITIONS:
-            self.detail = RtVehicleDetail()            
+            self.detail = RtVehicleDetail()
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 

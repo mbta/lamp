@@ -46,10 +46,10 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> D
     grouped_files = {}
 
     # hardcode config dev to use devblue as the source for now - in the future would like
-    # a hot reconfigurable config to set this. 
+    # a hot reconfigurable config to set this.
     if os.environ["ECS_TASK_GROUP"] is "dev":
         vp_file_paths = "/DEV_BLUE_RT_VEHICLE_POSITIONS/"
-        tu_file_paths= "/DEV_BLUE_RT_TRIP_UPDATES/"
+        tu_file_paths = "/DEV_BLUE_RT_TRIP_UPDATES/"
         process_logger.add_metadata(path_source="RTR_DEV_BLUE")
 
     else:
