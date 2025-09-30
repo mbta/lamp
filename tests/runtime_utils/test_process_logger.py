@@ -99,7 +99,7 @@ def test_one_filtered_schema(
     assert "validation_errors=1\n" in caplog.text
 
 
-def test_multiple_filtered_schemata(
+def test_multiple_filtered_schemas(
     schema_1: type[Schema1], schema_2: type[Schema2], caplog: pytest.LogCaptureFixture, dy_gen: dy.random.Generator
 ) -> None:
     "It gracefully handles multiple schemas and returns only the valid results from the first schema."
