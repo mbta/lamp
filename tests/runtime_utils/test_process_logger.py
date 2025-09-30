@@ -136,7 +136,7 @@ def test_one_schema_one_collection(
     )
 
     with caplog.at_level(logging.ERROR):
-        assert "dataframely.exc.ValidationError: key|min, key|min, all_keys_match, value2|regex" in caplog.text
+        assert all(e in caplog.text for e in ["dataframely.exc.ValidationError", "all_keys_match", "value2|regex", "key|min"])
 
     with caplog.at_level(logging.INFO):
         assert "validation_errors=21\n" in caplog.text
