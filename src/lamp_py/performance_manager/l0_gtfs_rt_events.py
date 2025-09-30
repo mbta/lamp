@@ -50,9 +50,12 @@ def get_gtfs_rt_paths(md_db_manager: DatabaseManager, path_count: int = 12) -> D
     if os.environ["ECS_TASK_GROUP"] is "dev":
         vp_file_paths = "/DEV_BLUE_RT_VEHICLE_POSITIONS/"
         tu_file_paths= "/DEV_BLUE_RT_TRIP_UPDATES/"
+        process_logger.add_metadata(path_source="RTR_DEV_BLUE")
+
     else:
         vp_file_paths = "/RT_VEHICLE_POSITIONS/"
         tu_file_paths = "/RT_TRIP_UPDATES/"
+        process_logger.add_metadata(path_source="RTR_PROD")
 
     vp_files = get_unprocessed_files(vp_file_paths, md_db_manager)
     for record in vp_files:
