@@ -204,4 +204,4 @@ def _list_validation_errors(*invalids: Union[dy.FailureInfo, Any]) -> List[str]:
             # It's a collection - add validation errors from all its items
             for item in obj.values():
                 validation_errors += item.counts().keys()
-    return list(set(validation_errors)) # deduplicate
+    return list(set(validation_errors))  # deduplicate
