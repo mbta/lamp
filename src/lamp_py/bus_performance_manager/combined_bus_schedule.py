@@ -152,12 +152,7 @@ def join_tm_schedule_to_gtfs_schedule(gtfs: pl.DataFrame, tm: TransitMasterTable
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
     ).drop("index")
 
-    valid, invalid = CombinedSchedule.filter(schedule, cast=True)
-
-    process_logger.add_metadata(valid_rows=valid.height, invalidities=sum(invalid.counts().values()))
-
-    if invalid.counts():
-        process_logger.log_failure(dy.exc.ValidationError(",".join(invalid.counts().keys())))
+    valid = process_logger.log_dataframely_filter_results(CombinedSchedule.filter(schedule, cast=True))
 
     process_logger.log_complete()
 
