@@ -5,7 +5,7 @@ import polars as pl
 import pyarrow
 
 
-def test_bus_parquet_convertible_to_bus_tableau_columns() -> None:
+def test_bus_parquet_convertable_to_bus_tableau_columns() -> None:
     bus_df = bus_schema.empty_table()
     sample = BusPerformanceMetrics.sample(1)
 
