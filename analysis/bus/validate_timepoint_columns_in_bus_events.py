@@ -32,9 +32,7 @@ def _():
 
 @app.cell
 def _(pl):
-    df = pl.read_parquet(
-        "20250904/20250814_bus_recent.parquet"
-    )
+    df = pl.read_parquet("20250904/20250814_bus_recent.parquet")
     return (df,)
 
 
