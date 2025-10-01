@@ -254,63 +254,17 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             .then(pl.col("vehicle_timestamp"))
             .max()
             .alias("gtfs_departure_dt"),
+            pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),
+            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_max()).alias("longitude"),
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
             pl.col("stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
         )
-        .select(
-            [
-                "service_date",
-                "route_id",
-                "trip_id",
-                "start_time",
-                "start_dt",
-                "stop_count",
-                "direction_id",
-                "stop_id",
-                "stop_sequence",
-                "vehicle_id",
-                "vehicle_label",
-                "gtfs_in_transit_to_dts",
-                "gtfs_arrival_dt",
-                "gtfs_departure_dt",
-            ]
-        )
+        .select(GTFSEvents.column_names())
     )
 
-    # ==== lat/lon ====
-    # Lat/Lon join via event_position is only being added for verification -
-    # leaving a note to explain deficiency
-
-    # This event position is grabbing the first time we declare "IN_TRANSIT_TO" a stop_id
-    # this group_by is very wide - looking for all the timestamps for a given bus, and then
-    # if there are multiple duplicate timestamps recorded for 1 bus at the same timestamp point,
-    # grabbing the first one. This will give us a single "IN_TRANSIT_TO" record for each
-    # timestamp for each bus, which should be joinable with the events further down.
-
-    # The left vehicle_events.IN_TRANSIT_TO that we pivoted actually points to the first
-    # time the bus declared IN_TRANSIT_TO this stop, which means the coordinate for that
-    # IN_TRANSIT_TO record is actually the DEPARTING timestamp of the previous stop, and
-    # thus we'd be getting the gps coordinate of the declared DEPARTURE.
-    event_position = (
-        vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
-        .group_by("vehicle_label", "trip_id", "stop_sequence")
-        .agg(
-            pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),
-            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_max()).alias("longitude"),
-        )
-    )
-
-    vehicle_events_plus_positions = vehicle_events.join(
-        event_position,
-        how="left",
-        on=["vehicle_label", "trip_id", "stop_sequence"],
-        coalesce=True,
-    )
-    # ==== end lat/lon ====
-
-    valid = logger.log_dataframely_filter_results(GTFSEvents.filter(vehicle_events_plus_positions))
+    valid = logger.log_dataframely_filter_results(GTFSEvents.filter(vehicle_events))
 
     logger.log_complete()
 
