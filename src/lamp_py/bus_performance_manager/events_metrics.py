@@ -83,19 +83,19 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     order_by="gtfs_sort_dt",
                 )
             ).alias("previous_stop_id"),
-            # take the later of the two possible arrival times as the true arrival time
-            (
-                pl.when(pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
-                .then(pl.col("tm_actual_arrival_dt"))
-                .otherwise(pl.col("gtfs_arrival_dt"))
-            ).alias("stop_arrival_dt"),
-        )
-        # take the later of the two possible departure times as the true departure time
-        .with_columns(
-            pl.when(pl.col("tm_actual_departure_dt") >= pl.col("stop_arrival_dt"))
-            .then(pl.col("tm_actual_departure_dt"))
-            .otherwise(pl.col("gtfs_departure_dt"))
-            .alias("stop_departure_dt")
+            # take the earlier of the two possible arrival times as the arrival time
+            pl.min_horizontal(pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt")).alias("stop_arrival_dt"),
+            (  # for departure times
+                pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
+                .then(pl.col("gtfs_departure_dt"))
+                .otherwise(  # midpoints + endpoints
+                    pl.max_horizontal(
+                        pl.col("gtfs_arrival_dt"),
+                        pl.col("tm_actual_arrival_dt"),
+                        pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
+                    )
+                )
+            ).alias("stop_departure_dt"),
         )
         # convert dt columns to seconds after midnight
         .with_columns(
