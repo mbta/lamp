@@ -17,7 +17,7 @@ class GTFSEvents(BusTrips):
     service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
-    stop_id = dy.String(primary_key = True)
+    stop_id = dy.String(primary_key=True)
     stop_sequence = dy.Int64(nullable=False, primary_key=True)
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
