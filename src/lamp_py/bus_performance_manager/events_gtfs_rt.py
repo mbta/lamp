@@ -17,6 +17,7 @@ class GTFSEvents(BusTrips):
     service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
+    stop_id = dy.String(primary_key = True)
     stop_sequence = dy.Int64(nullable=False, primary_key=True)
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
@@ -37,7 +38,7 @@ class GTFSEvents(BusTrips):
     @dy.rule()
     def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
         "The bus should always have a departure time from the first stop."
-        return pl.when(pl.col("stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_arrival_dt").is_not_null())
+        return pl.when(pl.col("stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_departure_dt").is_not_null())
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
