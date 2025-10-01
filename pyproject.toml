@@ -52,7 +52,7 @@ tabulate = "^0.9.0"
 marimo = "^0.14"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.3.0"
+black = "^25.9.0"
 mypy = "^1.1.1"
 pylint = "^3.2.6"
 pytest = "^8.3.2"
