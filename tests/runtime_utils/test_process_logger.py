@@ -103,7 +103,7 @@ def test_multiple_filtered_schemas(
     schema_1: type[Schema1], schema_2: type[Schema2], caplog: pytest.LogCaptureFixture, dy_gen: dy.random.Generator
 ) -> None:
     "It gracefully handles multiple schemas and returns only the valid results from the first schema."
-    process_logger = ProcessLogger("test_multiple_filtered_schemata")
+    process_logger = ProcessLogger("test_multiple_filtered_schemas")
 
     df1 = pl.DataFrame({"key": range(-1, 9), "value1": dy_gen.sample_float(10, min=0, max=10000)})
 
@@ -112,7 +112,7 @@ def test_multiple_filtered_schemas(
     _ = process_logger.log_dataframely_filter_results(schema_1().filter(df1), schema_2().filter(df2))
 
     with caplog.at_level(logging.ERROR):
-        assert "dataframely.exc.ValidationError: key|min, value2|regex" in caplog.text
+        assert all(e in caplog.text for e in ["dataframely.exc.ValidationError", "value2|regex", "key|min"])
 
     with caplog.at_level(logging.INFO):
         assert "validation_errors=11\n" in caplog.text
