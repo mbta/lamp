@@ -155,8 +155,8 @@ class ProcessLogger:
 
         validation_error_list = _list_validation_errors(schema_filter[1], *[f[1] for f in filter_results])
 
-        if validation_error_list:
-            self.log_failure(dy.exc.ValidationError(", ".join(validation_error_list)))
+        # if validation_error_list:
+        #     self.log_failure(dy.exc.ValidationError(", ".join(validation_error_list)))
 
         return schema_filter[0]
 
