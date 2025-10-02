@@ -133,7 +133,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                             order_by=pl.coalesce("tm_stop_sequence", "stop_sequence"),
                         ),
                     )
-                ) # otherwise leave the departure/arrival time null
+                )  # otherwise leave the departure/arrival time null
                 .alias(c)
                 for c in ["stop_departure_dt", "stop_arrival_dt"]
             ]
