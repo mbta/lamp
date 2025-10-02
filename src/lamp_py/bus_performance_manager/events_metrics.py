@@ -33,6 +33,25 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
 
+    @dy.rule()
+    def stop_sequence_implies_time_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop arrival, departure, and travel_to times increase monotonically with stop sequence."
+        return pl.all_horizontal(
+            *[
+                pl.coalesce(
+                    pl.col(c)  # dt for current stop
+                    >= pl.col(c)  # greater than dt for last stop
+                    .shift(1)
+                    .over(
+                        partition_by=["trip_id", "vehicle_label"],
+                        order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
+                    ),
+                    pl.lit(True),  # ignore if not computable
+                )
+                for c in ["stop_arrival_dt", "stop_departure_dt"]
+            ]
+        )
+
 
 def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
     """
@@ -76,7 +95,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
             (  # for departure times
                 pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
-                .then(pl.col("gtfs_departure_dt"))
+                .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
                 .otherwise(  # midpoints + endpoints
                     pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
                 )
@@ -100,6 +119,24 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             .then(pl.col("stop_arrival_dt"))  # set departure equal to arrival
             .otherwise(pl.col("stop_departure_dt"))
             .alias("stop_departure_dt"),
+        )
+        .with_columns(
+            *[  # force the stop_departure_dt & stop_arrival_dt in order with other stops in the trip by
+                pl.when(pl.col(c).is_not_null())  # if the departure/arrival time isn't null
+                .then(
+                    pl.max_horizontal(  # take the max of
+                        pl.col(c),  # the column
+                        pl.max_horizontal("stop_departure_dt", "stop_arrival_dt", "gtfs_travel_to_dt")
+                        .cum_max()  # the highest previous value of departure/arrival/travel_to dt
+                        .over(
+                            partition_by=["trip_id", "vehicle_label"],
+                            order_by=pl.coalesce("tm_stop_sequence", "stop_sequence"),
+                        ),
+                    )
+                ) # otherwise leave the departure/arrival time null
+                .alias(c)
+                for c in ["stop_departure_dt", "stop_arrival_dt"]
+            ]
         )
         .with_columns(
             (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),

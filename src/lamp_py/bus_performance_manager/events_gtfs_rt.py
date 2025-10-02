@@ -219,7 +219,15 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     )
 
     vehicle_events = (
-        vehicle_positions.with_columns(
+        vehicle_positions.filter(  # remove out-of-order records:
+            pl.col("stop_sequence")  # stop sequence must be
+            <= pl.col("stop_sequence")  # less than or equal to
+            .cum_min(reverse=True)  # minimum of this record and all following
+            .over(
+                partition_by=["trip_id", "vehicle_label"], order_by="vehicle_timestamp"
+            ),  # within each trip-vehicle pair, ordered by timestamp
+        )
+        .with_columns(
             pl.col("vehicle_timestamp").dt.replace_time_zone("UTC", ambiguous="earliest"),
             pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
             pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64).alias("start_time"),
