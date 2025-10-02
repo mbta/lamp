@@ -310,12 +310,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     )
     # ==== end lat/lon ====
 
-    valid, invalid = GTFSEvents.filter(vehicle_events_plus_positions)
-
-    logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
-
-    if invalid.counts():
-        logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+    valid = logger.log_dataframely_filter_results(GTFSEvents.filter(vehicle_events_plus_positions))
 
     logger.log_complete()
 

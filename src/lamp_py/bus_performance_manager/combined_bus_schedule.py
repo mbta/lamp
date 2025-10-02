@@ -16,6 +16,7 @@ class CombinedSchedule(TransitMasterSchedule):
     route_pattern_id = dy.String(nullable=True)
     route_pattern_typicality = dy.Int64(nullable=True)
     direction_id = dy.Int8(nullable=True)
+    direction = dy.String(nullable=True)
     direction_destination = dy.String(nullable=True)
     stop_name = dy.String(nullable=True)
     plan_stop_count = dy.UInt32(nullable=True)
@@ -24,6 +25,7 @@ class CombinedSchedule(TransitMasterSchedule):
     plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone="America/New_York")
     plan_travel_time_seconds = dy.Int64(nullable=True)
     plan_route_direction_headway_seconds = dy.Int64(nullable=True)
+    plan_direction_destination_headway_seconds = dy.Int64(nullable=True)
     schedule_joined = dy.String(nullable=False)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -121,39 +123,6 @@ def join_tm_schedule_to_gtfs_schedule(
             .otherwise(pl.lit("JOIN"))
             .alias("schedule_joined")
         )
-        # explicitly define the columns that we are grabbing at the end of the operation
-        .select(
-            [
-                "trip_id",
-                "stop_id",
-                "stop_sequence",
-                "block_id",
-                "route_id",
-                "service_id",
-                "route_pattern_id",
-                "route_pattern_typicality",
-                "direction_id",
-                "direction",
-                "direction_destination",
-                "stop_name",
-                "plan_stop_count",
-                "plan_start_time",
-                "plan_start_dt",
-                "plan_stop_departure_dt",
-                "plan_travel_time_seconds",
-                "plan_route_direction_headway_seconds",
-                "plan_direction_destination_headway_seconds",
-                "schedule_joined",
-                "timepoint_order",
-                "tm_stop_sequence",
-                "tm_planned_sequence_start",
-                "tm_planned_sequence_end",
-                "timepoint_id",
-                "timepoint_abbr",
-                "timepoint_name",
-                "pattern_id",
-            ]
-        )
     ).with_row_index()
 
     schedule = schedule.with_columns(
@@ -161,14 +130,9 @@ def join_tm_schedule_to_gtfs_schedule(
     )
     schedule = schedule.remove(
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
-    ).drop("index")
+    ).select(CombinedSchedule.column_names())
 
-    valid, invalid = CombinedSchedule.filter(schedule, cast=True)
-
-    process_logger.add_metadata(valid_rows=valid.height, invalidities=sum(invalid.counts().values()))
-
-    if invalid.counts():
-        process_logger.log_failure(dy.exc.ValidationError(",".join(invalid.counts().keys())))
+    valid = process_logger.log_dataframely_filter_results(CombinedSchedule.filter(schedule, cast=True))
 
     process_logger.log_complete()
 

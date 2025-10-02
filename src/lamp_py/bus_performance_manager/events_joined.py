@@ -22,6 +22,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
     direction_id = dy.Int8(nullable=True)
+    direction = dy.String(nullable=True)
     vehicle_id = dy.String(nullable=True)
     gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -182,19 +183,10 @@ def join_rt_to_schedule(
         .select(BusEvents.column_names())
     )
 
-    valid, invalid = BusEvents.filter(schedule_gtfs_tm)
-
-    process_logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
-
-    if invalid.counts():
-        process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
-
-    valid_collection = BusPerformanceManager.is_valid(
-        {"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}
+    valid = process_logger.log_dataframely_filter_results(
+        BusEvents.filter(schedule_gtfs_tm),
+        BusPerformanceManager.filter({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}),
     )
-
-    if not valid_collection:
-        process_logger.log_failure(dy.exc.ValidationError(BusPerformanceManager.__name__ + " failed validation"))
 
     process_logger.log_complete()
 

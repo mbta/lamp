@@ -149,12 +149,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
     )
 
-    valid, invalid = BusPerformanceMetrics.filter(enriched_bus_df)
-
-    process_logger.add_metadata(valid_records=valid.height, validation_errors=sum(invalid.counts().values()))
-
-    if invalid.counts():
-        process_logger.log_failure(dy.exc.ValidationError(", ".join(invalid.counts().keys())))
+    valid = process_logger.log_dataframely_filter_results(BusPerformanceMetrics.filter(enriched_bus_df))
 
     process_logger.log_complete()
 
