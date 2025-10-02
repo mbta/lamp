@@ -10,6 +10,10 @@ def test_bus_parquet_convertible_to_bus_tableau_columns() -> None:
     sample = BusPerformanceMetrics.sample(1)
 
     polars_df = pl.from_arrow(sample).select(bus_schema.names)
-    check = apply_bus_analysis_conversions(polars_df)
 
+    excluded_columns = {"tm_planned_sequence_start", "tm_gtfs_sequence_diff"}
+    # all columns in bus dataset should be in tableau dataset - just with type conversions
+    assert set(sample.columns).difference(polars_df.columns) == excluded_columns
+
+    check = apply_bus_analysis_conversions(polars_df)
     assert check.schema == bus_df.schema
