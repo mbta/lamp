@@ -22,6 +22,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
     direction_id = dy.Int8(nullable=True)
+    direction = dy.String(nullable=True)
     vehicle_id = dy.String(nullable=True)
     gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
