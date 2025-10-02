@@ -256,7 +256,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             .max()
             .alias("gtfs_departure_dt"),
             pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),
-            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_max()).alias("longitude"),
+            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_min()).alias("longitude"),
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
