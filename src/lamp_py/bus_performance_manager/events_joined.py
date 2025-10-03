@@ -188,7 +188,7 @@ def join_rt_to_schedule(
     #     BusPerformanceManager.filter({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}),
     # )
 
-    valid, invalid = BusEvents.filter(schedule_gtfs_tm)
+    valid, _ = BusEvents.filter(schedule_gtfs_tm)
     process_logger.log_complete()
 
     return valid
