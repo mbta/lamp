@@ -33,26 +33,26 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
 
     # pylint: disable=no-method-argument
 
-    # @dy.rule()
-    # def final_stop_has_arrival_dt() -> pl.Expr:
-    #     """
-    #     The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
-    #     """
-    #     return pl.when(
-    #         pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.col("gtfs_travel_to_dt").is_not_null()
-    #     ).then(pl.col("gtfs_arrival_dt").is_not_null())
+    @dy.rule()
+    def final_stop_has_arrival_dt() -> pl.Expr:
+        """
+        The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
+        """
+        return pl.when(
+            pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.col("gtfs_travel_to_dt").is_not_null()
+        ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
-    # @dy.rule()
-    # def _no_ol_trip_ids() -> pl.Expr:
-    #     return ~pl.col("trip_id").str.contains("OL")
+    @dy.rule()
+    def _no_ol_trip_ids() -> pl.Expr:
+        return ~pl.col("trip_id").str.contains("OL")
 
-    # @dy.rule()
-    # def _no_split_trips1() -> pl.Expr:
-    #     return ~pl.col("trip_id").str.ends_with("_1")
+    @dy.rule()
+    def _no_split_trips1() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_1")
 
-    # @dy.rule()
-    # def _no_split_trips2() -> pl.Expr:
-    #     return ~pl.col("trip_id").str.ends_with("_2")
+    @dy.rule()
+    def _no_split_trips2() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_2")
 
     # pylint: enable=no-method-argument
 
