@@ -83,7 +83,7 @@ if __name__ == "__main__":
     short_desc = "reprocess_422_423"
     uuid_new = uuid.uuid4().hex[-12:]
 
-    versions_dir = "/Users/hhuang/lamp/lamp/src/lamp_py/migrations/versions"
+    versions_dir = "{LAMP}/src/lamp_py/migrations/versions"
 
     # List directories in the versions directory
     if os.path.exists(versions_dir):
