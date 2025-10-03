@@ -64,11 +64,12 @@ def bus_performance_metrics(
     # _1, _2 without suffix, -OL without suffix.
     tm_df = generate_tm_events(tm_files, tm_schedule)
 
-    # if debug_flags.get("write_intermediates"):
-    #     gtfs_schedule.write_parquet("/tmp/gtfs_schedule.parquet")
-    #     gtfs_df.write_parquet("/tmp/gtfs_events.parquet")
-    #     tm_df.write_parquet("/tmp/tm_events.parquet")
-    #     combined_schedule.write_parquet("/tmp/combined_schedule.parquet")
+    if debug_flags.get("write_intermediates"):
+        gtfs_schedule.write_parquet("/tmp/gtfs_schedule.parquet")
+        gtfs_df.write_parquet("/tmp/gtfs_events.parquet")
+        tm_df.write_parquet("/tmp/tm_events.parquet")
+        combined_schedule.write_parquet("/tmp/combined_schedule.parquet")
+
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
     bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df)
 
