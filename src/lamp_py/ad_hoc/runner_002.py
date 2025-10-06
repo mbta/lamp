@@ -199,8 +199,8 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
 
     try:
         service_dates = []
-        start_date = datetime.date(year=2025, month=9, day=20)
-        end_date = datetime.date(year=2025, month=9, day=30)
+        start_date = date(year=2025, month=9, day=21)
+        end_date = date(year=2025, month=9, day=30)
 
         # add 1 for inclusive
         date_diff_days = (start_date - end_date).days * -1 + 1
