@@ -1,15 +1,19 @@
 import os
 from unittest import mock
 from datetime import datetime, timedelta, date, timezone
+from random import randint
 from typing import Tuple, List
 
+import dataframely as dy
 import polars as pl
+import pytest
 
 from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.bus_performance_manager.events_gtfs_rt import (
     read_vehicle_positions,
     positions_to_events,
     generate_gtfs_rt_events,
+    GTFSEvents,
 )
 
 from ..test_resources import rt_vehicle_positions as s3_vp
@@ -451,3 +455,25 @@ def test_positions_to_events() -> None:
             empty_events,
         ]
     )
+
+
+@pytest.mark.parametrize(
+    ("min_stop_sequence", "max_stop_sequence", "null", "pass_rule"),
+    [(1, 1, False, True), (1, 1, True, False), (2, 100, False, True), (2, 100, True, True)],
+    ids=["start_not-null", "start_null", "midpoint_not-null", "midpoint_null"],
+)
+def test_dy_first_stop_has_departure_dt(
+    dy_gen: dy.random.Generator, min_stop_sequence: int, max_stop_sequence: int, null: bool, pass_rule: bool
+) -> None:
+    "It returns false when the first GTFS stop does not have a departure date."
+    df = GTFSEvents.sample(
+        num_rows=1,
+        generator=dy_gen,
+        overrides={"stop_sequence": [randint(min_stop_sequence, max_stop_sequence)]},
+    ).with_columns(
+        gtfs_departure_dt=dy_gen.sample_datetime(
+            min=datetime(2000, 1, 1), max=datetime(2100, 12, 31), null_probability=int(null), time_zone="UTC"
+        )
+    )
+
+    assert GTFSEvents.is_valid(df) == pass_rule
