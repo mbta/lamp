@@ -41,9 +41,17 @@ def test_dy_departure_after_arrival(
 @pytest.mark.parametrize(
     ["stop_arrival_dt", "stop_departure_dt", "num_rows"],
     [
-        ([datetime(2000, 1, 1, 1), datetime(2000, 1, 1)], [datetime(2000, 1, 1, 2), None], pytest.raises(ValidationError)),
+        (
+            [datetime(2000, 1, 1, 1), datetime(2000, 1, 1)],
+            [datetime(2000, 1, 1, 2), None],
+            pytest.raises(ValidationError),
+        ),
         ([datetime(2000, 1, 1), None], [datetime(2000, 1, 1, 1), datetime(2000, 1, 1)], pytest.raises(ValidationError)),
-        ([datetime(2000, 1, 1), datetime(2000, 1, 1, 2)], [datetime(2000, 1, 1, 1), datetime(2000, 1, 1, 3)], nullcontext(2))
+        (
+            [datetime(2000, 1, 1), datetime(2000, 1, 1, 2)],
+            [datetime(2000, 1, 1, 1), datetime(2000, 1, 1, 3)],
+            nullcontext(2),
+        ),
     ],
     ids=[
         "out-of-order-arrival",
@@ -56,15 +64,15 @@ def test_dy_stop_sequence_implies_time_order(
 ) -> None:
     "It returns false if any departure or arrival time is earlier than the preceding record."
     df = BusPerformanceMetrics.sample(
-        num_rows = 2,
-        overrides = {
+        num_rows=2,
+        overrides={
             "vehicle_label": ["123", "123"],
             "tm_stop_sequence": [2, 3],
             "stop_arrival_dt": stop_arrival_dt,
             "stop_departure_dt": stop_departure_dt,
         },
-        generator=dy_gen
-    ).with_columns(trip_id = pl.lit("abc"))
+        generator=dy_gen,
+    ).with_columns(trip_id=pl.lit("abc"))
 
     with num_rows:
-        assert BusPerformanceMetrics.validate(df).height == num_rows.enter_result
+        assert BusPerformanceMetrics.validate(df).height == num_rows.enter_result  # type: ignore[attr-defined]

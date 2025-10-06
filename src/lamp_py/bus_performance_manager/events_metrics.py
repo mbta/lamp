@@ -36,30 +36,24 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     @dy.rule()
     def stop_sequence_implies_arrival_order() -> pl.Expr:  # pylint: disable=no-method-argument
         "Stop arrival increases monotonically with stop sequence."
-        return (
-            pl.col("stop_arrival_dt")  # dt for current stop
-            .ge( # greater than
-                pl.col("stop_arrival_dt")  # dt for last stop
-                .shift(1)
-                .over(
-                    partition_by=["trip_id", "vehicle_label"],
-                    order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
-                )
+        return pl.col("stop_arrival_dt").ge(  # dt for current stop  # greater than
+            pl.col("stop_arrival_dt")  # dt for last stop
+            .shift(1)
+            .over(
+                partition_by=["trip_id", "vehicle_label"],
+                order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
             )
         )
 
     @dy.rule()
     def stop_sequence_implies_departure_order() -> pl.Expr:  # pylint: disable=no-method-argument
         "Stop departure increase monotonically with stop sequence."
-        return (
-            pl.col("stop_departure_dt")  # dt for current stop
-            .ge( # greater than
-                pl.col("stop_departure_dt")  # dt for last stop
-                .shift(1)
-                .over(
-                    partition_by=["trip_id", "vehicle_label"],
-                    order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
-                )
+        return pl.col("stop_departure_dt").ge(  # dt for current stop  # greater than
+            pl.col("stop_departure_dt")  # dt for last stop
+            .shift(1)
+            .over(
+                partition_by=["trip_id", "vehicle_label"],
+                order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
             )
         )
 
