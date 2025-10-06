@@ -34,22 +34,33 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
 
     @dy.rule()
-    def stop_sequence_implies_time_order() -> pl.Expr:  # pylint: disable=no-method-argument
-        "Stop arrival, departure, and travel_to times increase monotonically with stop sequence."
-        return pl.all_horizontal(
-            *[
-                pl.coalesce(
-                    pl.col(c)  # dt for current stop
-                    >= pl.col(c)  # greater than dt for last stop
-                    .shift(1)
-                    .over(
-                        partition_by=["trip_id", "vehicle_label"],
-                        order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
-                    ),
-                    pl.lit(True),  # ignore if not computable
+    def stop_sequence_implies_arrival_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop arrival increases monotonically with stop sequence."
+        return (
+            pl.col("stop_arrival_dt")  # dt for current stop
+            .ge( # greater than
+                pl.col("stop_arrival_dt")  # dt for last stop
+                .shift(1)
+                .over(
+                    partition_by=["trip_id", "vehicle_label"],
+                    order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
                 )
-                for c in ["stop_arrival_dt", "stop_departure_dt"]
-            ]
+            )
+        )
+
+    @dy.rule()
+    def stop_sequence_implies_departure_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop departure increase monotonically with stop sequence."
+        return (
+            pl.col("stop_departure_dt")  # dt for current stop
+            .ge( # greater than
+                pl.col("stop_departure_dt")  # dt for last stop
+                .shift(1)
+                .over(
+                    partition_by=["trip_id", "vehicle_label"],
+                    order_by=pl.coalesce(pl.col("tm_stop_sequence"), pl.col("stop_sequence")),
+                )
+            )
         )
 
 
