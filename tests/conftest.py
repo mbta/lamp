@@ -71,6 +71,6 @@ def fixture_remote_file_locations_patch(
 
 
 @pytest.fixture(name="dy_gen", params=[1], scope="session")
-def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> dy.random.Generator:
+def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> Iterator:
     "Fixture wrapper around dataframely random data generator."
     yield dy.random.Generator(request.param)
