@@ -20,6 +20,7 @@ on:
           - ingestion
           - rail-performance-manager
           - bus-performance-manager
+          - ad-hoc
 
 jobs:
   set_count:
