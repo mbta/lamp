@@ -115,6 +115,7 @@ def write_daily_table_adhoc_cr_only(db_manager: DatabaseManager, service_date: d
         .where(
             VehicleEvents.service_date == service_date_int,
             VehicleTrips.static_version_key == static_version_key,
+            StaticRoutes.route_type == 2,
             VehicleTrips.revenue == sa.true(),
             sa.or_(
                 VehicleEvents.vp_move_timestamp.is_not(None),
