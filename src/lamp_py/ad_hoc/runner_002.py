@@ -6,7 +6,7 @@ import sqlalchemy as sa
 import pyarrow
 import pyarrow.parquet as pq
 
-from lamp_py.performance_manager.flat_file import S3Archive, write_daily_table
+from lamp_py.performance_manager.flat_file import S3Archive
 from lamp_py.performance_manager.gtfs_utils import static_version_key_from_service_date
 from lamp_py.postgres.rail_performance_manager_schema import (
     StaticRoutes,
@@ -26,7 +26,7 @@ from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 
 
-def write_daily_table_adhoc(db_manager: DatabaseManager, service_date: datetime) -> pyarrow.Table:
+def write_daily_table_adhoc_cr_only(db_manager: DatabaseManager, service_date: datetime) -> pyarrow.Table:
     """
     Generate a dataframe of all events and metrics for a single service date
     """
@@ -115,7 +115,7 @@ def write_daily_table_adhoc(db_manager: DatabaseManager, service_date: datetime)
         .where(
             VehicleEvents.service_date == service_date_int,
             VehicleTrips.static_version_key == static_version_key,
-            StaticRoutes.route_type < 2,
+            StaticRoutes.route_type == 3,
             VehicleTrips.revenue == sa.true(),
             sa.or_(
                 VehicleEvents.vp_move_timestamp.is_not(None),
@@ -224,7 +224,7 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
             sub_process_logger.log_start()
 
             try:
-                write_daily_table(db_manager=db_manager, service_date=service_date)
+                write_daily_table_adhoc_cr_only(db_manager=db_manager, service_date=service_date)
             except Exception as e:
                 sub_process_logger.log_failure(e)
             else:
