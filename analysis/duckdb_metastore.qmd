@@ -4,71 +4,196 @@ date: 2025-09-26
 author: "crunkel@mbta.com"
 format:
     gfm:
-        code-fold: true
+        code-fold: false
         code-summary: "Show the code"
         toc: true
         reference-location: margin
         html-table-processing: none
 execute:
-    cache: true
     warning: false
     anchor-sections: true
 ---
 
-Fares provides a duckdb *metastore*---a database that holds no records, just views of files---that allow analysts to query data as tables rather than files without needing database infrastructure.
-What would it take to do that ourselves?
-
-To find out, I'm going to see how easy it is to crawl our parquet files and create a metastore.
+DuckDB is a popular entrypoint for LAMP data.
+To access our s3 buckets, users need to authenticate using their IAM account, which DuckDB supports natively:
 
 ```{python}
 import duckdb
-```
-
-First, I'll need to authenticate to our s3 buckets:
-
-```{python}
 duckdb.sql("INSTALL aws")
+duckdb.sql("LOAD aws")
 duckdb.sql("""CREATE OR REPLACE SECRET secret (
     TYPE s3,
     PROVIDER credential_chain
 )""")
 ```
 
-Now, let's make a view with just one file to make sure everything is working squeaky clean.
+And then query individual files using the `read_parquet` function:
 
 ```{python}
-(
-    duckdb
-    .from_parquet("s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet")
-    .create_view("vehicle_positions", replace = True)
-)
+duckdb.sql("""
+    SELECT *
+    FROM read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet')
+    LIMIT 10
+""")
 ```
 
-Did it work?
+This pattern is nearly as fast as querying data locally...
 
 ```{python}
-duckdb.sql("SELECT * FROM vehicle_positions LIMIT 5")
+from time import perf_counter
+tick = perf_counter()
+duckdb.sql("""
+    SELECT *
+    FROM read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet')
+    LIMIT 10
+""")
+f"Query duration: {(perf_counter() - tick):.4f}s"
 ```
 
-Easy!
-Now, the point is to interact with these files as tables, so it would be useless if we were only interacting with one file.
-DuckDB allows users to create tables from file globs and Hive partitioning, which I *think* our datasets adhere to.
-To find out, let's try to replace this view with a view that represents *all* the bus VehiclePositions dataset:
+but it's not ergonomic to write.
+Querying records from multiple days means subtly, predictably tweaking the URI.
+Further, querying multiple records from multiple datasets---to join vehicle positions data to the GTFS Schedule, for instance---asks users to also know the different partitioning structures of each dataset.
+Instead of treating our data as files, what if users could interact with it as if it were tables in a database?
+For instance, the query above would transform into:
+
+```{python}
+#| eval: false
+duckdb.sql("""
+    SELECT *
+    FROM vehicle_positions
+    WHERE file_date = '2025-09-26'
+    LIMIT 10
+""")
+```
+
+Fares already provides such a solution in the form of a duckdb *metastore*.
+This metastore is technically a database instance but the only data it holds is metadata mapping table names to s3 URIs.
+**The result is queries that run as fast as if the URIs were typed out but are written as a call to a database with a `WHERE` clause.**
+
+DuckDB's syntax makes creating metastores very simple, requiring users only specify the pattern of the file partitioning.
+Here's that `vehicle_positions` table:
 
 ```{python}
 (
     duckdb
     .from_parquet("s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/*/*/*/*.parquet", hive_partitioning = True)
+    .select("*, make_date(year, month, day) AS file_date")
     .create_view("vehicle_positions", replace = True)
 )
 ```
 
-Now, let's check that we have done what we tried to do by querying another date.
+Now, let's rerun that query from earlier:
 
 ```{python}
-duckdb.sql("SELECT * FROM vehicle_positions WHERE year = 2025 AND month = 5 AND day = 1 LIMIT 5")
+duckdb.sql("""
+    SELECT *
+    FROM vehicle_positions
+    WHERE file_date = '2025-09-26'
+    LIMIT 10
+""")
 ```
 
-Cool, so, if we just list out all the top-level directories in `mbta-ctd-dataplatform-springboard/lamp`, then we'll have our database.
-We can [of course] go one step further and automate the listing of the directories.
+It works!
+Now, we can crawl through the rest of the LAMP s3 buckets and catalog each dataset as a table with a date key as the partition.
+Once we've built a metastore of LAMP data, users can `ATTACH` their local DuckDB instances to it and interact with LAMP as if it were in a relational database but *without* the operational burden of serving a full database.
+
+Now, does it run as fast as the earlier query?
+Presumably, instantiating the view created some internal lookup between date keys and file names.
+
+```{python}
+tick = perf_counter()
+duckdb.sql("""
+    SELECT *
+    FROM vehicle_positions
+    WHERE file_date = '2025-09-26'
+    LIMIT 10
+""")
+f"Query duration: {(perf_counter() - tick):.4f}s"
+```
+
+That's unacceptably long.
+What happened?
+To find out, I asked the database for its query plan:
+
+```{python}
+print(duckdb.sql("""
+    EXPLAIN
+    SELECT *
+    FROM vehicle_positions
+    WHERE file_date = '2025-09-26'
+    LIMIT 10
+""").pl().row(0)[1])
+```
+
+Here's how I read this:
+1. Read the metadata from all 1,000ish Parquet files
+2. Filter the records by day, month, year
+3. Limit the results
+4. Return the results
+
+I'm surprised by this plan because I expected that this query would start with only a few million records---ie. only those from that date---but this plan shows it starting with more than 3 billion records.
+Running the same result with an un-transformed set of partition keys results in about the same performance.
+
+After reading [DuckDB's docs](https://duckdb.org/docs/stable/guides/performance/file_formats.html#the-effect-of-row-group-sizes), I see that the internal structure of the Parquet files may be another bottleneck:
+
+>row group sizes <5,000 have a strongly detrimental effect, making runtimes more than 5-10× larger than ideally-sized row groups, while row group sizes between 5,000 and 20,000 are still 1.5-2.5× off from best performance. Above row group size of 100,000, the differences are small: the gap is about 10% between the best and the worst runtime.
+
+How large are the row group sizes for our data?
+
+```{python}
+duckdb.sql("""
+    SELECT
+        min(row_group_num_rows),
+        median(row_group_num_rows),
+        mean(row_group_num_rows),
+        max(row_group_num_rows)
+    FROM parquet_metadata('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/*/*/*/*.parquet')
+""")
+```
+
+The good news for understanding what's slowing query speeds is that these row groups aren't optimized; the good news is that at least half of them are higher than 10,000 records, meaning that impacts ot performance should be fairly small.
+But, even with small row-group sizes, I'm surprised how long the `EXPLAIN` queries are taking since I wouldn't expect that individual row-group metadata is being read.
+I'm feeling like DuckDB is still iterating through the row-group metadata for each file even when it runs queries that filter on the partitioning keys.
+
+One way to address this could be to create an in-memory map corresponding each key to each path.
+Since we make the file paths, we can pre-perform and cache the work that DuckDB seems to be taking on with each read.
+To make this, we need to know the first date with data:
+
+```{python}
+duckdb.sql("SELECT min(file_date) FROM vehicle_positions")
+```
+
+Then, we can create a view that can derive the URL given a date:
+
+```{python}
+duckdb.sql("""
+CREATE OR REPLACE VIEW vehicle_positions AS
+SELECT
+    unnest(
+        range(
+            DATE '2024-07-08',
+            date_add(current_date, INTERVAL 1 DAY),
+            INTERVAL 1 DAY
+        )
+    ) :: DATE AS file_date,
+    strftime(
+        file_date,
+        's3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=%Y/month=%-m/day=%-d/%xT%H_%M_%S.parquet'
+    ) AS uri
+""")
+```
+
+Now, we should be able to draw from this list when we read Parquet files:
+
+```{python}
+duckdb.sql("""
+SELECT *
+FROM read_parquet(
+    (SELECT list(uri) FROM vehicle_positions
+    WHERE file_date BETWEEN DATE '2025-09-01' AND DATE '2025-09-02')
+)
+""")
+```
+
+Uh-oh, can't do that!
 
