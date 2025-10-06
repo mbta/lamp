@@ -52,7 +52,7 @@ def main(args: argparse.Namespace) -> None:
         process_logger.log_start()
         try:
             write_bus_metrics()
-            regenerate_bus_metrics_recent(num_days=BUS_RECENT_NDAYS)
+            regenerate_bus_metrics_recent(num_days=BUS_RECENT_NDAYS)  # just for backfill
             start_bus_parquet_updates()
             process_logger.log_complete()
         except Exception as exception:
