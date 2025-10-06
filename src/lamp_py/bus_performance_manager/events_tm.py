@@ -15,14 +15,14 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class BusTrips(dy.Schema):
+class BusBaseSchema(dy.Schema):
     "Common schema for bus schedule and event datasets."
     trip_id = dy.String(primary_key=True, nullable=False)
     stop_id = dy.String(nullable=False)
     route_id = dy.String(nullable=False)
 
 
-class TransitMasterSchedule(BusTrips):
+class TransitMasterSchedule(BusBaseSchema):
     "Scheduled stops in TransitMaster."
     timepoint_abbr = dy.String(nullable=True)
     timepoint_id = dy.Int64(nullable=True)
@@ -164,6 +164,7 @@ def generate_tm_events(
     valid = logger.log_dataframely_filter_results(TransitMasterEvents.filter(tm_stop_crossings))
 
     logger.log_complete()
+
     return valid
 
 

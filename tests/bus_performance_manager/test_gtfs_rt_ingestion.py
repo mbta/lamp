@@ -7,6 +7,7 @@ from typing import Tuple, List
 import dataframely as dy
 import polars as pl
 import pytest
+from polars.testing import assert_series_equal
 
 from lamp_py.aws.s3 import dt_from_obj_path
 from lamp_py.bus_performance_manager.events_gtfs_rt import (
@@ -14,6 +15,7 @@ from lamp_py.bus_performance_manager.events_gtfs_rt import (
     positions_to_events,
     generate_gtfs_rt_events,
     GTFSEvents,
+    remove_overload_and_rare_variant_suffix,
 )
 
 from ..test_resources import rt_vehicle_positions as s3_vp
@@ -477,3 +479,26 @@ def test_dy_first_stop_has_departure_dt(
     )
 
     assert GTFSEvents.is_valid(df) == pass_rule
+
+
+def test_remove_overload_and_special_route_suffix() -> None:
+    """
+    test OL and _1/_2 removal via regex works for GTFS trip ids
+    """
+    test_df = pl.DataFrame(
+        {
+            "trip_id": ["123-OL1", "123-OL2", "123", "456_1", "456_2", "456_3"],
+        }
+    )
+    test_df_out = test_df.with_columns(remove_overload_and_rare_variant_suffix(pl.col("trip_id")))
+    test_df_out2 = test_df.with_columns(remove_overload_and_rare_variant_suffix("trip_id"))
+
+    assert_series_equal(
+        test_df_out["trip_id"],
+        pl.Series("trip_id", ["123", "123", "123", "456", "456", "456"]),
+    )
+
+    assert_series_equal(
+        test_df_out2["trip_id"],
+        pl.Series("trip_id", ["123", "123", "123", "456", "456", "456"]),
+    )
