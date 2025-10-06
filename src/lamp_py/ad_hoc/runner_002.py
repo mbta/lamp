@@ -199,14 +199,12 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
 
     try:
         service_dates = []
-        start_date = date(year=2025, month=9, day=21)
-        end_date = date(year=2025, month=9, day=30)
+        start_date = datetime(year=2025, month=9, day=21)
+        end_date = datetime(year=2025, month=9, day=30)
 
         # add 1 for inclusive
         date_diff_days = (start_date - end_date).days * -1 + 1
 
-        date_paths = []
-        #
         for i in range(0, date_diff_days):
             service_dates.append(start_date + timedelta(days=i))
         # get the service dates that need to be archived
