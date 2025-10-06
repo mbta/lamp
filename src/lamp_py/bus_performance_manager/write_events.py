@@ -114,12 +114,12 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
 
     prior_schema = pq.read_schema(prior_path)
 
-    # this may return FileNotFound if the latest_schema day is 
+    # this may return FileNotFound if the latest_schema day is
     # the next service day. Handling this as a try catch, as backfill
     # by checking service date would be a bit more complicated
-    # 
-    # we expect to hit FileNotFound between 12am and 4am est, until 
-    # the service day begins, and then it will process as normal. 
+    #
+    # we expect to hit FileNotFound between 12am and 4am est, until
+    # the service day begins, and then it will process as normal.
     try:
         latest_schema = pq.read_schema(latest_path)
     except FileNotFoundError:
