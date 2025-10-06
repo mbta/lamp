@@ -45,12 +45,6 @@ def fixture_fake_collection() -> type[FakeCollection]:
     return FakeCollection
 
 
-@pytest.fixture(name="dy_gen", params=[1])
-def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> dy.random.Generator:
-    "Fixture wrapper around dataframely random data generator."
-    return dy.random.Generator(request.param)
-
-
 def test_unstarted_log(caplog: pytest.LogCaptureFixture) -> None:
     "It logs unraised validation errors with the correct type and message."
 
