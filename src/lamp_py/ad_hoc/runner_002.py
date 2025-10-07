@@ -1,10 +1,8 @@
 import os
-from datetime import date, datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import sqlalchemy as sa
 
 import pyarrow
-import pyarrow.parquet as pq
 
 from lamp_py.performance_manager.flat_file import S3Archive
 from lamp_py.performance_manager.gtfs_utils import static_version_key_from_service_date
@@ -16,19 +14,18 @@ from lamp_py.postgres.rail_performance_manager_schema import (
     VehicleTrips,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager, start_rds_writer_process
-from lamp_py.runtime_utils.remote_files import S3_ARCHIVE
+from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 from lamp_py.runtime_utils.remote_files import LAMP
-from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD
-from lamp_py.aws.s3 import file_list_from_s3, upload_file
-from lamp_py.aws.s3 import download_file
-from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
-from lamp_py.ingestion.converter import ConfigType
+from lamp_py.aws.s3 import upload_file
+
+
+# pylint: disable=R0801
 
 
 def write_daily_table_adhoc_cr_only(db_manager: DatabaseManager, service_date: datetime) -> pyarrow.Table:
     """
-    Generate a dataframe of all events and metrics for a single service date
+    Adapted from  write_daily_table
+        changes: - a new output partition and file name
     """
     service_date_int = int(service_date.strftime("%Y%m%d"))
     service_date_str = service_date.strftime("%Y-%m-%d")
@@ -189,11 +186,11 @@ def write_daily_table_adhoc_cr_only(db_manager: DatabaseManager, service_date: d
     os.remove(temp_local_path)
 
 
-# pylint: enable=R0801
-
-
 def write_flat_files(db_manager: DatabaseManager) -> None:
-
+    """
+    adhoc write flat files - changes from write_flat_files:
+        - hardcoded service dates range
+    """
     process_logger = ProcessLogger("adhoc_bulk_flat_file_write")
     process_logger.log_start()
 
@@ -237,6 +234,12 @@ def write_flat_files(db_manager: DatabaseManager) -> None:
 
 
 def runner() -> None:
+    """
+    extract CR data for a date range per RailOps request
+
+    deploy via github action "adhoc deploy and run" job - will also need to run the "task count" job to
+    start and stop the adhoc deploy, otherwise it will run continuously..
+    """
     rpm_db_manager = DatabaseManager(db_index=DatabaseIndex.RAIL_PERFORMANCE_MANAGER)
 
     write_flat_files(rpm_db_manager)
