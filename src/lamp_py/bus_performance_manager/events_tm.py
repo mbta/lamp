@@ -147,11 +147,10 @@ def generate_tm_events(
 
         tm_stop_crossings = tm_stop_crossings.with_columns(
             pl.coalesce(
-                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
-                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
+                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start")).then(0),
+                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end")).then(2),
                 pl.lit(1),
             )
-            .over("trip_id", "vehicle_label")
             .alias("tm_point_type"),
         ).with_columns(
             pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
