@@ -128,14 +128,18 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
         )
         return trip_updates
 
+    trip_updates = apply_timezone_conversions(trip_updates)
     # filter down to only terminals - original data
     trip_updates = trip_updates.filter(
-        ~pl.col("trip_update.stop_time_update.departure.time").is_null()
-        & pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
+        pl.col("trip_update.stop_time_update.departure.time").is_not_null(),
+        pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids),
+        pl.col("trip_update.trip.revenue"),
+        pl.col("trip_update.trip.schedule_relationship").ne("CANCELED"),
+        pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
+        pl.col("trip_update.stop_time_update.departure.time").sub(pl.col("feed_timestamp")).dt.total_seconds().ge(1),
     )
     trip_updates = temporary_lrtp_assign_new_trip_ids(trip_updates)
     trip_updates = append_prediction_valid_duration(trip_updates)
-    trip_updates = apply_timezone_conversions(trip_updates)
     valid = LightRailTerminalTripUpdates.validate(trip_updates)
     return valid
 
