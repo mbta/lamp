@@ -150,8 +150,7 @@ def generate_tm_events(
                 pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start")).then(0),
                 pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end")).then(2),
                 pl.lit(1),
-            )
-            .alias("tm_point_type"),
+            ).alias("tm_point_type"),
         ).with_columns(
             pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
             .then(1)
