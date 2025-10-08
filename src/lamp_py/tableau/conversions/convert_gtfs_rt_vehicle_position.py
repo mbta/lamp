@@ -1,50 +1,63 @@
 import polars as pl
-import pyarrow
+import dataframely as dy
 
-gtfs_rt_vehicle_positions_processed_schema = pyarrow.schema(
-    [
-        ("id", pyarrow.large_string()),
-        ("vehicle.trip.trip_id", pyarrow.large_string()),
-        ("vehicle.trip.route_id", pyarrow.large_string()),
-        ("vehicle.trip.direction_id", pyarrow.uint8()),
-        ("vehicle.trip.start_time", pyarrow.large_string()),
-        ("vehicle.trip.start_date", pyarrow.large_string()),
-        ("vehicle.trip.schedule_relationship", pyarrow.large_string()),
-        ("vehicle.trip.route_pattern_id", pyarrow.large_string()),
-        ("vehicle.trip.tm_trip_id", pyarrow.large_string()),
-        ("vehicle.trip.overload_id", pyarrow.int64()),
-        ("vehicle.trip.overload_offset", pyarrow.int64()),
-        ("vehicle.trip.revenue", pyarrow.bool_()),
-        ("vehicle.trip.last_trip", pyarrow.bool_()),
-        ("vehicle.vehicle.id", pyarrow.large_string()),
-        ("vehicle.vehicle.label", pyarrow.large_string()),
-        ("vehicle.vehicle.license_plate", pyarrow.large_string()),
-        # vehicle.vehicle.consist: list<element: struct<label: string>>
-        #   child 0, element: struct<label: string>
-        #       child 0, label: string
-        ("vehicle.vehicle.assignment_status", pyarrow.large_string()),
-        ("vehicle.position.bearing", pyarrow.uint16()),
-        ("vehicle.position.latitude", pyarrow.float64()),
-        ("vehicle.position.longitude", pyarrow.float64()),
-        ("vehicle.position.speed", pyarrow.float64()),
-        ("vehicle.position.odometer", pyarrow.float64()),
-        ("vehicle.current_stop_sequence", pyarrow.uint32()),
-        ("vehicle.stop_id", pyarrow.large_string()),
-        ("vehicle.current_status", pyarrow.large_string()),
-        ("vehicle.timestamp", pyarrow.timestamp("us")),
-        ("vehicle.congestion_level", pyarrow.large_string()),
-        ("vehicle.occupancy_status", pyarrow.large_string()),
-        ("vehicle.occupancy_percentage", pyarrow.uint32()),
-        # vehicle.multi_carriage_details: list<element: struct<id: string, label: string, occupancy_status: string, occupancy_percentage: int32, carriage_sequence: uint32>>
-        #   child 0, element: struct<id: string, label: string, occupancy_status: string, occupancy_percentage: int32, carriage_sequence: uint32>
-        #       child 0, id: string
-        #       child 1, label: string
-        #       child 2, occupancy_status: string
-        #       child 3, occupancy_percentage: int32
-        #       child 4, carriage_sequence: uint32
-        ("feed_timestamp", pyarrow.timestamp("us")),
-    ]
-)
+from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
+
+
+class RailVehiclePositionsBase(dy.Schema):
+    "Intersection of descendant rail schemas."
+    id = dy.String(nullable=True)
+    trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id")
+    route_id = dy.String(nullable=True, alias="vehicle.trip.route_id")
+    direction_id = dy.UInt8(nullable=True, alias="vehicle.trip.direction_id")
+    start_time = dy.String(nullable=True, alias="vehicle.trip.start_time")
+    start_date = dy.String(nullable=True, alias="vehicle.trip.start_date")
+    revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue")
+    vehicle_id = dy.String(nullable=True, alias="vehicle.vehicle.id")
+    vehicle_label = dy.String(nullable=True, alias="vehicle.vehicle.label")
+    timestamp = dy.Datetime(
+        nullable=True,
+        alias="vehicle.timestamp",
+        check=lambda x: x.is_not_null(),  # setting field nullability directly prevents writing with pyarrow; remove explicit pyarrow schema validation once all datasets use dataframely validation
+    )
+    feed_timestamp = dy.Datetime(nullable=True)
+    stop_id = dy.String(nullable=True, alias="vehicle.stop_id")
+
+
+class LightRailTerminalVehiclePositions(RailVehiclePositionsBase):
+    "Analytical VehiclePositions dataset for light rail terminal predictions."
+    stop_id = dy.String(
+        nullable=True,
+        alias="vehicle.stop_id",
+        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
+    )
+
+
+class HeavyRailTerminalTripUpdates(RailVehiclePositionsBase):
+    "Analytical dataset for heavy rail and light rail midpoint dashboards."
+    stop_id = dy.String(
+        nullable=True,
+        alias="vehicle.stop_id",
+        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.heavy_rail_terminal_stop_list),
+    )
+    route_pattern_id = dy.String(nullable=True, alias="vehicle.trip.route_pattern_id")
+    tm_trip_id = dy.String(nullable=True, alias="vehicle.trip.tm_trip_id")
+    overload_id = dy.Int64(nullable=True, alias="vehicle.trip.overload_id")
+    overload_offset = dy.Int64(nullable=True, alias="vehicle.trip.overload_offset")
+    last_trip = dy.Bool(nullable=True, alias="vehicle.trip.last_trip")
+    schedule_relationship = dy.String(nullable=True, alias="vehicle.trip.schedule_relationship")
+    license_plate = dy.String(nullable=True, alias="vehicle.vehicle.license_plate")
+    assignment_status = dy.String(nullable=True, alias="vehicle.vehicle.assignment_status")
+    bearing = dy.UInt16(nullable=True, alias="vehicle.position.bearing")
+    latitude = dy.Float64(nullable=True, alias="vehicle.position.latitude")
+    longitude = dy.Float64(nullable=True, alias="vehicle.position.longitude")
+    speed = dy.Float64(nullable=True, alias="vehicle.position.speed")
+    odometer = dy.Float64(nullable=True, alias="vehicle.position.odometer")
+    current_stop_sequence = dy.UInt32(nullable=True, alias="vehicle.current_stop_sequence")
+    congestion_level = dy.String(nullable=True, alias="vehicle.congestion_level")
+    occupancy_status = dy.String(nullable=True, alias="vehicle.occupancy_status")
+    occupancy_percentage = dy.UInt32(nullable=True, alias="vehicle.occupancy_percentage")
+    current_status = dy.String(nullable=True, alias="vehicle.current_status")
 
 
 def lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
@@ -56,10 +69,12 @@ def lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
         """
         Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
         """
-        stop_ids = list(map(str, [70110, 70162, 70236, 70274, 70502, 70510]))
 
         #    pylint: disable=singleton-comparison
-        polars_df = polars_df.filter(~pl.col("vehicle.timestamp").is_null() & pl.col("vehicle.stop_id").is_in(stop_ids))
+        polars_df = polars_df.filter(
+            ~pl.col("vehicle.timestamp").is_null()
+            & pl.col("vehicle.stop_id").is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list)
+        )
         return polars_df
 
     def temporary_lrtp_assign_new_trip_ids(polars_df: pl.DataFrame, threshold_sec: int = 60 * 15) -> pl.DataFrame:
@@ -121,10 +136,12 @@ def apply_gtfs_vehicle_positions_heavy(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
     """
-    stop_ids = list(map(str, [70003, 70034, 70040, 70057, 70063, 70092, 70104]))
 
     #    pylint: disable=singleton-comparison
-    polars_df = polars_df.filter(~pl.col("vehicle.timestamp").is_null() & pl.col("vehicle.stop_id").is_in(stop_ids))
+    polars_df = polars_df.filter(
+        ~pl.col("vehicle.timestamp").is_null()
+        & pl.col("vehicle.stop_id").is_in(FilterBankRtVehiclePositions.ParquetFilter.heavy_rail_terminal_stop_list)
+    )
     return polars_df
 
 
@@ -141,10 +158,3 @@ def apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df: pl.DataFrame
         .dt.replace_time_zone(None),
     )
     return polars_df
-
-
-def schema() -> pyarrow.schema:
-    """
-    Function returns schema of the processed gtfs-rt vehicle positions
-    """
-    return gtfs_rt_vehicle_positions_processed_schema
