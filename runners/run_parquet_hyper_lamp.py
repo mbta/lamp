@@ -8,6 +8,7 @@ from lamp_py.tableau.conversions.convert_gtfs_rt_trip_updates import (
     LightRailTerminalTripUpdates,
     HeavyRailTerminalTripUpdates,
 )
+from lamp_py.tableau.conversions.convert_gtfs_rt_vehicle_position import LightRailTerminalVehiclePositions
 from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll, HyperBusPerformanceRecent
@@ -71,7 +72,7 @@ TestHyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=springboard_devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     rollup_num_days=3,
-    processed_schema=convert_gtfs_rt_vehicle_position.schema(),
+    processed_schema=LightRailTerminalVehiclePositions.pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
