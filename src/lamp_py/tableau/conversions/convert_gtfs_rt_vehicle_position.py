@@ -2,6 +2,7 @@ import polars as pl
 import dataframely as dy
 
 from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class RailVehiclePositionsBase(dy.Schema):
@@ -67,6 +68,8 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    process_logger = ProcessLogger("lrtp")
+    process_logger.log_start()
 
     def lrtp_restrict_vp_to_only_terminal_stop_ids(polars_df: pl.DataFrame) -> pl.DataFrame:
         """
@@ -126,6 +129,8 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     valid = LightRailTerminalVehiclePositions.validate(polars_df)
 
+    process_logger.log_start()
+
     return valid
 
 
@@ -133,10 +138,15 @@ def heavyrail(polars_df: pl.DataFrame) -> dy.DataFrame[HeavyRailTerminalVehicleP
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    process_logger = ProcessLogger("heavyrail")
+    process_logger.log_start()
+
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     polars_df = apply_gtfs_vehicle_positions_heavy(polars_df)
 
     valid = HeavyRailTerminalVehiclePositions.validate(polars_df)
+
+    process_logger.log_complete()
 
     return valid
 

@@ -2,6 +2,7 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class RailTripUpdateBase(dy.Schema):
@@ -67,12 +68,18 @@ def lrtp_prod(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalTripUpda
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    process_logger = ProcessLogger("lrtp_prod")
+    process_logger.log_start()
+
     polars_df = polars_df.filter(
         pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids)
     )
     polars_df = append_prediction_valid_duration(polars_df)
     polars_df = apply_timezone_conversions(polars_df)
     valid = LightRailTerminalTripUpdates.validate(polars_df)
+
+    process_logger.log_complete()
+
     return valid
 
 
@@ -92,6 +99,8 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
                    to signify a validity duration of a prediction
 
     """
+    process_logger = ProcessLogger("lrtp_devgreen")
+    process_logger.log_start()
 
     def temporary_lrtp_assign_new_trip_ids(trip_updates: pl.DataFrame, threshold_sec: int = 60 * 15) -> pl.DataFrame:
         trip_updates = (
@@ -141,6 +150,9 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
     trip_updates = temporary_lrtp_assign_new_trip_ids(trip_updates)
     trip_updates = append_prediction_valid_duration(trip_updates)
     valid = LightRailTerminalTripUpdates.validate(trip_updates)
+
+    process_logger.log_complete()
+
     return valid
 
 
@@ -148,6 +160,8 @@ def heavyrail(polars_df: pl.DataFrame) -> dy.DataFrame[HeavyRailTerminalTripUpda
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
+    process_logger = ProcessLogger("heavyrail")
+    process_logger.log_start()
 
     polars_df = polars_df.filter(
         ~pl.col("trip_update.stop_time_update.departure.time").is_null()
@@ -155,6 +169,9 @@ def heavyrail(polars_df: pl.DataFrame) -> dy.DataFrame[HeavyRailTerminalTripUpda
     )
     polars_df = apply_timezone_conversions(polars_df)
     valid = HeavyRailTerminalTripUpdates.validate(polars_df)
+
+    process_logger.log_complete()
+
     return valid
 
 
