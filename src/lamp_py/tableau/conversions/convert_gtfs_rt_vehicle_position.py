@@ -31,9 +31,12 @@ class LightRailTerminalVehiclePositions(RailVehiclePositionsBase):
         alias="vehicle.stop_id",
         check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
     )
+    trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id", check=lambda x: x.is_not_null())
+    revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue", check=lambda x: x)
+    feed_timestamp = dy.Datetime(nullable=True, check=lambda x: x.is_not_null())
 
 
-class HeavyRailTerminalTripUpdates(RailVehiclePositionsBase):
+class HeavyRailTerminalVehiclePositions(RailVehiclePositionsBase):
     "Analytical dataset for heavy rail and light rail midpoint dashboards."
     stop_id = dy.String(
         nullable=True,
@@ -60,7 +63,7 @@ class HeavyRailTerminalTripUpdates(RailVehiclePositionsBase):
     current_status = dy.String(nullable=True, alias="vehicle.current_status")
 
 
-def lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
+def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositions]:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
@@ -72,8 +75,11 @@ def lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
 
         #    pylint: disable=singleton-comparison
         polars_df = polars_df.filter(
-            ~pl.col("vehicle.timestamp").is_null()
-            & pl.col("vehicle.stop_id").is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list)
+            pl.col("vehicle.timestamp").is_not_null(),
+            pl.col("vehicle.stop_id").is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
+            pl.col("vehicle.trip.revenue"),
+            pl.col("vehicle.trip.trip_id").is_not_null(),
+            pl.col("feed_timestamp").is_not_null(),
         )
         return polars_df
 
@@ -118,18 +124,21 @@ def lrtp(polars_df: pl.DataFrame) -> pl.DataFrame:
     # assign new trip IDs if it doesn't
     polars_df = temporary_lrtp_assign_new_trip_ids(polars_df)
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
+    valid = LightRailTerminalVehiclePositions.validate(polars_df)
 
-    return polars_df
+    return valid
 
 
-def heavyrail(polars_df: pl.DataFrame) -> pl.DataFrame:
+def heavyrail(polars_df: pl.DataFrame) -> dy.DataFrame[HeavyRailTerminalVehiclePositions]:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     polars_df = apply_gtfs_vehicle_positions_heavy(polars_df)
 
-    return polars_df
+    valid = HeavyRailTerminalVehiclePositions.validate(polars_df)
+
+    return valid
 
 
 def apply_gtfs_vehicle_positions_heavy(polars_df: pl.DataFrame) -> pl.DataFrame:

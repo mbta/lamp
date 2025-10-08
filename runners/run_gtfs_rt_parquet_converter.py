@@ -102,7 +102,7 @@ if __name__ == "__main__":
         remote_input_location=springboard_rt_vehicle_positions,
         remote_output_location=tableau_rt_vehicle_positions_heavyrail_30_day,
         rollup_num_days=30,
-        processed_schema=convert_gtfs_rt_vehicle_position.HeavyRailTerminalTripUpdates.pyarrow_schema(),
+        processed_schema=convert_gtfs_rt_vehicle_position.HeavyRailTerminalVehiclePositions.pyarrow_schema(),
         dataframe_filter=convert_gtfs_rt_vehicle_position.heavyrail,
         parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.heavy_rail,
         tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
