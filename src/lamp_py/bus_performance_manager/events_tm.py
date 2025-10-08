@@ -39,6 +39,8 @@ class TransitMasterEvents(TransitMasterSchedule):
     tm_actual_arrival_time_sam = dy.Int64(nullable=True)
     tm_scheduled_time_sam = dy.Int64(nullable=True)
     tm_actual_departure_time_sam = dy.Int64(nullable=True)
+    tm_point_type = dy.Int8(nullable=True)
+    tm_full_trip = dy.Bool(nullable=True)
     vehicle_label = dy.String(nullable=False, primary_key=True)
 
 
@@ -156,7 +158,7 @@ def generate_tm_events(
             .then(1)
             .otherwise(0)
             .over("trip_id", "vehicle_label")
-            .alias("is_full_trip")
+            .alias("tm_full_trip")
         )
 
     valid = logger.log_dataframely_filter_results(TransitMasterEvents.filter(tm_stop_crossings))

@@ -294,8 +294,8 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | timepoint_abbr | String | TransitMaster timepoint short name | TransitMaster | Maybe?
 | timepoint_name | String | TransitMaster timepoint full name | TransitMaster | Maybe?
 | pattern_id | int64 | TransitMaster pattern_id | TransitMaster | Maybe?
-| tm_point_type | int64 | 0 - if start point 1 - if mid point 2 - if end point. Start point and End point are determined by the expected `tm_planned_sequence_start` and `tm_planned_sequence_end` for a given trip-route-pattern. | TransitMaster | Maybe?
-| is_full_trip | int64 | 0 - if it is NOT full trip, 1 - if it is a full trip. This is derived from `tm_point_type` and checks if all three point types (0, 1, 2) are present. This detects trips that are atypical, that did not hit all the expected timepoints | TransitMaster | Maybe?
+| tm_point_type | int8 | 0 - if start point 1 - if mid point 2 - if end point. Start point and End point are determined by the expected `tm_planned_sequence_start` and `tm_planned_sequence_end` for a given trip-route-pattern. | TransitMaster | Maybe?
+| tm_full_trip | bool | 0 - if it is NOT full trip, 1 - if it is a full trip. This is derived from `tm_point_type` and checks if all three point types (0, 1, 2) are present. This detects trips that are atypical, that did not hit all the expected timepoints | TransitMaster | Maybe?
 | plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
 | exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
 | block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
