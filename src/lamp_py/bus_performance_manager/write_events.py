@@ -59,7 +59,7 @@ def write_bus_metrics(
             continue
 
         if len(tm_files) == 0:
-            day_logger.log_failure(FileNotFoundError(f" TRANSITMMASTER files found for {service_date}"))
+            day_logger.log_failure(FileNotFoundError(f"No TransitMaster files found for {service_date}"))
             continue
 
         try:
