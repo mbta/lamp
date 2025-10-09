@@ -104,6 +104,8 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
     input:
         num_days: number of days to regenerate with write_bus_metrics
     """
+    regenerate_bus_metrics_logger = ProcessLogger("regenerate_bus_metrics_recent")
+    regenerate_bus_metrics_logger.log_start()
 
     # get date without time so comparisons will match for the entire day
     latest_event_file = get_last_modified_object(
@@ -119,9 +121,6 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
             start_day = today - timedelta(days=num_days)
             latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
             prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
-
-            regenerate_bus_metrics_logger = ProcessLogger("regenerate_bus_metrics_recent")
-            regenerate_bus_metrics_logger.log_start()
 
             regenerate_days = False
 
