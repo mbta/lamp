@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import os
 import tempfile
 from typing import Optional
@@ -95,7 +95,7 @@ def write_bus_metrics(
     logger.log_complete()
 
 
-def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, write_local_only: bool = False) -> None:
+def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flags: dict[str, bool]) -> None:
     """
     Check if latest updated schema is the same for all files in a recent num_days
     range. If not, regenerate the num_days range (== BUS_RECENT date range)
@@ -115,32 +115,23 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, write_local_
     if latest_event_file:
         today = service_date_from_filename(latest_event_file["s3_obj_path"])
 
-    start_day = today - timedelta(days=num_days)
-    latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
-    prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
+        if today:
+            start_day = today - timedelta(days=num_days)
+            latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
+            prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
 
-    regenerate_bus_metrics_logger = ProcessLogger("regenerate_bus_metrics_recent")
-    regenerate_bus_metrics_logger.log_start()
+            regenerate_bus_metrics_logger = ProcessLogger("regenerate_bus_metrics_recent")
+            regenerate_bus_metrics_logger.log_start()
 
-    regenerate_days = False
+            regenerate_days = False
 
-    prior_schema = pq.read_schema(prior_path)
+            prior_schema = pq.read_schema(prior_path)
+            latest_schema = pq.read_schema(latest_path)
 
-    # this may return FileNotFound if the latest_schema day is
-    # the next service day. Handling this as a try catch, as backfill
-    # by checking service date would be a bit more complicated
-    #
-    # we expect to hit FileNotFound between 12am and 4am est, until
-    # the service day begins, and then it will process as normal.
-    try:
-        latest_schema = pq.read_schema(latest_path)
-    except FileNotFoundError:
-        return
-
-    # if the two schemas don't match, assume that changes have been made,
-    # and regenerate all latest days
-    if latest_schema != prior_schema:
-        write_bus_metrics(start_date=start_day, end_date=today, write_local_only=write_local_only)
-        regenerate_days = True
-    regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
-    regenerate_bus_metrics_logger.log_complete()
+            # if the two schemas don't match, assume that changes have been made,
+            # and regenerate all latest days
+            if latest_schema != prior_schema:
+                write_bus_metrics(start_date=start_day, end_date=today, **debug_flags)
+                regenerate_days = True
+            regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
+            regenerate_bus_metrics_logger.log_complete()
