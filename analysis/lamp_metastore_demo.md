@@ -26,6 +26,23 @@ LIMIT 10
 
 ## Configuration
 
+First, pick a DuckDB interface. Options are abundant but a few stand
+out:
+
+- [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview.html)
+  for maximum extensibility
+- [DuckDB UI](https://duckdb.org/docs/stable/core_extensions/ui) for a
+  minimal notebook
+- [DuckDB shell](https://shell.duckdb.org/) for a browser-based
+  experience
+- [marimo](https://marimo.io/) for a shiny notebook experience
+- [DBeaver](https://dbeaver.io/) if you want the feel of an old SQL
+  editor
+
+Personally, I’m rendering this with [Quarto](https://quarto.org/), which
+provides options for different outputs like websites, presentations, and
+PDFs.
+
 To access the s3 buckets that hold LAMP data, users need to authenticate
 using their IAM account, which DuckDB supports natively via the `aws`
 extension.
