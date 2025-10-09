@@ -55,7 +55,7 @@ def write_bus_metrics(
 
         # need gtfs_rt and tm files to run process
         if len(gtfs_files) == 0:
-            day_logger.log_failure(FileNotFoundError(f" RT_VEHICLE_POSITION files found for {service_date}"))
+            day_logger.log_failure(FileNotFoundError(f"No RT_VEHICLE_POSITION files found for {service_date}"))
             continue
 
         if len(tm_files) == 0:
