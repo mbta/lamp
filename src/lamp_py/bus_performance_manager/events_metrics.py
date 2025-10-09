@@ -34,7 +34,9 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
 
 
-def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files: List[str]) -> pl.DataFrame:
+def bus_performance_metrics(
+    service_date: date, gtfs_files: List[str], tm_files: List[str], **debug_flags: dict[str, bool]
+) -> pl.DataFrame:
     """
     create dataframe of Bus Performance metrics to write to S3
 
@@ -46,13 +48,27 @@ def bus_performance_metrics(service_date: date, gtfs_files: List[str], tm_files:
     """
     # gtfs-rt events from parquet
 
+    # _1, _2
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
-    tm_schedule = generate_tm_schedule()
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule)
 
+    # no OL, no _1, _2 trips??
+    tm_schedule = generate_tm_schedule()
+
+    # full join results in _1, _2, all TM, all GTFS
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule, **debug_flags)
+
+    # _1, _2, -OL1, -OL2
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
     # transit master events from parquet
+
+    # _1, _2 without suffix, -OL without suffix.
     tm_df = generate_tm_events(tm_files, tm_schedule)
+
+    if debug_flags.get("write_intermediates"):
+        gtfs_schedule.write_parquet("/tmp/gtfs_schedule.parquet")
+        gtfs_df.write_parquet("/tmp/gtfs_events.parquet")
+        tm_df.write_parquet("/tmp/tm_events.parquet")
+        combined_schedule.write_parquet("/tmp/combined_schedule.parquet")
 
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
     bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df)
