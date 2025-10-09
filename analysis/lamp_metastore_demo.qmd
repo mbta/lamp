@@ -1,0 +1,126 @@
+---
+title: "How to use LAMP's metastore"
+date: 2025-10-09
+author: "crunkel@mbta.com"
+format:
+    gfm:
+        toc: true
+        reference-location: margin
+        html-table-processing: none
+execute:
+    warning: false
+    anchor-sections: true
+---
+
+LAMP's metastore (data catalog?) provides users the experience of querying a relational database without requiring all the overhead that databases require (for the LAMP and Infra teams 🙂).
+That means a query that used to look like this:
+
+```{sql}
+#| eval: false
+SELECT *
+FROM read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet')
+LIMIT 10
+```
+
+Now can be written as:
+
+```{sql}
+#| eval: false
+SELECT *
+FROM read_date_partitioned("BUS_VEHICLE_POSITIONS", DATE '2025-09-26')
+LIMIT 10
+```
+
+## Configuration
+
+```{r}
+#| include: false
+lamp <- DBI::dbConnect(duckdb::duckdb())
+```
+
+```{sql}
+#| include: false
+#| connection: lamp
+INSTALL httpfs;
+INSTALL icu;
+```
+
+To access the s3 buckets that hold LAMP data, users need to authenticate using their IAM account, which DuckDB supports natively via the `aws` extension.
+
+```{sql}
+#| connection: lamp
+INSTALL aws;
+LOAD aws;
+```
+
+I have already authenticated using `awscli` on my Mac so I can tell DuckDB to use those credentials.
+If you want to directly use an access key or set up a different authentication method, look at [DuckDB's docs](https://duckdb.org/docs/stable/core_extensions/aws.html).
+
+```{sql}
+#| connection: lamp
+CREATE OR REPLACE SECRET secret (
+    TYPE s3,
+    PROVIDER credential_chain
+)
+```
+
+Once authenticated, attach the LAMP metastore (LAMPstand?).
+This is a DuckDB database in itself that stores mappings for LAMP Parquet URIs.
+
+```{sql}
+#| connection: lamp
+ATTACH 's3://mbta-ctd-dataplatform-dev-archive/lamp/catalog.db' AS lamp
+```
+
+And that's it!
+You're all set up.
+
+## Querying
+
+Get familiar with what's available by listing the database's views:
+
+```{sql}
+#| connection: lamp
+SHOW TABLES FROM lamp
+```
+
+Most of the LAMP data is partitioned by time and filtering the view by the partition is key to performance and ensuring relevant data.
+Let's take `shapes` for instance.
+
+```{sql}
+#| connection: lamp
+DESCRIBE lamp.shapes
+```
+
+After the column definitions, DuckDB tells us that this dataset is partitioned on `timestamp`.
+To query this view, apply a filter on that `timestamp` field:
+
+```{sql}
+#| connection: lamp
+SELECT *
+FROM lamp.shapes
+WHERE to_timestamp(timestamp) >= make_timestamp(2025, 10, 1, 0, 0, 0)
+```
+
+The LAMP metastore (LAMP shop?) provides access to realtime datasets, which are partitioned by year, month, and day, differently due to their size.
+Instead of querying a view, query a function:
+
+```{sql}
+#| connection: lamp
+SELECT *
+FROM lamp.read_date_partitioned("RT_VEHICLE_POSITIONS", [current_date])
+LIMIT 10
+```
+
+`lamp.read_date_partitioned` can accept a list of dates (as above) or start and end dates:
+
+```{sql}
+#| connection: lamp
+SELECT *
+FROM lamp.read_date_partitioned(
+    "RT_VEHICLE_POSITIONS",
+    DATE '2025-10-01',
+    DATE '2025-10-09'
+)
+LIMIT 10
+```
