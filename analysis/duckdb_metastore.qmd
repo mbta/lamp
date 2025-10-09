@@ -1,5 +1,5 @@
 ---
-title: "What would it take to creat a duckdb metastore?"
+title: "What would it take to create a duckdb metastore?"
 date: 2025-09-26
 author: "crunkel@mbta.com"
 format:
@@ -14,10 +14,13 @@ execute:
     anchor-sections: true
 ---
 
+# Currently
+
 DuckDB is a popular entrypoint for LAMP data.
 To access our s3 buckets, users need to authenticate using their IAM account, which DuckDB supports natively:
 
 ```{python}
+#| output: false
 import duckdb
 duckdb.sql("INSTALL aws")
 duckdb.sql("LOAD aws")
@@ -25,6 +28,7 @@ duckdb.sql("""CREATE OR REPLACE SECRET secret (
     TYPE s3,
     PROVIDER credential_chain
 )""")
+duckdb.sql("SET unsafe_disable_etag_checks = true") # some of these cells take a loooonnnng time
 ```
 
 And then query individual files using the `read_parquet` function:
@@ -40,6 +44,7 @@ duckdb.sql("""
 This pattern is nearly as fast as querying data locally...
 
 ```{python}
+#| echo: false
 from time import perf_counter
 tick = perf_counter()
 duckdb.sql("""
@@ -53,6 +58,9 @@ f"Query duration: {(perf_counter() - tick):.4f}s"
 but it's not ergonomic to write.
 Querying records from multiple days means subtly, predictably tweaking the URI.
 Further, querying multiple records from multiple datasets---to join vehicle positions data to the GTFS Schedule, for instance---asks users to also know the different partitioning structures of each dataset.
+
+# Proposal
+
 Instead of treating our data as files, what if users could interact with it as if it were tables in a database?
 For instance, the query above would transform into:
 
@@ -74,6 +82,7 @@ DuckDB's syntax makes creating metastores very simple, requiring users only spec
 Here's that `vehicle_positions` table:
 
 ```{python}
+#| output: false
 (
     duckdb
     .from_parquet("s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/*/*/*/*.parquet", hive_partitioning = True)
@@ -82,23 +91,10 @@ Here's that `vehicle_positions` table:
 )
 ```
 
-Now, let's rerun that query from earlier:
-
-```{python}
-duckdb.sql("""
-    SELECT *
-    FROM vehicle_positions
-    WHERE file_date = '2025-09-26'
-    LIMIT 10
-""")
-```
-
-It works!
 Now, we can crawl through the rest of the LAMP s3 buckets and catalog each dataset as a table with a date key as the partition.
 Once we've built a metastore of LAMP data, users can `ATTACH` their local DuckDB instances to it and interact with LAMP as if it were in a relational database but *without* the operational burden of serving a full database.
 
-Now, does it run as fast as the earlier query?
-Presumably, instantiating the view created some internal lookup between date keys and file names.
+But first, let's check whether this works and runs nearly as fast---listing files and indexing them would incur some overhead---as the earlier query?
 
 ```{python}
 tick = perf_counter()
@@ -117,21 +113,15 @@ To find out, I asked the database for its query plan:
 
 ```{python}
 print(duckdb.sql("""
-    EXPLAIN
-    SELECT *
+    EXPLAIN ANALYZE
+    SELECT min(file_date)
     FROM vehicle_positions
-    WHERE file_date = '2025-09-26'
-    LIMIT 10
 """).pl().row(0)[1])
 ```
 
-Here's how I read this:
-1. Read the metadata from all 1,000ish Parquet files
-2. Filter the records by day, month, year
-3. Limit the results
-4. Return the results
-
-I'm surprised by this plan because I expected that this query would start with only a few million records---ie. only those from that date---but this plan shows it starting with more than 3 billion records.
+Uhhh what are the 459 files that it's reading?
+There are well more than 1,000 files in the top-level directory so it's not reading *all* of those.
+But it's clearly reading more than just the file I specified.
 Running the same result with an un-transformed set of partition keys results in about the same performance.
 
 After reading [DuckDB's docs](https://duckdb.org/docs/stable/guides/performance/file_formats.html#the-effect-of-row-group-sizes), I see that the internal structure of the Parquet files may be another bottleneck:
@@ -155,15 +145,10 @@ The good news for understanding what's slowing query speeds is that these row gr
 But, even with small row-group sizes, I'm surprised how long the `EXPLAIN` queries are taking since I wouldn't expect that individual row-group metadata is being read.
 I'm feeling like DuckDB is still iterating through the row-group metadata for each file even when it runs queries that filter on the partitioning keys.
 
+# Optimizing for speed
+
 One way to address this could be to create an in-memory map corresponding each key to each path.
-Since we make the file paths, we can pre-perform and cache the work that DuckDB seems to be taking on with each read.
-To make this, we need to know the first date with data:
-
-```{python}
-duckdb.sql("SELECT min(file_date) FROM vehicle_positions")
-```
-
-Then, we can create a view that can derive the URL given a date:
+Since we make the file paths, we can pre-perform and cache the work that DuckDB seems to be taking on with each read:
 
 ```{python}
 duckdb.sql("""
@@ -171,7 +156,7 @@ CREATE OR REPLACE VIEW vehicle_positions AS
 SELECT
     unnest(
         range(
-            DATE '2024-07-08',
+            DATE '2025-01-01',
             date_add(current_date, INTERVAL 1 DAY),
             INTERVAL 1 DAY
         )
@@ -183,17 +168,160 @@ SELECT
 """)
 ```
 
-Now, we should be able to draw from this list when we read Parquet files:
+Now, we should be able to draw from this list when we read Parquet files...
+but that acutally throws an error:
 
 ```{python}
-duckdb.sql("""
-SELECT *
-FROM read_parquet(
-    (SELECT list(uri) FROM vehicle_positions
-    WHERE file_date BETWEEN DATE '2025-09-01' AND DATE '2025-09-02')
-)
+try:
+    duckdb.sql("""
+    SELECT *
+    FROM read_parquet(
+        (SELECT list(uri) FROM vehicle_positions
+        WHERE file_date BETWEEN DATE '2025-09-01' AND DATE '2025-09-02')
+    )
+    """)
+except Exception as e:
+    print(e)
+```
+
+Instead, may we leverage DuckDB's ability to create macros?
+Its docs note that
+
+>The CREATE MACRO statement can create a scalar or table macro (function) in the catalog.
+
+That implies we can use it to read in new records.
+
+Let's write a new table macro that takes a date or date range and returns s3 URIs:
+
+```{python}
+duckdb.sql(
+"""
+CREATE OR REPLACE MACRO list_s3_uris
+
+    (uri_format_string, date) AS strftime(
+            date,
+            uri_format_string
+        ),
+
+    (uri_format_string, start_date, end_date) AS list_transform(
+        range(
+            start_date,
+            end_date,
+            INTERVAL 1 DAY
+        ),
+        lambda x : strftime(
+            x,
+            uri_format_string
+        )
+    )
 """)
 ```
 
-Uh-oh, can't do that!
+Then, we can pipe the result of that into a table macro:
 
+```{python}
+duckdb.sql(r"""
+CREATE OR REPLACE MACRO vehicle_positions
+
+    (date) AS TABLE (
+        SELECT *
+        FROM read_parquet(
+            list_s3_uris(
+                's3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=%Y/month=%-m/day=%-d/%xT%H:%M:%S.parquet',
+                date
+            )
+        )
+    ),
+
+    (start_date, end_date) AS TABLE (
+        SELECT *
+        FROM read_parquet(
+            list_s3_uris(
+                's3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=%Y/month=%-m/day=%-d/%xT%H:%M:%S.parquet',
+                start_date,
+                end_date
+            )
+        )
+    )
+""")
+```
+
+Now, does this return results faster?
+
+```{python}
+tick = perf_counter()
+duckdb.sql("""
+    SELECT *
+    FROM vehicle_positions(DATE '2025-09-26')
+    LIMIT 10
+""")
+f"Query duration: {(perf_counter() - tick):.4f}s"
+```
+
+It sure does!
+Computing the URIs for duckdb speeds up this query by a hundredfold.
+
+Does the speed stay quick for ranges of dates?
+Let's try 7 days:
+```{python}
+tick = perf_counter()
+duckdb.sql("""
+    SELECT *
+    FROM vehicle_positions(DATE '2025-09-26', DATE '2025-10-03')
+    LIMIT 10
+""")
+f"Query duration: {(perf_counter() - tick):.4f}s"
+```
+
+I found [a quote](https://github.com/duckdb/duckdb/issues/9474#issuecomment-1779864070) from a DuckDB employee that explains this difference in runtime:
+
+>The execution is done lazily - but binding is done immediately. In this case that means (1) resolving the glob and gathering a list of files to scan, and (2) reading the metadata of a Parquet file to figure out the names and types that exist in the file.
+
+If we go back to the `EXPLAIN ANALYZE` query earlier, we saw that DuckDB read the metadata of 450 files to construct this query.
+This quote also tells me that duckdb is *not* storing the available filepaths when it creates its view.
+Each time the view is created the globs are re-resolved and the metadata read.
+Obviously, for our existing LAMP data, this seems like a significant drawback.
+I understand that file globs could change but it seems like a way to cache the results would help.
+
+This approach does come with its own set of caveats---I use this word because I think the speed clearly outweighs them---
+
+1. LAMP will be responsible for updating these functions and loses out on upgrades to the file glob resolution.
+2. Users can't query the minima or maxima of dates, they still need to know them ahead of time.
+3. LAMP defines how users filter the dates; we could overload the function to allow users to pass in a list of dates (eg. to get the VehiclePositions files from each Sunday) but this, too, requires some coding
+
+Another consideration is how to handle different file structures; our real-time data is partitioned by date but other data in `mbta-ctd-dataplatform-springboard` are not partitioned and, generally, have fewer files.
+Could the glob approach deliver better performance for those datasets?
+To test, I'll look at the `SHAPES/` dataset because it's one of the larger static files and has 630-odd partitions:
+
+```{python}
+#| output: false
+(
+    duckdb
+    .from_parquet("s3://mbta-ctd-dataplatform-springboard/lamp/SHAPES/*/*.parquet", hive_partitioning = True)
+    .create_view("shapes", replace = True)
+)
+```
+
+How quickly can we filter down a timestamp more recent than 2025?
+
+```{python}
+tick = perf_counter()
+duckdb.sql("""
+SELECT *
+FROM shapes
+WHERE timestamp >= epoch(TIMESTAMP '2025-1-1')
+""")
+f"Query duration: {(perf_counter() - tick):.4f}s"
+```
+
+About 2 times slower than when we construct the URIs but probably worth the functionality and administrative benefits.
+
+# A 2-prong solution
+
+1. table macros (functions) for datasets partitioned by date
+2. views over parquet globs for datasets partitioned by timestamp
+
+# Some next steps
+
+I also want to know if compacting our existing files into ones with fewer row groups would make a meaningful difference in performance.
+To test that, I want to read and rewrite a bunch of files in dev and see if globbing those paths would help the speed of reads.
