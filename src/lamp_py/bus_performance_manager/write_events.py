@@ -5,13 +5,13 @@ from typing import Optional
 
 import pyarrow.parquet as pq
 
-from lamp_py.bus_performance_manager.event_files import event_files_to_load
+from lamp_py.bus_performance_manager.event_files import event_files_to_load, service_date_from_filename
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
 from lamp_py.runtime_utils.lamp_exception import LampExpectedNotFoundError, LampInvalidProcessingError
 from lamp_py.runtime_utils.remote_files import bus_events
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.aws.s3 import upload_file
+from lamp_py.aws.s3 import get_last_modified_object, upload_file
 from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
 
 
@@ -95,7 +95,7 @@ def write_bus_metrics(
     logger.log_complete()
 
 
-def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
+def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, write_local_only: bool = False) -> None:
     """
     Check if latest updated schema is the same for all files in a recent num_days
     range. If not, regenerate the num_days range (== BUS_RECENT date range)
@@ -106,7 +106,15 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
     """
 
     # get date without time so comparisons will match for the entire day
-    today = datetime.now().date()
+    latest_event_file = get_last_modified_object(
+        bucket_name=bus_events.bucket,
+        file_prefix=bus_events.prefix,
+        version=bus_events.version,
+    )
+
+    if latest_event_file:
+        today = service_date_from_filename(latest_event_file["s3_obj_path"])
+
     start_day = today - timedelta(days=num_days)
     latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
     prior_path = os.path.join(bus_events.s3_uri, f"{start_day.strftime('%Y%m%d')}.parquet")
@@ -132,7 +140,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS) -> None:
     # if the two schemas don't match, assume that changes have been made,
     # and regenerate all latest days
     if latest_schema != prior_schema:
-        write_bus_metrics(start_date=start_day, end_date=today)
+        write_bus_metrics(start_date=start_day, end_date=today, write_local_only=write_local_only)
         regenerate_days = True
     regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
     regenerate_bus_metrics_logger.log_complete()
