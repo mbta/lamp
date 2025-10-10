@@ -29,18 +29,18 @@ def tableau_server(
 
 
 def tableau_pat_authentication(
-    tableau_password: Optional[str] = os.getenv("TABLEAU_PASSWORD"),
+    tableau_token_value: Optional[str] = os.getenv("TABLEAU_PASSWORD"),
     tableau_token_name: Optional[str] = os.getenv("TABLEAU_TOKEN_NAME"),
 ) -> TSC.PersonalAccessTokenAuth:
     """
     Get Tableau Personal Access Token Authentication object
 
-    :param tablea_user: User to authenticate as, defaults to TABLEAU_USER env var
-    :param tableau_token_name: Personal Access Token to authenticate with, defaults to TABLEAU_TOKEN_NAME evn var
+    :param tableau_token_value: Value of Personal Access Token to authenticate with, defaults to TABLEAU_PASSWORD env var
+    :param tableau_token_name: Name of Personal Access Token to authenticate with, defaults to TABLEAU_TOKEN_NAME env var
 
     :return TSC.PersonalAccessTokenAuth object
     """
-    return TSC.PersonalAccessTokenAuth(token_name=tableau_token_name, personal_access_token=tableau_password)
+    return TSC.PersonalAccessTokenAuth(token_name=tableau_token_name, personal_access_token=tableau_token_value)
 
 
 def tableau_authentication(
@@ -52,7 +52,7 @@ def tableau_authentication(
     Get Tableau Authentication object
 
     :param tableau_user: User to authenticate as, defaults to TABLEAU_USER env var
-    :param tableau_password: Password to authenticate with, defaults to TABLEAU_PASSWORD evn var
+    :param tableau_password: Password to authenticate with, defaults to TABLEAU_PASSWORD env var
     :param tableau_site: Site to authenticate to, will default to 'Default' site
 
     :return TSC.TableaAuth  objects
