@@ -11,6 +11,7 @@ from typing import (
 )
 
 import pytest
+import dataframely as dy
 from _pytest.monkeypatch import MonkeyPatch
 from pyarrow import fs
 import pyarrow.dataset as pd
@@ -67,3 +68,9 @@ def fixture_remote_file_locations_patch(
     monkeypatch.setattr("lamp_py.runtime_utils.remote_files.S3Location", LocalS3Location)
 
     yield
+
+
+@pytest.fixture(name="dy_gen", params=[1], scope="session")
+def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> Iterator:
+    "Fixture wrapper around dataframely random data generator."
+    yield dy.random.Generator(request.param)
