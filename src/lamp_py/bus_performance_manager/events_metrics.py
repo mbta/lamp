@@ -25,13 +25,17 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
     dwell_time_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True)
-    direction_destination_headway_seconds = dy.Int64(nullable=True)
+    route_direction_headway_seconds = dy.UInt64(nullable=True, min=0)
+    direction_destination_headway_seconds = dy.UInt64(nullable=True, min=0)
 
     @dy.rule()
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
         "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
+
+    @dy.rule()
+    def headway_order_by_columns_coalesce_is_non_null() -> pl.Expr:
+        return pl.coalesce("stop_departure_dt", "stop_arrival_dt", "plan_stop_departure_dt").is_not_null().all()
 
 
 def bus_performance_metrics(
@@ -131,7 +135,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                 .shift()
                 .over(
                     ["stop_id", "direction_id", "route_id"],
-                    order_by="gtfs_sort_dt",
+                    order_by=pl.coalesce("stop_departure_dt", "stop_arrival_dt", "plan_stop_departure_dt"),
                 )
             ).alias("route_direction_headway_seconds"),
             (
@@ -140,8 +144,8 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                     .shift()
                     .over(
-                        ["stop_id", "direction_destination"],
-                        order_by="gtfs_sort_dt",
+                        ["direction_id", "direction_destination"],
+                        order_by=pl.coalesce("stop_departure_dt", "stop_arrival_dt", "plan_stop_departure_dt"),
                     )
                 )
             ).alias("direction_destination_headway_seconds"),
