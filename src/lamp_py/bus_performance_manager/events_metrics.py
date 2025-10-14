@@ -37,13 +37,13 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
 
     @dy.rule(group_by=["service_date", "trip_id", "vehicle_label"])
     def unique_startpoints() -> pl.Expr:  # pylint: disable=no-method-argument
-        "There is at most one startpoint per trip."
-        return pl.col("point_type").eq("STARTPOINT").sum().le(pl.lit(1))
+        "If the trip happened, then there is at most one startpoint."
+        return pl.col("point_type").eq("STARTPOINT").sum().le(pl.lit(1)) | ~pl.col("vehicle_label").is_not_null().any()
 
     @dy.rule(group_by=["service_date", "trip_id", "vehicle_label"])
     def unique_endpoints() -> pl.Expr:  # pylint: disable=no-method-argument
-        "There is at most one endpoint per trip."
-        return pl.col("point_type").eq("ENDPOINT").sum().le(pl.lit(1))
+        "If the trip happened, then there is at most one endpoint per trip."
+        return pl.col("point_type").eq("ENDPOINT").sum().le(pl.lit(1)) | ~pl.col("vehicle_label").is_not_null().any()
 
 
 def bus_performance_metrics(
