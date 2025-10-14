@@ -183,12 +183,14 @@ def join_rt_to_schedule(
         .select(BusEvents.column_names())
     )
 
-    # valid = process_logger.log_dataframely_filter_results(
-    #     BusEvents.filter(schedule_gtfs_tm),
-    #     BusPerformanceManager.filter({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}),
-    # )
+    process_logger.add_metadata(schema_validation = "started")
 
-    valid, _ = BusEvents.filter(schedule_gtfs_tm)
+    valid = process_logger.log_dataframely_filter_results(*BusEvents.filter(schedule_gtfs_tm))
+
+    process_logger.add_metadata(schema_validation = "finished")
+
+    _ = BusPerformanceManager.filter({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()})
+
     process_logger.log_complete()
 
     return valid
