@@ -39,8 +39,6 @@ class TransitMasterEvents(TransitMasterSchedule):
     tm_actual_arrival_time_sam = dy.Int64(nullable=True)
     tm_scheduled_time_sam = dy.Int64(nullable=True)
     tm_actual_departure_time_sam = dy.Int64(nullable=True)
-    tm_point_type = dy.String(nullable=True)
-    is_full_trip = dy.Bool(nullable=True)
     vehicle_label = dy.String(nullable=False, primary_key=True)
 
 
@@ -145,20 +143,6 @@ def generate_tm_events(
             pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
             pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
             pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
-        )
-
-        tm_stop_crossings = tm_stop_crossings.with_columns(
-            pl.coalesce(
-                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start")).then(pl.lit("STARTPOINT")),
-                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end")).then(pl.lit("ENDPOINT")),
-                pl.lit("MIDPOINT"),
-            ).alias("tm_point_type"),
-        ).with_columns(
-            pl.when((pl.col("tm_point_type").eq("ENDPOINT")).any() & (pl.col("tm_point_type").eq("STARTPOINT")).any())
-            .then(True)
-            .otherwise(False)
-            .over("trip_id", "vehicle_label")
-            .alias("is_full_trip")
         )
 
     valid = logger.log_dataframely_filter_results(TransitMasterEvents.filter(tm_stop_crossings))

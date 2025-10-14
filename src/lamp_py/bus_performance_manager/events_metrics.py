@@ -27,11 +27,23 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     dwell_time_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True)
     direction_destination_headway_seconds = dy.Int64(nullable=True)
+    point_type = dy.String(nullable=True)
+    is_full_trip = dy.Bool(nullable=True)
 
     @dy.rule()
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
         "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
+
+    @dy.rule(group_by=["service_date", "trip_id", "vehicle_label"])
+    def unique_startpoints() -> pl.Expr:  # pylint: disable=no-method-argument
+        "There is at most one startpoint per trip."
+        return pl.col("point_type").eq("STARTPOINT").sum().le(pl.lit(1))
+
+    @dy.rule(group_by=["service_date", "trip_id", "vehicle_label"])
+    def unique_endpoints() -> pl.Expr:  # pylint: disable=no-method-argument
+        "There is at most one endpoint per trip."
+        return pl.col("point_type").eq("ENDPOINT").sum().le(pl.lit(1))
 
 
 def bus_performance_metrics(
@@ -97,6 +109,30 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
                 )
             ).alias("stop_departure_dt"),
+            pl.when(
+                pl.coalesce(
+                    pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start"), pl.col("stop_sequence").eq(1)
+                )
+            ).then(pl.lit("STARTPOINT")),
+            pl.when(
+                pl.coalesce(
+                    pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end"),
+                    pl.col("stop_sequence") == pl.col("plan_stop_count"),
+                )
+            )
+            .then(pl.lit("ENDPOINT"))
+            .otherwise(pl.lit("MIDPOINT"))
+            .alias("point_type"),
+        )
+        .with_columns(
+            pl.when(
+                (pl.col("point_type").eq("ENDPOINT")).any()
+                & (pl.col("point_type").eq("STARTPOINT").any() & pl.col("vehicle_label").is_not_null())
+            )
+            .then(True)
+            .otherwise(False)
+            .over("service_date", "trip_id", "vehicle_label")
+            .alias("is_full_trip")
         )
         .with_columns(
             pl.min_horizontal(  # for arrival times
