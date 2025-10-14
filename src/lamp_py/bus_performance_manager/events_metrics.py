@@ -25,8 +25,8 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
     dwell_time_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True, min = 0)
-    direction_destination_headway_seconds = dy.Int64(nullable=True, min = 0)
+    route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
+    direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
 
     @dy.rule()
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
@@ -159,8 +159,14 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                 - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                 .shift()
                 .over(
-                    ["stop_id", "direction_id", "route_id"],
-                    order_by="gtfs_sort_dt",
+                    ["service_date", "stop_id", "direction_id", "route_id"],
+                    order_by=pl.coalesce(
+                        "stop_departure_dt",
+                        pl.col("gtfs_travel_to_dt")
+                        .shift(-1)
+                        .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by="tm_stop_sequence"),
+                        "stop_arrival_dt",
+                    ),
                 )
             ).alias("route_direction_headway_seconds"),
             (
@@ -169,8 +175,16 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                     .shift()
                     .over(
-                        ["stop_id", "direction_destination"],
-                        order_by="gtfs_sort_dt",
+                        ["service_date", "stop_id", "direction_destination"],
+                        order_by=pl.coalesce(
+                            "stop_departure_dt",
+                            pl.col("gtfs_travel_to_dt")
+                            .shift(-1)
+                            .over(
+                                partition_by=["service_date", "trip_id", "vehicle_label"], order_by="tm_stop_sequence"
+                            ),
+                            "stop_arrival_dt",
+                        ),
                     )
                 )
             ).alias("direction_destination_headway_seconds"),
