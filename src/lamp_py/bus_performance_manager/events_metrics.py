@@ -25,8 +25,8 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
     dwell_time_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True)
-    direction_destination_headway_seconds = dy.Int64(nullable=True)
+    route_direction_headway_seconds = dy.Int64(nullable=True, min = 0)
+    direction_destination_headway_seconds = dy.Int64(nullable=True, min = 0)
 
     @dy.rule()
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
