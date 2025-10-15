@@ -5,8 +5,8 @@ from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class RailVehiclePositionsBase(dy.Schema):
-    "Intersection of descendant rail schemas."
+class VehiclePositions(dy.Schema):
+    "All fields from VehiclePositions message."
     id = dy.String(nullable=True)
     trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id")
     route_id = dy.String(nullable=True, alias="vehicle.trip.route_id")
@@ -23,27 +23,6 @@ class RailVehiclePositionsBase(dy.Schema):
     )
     feed_timestamp = dy.Datetime(nullable=True)
     stop_id = dy.String(nullable=True, alias="vehicle.stop_id")
-
-
-class LightRailTerminalVehiclePositions(RailVehiclePositionsBase):
-    "Analytical VehiclePositions dataset for light rail terminal predictions."
-    stop_id = dy.String(
-        nullable=True,
-        alias="vehicle.stop_id",
-        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
-    )
-    trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id", check=lambda x: x.is_not_null())
-    revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue", check=lambda x: x)
-    feed_timestamp = dy.Datetime(nullable=True, check=lambda x: x.is_not_null())
-
-
-class HeavyRailTerminalVehiclePositions(RailVehiclePositionsBase):
-    "Analytical dataset for heavy rail and light rail midpoint dashboards."
-    stop_id = dy.String(
-        nullable=True,
-        alias="vehicle.stop_id",
-        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.heavy_rail_terminal_stop_list),
-    )
     route_pattern_id = dy.String(nullable=True, alias="vehicle.trip.route_pattern_id")
     tm_trip_id = dy.String(nullable=True, alias="vehicle.trip.tm_trip_id")
     overload_id = dy.Int64(nullable=True, alias="vehicle.trip.overload_id")
@@ -62,6 +41,39 @@ class HeavyRailTerminalVehiclePositions(RailVehiclePositionsBase):
     occupancy_status = dy.String(nullable=True, alias="vehicle.occupancy_status")
     occupancy_percentage = dy.UInt32(nullable=True, alias="vehicle.occupancy_percentage")
     current_status = dy.String(nullable=True, alias="vehicle.current_status")
+
+
+class LightRailTerminalVehiclePositions(dy.Schema):
+    "Analytical VehiclePositions dataset for light rail terminal predictions."
+    id = VehiclePositions.id
+    trip_id = VehiclePositions.trip_id
+    route_id = VehiclePositions.route_id
+    direction_id = VehiclePositions.direction_id
+    start_time = VehiclePositions.start_time
+    start_date = VehiclePositions.start_date
+    revenue = VehiclePositions.revenue
+    vehicle_id = VehiclePositions.vehicle_id
+    vehicle_label = VehiclePositions.vehicle_label
+    timestamp = VehiclePositions.timestamp
+    feed_timestamp = VehiclePositions.feed_timestamp
+    stop_id = VehiclePositions.stop_id
+    stop_id = dy.String(
+        nullable=True,
+        alias="vehicle.stop_id",
+        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
+    )
+    trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id", check=lambda x: x.is_not_null())
+    revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue", check=lambda x: x)
+    feed_timestamp = dy.Datetime(nullable=True, check=lambda x: x.is_not_null())
+
+
+class HeavyRailTerminalVehiclePositions(VehiclePositions):
+    "Analytical dataset for heavy rail and light rail midpoint dashboards."
+    stop_id = dy.String(
+        nullable=True,
+        alias="vehicle.stop_id",
+        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.heavy_rail_terminal_stop_list),
+    )
 
 
 def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositions]:

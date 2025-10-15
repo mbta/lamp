@@ -5,7 +5,7 @@ from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class RailTripUpdateBase(dy.Schema):
+class TripUpdates(dy.Schema):
     "Intersection of descendant rail schemas."
     id = dy.String(nullable=True)
     trip_id = dy.String(nullable=True, alias="trip_update.trip.trip_id")
@@ -26,29 +26,6 @@ class RailTripUpdateBase(dy.Schema):
     boarding_status = dy.String(nullable=True, alias="trip_update.stop_time_update.boarding_status")
     feed_timestamp_first_prediction = dy.Datetime(nullable=True)
     feed_timestamp_last_prediction = dy.Datetime(nullable=True)
-
-
-class LightRailTerminalTripUpdates(RailTripUpdateBase):
-    "Analytical dataset for LRTP dashboards."
-    stop_id = dy.String(
-        nullable=True,
-        alias="trip_update.stop_time_update.stop_id",
-        check=lambda x: x.is_in(LightRailFilter.terminal_stop_ids),
-    )
-
-
-class HeavyRailTerminalTripUpdates(RailTripUpdateBase):
-    "Analytical dataset for heavy rail and light rail midpoint dashboards."
-    departure_time = dy.Datetime(
-        nullable=True,
-        alias="trip_update.stop_time_update.departure.time",
-        check=lambda x: x.is_not_null(),  # setting field nullability directly prevents writing with pyarrow; remove explicit pyarrow schema validation once all datasets use dataframely validation
-    )
-    stop_id = dy.String(
-        nullable=True,
-        alias="trip_update.stop_time_update.stop_id",
-        check=lambda x: x.is_in(HeavyRailFilter.terminal_stop_ids),
-    )
     route_pattern_id = dy.String(nullable=True, alias="trip_update.trip.route_pattern_id")
     tm_trip_id = dy.String(nullable=True, alias="trip_update.trip.tm_trip_id")
     overload_id = dy.Int64(nullable=True, alias="trip_update.trip.overload_id")
@@ -62,6 +39,48 @@ class HeavyRailTerminalTripUpdates(RailTripUpdateBase):
     arrival_time = dy.Datetime(nullable=True, alias="trip_update.stop_time_update.arrival.time")
     arrival_uncertainty = dy.Int32(nullable=True, alias="trip_update.stop_time_update.arrival.uncertainty")
     departure_delay = dy.Int32(nullable=True, alias="trip_update.stop_time_update.departure.delay")
+
+
+class LightRailTerminalTripUpdates(TripUpdates):
+    "Analytical dataset for LRTP dashboards."
+    stop_id = dy.String(
+        nullable=True,
+        alias="trip_update.stop_time_update.stop_id",
+        check=lambda x: x.is_in(LightRailFilter.terminal_stop_ids),
+    )
+    id = TripUpdates.id
+    trip_id = TripUpdates.trip_id
+    route_id = TripUpdates.route_id
+    direction_id = TripUpdates.direction_id
+    start_time = TripUpdates.start_time
+    start_date = TripUpdates.start_date
+    schedule_relationship = TripUpdates.schedule_relationship
+    revenue = TripUpdates.revenue
+    vehicle_id = TripUpdates.vehicle_id
+    vehicle_label = TripUpdates.vehicle_label
+    timestamp = TripUpdates.timestamp
+    feed_timestamp = TripUpdates.feed_timestamp
+    stop_id = TripUpdates.stop_id
+    departure_time = TripUpdates.departure_time
+    departure_uncertainty = TripUpdates.departure_uncertainty
+    stop_schedule_relationship = TripUpdates.stop_schedule_relationship
+    boarding_status = TripUpdates.boarding_status
+    feed_timestamp_first_prediction = TripUpdates.feed_timestamp_first_prediction
+    feed_timestamp_last_prediction = TripUpdates.feed_timestamp_last_prediction
+
+
+class HeavyRailTerminalTripUpdates(TripUpdates):
+    "Analytical dataset for heavy rail and light rail midpoint dashboards."
+    departure_time = dy.Datetime(
+        nullable=True,
+        alias="trip_update.stop_time_update.departure.time",
+        check=lambda x: x.is_not_null(),  # setting field nullability directly prevents writing with pyarrow; remove explicit pyarrow schema validation once all datasets use dataframely validation
+    )
+    stop_id = dy.String(
+        nullable=True,
+        alias="trip_update.stop_time_update.stop_id",
+        check=lambda x: x.is_in(HeavyRailFilter.terminal_stop_ids),
+    )
 
 
 def lrtp_prod(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalTripUpdates]:
