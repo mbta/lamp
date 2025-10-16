@@ -36,6 +36,7 @@ bus_schema = pyarrow.schema(
         ("stop_count", pyarrow.uint32()),
         ("direction_id", pyarrow.int8()),
         ("stop_id", pyarrow.large_string()),
+        ("checkpoint_id", pyarrow.large_string()),
         ("previous_stop_id", pyarrow.large_string()),
         ("stop_sequence", pyarrow.int64()),
         ("vehicle_id", pyarrow.large_string()),
