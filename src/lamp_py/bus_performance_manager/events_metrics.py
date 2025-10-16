@@ -24,7 +24,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
-    dwell_time_seconds = dy.Int64(nullable=True)
+    stopped_duration_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True)
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
@@ -127,7 +127,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             (pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"]) - pl.col("gtfs_travel_to_seconds")).alias(
                 "travel_time_seconds"
             ),
-            (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("dwell_time_seconds"),
+            (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
                 pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                 - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
