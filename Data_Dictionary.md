@@ -282,7 +282,8 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | stop_sequence | int64 | equivalent to GTFS-RT `current_stop_sequence` value in [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT |
 | vehicle_id | string | equivalent to GTFS-RT `id` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor) | GTFS-RT
 | vehicle_label | string | equivalent to GTFS-RT `label` value in [VehicleDescriptor](https://gtfs.org/realtime/reference/#message-vehicledescriptor). | GTFS-RT
-| gtfs_travel_to_dt | datetime | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
+| gtfs_first_in_transit_dt_dt | datetime | earliest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
+| gtfs_last_in_transit_to_dt | datetime | latest "IN_TRANSIT_TO" or "INCOMING_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition); may be equivalent to `gtfs_first_in_transit_dt_dt` | GTFS-RT
 | gtfs_arrival_dt | datetime | "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT | Yes
 | latitude | float64 | latitude of "IN_TRANSIT_TO" records for a trip from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT | Yes
 | longitude | float64 | longitiude of "IN_TRANSIT_TO" records for a trip from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT | Yes
@@ -312,8 +313,8 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | plan_route_direction_headway_seconds	| int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | plan_direction_destination_headway_seconds | int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
 | stop_arrival_dt | datetime | earliest "STOPPED_AT" status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition) | GTFS-RT
-| stop_departure_dt | datetime | equivalent to `gtfs_travel_to_dt` for next stop on trip | GTFS-RT
-| gtfs_travel_to_seconds | int64 | `gtfs_travel_to_dt` as seconds after midnight | LAMP Calculated
+| stop_departure_dt | datetime | equivalent to `gtfs_first_in_transit_dt` for next stop on trip | GTFS-RT
+| gtfs_first_in_transit_seconds | int64 | `gtfs_first_in_transit_dt` as seconds after midnight | LAMP Calculated
 | stop_arrival_seconds | int64 | `stop_arrival_dt` as seconds after midnight | LAMP Calculated |
 | stop_departure_seconds | int64 | `stop_departure_dt` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |

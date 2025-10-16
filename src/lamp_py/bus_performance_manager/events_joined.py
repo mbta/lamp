@@ -24,7 +24,8 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     direction_id = dy.Int8(nullable=True)
     direction = dy.String(nullable=True)
     vehicle_id = dy.String(nullable=True)
-    gtfs_travel_to_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
@@ -36,7 +37,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
         return pl.when(
-            pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.col("gtfs_travel_to_dt").is_not_null()
+            pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.coalesce("gtfs_first_in_transit_dt").is_not_null()
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
 
@@ -168,7 +169,8 @@ def join_rt_to_schedule(
                     pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp")
                 ),  # use the last IN_TRANSIT_TO datetime
             ).alias("gtfs_arrival_dt"),
-            pl.col("gtfs_in_transit_to_dts").struct.field("first_timestamp").alias("gtfs_travel_to_dt"),
+            pl.col("gtfs_in_transit_to_dts").struct.field("first_timestamp").alias("gtfs_first_in_transit_dt"),
+            pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp").alias("gtfs_last_in_transit_dt"),
         )
         .select(BusEvents.column_names())
     )

@@ -20,7 +20,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     previous_stop_id = dy.String(nullable=True)
     stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_travel_to_seconds = dy.Int64(nullable=True)
+    gtfs_first_in_transit_seconds = dy.Int64(nullable=True)
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
@@ -97,7 +97,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
 
     enriched_bus_df = (
         bus_df.with_columns(
-            pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
+            pl.coalesce(["gtfs_last_in_transit_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
             (  # for departure times
                 pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
                 .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
@@ -131,7 +131,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                 .then(
                     pl.max_horizontal(  # take the max of
                         pl.col(c),  # the column
-                        pl.max_horizontal("stop_departure_dt", "stop_arrival_dt", "gtfs_travel_to_dt")
+                        pl.max_horizontal("stop_departure_dt", "stop_arrival_dt", "gtfs_last_in_transit_dt")
                         .cum_max()  # the highest previous value of departure/arrival/travel_to dt
                         .over(
                             partition_by=["trip_id", "vehicle_label"],
@@ -144,13 +144,13 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             ]
         )
         .with_columns(
-            (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
+            (pl.col("gtfs_first_in_transit_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_first_in_transit_seconds"),
             (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
             (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
         )
         # add metrics columns to events
         .with_columns(
-            (pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"]) - pl.col("gtfs_travel_to_seconds")).alias(
+            (pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"]) - pl.col("gtfs_first_in_transit_seconds")).alias(
                 "travel_time_seconds"
             ),
             (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("dwell_time_seconds"),
@@ -162,10 +162,8 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     ["service_date", "stop_id", "direction_id", "route_id"],
                     order_by=pl.coalesce(
                         "stop_departure_dt",
-                        pl.col("gtfs_travel_to_dt")
-                        .shift(-1)
-                        .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by="tm_stop_sequence"),
                         "stop_arrival_dt",
+                        "gtfs_last_in_transit_dt",
                     ),
                 )
             ).alias("route_direction_headway_seconds"),
@@ -178,12 +176,8 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                         ["service_date", "stop_id", "direction_destination"],
                         order_by=pl.coalesce(
                             "stop_departure_dt",
-                            pl.col("gtfs_travel_to_dt")
-                            .shift(-1)
-                            .over(
-                                partition_by=["service_date", "trip_id", "vehicle_label"], order_by="tm_stop_sequence"
-                            ),
                             "stop_arrival_dt",
+                            "gtfs_last_in_transit_dt",
                         ),
                     )
                 )

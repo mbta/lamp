@@ -66,26 +66,6 @@ VP_SCHEMA = {
     "longitude": pl.Float64,
 }
 
-# schema for vehicle events dataframes
-VE_SCHEMA = {
-    "service_date": pl.String,
-    "route_id": pl.String,
-    "trip_id": pl.String,
-    "start_time": pl.Int64,
-    "start_dt": pl.Datetime,
-    "stop_count": pl.UInt32,
-    "direction_id": pl.Int8,
-    "stop_id": pl.String,
-    "stop_sequence": pl.Int64,
-    "vehicle_id": pl.String,
-    "vehicle_label": pl.String,
-    "current_status": pl.String,
-    "gtfs_travel_to_dt": pl.Datetime,
-    "gtfs_arrival_dt": pl.Datetime,
-    "latitude": pl.Float64,
-    "longitude": pl.Float64,
-}
-
 
 @mock.patch("lamp_py.utils.gtfs_utils.object_exists")
 def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
