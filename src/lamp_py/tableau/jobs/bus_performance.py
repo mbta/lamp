@@ -35,7 +35,8 @@ bus_schema = pyarrow.schema(
         ("stop_count", pyarrow.uint32()),
         ("direction_id", pyarrow.int8()),
         ("stop_id", pyarrow.large_string()),
-        ("stop_sequence", pyarrow.int64()),
+        ("gtfs_stop_sequence", pyarrow.int64()),
+        ("stop_sequence", pyarrow.uint32()),
         ("vehicle_id", pyarrow.large_string()),
         ("vehicle_label", pyarrow.large_string()),
         ("gtfs_first_in_transit_dt", pyarrow.timestamp("us")),
@@ -72,7 +73,6 @@ bus_schema = pyarrow.schema(
         ("dwell_time_seconds", pyarrow.int64()),
         ("route_direction_headway_seconds", pyarrow.int64()),
         ("direction_destination_headway_seconds", pyarrow.int64()),
-        ("gtfs_sort_dt", pyarrow.timestamp("us")),
         ("gtfs_departure_dt", pyarrow.timestamp("us")),
         ("gtfs_arrival_dt", pyarrow.timestamp("us")),
     ]

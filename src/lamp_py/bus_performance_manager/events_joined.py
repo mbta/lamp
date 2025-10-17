@@ -12,12 +12,10 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
-    stop_sequences_vehicle_label_key = dy.String(
-        primary_key=True, regex=r"[0-9_]{2}\|[0-9_]{2}\|(\w|_)+"
-    )  # zero-padded tm_stop_sequence, zero-padded stop_sequence, and vehicle_label separated by |
+    stop_sequence = dy.UInt32(primary_key=True, min=1)
+    vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    vehicle_label = dy.String(nullable=True, primary_key=False)
-    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     stop_count = dy.UInt32(nullable=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
@@ -37,7 +35,8 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
         return pl.when(
-            pl.col("stop_sequence").eq(pl.col("plan_stop_count")), pl.coalesce("gtfs_first_in_transit_dt").is_not_null()
+            pl.col("gtfs_stop_sequence").eq(pl.col("plan_stop_count")),
+            pl.coalesce("gtfs_first_in_transit_dt").is_not_null(),
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
 
@@ -84,7 +83,7 @@ def join_rt_to_schedule(
 ) -> dy.DataFrame[BusEvents]:
     """
     Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
-    There are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same.
+    There are frequent occasions where the gtfs_stop_sequence and tm_stop_sequence are not exactly the same.
     By matching the nearest stop sequence, we can align the two datasets.
 
     :return BusEvents:
@@ -94,7 +93,7 @@ def join_rt_to_schedule(
     # asof strategy finds nearest value match between "asof" columns if exact match is not found
     # will perform regular left join on "by" columns
 
-    # there are frequent occasions where the stop_sequence and tm_stop_sequence are not exactly the same
+    # there are frequent occasions where the gtfs_stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     process_logger = ProcessLogger("join_rt_to_schedule")
@@ -110,10 +109,10 @@ def join_rt_to_schedule(
     )
 
     schedule_gtfs = (
-        schedule_vehicles.sort(by="stop_sequence")
+        schedule_vehicles.sort(by="gtfs_stop_sequence")
         .join_asof(
-            gtfs.sort(by="stop_sequence"),
-            on="stop_sequence",
+            gtfs.sort(by="gtfs_stop_sequence"),
+            on="gtfs_stop_sequence",
             by=["trip_id", "stop_id", "vehicle_label"],
             strategy="nearest",
             coalesce=True,
@@ -147,14 +146,11 @@ def join_rt_to_schedule(
             suffix="_right_tm",
         )
         .with_columns(
-            pl.concat_str(
-                [
-                    pl.coalesce(pl.col("tm_stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
-                    pl.coalesce(pl.col("stop_sequence").cast(pl.String).str.zfill(2), pl.lit("__")),
-                    pl.coalesce(pl.col("vehicle_label"), pl.lit("_____")),
-                ],
-                separator="|",
-            ).alias("stop_sequences_vehicle_label_key"),
+            pl.coalesce("vehicle_label", pl.lit("____")).alias("vehicle_label"),
+            pl.col("tm_stop_sequence")
+            .fill_null(strategy="forward")
+            .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by=["gtfs_stop_sequence"])
+            .alias("tm_filled_stop_sequence"),
             pl.coalesce(
                 pl.col("service_date"),
                 pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
@@ -164,13 +160,19 @@ def join_rt_to_schedule(
             pl.coalesce(
                 pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
                 pl.when(
-                    pl.col("stop_sequence").eq(pl.col("plan_stop_count"))
+                    pl.col("gtfs_stop_sequence").eq(pl.col("plan_stop_count"))
                 ).then(  # and it's the last stop on the route
                     pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp")
                 ),  # use the last IN_TRANSIT_TO datetime
             ).alias("gtfs_arrival_dt"),
             pl.col("gtfs_in_transit_to_dts").struct.field("first_timestamp").alias("gtfs_first_in_transit_dt"),
             pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp").alias("gtfs_last_in_transit_dt"),
+        )
+        .with_columns(
+            pl.struct(pl.col("tm_filled_stop_sequence"), pl.col("gtfs_stop_sequence"))
+            .rank("min")
+            .over(["service_date", "trip_id", "vehicle_label"])
+            .alias("stop_sequence"),
         )
         .select(BusEvents.column_names())
     )

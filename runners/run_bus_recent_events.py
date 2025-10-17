@@ -28,8 +28,8 @@ def run_bus_events() -> None:
     end_date = datetime(year=2025, month=8, day=14)
     start_date = end_date - timedelta(days=0)
     write_bus_metrics(start_date=start_date, end_date=end_date, write_local_only=True)
-    # regenerate_bus_metrics_recent(num_days=2, write_local_only=True)
-    # exit()
+    regenerate_bus_metrics_recent(num_days=2, write_local_only=True)
+    exit()
 
     ##################
     ss = pl.date_range(start_date, end_date, "1d", eager=True)
