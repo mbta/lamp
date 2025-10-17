@@ -12,7 +12,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
-    stop_sequence = dy.UInt32(primary_key=True, min = 1)
+    stop_sequence = dy.UInt32(primary_key=True, min=1)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)

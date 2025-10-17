@@ -47,7 +47,12 @@ def test_dy_departure_after_arrival(
             [date(2000, 1, 1), date(2000, 1, 1)],
             pytest.raises(ValidationError),
         ),
-        ([datetime(2000, 1, 1), None], [datetime(2000, 1, 1, 1), datetime(2000, 1, 1)], [date(2000, 1, 1), date(2000, 1, 1)], pytest.raises(ValidationError)),
+        (
+            [datetime(2000, 1, 1), None],
+            [datetime(2000, 1, 1, 1), datetime(2000, 1, 1)],
+            [date(2000, 1, 1), date(2000, 1, 1)],
+            pytest.raises(ValidationError),
+        ),
         (
             [datetime(2000, 1, 1), datetime(2000, 1, 1, 2)],
             [datetime(2000, 1, 1, 1), datetime(2000, 1, 1, 3)],
@@ -59,7 +64,7 @@ def test_dy_departure_after_arrival(
             [datetime(2000, 1, 1, 2), None],
             [date(2000, 1, 1), date(2000, 1, 2)],
             nullcontext(2),
-        )
+        ),
     ],
     ids=[
         "out-of-order-arrival",
@@ -69,7 +74,11 @@ def test_dy_departure_after_arrival(
     ],
 )
 def test_dy_stop_sequence_implies_time_order(
-    dy_gen: Generator, stop_arrival_dt: list[datetime], stop_departure_dt: list[datetime], service_date: list[date], num_rows: pytest.RaisesExc
+    dy_gen: Generator,
+    stop_arrival_dt: list[datetime],
+    stop_departure_dt: list[datetime],
+    service_date: list[date],
+    num_rows: pytest.RaisesExc,
 ) -> None:
     "It returns false if any departure or arrival time is earlier than the preceding record."
     df = BusPerformanceMetrics.sample(
