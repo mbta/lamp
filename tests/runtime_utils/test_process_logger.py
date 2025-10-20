@@ -77,8 +77,8 @@ def test_2_errors(schema: type[Schema], caplog: pytest.LogCaptureFixture, patch_
 
     _ = process_logger.log_dataframely_filter_results(*schema().filter(df))
 
-    assert "ValidationError: key|min" in caplog.text
-    assert "ValidationError: value1|nullability" in caplog.text
+    assert "ValidationError: error_type=key|min" in caplog.text
+    assert "ValidationError: error_type=value1|nullability" in caplog.text
     assert "invalid_records=2\n" in caplog.text
     assert logging.WARNING in [r[1] for r in caplog.record_tuples]
     assert pl.read_parquet(test_bucket).height == 2
@@ -95,7 +95,7 @@ def test_1_error(
 
     _ = process_logger.log_dataframely_filter_results(*schema().filter(df))
 
-    assert "ValidationError: key|min" in caplog.text
+    assert "ValidationError: error_type=key|min" in caplog.text
     assert "invalid_records=1\n" in caplog.text
     assert logging.WARNING in [r[1] for r in caplog.record_tuples]
     assert pl.read_parquet(test_bucket).height == 1
@@ -112,7 +112,7 @@ def test_error_logging_level(
 
     _ = process_logger.log_dataframely_filter_results(*schema().filter(df), logging.ERROR)
 
-    assert "ValidationError: key|min" in caplog.text
+    assert "ValidationError: error_type=key|min" in caplog.text
     assert "invalid_records=1\n" in caplog.text
     assert logging.ERROR in [r[1] for r in caplog.record_tuples]
 

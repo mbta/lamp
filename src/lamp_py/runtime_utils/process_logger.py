@@ -186,4 +186,4 @@ class ProcessLogger:
 
 def _get_validation_errors(invalid: dy.FailureInfo) -> list[ValidationError]:
     "Returns the types of validation errors present in the FailureInfos."
-    return [ValidationError(f"{k} failed for {v} records") for k, v in invalid.counts().items()]
+    return [ValidationError(f"error_type={k}, error_records={v}") for k, v in invalid.counts().items()]
