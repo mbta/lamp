@@ -24,7 +24,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
-    dwell_time_seconds = dy.Int64(nullable=True)
+    stopped_duration_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True)
     direction_destination_headway_seconds = dy.Int64(nullable=True)
 
@@ -90,30 +90,33 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
     enriched_bus_df = (
         bus_df.with_columns(
             pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
-        ).with_columns(
-            (
-                pl.col("stop_id")
-                .shift(1)
-                .over(
-                    ["vehicle_label", "trip_id"],
-                    order_by="gtfs_sort_dt",
+            (  # for departure times
+                pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
+                .then(pl.col("gtfs_departure_dt"))
+                .otherwise(  # midpoints + endpoints
+                    pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
                 )
-            ).alias("previous_stop_id"),
-            # take the later of the two possible arrival times as the true arrival time
-            (
-                pl.when(pl.col("tm_actual_arrival_dt") > pl.col("gtfs_travel_to_dt"))
-                .then(pl.col("tm_actual_arrival_dt"))
-                .otherwise(pl.col("gtfs_arrival_dt"))
-            ).alias("stop_arrival_dt"),
+            ).alias("stop_departure_dt"),
         )
-        # take the later of the two possible departure times as the true departure time
         .with_columns(
-            pl.when(pl.col("tm_actual_departure_dt") >= pl.col("stop_arrival_dt"))
-            .then(pl.col("tm_actual_departure_dt"))
-            .otherwise(pl.col("gtfs_departure_dt"))
-            .alias("stop_departure_dt")
+            pl.min_horizontal(  # for arrival times
+                pl.max_horizontal(pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt")),  # take the later
+                pl.col("stop_departure_dt"),  # unless that conflicts with the departure time
+            ).alias("stop_arrival_dt"),
+            pl.col("stop_id")
+            .shift(1)
+            .over(
+                ["vehicle_label", "trip_id"],
+                order_by="gtfs_sort_dt",
+            )
+            .alias("previous_stop_id"),
         )
-        # convert dt columns to seconds after midnight
+        .with_columns(
+            pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_end")))  # for endpoints
+            .then(pl.col("stop_arrival_dt"))  # set departure equal to arrival
+            .otherwise(pl.col("stop_departure_dt"))
+            .alias("stop_departure_dt"),
+        )
         .with_columns(
             (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
             (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
@@ -124,7 +127,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             (pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"]) - pl.col("gtfs_travel_to_seconds")).alias(
                 "travel_time_seconds"
             ),
-            (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("dwell_time_seconds"),
+            (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
                 pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                 - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
@@ -150,7 +153,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
     )
 
-    valid = process_logger.log_dataframely_filter_results(BusPerformanceMetrics.filter(enriched_bus_df))
+    valid = process_logger.log_dataframely_filter_results(*BusPerformanceMetrics.filter(enriched_bus_df))
 
     process_logger.log_complete()
 

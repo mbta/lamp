@@ -266,7 +266,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         .select(GTFSEvents.column_names())
     )
 
-    valid = logger.log_dataframely_filter_results(GTFSEvents.filter(vehicle_events))
+    valid = logger.log_dataframely_filter_results(*GTFSEvents.filter(vehicle_events))
+
 
     logger.log_complete()
 

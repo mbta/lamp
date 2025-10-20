@@ -294,8 +294,8 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | timepoint_abbr | String | TransitMaster timepoint short name | TransitMaster | Maybe?
 | timepoint_name | String | TransitMaster timepoint full name | TransitMaster | Maybe?
 | pattern_id | int64 | TransitMaster pattern_id | TransitMaster | Maybe?
-| tm_point_type | int64 | 0 - if start point 1 - if mid point 2 - if end point. Start point and End point are determined by the expected `tm_planned_sequence_start` and `tm_planned_sequence_end` for a given trip-route-pattern. | TransitMaster | Maybe?
-| is_full_trip | int64 | 0 - if it is NOT full trip, 1 - if it is a full trip. This is derived from `tm_point_type` and checks if all three point types (0, 1, 2) are present. This detects trips that are atypical, that did not hit all the expected timepoints | TransitMaster | Maybe?
+| tm_point_type | String | "STARTPOINT", "MIDPOINT", or "ENDPOINT" Start point and End point are determined by the expected `tm_planned_sequence_start` and `tm_planned_sequence_end` for a given trip-route-pattern. | TransitMaster | Maybe?
+| is_full_trip | bool | 0 - if it is NOT full trip, 1 - if it is a full trip. This is derived from `tm_point_type` and checks if "STARTPOINT" and "ENDPOINT" are present for a given trip. This detects trips that are atypical, that did not hit all the expected timepoints | TransitMaster | Maybe?
 | plan_trip_id | string | GTFS `trip_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt), will match GTFS-RT `trip_id` if trip is not ADDED, if trip is ADDED will be closest matching GTFS `trip_id` based on start_time | LAMP Calculated
 | exact_plan_trip_match | boolean | Indicates if plan_trip_id matches trip_id | LAMP Calculated
 | block_id | string | `block_id` from [trips.txt](https://gtfs.org/schedule/reference/#tripstxt) | GTFS |
@@ -317,7 +317,7 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | stop_arrival_seconds | int64 | `stop_arrival_dt` as seconds after midnight | LAMP Calculated |
 | stop_departure_seconds | int64 | `stop_departure_dt` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
-| dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
+| stopped_duration_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
 | route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
 | tm_scheduled_time_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
