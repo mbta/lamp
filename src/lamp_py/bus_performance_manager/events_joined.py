@@ -3,7 +3,7 @@ import polars as pl
 
 from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
-from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents
+from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
@@ -27,15 +27,32 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
+    trip_id_gtfs = dy.String(nullable=True)
+
+    # pylint: disable=no-method-argument
 
     @dy.rule()
-    def final_stop_has_arrival_dt() -> pl.Expr:  # pylint: disable=no-method-argument
+    def final_stop_has_arrival_dt() -> pl.Expr:
         """
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
         return pl.when(
             pl.col("gtfs_stop_sequence").eq(pl.col("plan_stop_count")), pl.col("gtfs_travel_to_dt").is_not_null()
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
+
+    @dy.rule()
+    def _no_ol_trip_ids() -> pl.Expr:
+        return ~pl.col("trip_id").str.contains("OL")
+
+    @dy.rule()
+    def _no_split_trips1() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_1")
+
+    @dy.rule()
+    def _no_split_trips2() -> pl.Expr:
+        return ~pl.col("trip_id").str.ends_with("_2")
+
+    # pylint: enable=no-method-argument
 
 
 class BusPerformanceManager(dy.Collection):
@@ -87,16 +104,17 @@ def join_rt_to_schedule(
     :return BusEvents:
     """
 
-    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
-    # asof strategy finds nearest value match between "asof" columns if exact match is not found
-    # will perform regular left join on "by" columns
-
     # there are frequent occasions where the gtfs_stop_sequence and tm_stop_sequence are not exactly the same
     # usually off by 1 or so. By matching the nearest stop sequence
     # after grouping by trip, route, vehicle, and most importantly for sequencing - stop_id
     process_logger = ProcessLogger("join_rt_to_schedule")
     process_logger.log_start()
 
+    # replace both now
+    gtfs = gtfs.with_columns(  # type: ignore[assignment]
+        pl.col("trip_id").alias("trip_id_gtfs"),
+        remove_overload_and_rare_variant_suffix(pl.col("trip_id")),
+    )
     schedule_vehicles = schedule.join(
         pl.concat(
             [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
@@ -122,17 +140,9 @@ def join_rt_to_schedule(
         )
     )
 
-    # fill in vehicle_label and vehicle_id for each scheduled trip if available from gtfs events join -
-    # this will allow TM join to join on vehicle id, which will eliminte multiple vehicle_id for the same trip_id
-    # gtfs trip_ids may have ADDED or -OL trip_ids to denote added service,, but TM does not have those
-    # trip_ids in its database, so overloads them into the existing trip_ids causing data inconsistency
-    schedule_gtfs = schedule_gtfs.with_columns(
-        pl.col(["vehicle_label", "vehicle_id"])
-        .fill_null(strategy="forward")  # handle missing vehicle label at beginning
-        .fill_null(strategy="backward")  # handle missing vehicle label at end
-        .over(["trip_id"])
-    )
-
+    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
+    # asof strategy finds nearest value match between "asof" columns if exact match is not found
+    # will perform regular left join on "by" columns
     schedule_gtfs_tm = (
         schedule_gtfs.sort(by="tm_stop_sequence")
         .join_asof(
@@ -174,11 +184,12 @@ def join_rt_to_schedule(
         .select(BusEvents.column_names())
     )
 
-    valid = process_logger.log_dataframely_filter_results(
-        BusEvents.filter(schedule_gtfs_tm),
-        BusPerformanceManager.filter({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}),
-    )
+    # valid = process_logger.log_dataframely_filter_results(
+    #     BusEvents.filter(schedule_gtfs_tm),
+    #     BusPerformanceManager.filter({"tm": tm.lazy(), "bus": schedule_gtfs_tm.lazy(), "gtfs": gtfs.lazy()}),
+    # )
 
+    valid, _ = BusEvents.filter(schedule_gtfs_tm)
     process_logger.log_complete()
 
     return valid

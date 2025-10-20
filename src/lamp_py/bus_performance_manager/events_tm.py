@@ -15,14 +15,14 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class BusTrips(dy.Schema):
+class BusBaseSchema(dy.Schema):
     "Common schema for bus schedule and event datasets."
     trip_id = dy.String(primary_key=True, nullable=False)
     stop_id = dy.String(nullable=False)
     route_id = dy.String(nullable=False)
 
 
-class TransitMasterSchedule(BusTrips):
+class TransitMasterSchedule(BusBaseSchema):
     "Scheduled stops in TransitMaster."
     timepoint_abbr = dy.String(nullable=True)
     timepoint_id = dy.Int64(nullable=True)
@@ -145,25 +145,24 @@ def generate_tm_events(
             pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
         )
 
-    tm_stop_crossings = tm_stop_crossings.with_columns(
-        pl.coalesce(
-            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start").min()).then(0),
-            pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end").max()).then(2),
-            pl.lit(1),
+        tm_stop_crossings = tm_stop_crossings.with_columns(
+            pl.coalesce(
+                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_start")).then(0),
+                pl.when(pl.col("tm_stop_sequence") == pl.col("tm_planned_sequence_end")).then(2),
+                pl.lit(1),
+            ).alias("tm_point_type"),
+        ).with_columns(
+            pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
+            .then(1)
+            .otherwise(0)
+            .over("trip_id", "vehicle_label")
+            .alias("is_full_trip")
         )
-        .over("trip_id", "vehicle_label")
-        .alias("tm_point_type"),
-    ).with_columns(
-        pl.when((pl.col("tm_point_type") == 0).any() & (pl.col("tm_point_type") == 2).any())
-        .then(1)
-        .otherwise(0)
-        .over("trip_id", "vehicle_label")
-        .alias("is_full_trip")
-    )
 
     valid = logger.log_dataframely_filter_results(TransitMasterEvents.filter(tm_stop_crossings))
 
     logger.log_complete()
+
     return valid
 
 
