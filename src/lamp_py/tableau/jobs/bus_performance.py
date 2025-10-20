@@ -20,7 +20,7 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
 # temporary - ticket in backlog to implement this split as per-rating instead
-BUS_ALL_NDAYS = 365
+BUS_ALL_NDAYS = 30
 BUS_RECENT_NDAYS = 7
 # this schema and the order of this schema SHOULD match what comes out
 # of the polars version from bus_performance_manager.
@@ -41,14 +41,24 @@ bus_schema = pyarrow.schema(
         ("vehicle_label", pyarrow.large_string()),
         ("gtfs_first_in_transit_dt", pyarrow.timestamp("us")),
         ("gtfs_last_in_transit_dt", pyarrow.timestamp("us")),
+        ("previous_stop_id", pyarrow.large_string()),
+        ("latitude", pyarrow.float64()),
+        ("longitude", pyarrow.float64()),
         ("tm_stop_sequence", pyarrow.int64()),
+        ("timepoint_order", pyarrow.uint32()),
+        ("timepoint_id", pyarrow.int64()),
+        ("pattern_id", pyarrow.int64()),
         ("tm_scheduled_time_dt", pyarrow.timestamp("us")),
         ("tm_actual_arrival_dt", pyarrow.timestamp("us")),
         ("tm_actual_departure_dt", pyarrow.timestamp("us")),
         ("tm_scheduled_time_sam", pyarrow.int64()),
         ("tm_actual_arrival_time_sam", pyarrow.int64()),
         ("tm_actual_departure_time_sam", pyarrow.int64()),
-        # ("plan_trip_id", pyarrow.large_string()),
+        ("tm_planned_sequence_end", pyarrow.int64()),
+        ("timepoint_abbr", pyarrow.large_string()),
+        ("timepoint_name", pyarrow.large_string()),
+        ("schedule_joined", pyarrow.large_string()),
+        ("trip_id_gtfs", pyarrow.large_string()),
         # ("exact_plan_trip_match", pyarrow.bool_()),
         ("block_id", pyarrow.large_string()),
         ("service_id", pyarrow.large_string()),
