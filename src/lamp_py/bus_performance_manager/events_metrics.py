@@ -15,7 +15,6 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     "Bus events enriched with derived operational metrics."
-    gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     previous_stop_id = dy.String(nullable=True)
     stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -32,6 +31,30 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
         "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
+
+    @dy.rule()
+    def stop_sequence_implies_arrival_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop arrival increases monotonically with stop sequence."
+        return pl.col("stop_arrival_dt").ge(  # dt for current stop  # greater than
+            pl.col("stop_arrival_dt")  # dt for last stop
+            .shift(1)
+            .over(
+                partition_by=["service_date", "trip_id", "vehicle_label"],
+                order_by="stop_sequence",
+            )
+        )
+
+    @dy.rule()
+    def stop_sequence_implies_departure_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop departure increase monotonically with stop sequence."
+        return pl.col("stop_departure_dt").ge(  # dt for current stop  # greater than
+            pl.col("stop_departure_dt")  # dt for last stop
+            .shift(1)
+            .over(
+                partition_by=["service_date", "trip_id", "vehicle_label"],
+                order_by="stop_sequence",
+            )
+        )
 
 
 def bus_performance_metrics(
@@ -89,10 +112,9 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
 
     enriched_bus_df = (
         bus_df.with_columns(
-            pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
             (  # for departure times
                 pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
-                .then(pl.col("gtfs_departure_dt"))
+                .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
                 .otherwise(  # midpoints + endpoints
                     pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
                 )
@@ -107,7 +129,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             .shift(1)
             .over(
                 ["vehicle_label", "trip_id"],
-                order_by="gtfs_sort_dt",
+                order_by="stop_sequence",
             )
             .alias("previous_stop_id"),
         )
@@ -116,6 +138,25 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             .then(pl.col("stop_arrival_dt"))  # set departure equal to arrival
             .otherwise(pl.col("stop_departure_dt"))
             .alias("stop_departure_dt"),
+        )
+        .with_columns(
+            *[  # force the stop_departure_dt & stop_arrival_dt in order with other stops in the trip by
+                pl.when(pl.col(c).is_not_null())  # if the departure/arrival time isn't null
+                .then(
+                    pl.max_horizontal(  # take the max of
+                        pl.col(c),  # the column
+                        pl.max_horizontal("stop_departure_dt", "stop_arrival_dt", "gtfs_travel_to_dt")
+                        .cum_max()  # the highest previous value of departure/arrival/travel_to dt
+                        .shift()
+                        .over(
+                            partition_by=["service_date", "trip_id", "vehicle_label"],
+                            order_by="stop_sequence",
+                        ),
+                    )
+                )  # otherwise leave the departure/arrival time null
+                .alias(c)
+                for c in ["stop_departure_dt", "stop_arrival_dt"]
+            ]
         )
         .with_columns(
             (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
@@ -134,7 +175,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                 .shift()
                 .over(
                     ["stop_id", "direction_id", "route_id"],
-                    order_by="gtfs_sort_dt",
+                    order_by="stop_sequence",
                 )
             ).alias("route_direction_headway_seconds"),
             (
@@ -144,13 +185,13 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     .shift()
                     .over(
                         ["stop_id", "direction_destination"],
-                        order_by="gtfs_sort_dt",
+                        order_by="stop_sequence",
                     )
                 )
             ).alias("direction_destination_headway_seconds"),
         )
         # sort to reduce parquet file size
-        .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
+        .sort(["route_id", "vehicle_label", "stop_sequence"])
     )
 
     valid = process_logger.log_dataframely_filter_results(BusPerformanceMetrics.filter(enriched_bus_df))

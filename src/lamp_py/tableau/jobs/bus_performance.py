@@ -28,7 +28,6 @@ BUS_RECENT_NDAYS = 7
 bus_schema = pyarrow.schema(
     [
         ("service_date", pyarrow.date32()),  # change to date type
-        ("stop_sequences_vehicle_label_key", pyarrow.large_string()),
         ("route_id", pyarrow.large_string()),
         ("trip_id", pyarrow.large_string()),
         ("start_time", pyarrow.int64()),
@@ -36,8 +35,9 @@ bus_schema = pyarrow.schema(
         ("stop_count", pyarrow.uint32()),
         ("direction_id", pyarrow.int8()),
         ("stop_id", pyarrow.large_string()),
+        ("gtfs_stop_sequence", pyarrow.int64()),
+        ("stop_sequence", pyarrow.uint32()),
         ("previous_stop_id", pyarrow.large_string()),
-        ("stop_sequence", pyarrow.int64()),
         ("vehicle_id", pyarrow.large_string()),
         ("vehicle_label", pyarrow.large_string()),
         ("gtfs_travel_to_dt", pyarrow.timestamp("us")),
@@ -82,7 +82,6 @@ bus_schema = pyarrow.schema(
         ("dwell_time_seconds", pyarrow.int64()),
         ("route_direction_headway_seconds", pyarrow.int64()),
         ("direction_destination_headway_seconds", pyarrow.int64()),
-        ("gtfs_sort_dt", pyarrow.timestamp("us")),
         ("gtfs_departure_dt", pyarrow.timestamp("us")),
         ("gtfs_arrival_dt", pyarrow.timestamp("us")),
     ]

@@ -17,7 +17,7 @@ class GTFSEvents(BusBaseSchema):
     service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
-    stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    gtfs_stop_sequence = dy.Int64(nullable=False, primary_key=True)
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
@@ -37,7 +37,7 @@ class GTFSEvents(BusBaseSchema):
     @dy.rule()
     def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
         "The bus should always have a departure time from the first stop."
-        return pl.when(pl.col("stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_arrival_dt").is_not_null())
+        return pl.when(pl.col("gtfs_stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_arrival_dt").is_not_null())
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -219,15 +219,24 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     )
 
     vehicle_events = (
-        vehicle_positions.with_columns(
+        vehicle_positions.filter(  # remove out-of-order records:
+            pl.col("stop_sequence")  # stop sequence must be
+            <= pl.col("stop_sequence")  # less than or equal to
+            .cum_min(reverse=True)  # minimum of this record and all following
+            .over(
+                partition_by=["trip_id", "vehicle_label"], order_by="vehicle_timestamp"
+            ),  # within each trip-vehicle pair, ordered by timestamp
+        )
+        .with_columns(
             pl.col("vehicle_timestamp").dt.replace_time_zone("UTC", ambiguous="earliest"),
             pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
             pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64).alias("start_time"),
+            pl.col("stop_sequence").alias("gtfs_stop_sequence"),
         )
         .group_by(
             "service_date",
             "trip_id",
-            "stop_sequence",
+            "gtfs_stop_sequence",
             "route_id",
             "stop_id",
             "direction_id",
@@ -257,7 +266,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
-            pl.col("stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
+            pl.col("gtfs_stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
         )
         .select(
             [
@@ -269,7 +278,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
                 "stop_count",
                 "direction_id",
                 "stop_id",
-                "stop_sequence",
+                "gtfs_stop_sequence",
                 "vehicle_id",
                 "vehicle_label",
                 "gtfs_in_transit_to_dts",
@@ -295,7 +304,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     # thus we'd be getting the gps coordinate of the declared DEPARTURE.
     event_position = (
         vehicle_positions.filter(pl.col("current_status") == "IN_TRANSIT_TO")
-        .group_by("vehicle_label", "trip_id", "stop_sequence")
+        .group_by("vehicle_label", "trip_id", pl.col("stop_sequence").alias("gtfs_stop_sequence"))
         .agg(
             pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),
             pl.col("longitude").get(pl.col("vehicle_timestamp").arg_max()).alias("longitude"),
@@ -305,7 +314,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     vehicle_events_plus_positions = vehicle_events.join(
         event_position,
         how="left",
-        on=["vehicle_label", "trip_id", "stop_sequence"],
+        on=["vehicle_label", "trip_id", "gtfs_stop_sequence"],
         coalesce=True,
     )
     # ==== end lat/lon ====

@@ -9,7 +9,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class CombinedSchedule(TransitMasterSchedule):
     "Union of GTFS and TransitMaster bus schedules."
-    stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     trip_id = dy.String(nullable=False, primary_key=False)
     block_id = dy.String(nullable=True)
     service_id = dy.String(nullable=True)
@@ -62,7 +62,7 @@ def join_tm_schedule_to_gtfs_schedule(
     # gtfs_schedule: contains _1, _2. Does not contain -OL
     # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
-        gtfs.rename({"plan_trip_id": "trip_id"})
+        gtfs.rename({"plan_trip_id": "trip_id", "stop_sequence": "gtfs_stop_sequence"})
         .with_columns(remove_rare_variant_route_suffix(pl.col("trip_id")))
         .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
@@ -116,7 +116,7 @@ def join_tm_schedule_to_gtfs_schedule(
         # TM + JOIN = TM
         # GTFS + JOIN = GTFS
         .with_columns(
-            pl.when(pl.col("stop_sequence").is_null())
+            pl.when(pl.col("gtfs_stop_sequence").is_null())
             .then(pl.lit("TM"))
             .when(pl.col("tm_stop_sequence").is_null())
             .then(pl.lit("GTFS"))
@@ -126,7 +126,7 @@ def join_tm_schedule_to_gtfs_schedule(
     ).with_row_index()
 
     schedule = schedule.with_columns(
-        (pl.col("stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
+        (pl.col("gtfs_stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
     )
     schedule = schedule.remove(
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
