@@ -153,7 +153,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
         .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
     )
 
-    valid = process_logger.log_dataframely_filter_results(BusPerformanceMetrics.filter(enriched_bus_df))
+    valid = process_logger.log_dataframely_filter_results(*BusPerformanceMetrics.filter(enriched_bus_df))
 
     process_logger.log_complete()
 

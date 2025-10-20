@@ -161,7 +161,7 @@ def generate_tm_events(
             .alias("is_full_trip")
         )
 
-    valid = logger.log_dataframely_filter_results(TransitMasterEvents.filter(tm_stop_crossings))
+    valid = logger.log_dataframely_filter_results(*TransitMasterEvents.filter(tm_stop_crossings))
 
     logger.log_complete()
 
