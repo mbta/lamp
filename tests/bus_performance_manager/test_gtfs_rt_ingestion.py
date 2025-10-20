@@ -97,7 +97,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
         assert event["direction_id"] == 0
 
         if event["stop_id"] == "173":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=1, second=19, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] == datetime(
@@ -105,7 +105,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
             )
 
         if event["stop_id"] == "655":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=50, second=31, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] == datetime(
@@ -113,7 +113,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
             )
 
         if event["stop_id"] == "903":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=3, second=39, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] == datetime(
@@ -134,13 +134,13 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
 
         # no arrival time at this stop
         if event["stop_id"] == "12005":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=47, second=23, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] is None
 
         if event["stop_id"] == "17091":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=52, second=41, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] is None

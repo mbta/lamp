@@ -22,13 +22,8 @@ class GTFSEvents(BusBaseSchema):
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
     vehicle_label = dy.String(primary_key=True)
-    gtfs_in_transit_to_dts = dy.Struct(
-        {
-            "first_timestamp": dy.Datetime(nullable=True, time_zone="UTC"),
-            "last_timestamp": dy.Datetime(nullable=True, time_zone="UTC"),
-        },
-        nullable=True,
-    )
+    gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
@@ -245,16 +240,14 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             "vehicle_label",
         )
         .agg(
-            pl.struct(
-                pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
-                .then(pl.col("vehicle_timestamp"))
-                .min()
-                .alias("first_timestamp"),
-                pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
-                .then(pl.col("vehicle_timestamp"))
-                .max()
-                .alias("last_timestamp"),
-            ).alias("gtfs_in_transit_to_dts"),
+            pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
+            .then(pl.col("vehicle_timestamp"))
+            .min()
+            .alias("gtfs_first_in_transit_dt"),
+            pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
+            .then(pl.col("vehicle_timestamp"))
+            .max()
+            .alias("gtfs_last_in_transit_dt"),
             pl.when(pl.col("current_status") == "STOPPED_AT")
             .then(pl.col("vehicle_timestamp"))
             .min()
@@ -281,7 +274,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
                 "gtfs_stop_sequence",
                 "vehicle_id",
                 "vehicle_label",
-                "gtfs_in_transit_to_dts",
+                "gtfs_first_in_transit_dt",
+                "gtfs_last_in_transit_dt",
                 "gtfs_arrival_dt",
                 "gtfs_departure_dt",
             ]

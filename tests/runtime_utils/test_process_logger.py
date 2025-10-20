@@ -22,12 +22,6 @@ def fixture_schema() -> type[Schema]:
     return Schema
 
 
-@pytest.fixture(name="dy_gen", params=[1])
-def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> dy.random.Generator:
-    "Fixture wrapper around dataframely random data generator."
-    return dy.random.Generator(request.param)
-
-
 @pytest.fixture(name="patch_bucket")
 def fixture_patch_bucket(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     "Replace error URI with local temp directory, returning the temp directory for access."

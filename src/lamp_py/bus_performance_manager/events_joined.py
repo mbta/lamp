@@ -172,11 +172,11 @@ def join_rt_to_schedule(
                 pl.when(
                     pl.col("gtfs_stop_sequence").eq(pl.col("plan_stop_count"))
                 ).then(  # and it's the last stop on the route
-                    pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp")
+                    pl.col("gtfs_last_in_transit_dt")
                 ),  # use the last IN_TRANSIT_TO datetime
             ).alias("gtfs_arrival_dt"),
-            pl.col("gtfs_in_transit_to_dts").struct.field("first_timestamp").alias("gtfs_first_in_transit_dt"),
-            pl.col("gtfs_in_transit_to_dts").struct.field("last_timestamp").alias("gtfs_last_in_transit_dt"),
+            pl.col("gtfs_first_in_transit_dt"),
+            pl.col("gtfs_last_in_transit_dt"),
         )
         .with_columns(
             pl.struct(pl.col("tm_filled_stop_sequence"), pl.col("gtfs_stop_sequence"))
