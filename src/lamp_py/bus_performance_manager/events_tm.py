@@ -145,7 +145,7 @@ def generate_tm_events(
             pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
         )
 
-    valid = logger.log_dataframely_filter_results(TransitMasterEvents.filter(tm_stop_crossings))
+    valid = logger.log_dataframely_filter_results(*TransitMasterEvents.filter(tm_stop_crossings))
 
     logger.log_complete()
 

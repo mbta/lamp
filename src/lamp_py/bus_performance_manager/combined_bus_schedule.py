@@ -133,7 +133,7 @@ def join_tm_schedule_to_gtfs_schedule(
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
     ).select(CombinedSchedule.column_names())
 
-    valid = process_logger.log_dataframely_filter_results(CombinedSchedule.filter(schedule, cast=True))
+    valid = process_logger.log_dataframely_filter_results(*CombinedSchedule.filter(schedule, cast=True))
 
     process_logger.log_complete()
 

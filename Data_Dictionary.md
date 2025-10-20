@@ -317,7 +317,7 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | stop_arrival_seconds | int64 | `stop_arrival_dt` as seconds after midnight | LAMP Calculated |
 | stop_departure_seconds | int64 | `stop_departure_dt` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
-| dwell_time_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
+| stopped_duration_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
 | route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
 | direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
 | tm_scheduled_time_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
