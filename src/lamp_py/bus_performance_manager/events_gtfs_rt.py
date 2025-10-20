@@ -319,7 +319,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     )
     # ==== end lat/lon ====
 
-    valid = logger.log_dataframely_filter_results(GTFSEvents.filter(vehicle_events_plus_positions))
+    valid = logger.log_dataframely_filter_results(*GTFSEvents.filter(vehicle_events_plus_positions))
 
     logger.log_complete()
 

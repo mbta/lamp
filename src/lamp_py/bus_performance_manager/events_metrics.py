@@ -23,7 +23,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
-    dwell_time_seconds = dy.Int64(nullable=True)
+    stopped_duration_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
     direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
 
@@ -171,7 +171,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                 pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"])
                 - pl.col("gtfs_first_in_transit_seconds")
             ).alias("travel_time_seconds"),
-            (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("dwell_time_seconds"),
+            (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
                 pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                 - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
@@ -197,7 +197,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
         .sort(["route_id", "vehicle_label", "stop_sequence"])
     )
 
-    valid = process_logger.log_dataframely_filter_results(BusPerformanceMetrics.filter(enriched_bus_df))
+    valid = process_logger.log_dataframely_filter_results(*BusPerformanceMetrics.filter(enriched_bus_df))
 
     process_logger.log_complete()
 

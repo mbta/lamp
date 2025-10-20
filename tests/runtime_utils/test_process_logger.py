@@ -1,48 +1,42 @@
 import logging
-import pytest
+from pathlib import Path
 
+import pytest
 import dataframely as dy
 import polars as pl
 from polars.testing import assert_frame_equal
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import S3Location
+from lamp_py.aws.ecs import running_in_aws
 
 
-class Schema1(dy.Schema):  # pylint: disable=missing-class-docstring
+class Schema(dy.Schema):
+    "Trivial schema to test how dataframely reports errors."
     key = dy.Int64(primary_key=True, min=0)
     value1 = dy.Float64(nullable=False)
 
 
-class Schema2(dy.Schema):  # pylint: disable=missing-class-docstring
-    key = dy.Int64(primary_key=True)
-    value2 = dy.String(nullable=True, regex=r"[a-z]+")
-
-
-class FakeCollection(dy.Collection):  # pylint: disable=missing-class-docstring
-    first: dy.LazyFrame[Schema1]
-    second: dy.LazyFrame[Schema2]
-
-    @dy.filter()
-    def all_keys_match(self) -> pl.LazyFrame:
-        "Each key in the first dataframe is in each key in the second dataframe and vice-versa."
-        return self.first.join(self.second, on="key", how="inner")
-
-
-@pytest.fixture(name="schema_1")
-def fixture_schema_1() -> type[Schema1]:
+@pytest.fixture(name="schema")
+def fixture_schema() -> type[Schema]:
     "Wrapper around Schema1 for registration as a fixture."
-    return Schema1
+    return Schema
 
 
-@pytest.fixture(name="schema_2")
-def fixture_schema_2() -> type[Schema2]:
-    "Wrapper around Schema2 for registration as a fixture."
-    return Schema2
+@pytest.fixture(name="dy_gen", params=[1])
+def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> dy.random.Generator:
+    "Fixture wrapper around dataframely random data generator."
+    return dy.random.Generator(request.param)
 
 
-@pytest.fixture(name="fake_collection")
-def fixture_fake_collection() -> type[FakeCollection]:
-    "Wrapper around FakeCollection for registration as a fixture."
-    return FakeCollection
+@pytest.fixture(name="patch_bucket")
+def fixture_patch_bucket(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    "Replace error URI with local temp directory, returning the temp directory for access."
+    if running_in_aws():
+        monkeypatch.setattr(S3Location, "s3_uri", tmp_path.as_uri())
+    else:
+        monkeypatch.setenv("TEMP_DIR", tmp_path.as_posix())
+
+    return tmp_path
 
 
 def test_unstarted_log(caplog: pytest.LogCaptureFixture) -> None:
@@ -78,69 +72,57 @@ def test_start_logging_explicitly(caplog: pytest.LogCaptureFixture) -> None:
     assert caplog.text == ""
 
 
-def test_one_filtered_schema(
-    schema_1: type[Schema1], caplog: pytest.LogCaptureFixture, dy_gen: dy.random.Generator
-) -> None:
-    "It gracefully logs one filtered schema."
+def test_2_errors(schema: type[Schema], caplog: pytest.LogCaptureFixture, patch_bucket: Path) -> None:
+    "It gracefully logs 2 errors as warnings."
+    test_bucket = patch_bucket
+    process_logger = ProcessLogger("test_2_errors")
 
-    process_logger = ProcessLogger("test_one_filtered_schema")
+    df = pl.DataFrame({"key": range(-1, 9), "value1": [float(n) for n in range(0, 9)] + [None]})
+
+    _ = process_logger.log_dataframely_filter_results(*schema().filter(df))
+
+    assert "ValidationError: error_type=key|min" in caplog.text
+    assert "ValidationError: error_type=value1|nullability" in caplog.text
+    assert "invalid_records=2\n" in caplog.text
+    assert logging.WARNING in [r[1] for r in caplog.record_tuples]
+    assert pl.read_parquet(test_bucket).height == 2
+
+
+def test_1_error(
+    schema: type[Schema], caplog: pytest.LogCaptureFixture, dy_gen: dy.random.Generator, patch_bucket: Path
+) -> None:
+    "It gracefully logs 1 error as a warning."
+    test_bucket = patch_bucket
+    process_logger = ProcessLogger("test_1_error")
 
     df = pl.DataFrame({"key": range(-1, 9), "value1": dy_gen.sample_float(10, min=0, max=10000)})
 
-    _ = process_logger.log_dataframely_filter_results(schema_1().filter(df))
+    _ = process_logger.log_dataframely_filter_results(*schema().filter(df))
 
-    assert "dataframely.exc.ValidationError: key|min" in caplog.text
-    assert "validation_errors=1\n" in caplog.text
+    assert "ValidationError: error_type=key|min" in caplog.text
+    assert "invalid_records=1\n" in caplog.text
+    assert logging.WARNING in [r[1] for r in caplog.record_tuples]
+    assert pl.read_parquet(test_bucket).height == 1
 
 
-def test_multiple_filtered_schemas(
-    schema_1: type[Schema1], schema_2: type[Schema2], caplog: pytest.LogCaptureFixture, dy_gen: dy.random.Generator
+def test_error_logging_level(
+    schema: type[Schema], caplog: pytest.LogCaptureFixture, dy_gen: dy.random.Generator, patch_bucket: Path
 ) -> None:
-    "It gracefully handles multiple schemas and returns only the valid results from the first schema."
-    process_logger = ProcessLogger("test_multiple_filtered_schemas")
+    "It gracefully logs 1 error as an error."
+    _ = patch_bucket
+    process_logger = ProcessLogger("test_1_error")
 
-    df1 = pl.DataFrame({"key": range(-1, 9), "value1": dy_gen.sample_float(10, min=0, max=10000)})
+    df = pl.DataFrame({"key": range(-1, 9), "value1": dy_gen.sample_float(10, min=0, max=10000)})
 
-    df2 = pl.DataFrame({"key": range(-1, 9), "value2": dy_gen.sample_string(10, regex=r"[0-9]+")})
+    _ = process_logger.log_dataframely_filter_results(*schema().filter(df), logging.ERROR)
 
-    _ = process_logger.log_dataframely_filter_results(schema_1().filter(df1), schema_2().filter(df2))
-
-    with caplog.at_level(logging.ERROR):
-        assert all(e in caplog.text for e in ["dataframely.exc.ValidationError", "value2|regex", "key|min"])
-
-    with caplog.at_level(logging.INFO):
-        assert "validation_errors=11\n" in caplog.text
+    assert "ValidationError: error_type=key|min" in caplog.text
+    assert "invalid_records=1\n" in caplog.text
+    assert logging.ERROR in [r[1] for r in caplog.record_tuples]
 
 
-def test_one_schema_one_collection(
-    schema_1: type[Schema1],
-    fake_collection: type[FakeCollection],
-    caplog: pytest.LogCaptureFixture,
-    dy_gen: dy.random.Generator,
-) -> None:
-    "It gracefully handles multiple schemas and returns only the valid results from the first schema."
-    process_logger = ProcessLogger("test_one_schema_one_collection")
-
-    df1 = pl.DataFrame({"key": range(-1, 9), "value1": dy_gen.sample_float(10, min=0, max=10000)})
-
-    df2 = pl.DataFrame({"key": range(9, 19), "value2": dy_gen.sample_string(10, regex=r"[0-9]+")})
-
-    _ = process_logger.log_dataframely_filter_results(
-        schema_1().filter(df1), fake_collection().filter({"first": df1, "second": df2})
-    )
-
-    with caplog.at_level(logging.ERROR):
-        assert all(
-            e in caplog.text for e in ["dataframely.exc.ValidationError", "all_keys_match", "value2|regex", "key|min"]
-        )
-
-    with caplog.at_level(logging.INFO):
-        assert "validation_errors=21\n" in caplog.text
-
-
-def test_no_errors(
-    schema_1: type[Schema1],
-    fake_collection: type[FakeCollection],
+def test_0_errors(
+    schema: type[Schema],
     caplog: pytest.LogCaptureFixture,
     dy_gen: dy.random.Generator,
 ) -> None:
@@ -149,14 +131,9 @@ def test_no_errors(
 
     df1 = pl.DataFrame({"key": range(0, 10), "value1": dy_gen.sample_float(10, min=0, max=10000)})
 
-    df2 = pl.DataFrame({"key": range(0, 10), "value2": dy_gen.sample_string(10, regex=r"[a-z]+")})
+    valid = process_logger.log_dataframely_filter_results(*schema().filter(df1))
 
-    valid = process_logger.log_dataframely_filter_results(
-        schema_1().filter(df1), fake_collection().filter({"first": df1, "second": df2})
-    )
-
-    assert logging.ERROR not in [r[1] for r in caplog.record_tuples]
-
-    assert "validation_errors=0\n" in caplog.text
+    assert "ValidationError" not in caplog.text
+    assert "invalid_records=0\n" in caplog.text
 
     assert_frame_equal(df1, valid)

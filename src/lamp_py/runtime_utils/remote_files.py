@@ -212,6 +212,9 @@ tableau_devgreen_rt_trip_updates_lightrail_60_day = S3Location(
     prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_60_day.parquet"),
 )
 
+# dataframely errors
+data_validation_errors = S3Location(bucket=S3_ERROR, prefix=os.path.join(LAMP, "data_validation"))
+
 
 #### GTFS-RT TO TABLEAU
 class GTFSArchive(S3Location):

@@ -21,6 +21,24 @@ from lamp_py.tableau.conversions.convert_bus_performance_data import (
 # from lamp_py.tableau.conversions.convert_types import convert_to_tableau_compatible_schema
 
 
+def write_batch(ds: pd.dataset, schema: pyarrow.schema) -> None:
+    with pq.ParquetWriter(f"/tmp/{prefix}_bus_recent.parquet", schema=schema) as writer:
+        for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
+            # this select() is here to make sure the order of the polars_df
+            # schema is the same as the bus_schema above.
+            # order of schema matters to the ParquetWriter
+
+            # if the bus_schema above is in the same order as the batch
+            # schema, then the select will do nothing - as expected
+
+            polars_df = pl.from_arrow(batch).select(schema.names)  # type: ignore[union-attr]
+
+            if not isinstance(polars_df, pl.DataFrame):
+                raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
+
+            writer.write_table(apply_bus_analysis_conversions(polars_df))
+
+
 def run_bus_events() -> None:
     # stage 1 - regenerate range
     ##################
@@ -50,22 +68,7 @@ def run_bus_events() -> None:
     overrides = {"service_date": pyarrow.date32()}
     tableau_schema = convert_bus_recent_to_tableau_compatible_schema(ds.schema, overrides, exclude=None)
 
-    # rint("You entered:", prefix)
-    with pq.ParquetWriter(f"/tmp/{prefix}_bus_recent.parquet", schema=tableau_schema) as writer:
-        for batch in ds.to_batches(batch_size=500_000, batch_readahead=1, fragment_readahead=0):
-            # this select() is here to make sure the order of the polars_df
-            # schema is the same as the bus_schema above.
-            # order of schema matters to the ParquetWriter
-
-            # if the bus_schema above is in the same order as the batch
-            # schema, then the select will do nothing - as expected
-
-            polars_df = pl.from_arrow(batch).select(tableau_schema.names)  # type: ignore[union-attr]
-
-            if not isinstance(polars_df, pl.DataFrame):
-                raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
-
-            writer.write_table(apply_bus_analysis_conversions(polars_df))
+    write_batch(ds, tableau_schema)
 
 
 if __name__ == "__main__":
