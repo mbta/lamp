@@ -229,12 +229,13 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             "service_date",
             "trip_id",
             "stop_sequence",
+            "vehicle_label",
+            # the rest of these are included not because they change the group but to preserve them in the output
             "route_id",
             "stop_id",
             "direction_id",
             "start_time",
             "vehicle_id",
-            "vehicle_label",
         )
         .agg(
             pl.struct(
@@ -255,8 +256,8 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             .then(pl.col("vehicle_timestamp"))
             .max()
             .alias("gtfs_departure_dt"),
-            pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),
-            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_min()).alias("longitude"),
+            pl.col("latitude").get(pl.col("vehicle_timestamp").arg_min()).alias("latitude"),  # lat from first record
+            pl.col("longitude").get(pl.col("vehicle_timestamp").arg_min()).alias("longitude"),  # lon from first record
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
