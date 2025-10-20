@@ -7,6 +7,7 @@ import polars as pl
 from polars.testing import assert_frame_equal
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import S3Location
+from lamp_py.aws.ecs import running_in_aws
 
 
 class Schema(dy.Schema):
@@ -29,8 +30,11 @@ def fixture_dataframely_random_generator(request: pytest.FixtureRequest) -> dy.r
 
 @pytest.fixture(name="patch_bucket")
 def fixture_patch_bucket(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    "Replace s3 URI with local temp directory, returning the temp directory for access."
-    monkeypatch.setattr(S3Location, "s3_uri", tmp_path.as_uri())
+    "Replace error URI with local temp directory, returning the temp directory for access."
+    if running_in_aws():
+        monkeypatch.setattr(S3Location, "s3_uri", tmp_path.as_uri())
+    else:
+        monkeypatch.setenv("TEMP_DIR", tmp_path.as_posix())
 
     return tmp_path
 

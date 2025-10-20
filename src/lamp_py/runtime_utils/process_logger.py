@@ -5,6 +5,7 @@ import traceback
 import uuid
 import shutil
 from datetime import date
+from pathlib import Path
 from typing import Any, Dict, Union, Optional, List
 
 import dataframely as dy
@@ -173,8 +174,15 @@ class ProcessLogger:
             elif log_level == logging.ERROR:
                 self.log_failure(exception)
 
+            bucket_path = (
+                data_validation_errors.s3_uri
+                if bool(
+                    os.getenv("AWS_DEFAULT_REGION")
+                )  # checks if running on AWS; can't import from lamp_py.aws.ecs due to circularity
+                else Path(os.getenv("TEMP_DIR", default="/tmp")).joinpath("validation_errors").as_uri()
+            )
             error_file = os.path.join(
-                data_validation_errors.s3_uri,
+                bucket_path,
                 self.default_data["process_name"],
                 str(self.default_data["uuid"]) + ".parquet",
             )
