@@ -55,8 +55,6 @@ bus_schema = pyarrow.schema(
         ("tm_actual_arrival_time_sam", pyarrow.int64()),
         ("tm_actual_departure_time_sam", pyarrow.int64()),
         ("tm_planned_sequence_end", pyarrow.int64()),
-        ("tm_point_type", pyarrow.large_string()),
-        ("is_full_trip", pyarrow.bool_()),
         ("timepoint_abbr", pyarrow.large_string()),
         ("timepoint_name", pyarrow.large_string()),
         ("schedule_joined", pyarrow.large_string()),
