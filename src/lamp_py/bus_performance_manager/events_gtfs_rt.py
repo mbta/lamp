@@ -268,7 +268,6 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
 
     valid = logger.log_dataframely_filter_results(*GTFSEvents.filter(vehicle_events))
 
-
     logger.log_complete()
 
     return valid
