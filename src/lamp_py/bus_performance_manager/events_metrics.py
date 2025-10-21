@@ -178,7 +178,11 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                 .shift()
                 .over(
                     ["service_date", "stop_id", "direction_id", "route_id"],
-                    order_by="stop_sequence",
+                    order_by=pl.coalesce(
+                        "stop_departure_dt",
+                        "stop_arrival_dt",
+                        "gtfs_last_in_transit_dt",
+                    ),
                 )
             ).alias("route_direction_headway_seconds"),
             (
@@ -188,7 +192,11 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     .shift()
                     .over(
                         ["service_date", "stop_id", "direction_destination"],
-                        order_by="stop_sequence",
+                        order_by=pl.coalesce(
+                            "stop_departure_dt",
+                            "stop_arrival_dt",
+                            "gtfs_last_in_transit_dt",
+                        ),
                     )
                 )
             ).alias("direction_destination_headway_seconds"),
