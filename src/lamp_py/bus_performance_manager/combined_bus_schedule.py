@@ -9,6 +9,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class CombinedSchedule(TransitMasterSchedule):
     "Union of GTFS and TransitMaster bus schedules."
+    checkpoint_id = dy.String(nullable=True)
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     trip_id = dy.String(nullable=False, primary_key=False)
     block_id = dy.String(nullable=True)
