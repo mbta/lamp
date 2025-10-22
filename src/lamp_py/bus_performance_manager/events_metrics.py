@@ -22,8 +22,8 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     gtfs_first_in_transit_seconds = dy.Int64(nullable=True)
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
-    travel_time_seconds = dy.Int64(nullable=True)
-    stopped_duration_seconds = dy.Int64(nullable=True)
+    travel_time_seconds = dy.Int64(nullable=True, min=0)
+    stopped_duration_seconds = dy.Int64(nullable=True, min=0)
     route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
     direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
 
@@ -53,6 +53,20 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
             .over(
                 partition_by=["service_date", "trip_id", "vehicle_label"],
                 order_by="stop_sequence",
+            )
+        )
+
+    @dy.rule(group_by=["service_date", "trip_id", "vehicle_label"])
+    def travel_time_plus_stopped_duration_equals_total_trip() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Summing the travel times and the stopped duration is equivalent to the total time from first arrival/departure to last arrival."
+        return (
+            pl.sum_horizontal("travel_time_seconds", "stopped_duration_seconds")
+            .sum()
+            .eq(
+                (
+                    pl.coalesce("stop_departure_dt", "stop_arrival_dt").max()
+                    - pl.coalesce("stop_arrival_dt", "stop_departure_dt").min()
+                ).dt.total_seconds()
             )
         )
 
@@ -113,7 +127,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
     enriched_bus_df = (
         bus_df.with_columns(
             (  # for departure times
-                pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
+                pl.when(pl.col("stop_sequence").eq(pl.lit(1)))  # startpoints
                 .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
                 .otherwise(  # midpoints + endpoints
                     pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
@@ -134,7 +148,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             .alias("previous_stop_id"),
         )
         .with_columns(
-            pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_end")))  # for endpoints
+            pl.when(pl.col("stop_sequence").eq(pl.col("stop_count")))  # for endpoints
             .then(pl.col("stop_arrival_dt"))  # set departure equal to arrival
             .otherwise(pl.col("stop_departure_dt"))
             .alias("stop_departure_dt"),
@@ -147,6 +161,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                         pl.col(c),  # the column
                         pl.max_horizontal("stop_departure_dt", "stop_arrival_dt", "gtfs_last_in_transit_dt")
                         .cum_max()  # the highest previous value of departure/arrival/travel_to dt
+                        .fill_null(strategy="forward")
                         .shift()
                         .over(
                             partition_by=["service_date", "trip_id", "vehicle_label"],
@@ -168,9 +183,14 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
         # add metrics columns to events
         .with_columns(
             (
-                pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"])
-                - pl.col("gtfs_first_in_transit_seconds")
-            ).alias("travel_time_seconds"),
+                pl.coalesce(["stop_arrival_dt", "stop_departure_dt"])
+                - pl.coalesce("stop_departure_dt", "stop_arrival_dt")
+                .fill_null(strategy="forward")
+                .shift()
+                .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by="stop_sequence")
+            )
+            .dt.total_seconds()
+            .alias("travel_time_seconds"),
             (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
                 pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
