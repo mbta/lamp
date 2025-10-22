@@ -132,5 +132,5 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
             if latest_schema != prior_schema:
                 write_bus_metrics(start_date=start_day, end_date=today, **debug_flags)
                 regenerate_days = True
-            regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days)
+            regenerate_bus_metrics_logger.add_metadata(regenerated=regenerate_days, start_date=prior_path, end_date=latest_path)
             regenerate_bus_metrics_logger.log_complete()
