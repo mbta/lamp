@@ -15,23 +15,46 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     "Bus events enriched with derived operational metrics."
-    gtfs_sort_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     previous_stop_id = dy.String(nullable=True)
     stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_travel_to_seconds = dy.Int64(nullable=True)
+    gtfs_first_in_transit_seconds = dy.Int64(nullable=True)
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
     stopped_duration_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True)
-    direction_destination_headway_seconds = dy.Int64(nullable=True)
+    route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
+    direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
 
     @dy.rule()
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
         "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
+
+    @dy.rule()
+    def stop_sequence_implies_arrival_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop arrival increases monotonically with stop sequence."
+        return pl.col("stop_arrival_dt").ge(  # dt for current stop  # greater than
+            pl.col("stop_arrival_dt")  # dt for last stop
+            .shift(1)
+            .over(
+                partition_by=["service_date", "trip_id", "vehicle_label"],
+                order_by="stop_sequence",
+            )
+        )
+
+    @dy.rule()
+    def stop_sequence_implies_departure_order() -> pl.Expr:  # pylint: disable=no-method-argument
+        "Stop departure increase monotonically with stop sequence."
+        return pl.col("stop_departure_dt").ge(  # dt for current stop  # greater than
+            pl.col("stop_departure_dt")  # dt for last stop
+            .shift(1)
+            .over(
+                partition_by=["service_date", "trip_id", "vehicle_label"],
+                order_by="stop_sequence",
+            )
+        )
 
 
 def bus_performance_metrics(
@@ -89,10 +112,9 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
 
     enriched_bus_df = (
         bus_df.with_columns(
-            pl.coalesce(["gtfs_travel_to_dt", "gtfs_arrival_dt"]).alias("gtfs_sort_dt"),
             (  # for departure times
                 pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
-                .then(pl.col("gtfs_departure_dt"))
+                .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
                 .otherwise(  # midpoints + endpoints
                     pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
                 )
@@ -107,7 +129,7 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             .shift(1)
             .over(
                 ["vehicle_label", "trip_id"],
-                order_by="gtfs_sort_dt",
+                order_by="stop_sequence",
             )
             .alias("previous_stop_id"),
         )
@@ -118,23 +140,49 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
             .alias("stop_departure_dt"),
         )
         .with_columns(
-            (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
+            *[  # force the stop_departure_dt & stop_arrival_dt in order with other stops in the trip by
+                pl.when(pl.col(c).is_not_null())  # if the departure/arrival time isn't null
+                .then(
+                    pl.max_horizontal(  # take the max of
+                        pl.col(c),  # the column
+                        pl.max_horizontal("stop_departure_dt", "stop_arrival_dt", "gtfs_last_in_transit_dt")
+                        .cum_max()  # the highest previous value of departure/arrival/travel_to dt
+                        .shift()
+                        .over(
+                            partition_by=["service_date", "trip_id", "vehicle_label"],
+                            order_by="stop_sequence",
+                        ),
+                    )
+                )  # otherwise leave the departure/arrival time null
+                .alias(c)
+                for c in ["stop_departure_dt", "stop_arrival_dt"]
+            ]
+        )
+        .with_columns(
+            (pl.col("gtfs_first_in_transit_dt") - pl.col("service_date"))
+            .dt.total_seconds()
+            .alias("gtfs_first_in_transit_seconds"),
             (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
             (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
         )
         # add metrics columns to events
         .with_columns(
-            (pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"]) - pl.col("gtfs_travel_to_seconds")).alias(
-                "travel_time_seconds"
-            ),
+            (
+                pl.coalesce(["stop_arrival_seconds", "stop_departure_seconds"])
+                - pl.col("gtfs_first_in_transit_seconds")
+            ).alias("travel_time_seconds"),
             (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
                 pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                 - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                 .shift()
                 .over(
-                    ["stop_id", "direction_id", "route_id"],
-                    order_by="gtfs_sort_dt",
+                    ["service_date", "stop_id", "direction_id", "route_id"],
+                    order_by=pl.coalesce(
+                        "stop_departure_dt",
+                        "stop_arrival_dt",
+                        "gtfs_last_in_transit_dt",
+                    ),
                 )
             ).alias("route_direction_headway_seconds"),
             (
@@ -143,14 +191,18 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
                     pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
                     .shift()
                     .over(
-                        ["stop_id", "direction_destination"],
-                        order_by="gtfs_sort_dt",
+                        ["service_date", "stop_id", "direction_destination"],
+                        order_by=pl.coalesce(
+                            "stop_departure_dt",
+                            "stop_arrival_dt",
+                            "gtfs_last_in_transit_dt",
+                        ),
                     )
                 )
             ).alias("direction_destination_headway_seconds"),
         )
         # sort to reduce parquet file size
-        .sort(["route_id", "vehicle_label", "gtfs_sort_dt"])
+        .sort(["route_id", "vehicle_label", "stop_sequence"])
     )
 
     valid = process_logger.log_dataframely_filter_results(*BusPerformanceMetrics.filter(enriched_bus_df))

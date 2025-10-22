@@ -17,19 +17,13 @@ class GTFSEvents(BusBaseSchema):
     service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
-    stop_id = dy.String(primary_key=True)
-    stop_sequence = dy.Int64(nullable=False, primary_key=True)
+    gtfs_stop_sequence = dy.Int64(nullable=False, primary_key=True)
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
     vehicle_label = dy.String(primary_key=True)
-    gtfs_in_transit_to_dts = dy.Struct(
-        {
-            "first_timestamp": dy.Datetime(nullable=True, time_zone="UTC"),
-            "last_timestamp": dy.Datetime(nullable=True, time_zone="UTC"),
-        },
-        nullable=True,
-    )
+    gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     latitude = dy.Float64(nullable=True)
@@ -38,7 +32,7 @@ class GTFSEvents(BusBaseSchema):
     @dy.rule()
     def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
         "The bus should always have a departure time from the first stop."
-        return pl.when(pl.col("stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_departure_dt").is_not_null())
+        return pl.when(pl.col("gtfs_stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_departure_dt").is_not_null())
 
 
 def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
@@ -220,16 +214,25 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
     )
 
     vehicle_events = (
-        vehicle_positions.with_columns(
+        vehicle_positions.filter(  # remove out-of-order records:
+            pl.col("stop_sequence")  # stop sequence must be
+            <= pl.col("stop_sequence")  # less than or equal to
+            .cum_min(reverse=True)  # minimum of this record and all following
+            .over(
+                partition_by=["trip_id", "vehicle_label"], order_by="vehicle_timestamp"
+            ),  # within each trip-vehicle pair, ordered by timestamp
+        )
+        .with_columns(
             pl.col("vehicle_timestamp").dt.replace_time_zone("UTC", ambiguous="earliest"),
             pl.col("service_date").str.to_date("%Y%m%d").alias("service_date"),
             pl.col("start_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64).alias("start_time"),
+            pl.col("stop_sequence").alias("gtfs_stop_sequence"),
         )
         .group_by(
             "service_date",
             "trip_id",
-            "stop_sequence",
             "vehicle_label",
+            "gtfs_stop_sequence",
             # the rest of these are included not because they change the group but to preserve them in the output
             "route_id",
             "stop_id",
@@ -238,16 +241,14 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
             "vehicle_id",
         )
         .agg(
-            pl.struct(
-                pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
-                .then(pl.col("vehicle_timestamp"))
-                .min()
-                .alias("first_timestamp"),
-                pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
-                .then(pl.col("vehicle_timestamp"))
-                .max()
-                .alias("last_timestamp"),
-            ).alias("gtfs_in_transit_to_dts"),
+            pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
+            .then(pl.col("vehicle_timestamp"))
+            .min()
+            .alias("gtfs_first_in_transit_dt"),
+            pl.when(pl.col("current_status") == "IN_TRANSIT_TO")
+            .then(pl.col("vehicle_timestamp"))
+            .max()
+            .alias("gtfs_last_in_transit_dt"),
             pl.when(pl.col("current_status") == "STOPPED_AT")
             .then(pl.col("vehicle_timestamp"))
             .min()
@@ -261,7 +262,7 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         )
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
-            pl.col("stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
+            pl.col("gtfs_stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
         )
         .select(GTFSEvents.column_names())
     )
