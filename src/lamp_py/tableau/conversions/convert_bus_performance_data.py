@@ -43,11 +43,13 @@ def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
     polars_df = polars_df.with_columns(
         pl.col("stop_arrival_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("stop_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
-        pl.col("gtfs_travel_to_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
+        pl.col("gtfs_first_in_transit_dt")
+        .dt.convert_time_zone(time_zone="America/New_York")
+        .dt.replace_time_zone(None),
+        pl.col("gtfs_last_in_transit_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("tm_scheduled_time_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("tm_actual_arrival_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("tm_actual_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
-        pl.col("gtfs_sort_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("gtfs_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("gtfs_arrival_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("plan_start_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
@@ -56,7 +58,9 @@ def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
 
     # Convert seconds columns to be aligned with Eastern Time
     polars_df = polars_df.with_columns(
-        (pl.col("gtfs_travel_to_dt") - pl.col("service_date")).dt.total_seconds().alias("gtfs_travel_to_seconds"),
+        (pl.col("gtfs_first_in_transit_dt") - pl.col("service_date"))
+        .dt.total_seconds()
+        .alias("gtfs_first_in_transit_seconds"),
         (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
         (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
     )

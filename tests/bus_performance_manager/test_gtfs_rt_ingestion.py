@@ -72,26 +72,6 @@ VP_SCHEMA = {
     "longitude": pl.Float64,
 }
 
-# schema for vehicle events dataframes
-VE_SCHEMA = {
-    "service_date": pl.String,
-    "route_id": pl.String,
-    "trip_id": pl.String,
-    "start_time": pl.Int64,
-    "start_dt": pl.Datetime,
-    "stop_count": pl.UInt32,
-    "direction_id": pl.Int8,
-    "stop_id": pl.String,
-    "stop_sequence": pl.Int64,
-    "vehicle_id": pl.String,
-    "vehicle_label": pl.String,
-    "current_status": pl.String,
-    "gtfs_travel_to_dt": pl.Datetime,
-    "gtfs_arrival_dt": pl.Datetime,
-    "latitude": pl.Float64,
-    "longitude": pl.Float64,
-}
-
 
 @mock.patch("lamp_py.utils.gtfs_utils.object_exists")
 def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
@@ -121,7 +101,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
         assert event["direction_id"] == 0
 
         if event["stop_id"] == "173":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=1, second=19, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] == datetime(
@@ -129,7 +109,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
             )
 
         if event["stop_id"] == "655":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=50, second=31, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] == datetime(
@@ -137,7 +117,7 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
             )
 
         if event["stop_id"] == "903":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=13, minute=3, second=39, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] == datetime(
@@ -158,13 +138,13 @@ def test_gtfs_rt_to_bus_events(exists_patch: mock.MagicMock) -> None:
 
         # no arrival time at this stop
         if event["stop_id"] == "12005":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=47, second=23, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] is None
 
         if event["stop_id"] == "17091":
-            assert event["gtfs_in_transit_to_dts"]["first_timestamp"] == datetime(
+            assert event["gtfs_first_in_transit_dt"] == datetime(
                 year=2024, month=6, day=1, hour=12, minute=52, second=41, tzinfo=timezone.utc
             )
             assert event["gtfs_arrival_dt"] is None
@@ -471,7 +451,7 @@ def test_dy_first_stop_has_departure_dt(
     df = GTFSEvents.sample(
         num_rows=1,
         generator=dy_gen,
-        overrides={"stop_sequence": [randint(min_stop_sequence, max_stop_sequence)]},
+        overrides={"gtfs_stop_sequence": [randint(min_stop_sequence, max_stop_sequence)]},
     ).with_columns(
         gtfs_departure_dt=dy_gen.sample_datetime(
             min=datetime(2000, 1, 1), max=datetime(2100, 12, 31), null_probability=int(null), time_zone="UTC"
