@@ -35,9 +35,9 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     @dy.rule()
     def stop_sequence_implies_arrival_order() -> pl.Expr:  # pylint: disable=no-method-argument
         "Stop arrival increases monotonically with stop sequence."
-        return pl.col("stop_arrival_dt").ge(  # dt for current stop  # greater than
-            pl.col("stop_arrival_dt")  # dt for last stop
-            .shift(1)
+        return pl.col("stop_arrival_dt").ge(  # dt for current stop greater or equal than
+            pl.col("stop_arrival_dt")  # dt for
+            .shift(1)  # last stop
             .over(
                 partition_by=["service_date", "trip_id", "vehicle_label"],
                 order_by="stop_sequence",
