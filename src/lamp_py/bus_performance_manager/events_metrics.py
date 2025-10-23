@@ -22,8 +22,8 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     gtfs_first_in_transit_seconds = dy.Int64(nullable=True)
     stop_arrival_seconds = dy.Int64(nullable=True)
     stop_departure_seconds = dy.Int64(nullable=True)
-    travel_time_seconds = dy.Int64(nullable=True, min=0)
-    stopped_duration_seconds = dy.Int64(nullable=True, min=0)
+    travel_time_seconds = dy.Int64(nullable=True)
+    stopped_duration_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
     direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
 
