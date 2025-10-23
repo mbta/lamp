@@ -1,4 +1,4 @@
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-positional-arguments
 from contextlib import nullcontext
 from datetime import datetime, date
 
