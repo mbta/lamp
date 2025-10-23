@@ -79,6 +79,7 @@ def start() -> None:
         required_variables=[
             "SPRINGBOARD_BUCKET",
             "PUBLIC_ARCHIVE_BUCKET",
+            "ERROR_BUCKET",
             "SERVICE_NAME",
         ],
     )
