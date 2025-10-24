@@ -83,13 +83,13 @@ def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
 
     hyper_jobs: List[HyperJob] = [
-        HyperBusPerformanceAll(),
+        # HyperBusPerformanceAll(),
         # HyperBusPerformanceRecent(),
         # HyperDevGreenGtfsRtTripUpdates,
         # HyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtTripUpdatesHeavyRail,
-        # TestHyperGtfsRtTripUpdates,
-        # TestHyperDevGreenGtfsRtTripUpdates,
+        TestHyperGtfsRtTripUpdates,
+        TestHyperDevGreenGtfsRtTripUpdates,
         # TestHyperDevGreenGtfsRtVehiclePositions,
     ]
 
