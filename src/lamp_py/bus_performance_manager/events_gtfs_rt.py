@@ -263,6 +263,9 @@ def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEve
         .with_columns(
             (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds=pl.col("start_time"))).alias("start_dt"),
             pl.col("gtfs_stop_sequence").count().over(partition_by=["trip_id", "vehicle_id"]).alias("stop_count"),
+            pl.min_horizontal("gtfs_last_in_transit_dt", "gtfs_arrival_dt").alias(
+                "gtfs_last_in_transit_dt"
+            ),  # cap last_in_transit_dt at arrival_dt
         )
         .select(GTFSEvents.column_names())
     )
