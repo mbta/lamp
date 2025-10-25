@@ -41,7 +41,7 @@ class TripUpdates(dy.Schema):
     departure_delay = dy.Int32(nullable=True, alias="trip_update.stop_time_update.departure.delay")
 
 
-class LightRailTerminalTripUpdates(TripUpdates):
+class LightRailTerminalTripUpdates(dy.Schema):
     "Analytical dataset for LRTP dashboards."
     stop_id = dy.String(
         nullable=True,
