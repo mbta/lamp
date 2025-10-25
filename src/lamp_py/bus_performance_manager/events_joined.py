@@ -12,7 +12,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
-    stop_sequence = dy.UInt32(primary_key=True, min=1)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -157,10 +156,6 @@ def join_rt_to_schedule(
         )
         .with_columns(
             pl.coalesce("vehicle_label", pl.lit("____")).alias("vehicle_label"),
-            pl.col("tm_stop_sequence")
-            .fill_null(strategy="forward")
-            .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by=["gtfs_stop_sequence"])
-            .alias("tm_filled_stop_sequence"),
             pl.coalesce(
                 pl.col("service_date"),
                 pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
@@ -177,12 +172,6 @@ def join_rt_to_schedule(
             ).alias("gtfs_arrival_dt"),
             pl.col("gtfs_first_in_transit_dt"),
             pl.col("gtfs_last_in_transit_dt"),
-        )
-        .with_columns(
-            pl.struct(pl.col("tm_filled_stop_sequence"), pl.col("gtfs_stop_sequence"))
-            .rank("min")
-            .over(["service_date", "trip_id", "vehicle_label"])
-            .alias("stop_sequence"),
         )
         .select(BusEvents.column_names())
     )
