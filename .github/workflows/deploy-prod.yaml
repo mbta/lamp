@@ -4,7 +4,7 @@ on:
   # deploy when version tags are published
   push:
     tags:
-      - v[0-9]+\.[0-9]+\.[0-9]+
+      - '*'
 
 jobs:
   validate-tag:
