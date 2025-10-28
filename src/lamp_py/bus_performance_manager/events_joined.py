@@ -12,7 +12,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
-    stop_sequence = dy.UInt32(primary_key=True, min=1)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -157,33 +156,19 @@ def join_rt_to_schedule(
         )
         .with_columns(
             pl.coalesce("vehicle_label", pl.lit("____")).alias("vehicle_label"),
-            pl.col("tm_stop_sequence")
-            .fill_null(strategy="forward")
-            .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by=["gtfs_stop_sequence"])
-            .alias("tm_filled_stop_sequence"),
             pl.coalesce(
                 pl.col("service_date"),
                 pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
                 .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
                 .otherwise(pl.col("plan_start_dt").dt.date()),
             ).alias("service_date"),
-        )
-        .with_columns(
-            pl.struct(pl.col("tm_filled_stop_sequence"), pl.col("gtfs_stop_sequence"))
-            .rank("min")
-            .over(["service_date", "trip_id", "vehicle_label"])
-            .alias("stop_sequence")
-        )
-        .with_columns(
             pl.col("stop_sequence")
             .max()
             .over(partition_by=["service_date", "trip_id", "vehicle_label"])
-            .alias("stop_count")
-        )
-        .with_columns(
+            .alias("stop_count"),
             pl.coalesce(
                 pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
-                pl.when(pl.col("stop_sequence").eq(pl.col("stop_count"))).then(  # and it's the last stop on the route
+                pl.when(pl.col("point_type").eq(pl.lit("end"))).then(  # and it's the last stop on the route
                     pl.col("gtfs_last_in_transit_dt")
                 ),  # use the last IN_TRANSIT_TO datetime
             ).alias("gtfs_arrival_dt"),
