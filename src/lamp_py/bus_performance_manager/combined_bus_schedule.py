@@ -11,7 +11,7 @@ class CombinedSchedule(TransitMasterSchedule):
     "Union of GTFS and TransitMaster bus schedules."
     checkpoint_id = dy.String(nullable=True)
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    trip_id = dy.String(nullable=False, primary_key=False)
+    stop_sequence = dy.UInt32(primary_key=True, min=1)
     block_id = dy.String(nullable=True)
     service_id = dy.String(nullable=True)
     route_pattern_id = dy.String(nullable=True)
@@ -33,6 +33,7 @@ class CombinedSchedule(TransitMasterSchedule):
     tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = dy.Int64(nullable=True)
     tm_gtfs_sequence_diff = dy.Int64(nullable=True)
+    point_type = dy.String(nullable=True)
 
 
 # pylint: disable=R0801
@@ -131,9 +132,34 @@ def join_tm_schedule_to_gtfs_schedule(
     )
     schedule = schedule.remove(
         pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
-    ).select(CombinedSchedule.column_names())
+    )
 
-    valid = process_logger.log_dataframely_filter_results(*CombinedSchedule.filter(schedule, cast=True))
+    schedule = (
+        schedule.with_columns(
+            pl.col("tm_stop_sequence")
+            .fill_null(strategy="forward")
+            .over(partition_by=["trip_id"], order_by=["gtfs_stop_sequence"])
+            .alias("tm_filled_stop_sequence")
+        )
+        .with_columns(
+            pl.struct(pl.col("tm_filled_stop_sequence"), pl.col("gtfs_stop_sequence"))
+            .rank("min")
+            .over(["trip_id"])
+            .alias("stop_sequence"),
+        )
+        .with_columns(
+            pl.when(pl.col("stop_sequence").eq(1))
+            .then(pl.lit("start"))
+            .when(pl.col("stop_sequence").eq(pl.col("stop_sequence").max().over(partition_by="trip_id")))
+            .then(pl.lit("end"))
+            .when(pl.coalesce("checkpoint_id", "timepoint_abbr").is_not_null())
+            .then(pl.lit("mid"))
+            .alias("point_type")
+        )
+        .select(CombinedSchedule.column_names())
+    )
+
+    valid = process_logger.log_dataframely_filter_results(*CombinedSchedule.filter(schedule))
 
     process_logger.log_complete()
 
