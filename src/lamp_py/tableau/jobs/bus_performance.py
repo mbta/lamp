@@ -86,6 +86,8 @@ bus_schema = pyarrow.schema(
         ("direction_destination_headway_seconds", pyarrow.int64()),
         ("gtfs_departure_dt", pyarrow.timestamp("us")),
         ("gtfs_arrival_dt", pyarrow.timestamp("us")),
+        ("is_full_trip", pyarrow.bool_()),
+        ("point_type", pyarrow.large_string()),
     ]
 )
 
