@@ -33,7 +33,7 @@ class CombinedSchedule(TransitMasterSchedule):
     tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = dy.Int64(nullable=True)
     tm_gtfs_sequence_diff = dy.Int64(nullable=True)
-    point_type = dy.String(nullable = True)
+    point_type = dy.String(nullable=True)
 
 
 # pylint: disable=R0801
@@ -148,9 +148,12 @@ def join_tm_schedule_to_gtfs_schedule(
             .alias("stop_sequence"),
         )
         .with_columns(
-            pl.when(pl.col("stop_sequence").eq(1).then("start"))
-            .when(pl.col("stop_sequence").eq(pl.col("stop_sequence").max().over(partition_by = "trip_id"))).then("end")
-            .when(pl.coalesce("checkpoint_id", "timepoint_abbr").is_not_null()).then("mid")
+            pl.when(pl.col("stop_sequence").eq(1))
+            .then(pl.lit("start"))
+            .when(pl.col("stop_sequence").eq(pl.col("stop_sequence").max().over(partition_by="trip_id")))
+            .then(pl.lit("end"))
+            .when(pl.coalesce("checkpoint_id", "timepoint_abbr").is_not_null())
+            .then(pl.lit("mid"))
             .alias("point_type")
         )
         .select(CombinedSchedule.column_names())

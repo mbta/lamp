@@ -26,7 +26,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stopped_duration_seconds = dy.Int64(nullable=True)
     route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
     direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
-    point_type = dy.Bool(nullable = True)
+    is_full_trip = dy.Bool(nullable=True)
 
     @dy.rule()
     def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
@@ -114,13 +114,12 @@ def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFr
     enriched_bus_df = (
         bus_df.with_columns(
             pl.when(
-                pl.col("point_type")
-                .eq("start")
-                .any().over(partition_by = "trip_id", "vehicle_id") &
-                pl.col("point_type")
-                .eq("end")
-                .any().over(partition_by = "trip_id", "vehicle_id")
-            ).then(pl.lit(True)).otherwise(pl.lit(False)).alias("is_full_trip"),
+                pl.col("point_type").eq(pl.lit("start")).any().over(partition_by=["trip_id", "vehicle_id"])
+                & pl.col("point_type").eq(pl.lit("end")).any().over(partition_by=["trip_id", "vehicle_id"])
+            )
+            .then(pl.lit(True))
+            .otherwise(pl.lit(False))
+            .alias("is_full_trip"),
             (  # for departure times
                 pl.when(pl.col("tm_stop_sequence").eq(pl.col("tm_planned_sequence_start")))  # startpoints
                 .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
