@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Dict, list
+from typing import Optional, Dict, List
 from datetime import timedelta, date
 
 import polars as pl
@@ -96,7 +96,7 @@ def vehicle_position_files_as_frame() -> pl.DataFrame:
     return pl.concat([vp_unshifted, vp_shifted])
 
 
-def transit_master_files_as_frame() -> pl.DataFrame:
+def transit_master_stop_crossing_events_files_as_frame() -> pl.DataFrame:
     """
     :return dataframe:
         s3_obj_path -> String
@@ -118,7 +118,35 @@ def transit_master_files_as_frame() -> pl.DataFrame:
             (pl.col("s3_obj_path").map_elements(service_date_from_filename, return_dtype=pl.Date)).alias(
                 "service_date"
             ),
-            pl.lit("transit_master").alias("source"),
+            pl.lit("transit_master_stop_crossing").alias("source"),
+        )
+        .filter(pl.col("service_date").is_not_null())
+    )
+
+
+def daily_work_piece_files_as_frame() -> pl.DataFrame:
+    """
+    :return dataframe:
+        s3_obj_path -> String
+        size_bytes -> Int64
+        last_modified -> Datetime
+        service_date -> Date
+        source -> String
+    """
+    # pull all of the transit master files from s3 along with their last
+    # modified datetime. convert to a dataframe and generate a service date
+    # from the filename. add a source column for later merging.
+    work_piece_objects = file_list_from_s3_with_details(
+        bucket_name=tm_daily_work_piece.bucket,
+        file_prefix=tm_daily_work_piece.prefix,
+    )
+    return (
+        pl.DataFrame(work_piece_objects)
+        .with_columns(
+            (pl.col("s3_obj_path").map_elements(service_date_from_filename, return_dtype=pl.Date)).alias(
+                "service_date"
+            ),
+            pl.lit("transit_master_daily_work_piece").alias("source"),
         )
         .filter(pl.col("service_date").is_not_null())
     )
@@ -146,15 +174,17 @@ def event_files_to_load(start_date: Optional[date], end_date: Optional[date]) ->
     :return {
         datetime.date (service date): {
             'gtfs_rt': list[str] - s3 filepaths for vehicle position files,
-            'transit_master': list[str] - s3 filepath for tm files,
+            'transit_master_stop_crossing': list[str] - s3 filepath for tm files - stop events,
+            'transit_master_daily_work_piece': list[str] - s3 filepath for daily work piece tm files - operator and run id,
         }
     }
     """
     vp_df = vehicle_position_files_as_frame()
-    tm_df = transit_master_files_as_frame()
+    tm_df = transit_master_stop_crossing_events_files_as_frame()
+    wp_df = daily_work_piece_files_as_frame()
 
     # a merged dataframe of all files to operate on
-    all_files = pl.concat([vp_df, tm_df])
+    all_files = pl.concat([vp_df, tm_df, wp_df])
     if start_date is not None:
         all_files = all_files.filter((pl.col("service_date") >= start_date))
     if end_date is not None:
@@ -177,7 +207,7 @@ def event_files_to_load(start_date: Optional[date], end_date: Optional[date]) ->
     all_files = all_files.group_by(["service_date", "source"]).agg([pl.col("s3_obj_path")])
 
     return_dict: Dict[date, Dict[str, List[str]]] = {
-        date: {"gtfs_rt": [], "transit_master": []} for date in all_files.get_column("service_date").unique()
+        date: {"gtfs_rt": [], "transit_master_stop_crossing": [], "transit_master_daily_work_piece": []} for date in all_files.get_column("service_date").unique()
     }
     for row in all_files.iter_rows(named=True):
         return_dict[row["service_date"]].update({row["source"]: row["s3_obj_path"]})

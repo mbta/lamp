@@ -43,7 +43,7 @@ def write_bus_metrics(
 
     for service_date in event_files.keys():
         gtfs_files = event_files[service_date]["gtfs_rt"]
-        tm_files = event_files[service_date]["transit_master"]
+        tm_files = event_files[service_date]["transit_master_stop_crossing"]
 
         day_logger = ProcessLogger(
             "write_bus_metrics_day",
