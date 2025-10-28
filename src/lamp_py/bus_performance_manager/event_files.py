@@ -207,7 +207,8 @@ def event_files_to_load(start_date: Optional[date], end_date: Optional[date]) ->
     all_files = all_files.group_by(["service_date", "source"]).agg([pl.col("s3_obj_path")])
 
     return_dict: Dict[date, Dict[str, List[str]]] = {
-        date: {"gtfs_rt": [], "transit_master_stop_crossing": [], "transit_master_daily_work_piece": []} for date in all_files.get_column("service_date").unique()
+        date: {"gtfs_rt": [], "transit_master_stop_crossing": [], "transit_master_daily_work_piece": []}
+        for date in all_files.get_column("service_date").unique()
     }
     for row in all_files.iter_rows(named=True):
         return_dict[row["service_date"]].update({row["source"]: row["s3_obj_path"]})
