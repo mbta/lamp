@@ -91,7 +91,7 @@ def write_bus_metrics(
             else:
                 with tempfile.TemporaryDirectory() as tempdir:
                     events_df.write_parquet(os.path.join(tempdir, output_filepath_bus_metrics), use_pyarrow=True)
-                    output_filepath_operator_mapping.write_parquet(
+                    operator_id_mapping.write_parquet(
                         os.path.join(tempdir, output_filepath_operator_mapping), use_pyarrow=True
                     )
 
