@@ -5,10 +5,12 @@ from typing import Optional
 
 import pyarrow.parquet as pq
 
+from lamp_py.bus_performance_manager.combine_schedule_and_operator import combine_schedule_and_run_id_operator_id
 from lamp_py.bus_performance_manager.event_files import event_files_to_load, service_date_from_filename
 from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
+from lamp_py.bus_performance_manager.events_tm import get_daily_work_pieces
 from lamp_py.runtime_utils.lamp_exception import LampExpectedNotFoundError, LampInvalidProcessingError
-from lamp_py.runtime_utils.remote_files import bus_events
+from lamp_py.runtime_utils.remote_files import bus_events, bus_operator_mapping
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import get_last_modified_object, upload_file
@@ -44,12 +46,14 @@ def write_bus_metrics(
     for service_date in event_files.keys():
         gtfs_files = event_files[service_date]["gtfs_rt"]
         tm_files = event_files[service_date]["transit_master_stop_crossing"]
+        tm_files_work_pieces = event_files[service_date]["transit_master_daily_work_piece"]
 
         day_logger = ProcessLogger(
             "write_bus_metrics_day",
             service_date=service_date,
             gtfs_file_count=len(gtfs_files),
             tm_file_count=len(tm_files),
+            tm_work_piece=len(tm_files_work_pieces),
         )
         day_logger.log_start()
 
@@ -59,27 +63,48 @@ def write_bus_metrics(
             continue
 
         if len(tm_files) == 0:
-            day_logger.log_failure(FileNotFoundError(f"No TransitMaster files found for {service_date}"))
+            day_logger.log_warning(FileNotFoundError(f"No TransitMaster files found for {service_date}"))
             continue
 
+        if len(tm_files_work_pieces) == 0:
+            day_logger.log_warning(FileNotFoundError(f"No Daily Work Piece files found for {service_date}"))
+            continue
+
+        # do bus events
         try:
             events_df = bus_performance_metrics(service_date, gtfs_files, tm_files, **debug_flags)
+            daily_work = get_daily_work_pieces(tm_files_work_pieces)
+
             day_logger.add_metadata(bus_performance_rows=events_df.shape[0])
 
-            write_file = f"{service_date.strftime('%Y%m%d')}.parquet"
+            if daily_work.height > 0:
+                events_df, operator_id_mapping = combine_schedule_and_run_id_operator_id(events_df, daily_work)
+
+            output_filepath_bus_metrics = f"{service_date.strftime('%Y%m%d')}.parquet"
+            output_filepath_operator_mapping = f"operator_map_pii_{service_date.strftime('%Y%m%d')}.parquet"
 
             if debug_flags.get("write_local_only"):
-                events_df.write_parquet(os.path.join("/tmp/", write_file), use_pyarrow=True)
+                events_df.write_parquet(os.path.join("/tmp/", output_filepath_bus_metrics), use_pyarrow=True)
+                operator_id_mapping.write_parquet(
+                    os.path.join("/tmp/", output_filepath_operator_mapping), use_pyarrow=True
+                )
             else:
                 with tempfile.TemporaryDirectory() as tempdir:
-                    events_df.write_parquet(os.path.join(tempdir, write_file), use_pyarrow=True)
-
-                    upload_file(
-                        file_name=os.path.join(tempdir, write_file),
-                        object_path=os.path.join(bus_events.s3_uri, write_file),
-                        extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
+                    events_df.write_parquet(os.path.join(tempdir, output_filepath_bus_metrics), use_pyarrow=True)
+                    output_filepath_operator_mapping.write_parquet(
+                        os.path.join(tempdir, output_filepath_operator_mapping), use_pyarrow=True
                     )
 
+                    upload_file(
+                        file_name=os.path.join(tempdir, output_filepath_bus_metrics),
+                        object_path=os.path.join(bus_events.s3_uri, output_filepath_bus_metrics),
+                        extra_args={"Metadata": {VERSION_KEY: bus_events.version}},
+                    )
+                    upload_file(
+                        file_name=os.path.join(tempdir, output_filepath_operator_mapping),
+                        object_path=os.path.join(bus_operator_mapping.s3_uri, output_filepath_operator_mapping),
+                        extra_args={"Metadata": {VERSION_KEY: bus_operator_mapping.version}},
+                    )
         except LampExpectedNotFoundError as exception:
             # service_date not found = ExpectedNotFound
             day_logger.add_metadata(skipped_day=exception)
