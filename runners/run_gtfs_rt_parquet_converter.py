@@ -1,6 +1,7 @@
 import os
 from typing import List
 
+from lamp_py.bus_performance_manager.combine_schedule_and_operator import TMDailyWorkPieceOperatorMap
 from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
@@ -22,6 +23,7 @@ from lamp_py.runtime_utils.remote_files import (
     springboard_devgreen_rt_vehicle_positions,
     springboard_devgreen_rt_trip_updates,
     springboard_rt_trip_updates,
+    bus_operator_mapping,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_heavyrail_30_day,
@@ -29,6 +31,8 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_all_light_rail_7_day,
+    tableau_bus_operator_mapping_all,
+    tableau_bus_operator_mapping_recent,
 )
 
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
@@ -145,6 +149,16 @@ if __name__ == "__main__":
         processed_schema=convert_gtfs_rt_vehicle_position.LightRailTerminalVehiclePositions.pyarrow_schema(),
         dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_timezone_conversions,
         parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
+        tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
+    )
+
+    HyperBusOperatorMappingRecent = FilteredHyperJob(
+        remote_input_location=bus_operator_mapping,
+        remote_output_location=tableau_bus_operator_mapping_recent,
+        rollup_num_days=7,
+        processed_schema=TMDailyWorkPieceOperatorMap.pyarrow_schema(),
+        dataframe_filter=None,
+        parquet_filter=None,
         tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
     )
 
