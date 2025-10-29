@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 from typing import List
 from lamp_py.bus_performance_manager.event_files import event_files_to_load
-from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
+from lamp_py.bus_performance_manager.events_metrics import run_bus_performance_pipeline
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events
 from lamp_py.bus_performance_manager.write_events import regenerate_bus_metrics_recent, write_bus_metrics
 from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD, bus_events
