@@ -5,10 +5,8 @@ from typing import Optional
 
 import pyarrow.parquet as pq
 
-from lamp_py.bus_performance_manager.combine_schedule_and_operator import combine_schedule_and_run_id_operator_id
 from lamp_py.bus_performance_manager.event_files import event_files_to_load, service_date_from_filename
-from lamp_py.bus_performance_manager.events_metrics import bus_performance_metrics
-from lamp_py.bus_performance_manager.events_tm import get_daily_work_pieces
+from lamp_py.bus_performance_manager.events_metrics import run_bus_performance_pipeline
 from lamp_py.runtime_utils.lamp_exception import LampExpectedNotFoundError, LampInvalidProcessingError
 from lamp_py.runtime_utils.remote_files import bus_events, bus_operator_mapping
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
@@ -17,6 +15,7 @@ from lamp_py.aws.s3 import get_last_modified_object, upload_file
 from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
 
 
+# pylint: disable=R0914
 def write_bus_metrics(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -72,13 +71,11 @@ def write_bus_metrics(
 
         # do bus events
         try:
-            events_df = bus_performance_metrics(service_date, gtfs_files, tm_files, **debug_flags)
-            daily_work = get_daily_work_pieces(tm_files_work_pieces)
+            events_df, operator_id_mapping = run_bus_performance_pipeline(
+                service_date, gtfs_files, tm_files, tm_files_work_pieces, **debug_flags
+            )
 
             day_logger.add_metadata(bus_performance_rows=events_df.shape[0])
-
-            if daily_work.height > 0:
-                events_df, operator_id_mapping = combine_schedule_and_run_id_operator_id(events_df, daily_work)
 
             output_filepath_bus_metrics = f"{service_date.strftime('%Y%m%d')}.parquet"
             output_filepath_operator_mapping = f"operator_map_pii_{service_date.strftime('%Y%m%d')}.parquet"

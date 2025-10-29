@@ -1,16 +1,37 @@
-from datetime import date, datetime
+import random
+from datetime import datetime
+from typing import Tuple
 import dataframely as dy
 import polars as pl
-from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
-import random
+from lamp_py.bus_performance_manager.events_joined import BusEvents, BusEventsOperatorJoined
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
+class TMDailyWorkPiece(dy.Schema):
+    "Daily Work Piece record from TM."
+    service_date = dy.Date(nullable=False)
+    tm_block_id = dy.String(nullable=True)
+    tm_run_id = dy.String(nullable=True)
+    tm_trip_id = dy.String(nullable=True)
+    operator_badge_number = dy.String(nullable=True)
+    tm_vehicle_label = dy.String(nullable=True)
+    logon_time = dy.Datetime(nullable=True, time_zone=None)  # figure out what timezone this should be...
+    logoff_time = dy.Datetime(nullable=True, time_zone=None)
+
+
+class TMDailyWorkPieceOperatorMap(TMDailyWorkPiece):  # pylint: disable=too-many-ancestors
+    "Additional public bus operator ID"
+    public_operator_id = dy.Int64(nullable=True)
 
 
 def combine_schedule_and_run_id_operator_id(
-    bus_metrics: dy.DataFrame[BusPerformanceMetrics], daily_work: pl.DataFrame
-) -> tuple[pl.DataFrame, pl.DataFrame]:
+    bus_metrics: dy.DataFrame[BusEvents], daily_work: pl.DataFrame
+) -> Tuple[dy.DataFrame[BusEventsOperatorJoined], dy.DataFrame[TMDailyWorkPieceOperatorMap]]:
     """
     write_me
     """
+    process_logger = ProcessLogger("combine_schedule_and_run_id_operator_id")
+    process_logger.log_start()
     # create a daily unique mapping between operator badge and a randomized public identifier to tie together runs/trips and operators
     public_operator_id_map = create_public_operator_id_map(daily_work)
 
@@ -27,7 +48,16 @@ def combine_schedule_and_run_id_operator_id(
         how="left",
     ).rename({"tm_run_id": "run_id"})
 
-    return output_bus_metrics, daily_with_public_operator_id
+    valid_operator_mapping = process_logger.log_dataframely_filter_results(
+        *TMDailyWorkPieceOperatorMap.filter(daily_with_public_operator_id)
+    )
+    valid_bus_metrics = process_logger.log_dataframely_filter_results(
+        *BusEventsOperatorJoined.filter(output_bus_metrics)
+    )
+
+    process_logger.log_complete()
+
+    return valid_bus_metrics, valid_operator_mapping
 
 
 def create_public_operator_id_map(daily_work: pl.DataFrame) -> pl.DataFrame:
