@@ -55,6 +55,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
 
     # pylint: enable=no-method-argument
 
+
 # pylint: disable=R0901
 class BusEventsOperatorJoined(BusEvents):
     "Schema of bus events joined with additional joined columns from daily work pieces"
