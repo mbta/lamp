@@ -86,6 +86,8 @@ bus_schema = pyarrow.schema(
         ("direction_destination_headway_seconds", pyarrow.int64()),
         ("gtfs_departure_dt", pyarrow.timestamp("us")),
         ("gtfs_arrival_dt", pyarrow.timestamp("us")),
+        ("run_id", pyarrow.large_string()),
+        ("public_operator_id", pyarrow.int64()),
     ]
 )
 
