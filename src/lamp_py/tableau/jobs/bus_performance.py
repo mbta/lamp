@@ -142,7 +142,7 @@ class HyperBusPerformanceAll(HyperJob):
         return bus_schema
 
     def create_parquet(self, _: DatabaseManager | None) -> None:
-        self.update_parquet(None)
+        create_bus_parquet(self, BUS_ALL_NDAYS)
 
     def update_parquet(self, _: DatabaseManager | None) -> bool:
         # only run once per day after 11AM UTC
@@ -156,7 +156,7 @@ class HyperBusPerformanceAll(HyperJob):
             if now_utc.day == last_mod.day or now_utc.hour < 11:
                 return False
 
-        create_bus_parquet(self, BUS_ALL_NDAYS)
+        self.create_parquet(None)
         return True
 
 
