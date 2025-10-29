@@ -147,7 +147,7 @@ tm_pattern_geo_node_xref_file = S3Location(
 # published by LAMP
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.2")
 bus_operator_mapping = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_id_mapping"), version="1.0"
+    bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0"
 )
 
 # Kinesis stream glides events
