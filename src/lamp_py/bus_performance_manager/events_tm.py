@@ -182,9 +182,9 @@ def create_public_operator_id_map(daily_work: pl.DataFrame) -> pl.DataFrame:
     # assign a new operator_id for each trip_id in a day. as trip ids are recycled across days,
     # prepend with date to make it unique
     operator_id_mapping = (
-        daily_work.select("tm_trip_id", "operator_badge_number", "service_date")
+        daily_work.select("tm_trip_id", "operator_badge_number", "service_date").unique(subset="tm_trip_id")
         .with_columns(
-            pl.Series(random.sample(range(10000, 99999), daily_work["tm_trip_id"].len()))
+            pl.Series(random.sample(range(10000, 99999), daily_work["tm_trip_id"].unique().len()))
             .cast(pl.String)
             .alias("public_operator_id")
         )
@@ -439,7 +439,7 @@ def get_daily_work_pieces(daily_work_piece_files: List[str]) -> dy.DataFrame[TMD
 
     # join the mapping back with the daily_work dataframe to associate the public identifier with an operator
     daily_with_public_operator_id = operator_work_pieces.join(
-        public_operator_mapping, on=["operator_badge_number", "service_date"], how="left"
+        public_operator_mapping, on=["tm_trip_id", "service_date"], how="left"
     )
 
     process_logger = ProcessLogger("get_daily_work_pieces")
