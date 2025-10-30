@@ -181,37 +181,18 @@ def join_rt_to_schedule(
             pl.col("gtfs_first_in_transit_dt"),
             pl.col("gtfs_last_in_transit_dt"),
         )
+        # brings in public_operator_id
+        .join(
+            tm_operator.select("tm_trip_id", "tm_vehicle_label", "public_operator_id").unique(),
+            left_on=["trip_id", "vehicle_label"],
+            right_on=["tm_trip_id", "tm_vehicle_label"],
+            how="left",
+        )
         .select(BusEvents.column_names())
     )
-
-    schedule_gtfs_tm = combine_schedule_and_run_id_operator_id(schedule_gtfs_tm, tm_operator)
 
     valid = process_logger.log_dataframely_filter_results(*BusEvents.filter(schedule_gtfs_tm))
 
     process_logger.log_complete()
 
     return valid
-
-
-def combine_schedule_and_run_id_operator_id(
-    bus_metrics: pl.DataFrame, daily_work: dy.DataFrame[TMDailyWorkPiece]
-) -> pl.DataFrame:
-    """
-    write_me
-    """
-    process_logger = ProcessLogger("combine_schedule_and_run_id_operator_id")
-    process_logger.log_start()
-
-    # join all on trip_id and vehicle to add public_operator_id for every trip
-    output_bus_metrics = bus_metrics.join(
-        daily_work.select("tm_trip_id", "tm_vehicle_label", "public_operator_id").unique(),
-        left_on=["trip_id", "vehicle_label"],
-        right_on=["tm_trip_id", "tm_vehicle_label"],
-        how="left",
-    )
-
-    valid_bus_metrics = process_logger.log_dataframely_filter_results(*BusEvents.filter(output_bus_metrics))
-
-    process_logger.log_complete()
-
-    return valid_bus_metrics
