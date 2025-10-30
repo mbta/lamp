@@ -32,6 +32,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
     trip_id_gtfs = dy.String(nullable=True)
+    public_operator_id = dy.Int64(nullable=True)
 
     # pylint: disable=no-method-argument
 
@@ -200,15 +201,14 @@ def combine_schedule_and_run_id_operator_id(
     """
     process_logger = ProcessLogger("combine_schedule_and_run_id_operator_id")
     process_logger.log_start()
-    public_operator_id_map = create_public_operator_id_map(daily_work)
 
-    # join all on trip_id and vehicle to add run_id and public_operator_id for every trip
+    # join all on trip_id and vehicle to add public_operator_id for every trip
     output_bus_metrics = bus_metrics.join(
-        public_operator_id_map.select("tm_run_id", "tm_trip_id", "tm_vehicle_label", "public_operator_id"),
+        daily_work.select("tm_trip_id", "tm_vehicle_label", "public_operator_id").unique(),
         left_on=["trip_id", "vehicle_label"],
         right_on=["tm_trip_id", "tm_vehicle_label"],
         how="left",
-    ).rename({"tm_run_id": "run_id"})
+    )
 
     valid_bus_metrics = process_logger.log_dataframely_filter_results(*BusEvents.filter(output_bus_metrics))
 
