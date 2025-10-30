@@ -56,6 +56,7 @@ class TMDailyWorkPiece(dy.Schema):
     logoff_time = dy.Datetime(nullable=True, time_zone=None)  # seconds after midnight converted to UTC..then None
     public_operator_id = dy.Int64(nullable=True)
 
+
 def generate_tm_events(
     tm_files: List[str],
     tm_scheduled: TransitMasterTables,

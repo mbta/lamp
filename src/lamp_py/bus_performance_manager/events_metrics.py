@@ -73,8 +73,8 @@ def run_bus_performance_pipeline(
     :param gtfs_files: list of RT_VEHCILE_POSITION parquet file paths, from S3, that cover service date
     :param tm_files: list of TM/STOP_CROSSING parquet file paths, from S3, that cover service date
     :param tm_files_daily_work_pieces: list of TM/DAILY_WORK_PIECE parquet file paths, from S3, that cover service date
-    :param debug_flags: flags for debug purposes only! controlling writing of output files to local or s3. 
-    
+    :param debug_flags: flags for debug purposes only! controlling writing of output files to local or s3.
+
     :return BusEvents:
     """
     # gtfs-rt events from parquet
