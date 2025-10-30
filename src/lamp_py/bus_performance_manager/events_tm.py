@@ -46,7 +46,7 @@ class TransitMasterEvents(TransitMasterSchedule):
 
 class TMDailyWorkPiece(dy.Schema):
     "Daily Work Piece /operator record from TM, Additional public bus operator ID"
-    service_date = dy.Date(nullable=False)
+    service_date = dy.Date(nullable=True)
     tm_block_id = dy.String(nullable=True)
     tm_run_id = dy.String(nullable=True)
     tm_trip_id = dy.String(nullable=True)
