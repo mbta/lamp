@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPieceOperatorMap
+from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         remote_input_location=bus_operator_mapping,
         remote_output_location=tableau_bus_operator_mapping_recent,
         rollup_num_days=7,
-        processed_schema=TMDailyWorkPieceOperatorMap.pyarrow_schema(),
+        processed_schema=TMDailyWorkPiece.pyarrow_schema(),
         dataframe_filter=None,
         parquet_filter=None,
         tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
