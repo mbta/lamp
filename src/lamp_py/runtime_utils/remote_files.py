@@ -171,10 +171,10 @@ tableau_bus_all = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus
 
 # archive to archive_pii
 tableau_bus_operator_mapping_recent = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "bus", "LAMP_RECENT_Bus_Operator_Mapping.parquet")
+    bucket=S3_SPRINGBOARD, prefix=os.path.join("BUS_TEMP", TABLEAU, "bus", "LAMP_RECENT_Bus_Operator_Mapping.parquet")
 )
 tableau_bus_operator_mapping_all = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "bus", "LAMP_ALL_Bus_Operator_Mapping.parquet")
+    bucket=S3_SPRINGBOARD, prefix=os.path.join("BUS_TEMP", TABLEAU, "bus", "LAMP_ALL_Bus_Operator_Mapping.parquet")
 )
 
 
