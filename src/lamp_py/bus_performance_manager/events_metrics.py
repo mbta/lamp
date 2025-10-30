@@ -1,14 +1,15 @@
-from typing import List
+from typing import List, Tuple
 from datetime import date
 
 import dataframely as dy
 import polars as pl
 
+from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
-from lamp_py.bus_performance_manager.events_tm import generate_tm_events
-from lamp_py.bus_performance_manager.events_joined import join_rt_to_schedule, BusEvents
+from lamp_py.bus_performance_manager.events_tm import generate_tm_events, get_daily_work_pieces
+from lamp_py.bus_performance_manager.events_joined import BusEvents, join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -58,15 +59,21 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         )
 
 
-def bus_performance_metrics(
-    service_date: date, gtfs_files: List[str], tm_files: List[str], **debug_flags: dict[str, bool]
-) -> pl.DataFrame:
+def run_bus_performance_pipeline(
+    service_date: date,
+    gtfs_files: List[str],
+    tm_files: List[str],
+    tm_files_daily_work_pieces: List[str],
+    **debug_flags: dict[str, bool],
+) -> Tuple[dy.DataFrame[BusPerformanceMetrics], dy.DataFrame[TMDailyWorkPiece]]:
     """
     create dataframe of Bus Performance metrics to write to S3
 
     :param service_date: date of service being processed
     :param gtfs_files: list of RT_VEHCILE_POSITION parquet file paths, from S3, that cover service date
     :param tm_files: list of TM/STOP_CROSSING parquet file paths, from S3, that cover service date
+    :param tm_files_daily_work_pieces: list of TM/DAILY_WORK_PIECE parquet file paths, from S3, that cover service date
+    :param debug_flags: flags for debug purposes only! controlling writing of output files to local or s3.
 
     :return BusEvents:
     """
@@ -94,13 +101,18 @@ def bus_performance_metrics(
         tm_df.write_parquet("/tmp/tm_events.parquet")
         combined_schedule.write_parquet("/tmp/combined_schedule.parquet")
 
+    # get operator assignments
+    tm_daily_work_pieces = get_daily_work_pieces(tm_files_daily_work_pieces)
+
     # create events dataframe with static schedule data, gtfs-rt events and transit master events
-    bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df)
+    bus_df = join_rt_to_schedule(combined_schedule, gtfs_df, tm_df, tm_daily_work_pieces)
 
-    return enrich_bus_performance_metrics(bus_df)
+    return calculate_derived_bus_performance_metrics(bus_df), tm_daily_work_pieces
 
 
-def enrich_bus_performance_metrics(bus_df: dy.DataFrame[BusEvents]) -> dy.DataFrame[BusPerformanceMetrics]:
+def calculate_derived_bus_performance_metrics(
+    bus_df: dy.DataFrame[BusEvents],
+) -> dy.DataFrame[BusPerformanceMetrics]:
     """
     Derive new fields from the schedule and joined RT data.
 

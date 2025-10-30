@@ -4,11 +4,26 @@ on:
   # deploy when version tags are published
   push:
     tags:
-      - v[0-9]+.[0-9]+.[0-9]+
+      - '*'
 
 jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Semantic Version Format
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [[ "$TAG_NAME" =~ v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Tag '$TAG_NAME' valid semantic version."
+          else
+            echo "Deploy to Production not executed - tags must follow semantic versioning. |
+             (e.g. v1.2.3) '$TAG_NAME' does NOT follow semantic versioning."
+            exit 1
+          fi
+
   deploy:
     name: Deploy to Production
+    needs: validate-tag
     concurrency:
       group: prod
     uses: ./.github/workflows/deploy-base.yaml

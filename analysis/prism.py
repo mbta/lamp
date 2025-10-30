@@ -35,7 +35,7 @@ def print_file_list_from_s3_with_details(bucket: str, prefix: str) -> None:
 # https://docs.python.org/3/library/functools.html#functools.singledispatch
 
 
-def generate_subset_opmi(files, parquet_output_path, pa_filter, pl_filter):
+def batch_reader(files, parquet_output_path, pa_filter, pl_filter):
 
     ds_paths = [s.replace("s3://", "") for s in files]
 

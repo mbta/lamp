@@ -1,7 +1,10 @@
 import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
+from lamp_py.bus_performance_manager.events_tm import (
+    TMDailyWorkPiece,
+    TransitMasterEvents,
+)
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -28,6 +31,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     latitude = dy.Float64(nullable=True)
     longitude = dy.Float64(nullable=True)
     trip_id_gtfs = dy.String(nullable=True)
+    public_operator_id = dy.Int64(nullable=True)
 
     # pylint: disable=no-method-argument
 
@@ -95,7 +99,10 @@ class BusPerformanceManager(dy.Collection):
 
 
 def join_rt_to_schedule(
-    schedule: dy.DataFrame[CombinedSchedule], gtfs: dy.DataFrame[GTFSEvents], tm: dy.DataFrame[TransitMasterEvents]
+    schedule: dy.DataFrame[CombinedSchedule],
+    gtfs: dy.DataFrame[GTFSEvents],
+    tm: dy.DataFrame[TransitMasterEvents],
+    tm_operator: dy.DataFrame[TMDailyWorkPiece],
 ) -> dy.DataFrame[BusEvents]:
     """
     Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
@@ -172,6 +179,13 @@ def join_rt_to_schedule(
             ).alias("gtfs_arrival_dt"),
             pl.col("gtfs_first_in_transit_dt"),
             pl.col("gtfs_last_in_transit_dt"),
+        )
+        # brings in public_operator_id
+        .join(
+            tm_operator.select("tm_trip_id", "tm_vehicle_label", "public_operator_id").unique(),
+            left_on=["trip_id", "vehicle_label"],
+            right_on=["tm_trip_id", "tm_vehicle_label"],
+            how="left",
         )
         .select(BusEvents.column_names())
     )

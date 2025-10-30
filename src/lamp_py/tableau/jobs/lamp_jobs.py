@@ -1,3 +1,4 @@
+from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.tableau.conversions import (
     convert_gtfs_rt_trip_updates,
     convert_gtfs_rt_vehicle_position,
@@ -9,6 +10,7 @@ from lamp_py.runtime_utils.remote_files import (
     springboard_rt_trip_updates,  # main feed, all lines, unique records
     springboard_devgreen_lrtp_trip_updates,  # dev green feed, green line only, all records
     springboard_lrtp_trip_updates,  # main feed, green line only, all records
+    bus_operator_mapping,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_heavyrail_30_day,
@@ -16,11 +18,14 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
     tableau_rt_vehicle_positions_all_light_rail_7_day,
+    tableau_bus_operator_mapping_recent,
+    tableau_bus_operator_mapping_all,
 )
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
+LAMP_API_PROJECT = "LAMP API"
 # LAMP_API = "LAMP API"
 HyperGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
@@ -90,4 +95,26 @@ HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_devgreen,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
+)
+
+HyperBusOperatorMappingRecent = FilteredHyperJob(
+    remote_input_location=bus_operator_mapping,
+    remote_output_location=tableau_bus_operator_mapping_recent,
+    rollup_num_days=7,
+    processed_schema=TMDailyWorkPiece.pyarrow_schema(),
+    dataframe_filter=None,
+    parquet_filter=None,
+    tableau_project_name=LAMP_API_PROJECT,
+    partition_template="",
+)
+
+HyperBusOperatorMappingAll = FilteredHyperJob(
+    remote_input_location=bus_operator_mapping,
+    remote_output_location=tableau_bus_operator_mapping_all,
+    rollup_num_days=60,
+    processed_schema=TMDailyWorkPiece.pyarrow_schema(),
+    dataframe_filter=None,
+    parquet_filter=None,
+    tableau_project_name=LAMP_API_PROJECT,
+    partition_template="",
 )
