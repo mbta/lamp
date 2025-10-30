@@ -68,23 +68,20 @@ def create_public_operator_id_map(daily_work: pl.DataFrame) -> pl.DataFrame:
     """
     random.seed(datetime.now().timestamp())
 
+    # assign a new operator_id for each trip_id in a day. as trip ids are recycled across days,
+    # prepend with date to make it unique
     operator_id_mapping = (
-        daily_work.select("operator_badge_number", "service_date")
-        .drop_nulls()
-        .unique()
+        daily_work.select("tm_trip_id", "operator_badge_number", "service_date")
         .with_columns(
-            pl.concat_str(
-                [
-                    pl.col("service_date").dt.to_string(format="%Y%m%d"),
-                    pl.Series(
-                        random.sample(
-                            range(10000, 99999), daily_work["operator_badge_number"].drop_nulls().unique().len()
-                        )
-                    ).cast(pl.String),
-                ]
-            )
+            pl.Series(random.sample(range(10000, 99999), daily_work["tm_trip_id"].len()))
+            .cast(pl.String)
+            .alias("public_operator_id")
+        )
+        .with_columns(
+            pl.concat_str([pl.col("service_date").dt.to_string(format="%Y%m%d"), pl.col("public_operator_id")])
             .cast(pl.Int64)
             .alias("public_operator_id")
         )
+        .drop_nulls()
     )
     return operator_id_mapping
