@@ -182,7 +182,8 @@ def create_public_operator_id_map(daily_work: pl.DataFrame) -> pl.DataFrame:
     # assign a new operator_id for each trip_id in a day. as trip ids are recycled across days,
     # prepend with date to make it unique
     operator_id_mapping = (
-        daily_work.select("tm_trip_id", "operator_badge_number", "service_date").unique(subset="tm_trip_id")
+        daily_work.select("tm_trip_id", "operator_badge_number", "service_date")
+        .unique(subset="tm_trip_id")
         .with_columns(
             pl.Series(random.sample(range(10000, 99999), daily_work["tm_trip_id"].unique().len()))
             .cast(pl.String)
