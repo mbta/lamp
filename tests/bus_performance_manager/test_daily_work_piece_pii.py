@@ -6,7 +6,7 @@ from lamp_py.bus_performance_manager.events_tm import TMDailyWorkPiece, create_p
 
 def test_create_public_operator_id_map() -> None:
     """
-    Basic test to show functionality of public_operator_id creation. 
+    Basic test to show functionality of public_operator_id creation.
     """
     # ┌────────────┬───────────────────────┬──────────────┬────────────────────┐
     # │ tm_trip_id ┆ operator_badge_number ┆ service_date ┆ public_operator_id │
