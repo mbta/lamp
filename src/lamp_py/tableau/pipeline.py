@@ -129,9 +129,9 @@ def start_bus_parquet_updates() -> None:
 
     parquet_update_jobs: List[HyperJob] = [
         HyperBusPerformanceRecent(),
-        HyperBusOperatorMappingRecent(),
+        HyperBusOperatorMappingRecent,
         HyperBusPerformanceAll(),
-        HyperBusOperatorMappingAll(),
+        HyperBusOperatorMappingAll,
     ]
 
     for job in parquet_update_jobs:
