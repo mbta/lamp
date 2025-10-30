@@ -148,7 +148,7 @@ tm_pattern_geo_node_xref_file = S3Location(
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.2")
 
 # temporary! - will be moved
-bus_operator_mapping = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0")
+bus_operator_mapping = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "BUS_TEMP/bus_operator_mapping"), version="1.0")
 
 # Kinesis stream glides events
 glides_trips_updated = S3Location(
