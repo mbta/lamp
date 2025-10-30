@@ -59,7 +59,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
 # pylint: disable=R0901
 class BusEventsOperatorJoined(BusEvents):
     "Schema of bus events joined with additional joined columns from daily work pieces"
-    run_id = dy.String(nullable=True)
     public_operator_id = dy.Int64(nullable=True)
 
 
