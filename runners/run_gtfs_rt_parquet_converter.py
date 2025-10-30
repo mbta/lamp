@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lamp_py.bus_performance_manager.combine_schedule_and_operator import TMDailyWorkPieceOperatorMap
+from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPieceOperatorMap
 from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob

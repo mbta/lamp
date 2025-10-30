@@ -1,7 +1,11 @@
 import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_tm import TransitMasterEvents
+from lamp_py.bus_performance_manager.events_tm import (
+    TMDailyWorkPiece,
+    TransitMasterEvents,
+    create_public_operator_id_map,
+)
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -56,12 +60,6 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
     # pylint: enable=no-method-argument
 
 
-# pylint: disable=R0901
-class BusEventsOperatorJoined(BusEvents):
-    "Schema of bus events joined with additional joined columns from daily work pieces"
-    public_operator_id = dy.Int64(nullable=True)
-
-
 class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
     tm: dy.LazyFrame[TransitMasterEvents]
@@ -101,7 +99,10 @@ class BusPerformanceManager(dy.Collection):
 
 
 def join_rt_to_schedule(
-    schedule: dy.DataFrame[CombinedSchedule], gtfs: dy.DataFrame[GTFSEvents], tm: dy.DataFrame[TransitMasterEvents]
+    schedule: dy.DataFrame[CombinedSchedule],
+    gtfs: dy.DataFrame[GTFSEvents],
+    tm: dy.DataFrame[TransitMasterEvents],
+    tm_operator: dy.DataFrame[TMDailyWorkPiece],
 ) -> dy.DataFrame[BusEvents]:
     """
     Join gtfs-rt and transit master (tm) event dataframes using "asof" strategy for stop_sequence columns.
@@ -182,8 +183,35 @@ def join_rt_to_schedule(
         .select(BusEvents.column_names())
     )
 
+    schedule_gtfs_tm = combine_schedule_and_run_id_operator_id(schedule_gtfs_tm, tm_operator)
+
     valid = process_logger.log_dataframely_filter_results(*BusEvents.filter(schedule_gtfs_tm))
 
     process_logger.log_complete()
 
     return valid
+
+
+def combine_schedule_and_run_id_operator_id(
+    bus_metrics: pl.DataFrame, daily_work: dy.DataFrame[TMDailyWorkPiece]
+) -> pl.DataFrame:
+    """
+    write_me
+    """
+    process_logger = ProcessLogger("combine_schedule_and_run_id_operator_id")
+    process_logger.log_start()
+    public_operator_id_map = create_public_operator_id_map(daily_work)
+
+    # join all on trip_id and vehicle to add run_id and public_operator_id for every trip
+    output_bus_metrics = bus_metrics.join(
+        public_operator_id_map.select("tm_run_id", "tm_trip_id", "tm_vehicle_label", "public_operator_id"),
+        left_on=["trip_id", "vehicle_label"],
+        right_on=["tm_trip_id", "tm_vehicle_label"],
+        how="left",
+    ).rename({"tm_run_id": "run_id"})
+
+    valid_bus_metrics = process_logger.log_dataframely_filter_results(*BusEvents.filter(output_bus_metrics))
+
+    process_logger.log_complete()
+
+    return valid_bus_metrics
