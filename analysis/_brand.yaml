@@ -1,0 +1,16 @@
+meta:
+    name: Technology Innovation Department
+    link: https://tid.mbta.com/
+
+logo:
+  small: https://upload.wikimedia.org/wikipedia/commons/6/64/MBTA.svg
+
+typography:
+  fonts:
+    - family: Atkinson Hyperlegible Next
+      source: google
+    - family: Atkinson Hyperlegible Mono
+      source: google
+  base: Atkinson Hyperlegible Next
+  headings: Atkinson Hyperlegible Next
+  monospace: Atkinson Hyperlegible Mono

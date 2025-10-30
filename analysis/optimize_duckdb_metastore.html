@@ -96,7 +96,7 @@
     code span.vs { color: #20794d; } /* VerbatimString */
     code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
   </style>
-  <link rel="stylesheet" href="optimize_duckdb_metastore_files/libs/revealjs/dist/theme/quarto-f563837468303362081e247dddd440d0.css">
+  <link rel="stylesheet" href="optimize_duckdb_metastore_files/libs/revealjs/dist/theme/quarto-e6c61a1b387befc47e4d258d456e2857.css">
   <link href="optimize_duckdb_metastore_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
   <link href="optimize_duckdb_metastore_files/libs/revealjs/plugin/reveal-menu/menu.css" rel="stylesheet">
   <link href="optimize_duckdb_metastore_files/libs/revealjs/plugin/reveal-menu/quarto-menu.css" rel="stylesheet">
@@ -208,7 +208,7 @@ crunkel@mbta.com
 </section>
 <section id="duckdb-natively-connects-to-parquet-files-in-s3" class="title-slide slide level1 center">
 <h1>DuckDB natively connects to Parquet files in s3</h1>
-<div id="9d9c565b" class="cell" data-execution_count="1">
+<div id="8b28fb17" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href=""></a><span class="im">import</span> duckdb</span>
 <span id="cb1-2"><a href=""></a>duckdb.sql(<span class="st">"INSTALL aws"</span>)</span>
 <span id="cb1-3"><a href=""></a>duckdb.sql(<span class="st">"LOAD aws"</span>)</span>
@@ -239,7 +239,7 @@ crunkel@mbta.com
 <section id="creating-this-interface-is-easy" class="title-slide slide level1 center">
 <h1>Creating this interface is easy</h1>
 <p>We only need to replace the partition fields <code>year</code>, <code>month</code>, <code>day</code> with wildcards (<code>*</code>) and specify DuckDB to look for <a href="https://duckdb.org/docs/stable/data/partitioning/hive_partitioning">Hive-style partitions</a>.</p>
-<div id="59e0c41b" class="cell" data-execution_count="2">
+<div id="3f2704dc" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode numberSource python code-overflow-wrap number-lines code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href=""></a>(</span>
 <span id="cb4-2"><a href=""></a>    duckdb</span>
 <span id="cb4-3"><a href=""></a>    .from_parquet(<span class="st">"s3://mbta-ctd-dataplatform-dev-springboard/lamp/RT_VEHICLE_POSITIONS/*/*/*/*.parquet"</span>, hive_partitioning <span class="op">=</span> <span class="va">True</span>)</span>
@@ -349,7 +349,7 @@ crunkel@mbta.com
 <text text-anchor="middle" x="698.07" y="-91" font-family="Courier New" font-size="10.00">18210</text>
 <text text-anchor="middle" x="698.07" y="-79" font-family="Courier New" font-size="10.00">───</text>
 <text text-anchor="middle" x="698.07" y="-67" font-family="Courier New" font-size="10.00">Timing:</text>
-<text text-anchor="middle" x="698.07" y="-55" font-family="Courier New" font-size="10.00">0.30s</text>
+<text text-anchor="middle" x="698.07" y="-55" font-family="Courier New" font-size="10.00">0.32s</text>
 </g>
 <!-- node_0_3&#45;&gt;node_0_4 -->
 <g id="edge4" class="edge">
@@ -381,7 +381,7 @@ crunkel@mbta.com
 <text text-anchor="middle" x="966.11" y="-43" font-family="Courier New" font-size="10.00">79931124</text>
 <text text-anchor="middle" x="966.11" y="-31" font-family="Courier New" font-size="10.00">───</text>
 <text text-anchor="middle" x="966.11" y="-19" font-family="Courier New" font-size="10.00">Timing:</text>
-<text text-anchor="middle" x="966.11" y="-7" font-family="Courier New" font-size="10.00">634.60s</text>
+<text text-anchor="middle" x="966.11" y="-7" font-family="Courier New" font-size="10.00">622.53s</text>
 </g>
 <!-- node_0_4&#45;&gt;node_0_5 -->
 <g id="edge5" class="edge">
@@ -500,7 +500,7 @@ crunkel@mbta.com
 <text text-anchor="middle" x="478.04" y="-43" font-family="Courier New" font-size="10.00">4096</text>
 <text text-anchor="middle" x="478.04" y="-31" font-family="Courier New" font-size="10.00">───</text>
 <text text-anchor="middle" x="478.04" y="-19" font-family="Courier New" font-size="10.00">Timing:</text>
-<text text-anchor="middle" x="478.04" y="-7" font-family="Courier New" font-size="10.00">0.89s</text>
+<text text-anchor="middle" x="478.04" y="-7" font-family="Courier New" font-size="10.00">0.61s</text>
 </g>
 <!-- node_0_2&#45;&gt;node_0_3 -->
 <g id="edge3" class="edge">
@@ -617,7 +617,7 @@ crunkel@mbta.com
 <text text-anchor="middle" x="478.04" y="-43" font-family="Courier New" font-size="10.00">4096</text>
 <text text-anchor="middle" x="478.04" y="-31" font-family="Courier New" font-size="10.00">───</text>
 <text text-anchor="middle" x="478.04" y="-19" font-family="Courier New" font-size="10.00">Timing:</text>
-<text text-anchor="middle" x="478.04" y="-7" font-family="Courier New" font-size="10.00">0.46s</text>
+<text text-anchor="middle" x="478.04" y="-7" font-family="Courier New" font-size="10.00">0.61s</text>
 </g>
 <!-- node_0_2&#45;&gt;node_0_3 -->
 <g id="edge3" class="edge">
@@ -642,9 +642,9 @@ crunkel@mbta.com
 <section id="tactic-3-optimize-parquet-row-groups" class="title-slide slide level1 center">
 <h1>Tactic 3: Optimize Parquet row groups</h1>
 <p>Most of our files have hundreds of row groups</p>
-<div id="6d203d0c" class="cell" data-execution_count="9">
+<div id="1cf65b70" class="cell" data-execution_count="9">
 <div class="cell-output cell-output-display" data-execution_count="8">
-<pre><code>&lt;pyarrow._parquet.FileMetaData object at 0x157ba0180&gt;
+<pre><code>&lt;pyarrow._parquet.FileMetaData object at 0x17215c270&gt;
   created_by: parquet-cpp-arrow version 21.0.0
   num_columns: 36
   num_rows: 3174095
@@ -667,7 +667,7 @@ crunkel@mbta.com
 <section id="reducing-the-number-of-row-groups-is-as-easy-as-reading-and-writing-back-the-file" class="slide level2">
 <h2>Reducing the number of row groups is as easy as reading and writing back the file</h2>
 <p>We can measure the difference by summing the row groups and metadata file size for each file:</p>
-<div id="fc1ca45f" class="cell" data-execution_count="12">
+<div id="d2923bc5" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href=""></a><span class="im">from</span> lamp_py.aws.s3 <span class="im">import</span> file_list_from_s3</span>
 <span id="cb9-2"><a href=""></a>new_files <span class="op">=</span> file_list_from_s3(<span class="st">"mbta-ctd-dataplatform-dev-springboard"</span>, <span class="st">"lamp/optimized_RT_VEHICLE_POSITIONS/year=2025/"</span>)</span>
 <span id="cb9-3"><a href=""></a></span>
@@ -854,7 +854,7 @@ crunkel@mbta.com
 <text text-anchor="middle" x="80.01" y="-43" font-family="Courier New" font-size="10.00">4096</text>
 <text text-anchor="middle" x="80.01" y="-31" font-family="Courier New" font-size="10.00">───</text>
 <text text-anchor="middle" x="80.01" y="-19" font-family="Courier New" font-size="10.00">Timing:</text>
-<text text-anchor="middle" x="80.01" y="-7" font-family="Courier New" font-size="10.00">0.01s</text>
+<text text-anchor="middle" x="80.01" y="-7" font-family="Courier New" font-size="10.00">0.00s</text>
 </g>
 <!-- node_0_2&#45;&gt;node_0_3 -->
 <g id="edge3" class="edge">
@@ -874,6 +874,7 @@ crunkel@mbta.com
 </section></section>
     </div>
   <div class="quarto-auto-generated-content" style="display: none;">
+<p><img src="https://upload.wikimedia.org/wikipedia/commons/6/64/MBTA.svg" class="slide-logo"></p>
 <div class="footer footer-default">
 
 </div>
