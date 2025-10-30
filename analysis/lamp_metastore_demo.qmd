@@ -15,8 +15,7 @@ execute:
 LAMP's metastore (data catalog?) provides users the experience of querying a relational database without requiring all the overhead that databases require (for the LAMP and Infra teams 🙂).
 That means a query that used to look like this:
 
-```{sql}
-#| eval: false
+```sql
 SELECT *
 FROM read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet')
 LIMIT 10
@@ -24,8 +23,7 @@ LIMIT 10
 
 Now can be written as:
 
-```{sql}
-#| eval: false
+```sql
 SELECT *
 FROM read_date_partitioned("BUS_VEHICLE_POSITIONS", DATE '2025-09-26')
 LIMIT 10

@@ -1,0 +1,351 @@
+---
+title: "What's the best way to optimize query performance of a duckdb metastore?"
+date: 2025-10-29
+author: "crunkel@mbta.com"
+format:
+    revealjs:
+        navigation-mode: vertical
+execute:
+    warning: false
+    echo: false
+---
+
+
+# DuckDB natively connects to Parquet files in s3
+
+```{python}
+#| echo: true
+import duckdb
+duckdb.sql("INSTALL aws")
+duckdb.sql("LOAD aws")
+duckdb.sql("""CREATE OR REPLACE SECRET secret (
+    TYPE s3,
+    PROVIDER credential_chain
+)""")
+duckdb.sql("SET unsafe_disable_etag_checks = true")
+```
+
+# DuckDB can also interpret partitioned filesystems
+
+This means that LAMP's filesystem
+```default
+RT_VEHICLE_POSITIONS
+└── year=2021
+    └── month=1
+        ├── day=1
+        │   └── 2021-01-01T00:00:00.parquet
+        └── day=2
+            └── 2021-01-02T00:00:00.parquet
+```
+Can be queried like
+```sql
+SELECT *
+FROM rt_vehicle_positions
+WHERE year = 2021 AND month = 1 AND day = 2
+```
+
+# Creating this interface is easy
+
+We only need to replace the partition fields `year`, `month`, `day` with wildcards (`*`) and specify DuckDB to look for [Hive-style partitions](https://duckdb.org/docs/stable/data/partitioning/hive_partitioning).
+```{python}
+#| output: false
+#| echo: true
+#| code-overflow: wrap
+(
+    duckdb
+    .from_parquet("s3://mbta-ctd-dataplatform-dev-springboard/lamp/RT_VEHICLE_POSITIONS/*/*/*/*.parquet", hive_partitioning = True)
+    .select("*, make_date(year, month, day) as file_date")
+    .create_view("vehicle_positions", replace = True)
+)
+```
+
+# But filtering by date is really *really* slow {.smaller}
+```sql
+EXPLAIN ANALYZE
+SELECT id, "vehicle.trip.trip_id", "vehicle.vehicle.label"
+FROM vehicle_positions
+WHERE file_date = DATE '2025-10-26'
+LIMIT 5
+```
+```{dot}
+//| echo: false
+```{python}
+#| echo: false
+#| output: asis
+print(duckdb.sql("""
+EXPLAIN (ANALYZE, FORMAT graphviz)
+SELECT id, "vehicle.trip.trip_id", "vehicle.vehicle.label"
+FROM vehicle_positions
+WHERE file_date = DATE '2025-10-26'
+LIMIT 5
+""").fetchone()[1].replace("digraph G {\n", "digraph G {\n rankdir=LR;\n"))
+```
+```
+
+
+# The issue
+
+DuckDB doesn't recognize a field composed entirely of partition keys as, itself, a partition key.
+When it filters on that field, it reads every file's metadata when it ought to only read one.
+
+To fix this, we should
+
+::: {.incremental}
+1. Format the `day` partition as a `file_date`
+2. Generate, rather than list, the file URLs
+:::
+
+# Tactic 1: format the `day` partition as `file_date`
+
+Our file URIs would change and the resulting filesystem would look like:
+
+```default
+RT_VEHICLE_POSITIONS
+└── year=2021
+    └── month=1
+        ├── file_date=2021-01-01
+        │   └── 2021-01-01T00:00:00.parquet
+        └── file_date=2021-01-02
+            └── 2021-01-02T00:00:00.parquet
+```
+
+```{python}
+#| eval: false
+import boto3 # AWS handler
+bucket_name = "mbta-ctd-dataplatform-dev-springboard"
+bucket = boto3.resource('s3').Bucket(bucket_name)
+
+for obj in bucket.objects.filter(Prefix="lamp/RT_VEHICLE_POSITIONS"):
+    # get the existing file metadata
+    old_source = { 'Bucket': bucket_name,'Key': obj.key}
+    # rename the directory to avoid overwriting files
+    split_key = obj.key.replace("RT_VEHICLE_POSITIONS", "partition_RT_VEHICLE_POSITIONS").split("/")
+    # replace the day partition with file_date
+    split_key[-2] = "file_date=" + split_key[-1][:10]
+    # recreate the file name
+    new_key = "/".join(split_key)
+
+    new_obj = bucket.Object(new_key)
+    new_obj.copy(old_source)
+```
+
+```{python}
+#| output: false
+(
+    duckdb
+    .from_parquet("s3://mbta-ctd-dataplatform-dev-springboard/lamp/partition_RT_VEHICLE_POSITIONS/*/*/*/*.parquet", hive_partitioning = True)
+    .create_view("vehicle_positions_partitioned", replace = True)
+)
+```
+
+## `SELECT` queries now run 12,000x faster
+
+```{dot}
+//| echo: false
+```{python}
+#| echo: false
+#| output: asis
+print(duckdb.sql("""
+EXPLAIN (ANALYZE, FORMAT graphviz)
+SELECT id, "vehicle.trip.trip_id", "vehicle.vehicle.label"
+FROM vehicle_positions_partitioned
+WHERE file_date = DATE '2025-10-25'
+LIMIT 5
+""").fetchone()[1].replace("digraph G {\n", "digraph G {\n rankdir=LR;\n"))
+```
+```
+
+# Tactic 2: Generate, rather than list, URLs {.smaller}
+
+DuckDB asks s3 to list files for each query so it has the most up-to-date set of files.
+We can generate file URLs ourselves to avoid this overhead.
+
+```sql
+CREATE OR REPLACE VIEW vehicle_positions_generated AS
+SELECT *
+FROM read_parquet(
+    list_transform(
+        range(
+            DATE '2025-03-10',
+            current_date,
+            INTERVAL 1 DAY
+        ),
+        lambda x : strftime(
+            x,
+            's3://mbta-ctd-dataplatform-dev-springboard/lamp/partition_RT_VEHICLE_POSITIONS/year=%Y/month=%-m/file_date=%x/%xT%H:%M:%S.parquet'
+        )
+    )
+)
+```
+
+```{python}
+#| eval: true
+(
+    duckdb
+    .sql("""
+    CREATE OR REPLACE VIEW vehicle_positions_generated AS
+    SELECT *
+    FROM read_parquet(
+        list_transform(
+            range(
+                DATE '2025-03-10',
+                current_date + 1,
+                INTERVAL 1 DAY
+            ),
+            lambda x : strftime(
+                x,
+                's3://mbta-ctd-dataplatform-dev-springboard/lamp/partition_RT_VEHICLE_POSITIONS/year=%Y/month=%-m/file_date=%x/%xT%H:%M:%S.parquet'
+            )
+        )
+    )
+    """)
+)
+```
+
+## This achieves negligible improvement {.smaller}
+
+But may help with bigger directories or when joining across datasets?
+```{dot}
+//| echo: false
+```{python}
+#| echo: false
+#| output: asis
+print(duckdb.sql("""
+EXPLAIN (ANALYZE, FORMAT graphviz)
+SELECT id, "vehicle.trip.trip_id", "vehicle.vehicle.label"
+FROM vehicle_positions_generated
+WHERE file_date = DATE '2025-10-26'
+LIMIT 5
+""").fetchone()[1].replace("digraph G {\n", "digraph G {\n rankdir=LR;\n"))
+```
+```
+
+# Appendix
+# Tactic 3: Optimize Parquet row groups
+
+Most of our files have hundreds of row groups
+
+```{python}
+import pyarrow.parquet as pq
+
+meta = pq.read_metadata("s3://mbta-ctd-dataplatform-springboard/lamp/RT_VEHICLE_POSITIONS/year=2025/month=10/day=26/2025-10-26T00:00:00.parquet")
+meta
+```
+
+## Yet, most row-groups have 0 records
+
+```{python}
+import matplotlib.pyplot as plt
+
+plt.hist([meta.row_group(r).num_rows for r in range(meta.num_row_groups)])
+plt.xlabel("Number of rows")
+plt.ylabel("Count of row groups")
+plt.title("Distribution of row groups by number of rows")
+plt
+```
+
+## DuckDB still reads each row grups when it filters
+
+>row group sizes <5,000 have a strongly detrimental effect, making runtimes more than 5-10× larger than ideally-sized row groups, while row group sizes between 5,000 and 20,000 are still 1.5-2.5× off from best performance. Above row group size of 100,000, the differences are small: the gap is about 10% between the best and the worst runtime.
+
+## Reducing the number of row groups is as easy as reading and writing back the file
+
+```{python}
+#| eval: false
+existing_files = file_list_from_s3("mbta-ctd-dataplatform-dev-springboard", "lamp/partition_RT_VEHICLE_POSITIONS/year=2025/")
+
+for file in existing_files:
+    table = pq.read_table(file)
+    new_file_name = file.replace("partition", "optimized")
+    pq.write_table(table, new_file_name)
+```
+
+We can measure the difference by summing the row groups and metadata file size for each file:
+```{python}
+#| echo: true
+#| eval: true
+from lamp_py.aws.s3 import file_list_from_s3
+new_files = file_list_from_s3("mbta-ctd-dataplatform-dev-springboard", "lamp/optimized_RT_VEHICLE_POSITIONS/year=2025/")
+
+row_group_size = []
+for file in new_files:
+    meta = pq.read_metadata(file)
+    row_group_size.extend([
+        meta.row_group(r).num_rows for r in range(meta.num_row_groups)
+    ])
+```
+
+## Rewriting dramatically changes the distribution of row groups
+
+```{python, fig-align='center'}
+#| eval: true
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+
+plt.hist(row_group_size)
+plt.xlabel("Number of rows")
+plt.ylabel("Count of row groups")
+plt.title("Distribution of row groups by number of rows")
+
+def comma_formatter(x, pos):
+    return f'{x:,.0f}'
+ax = plt.gca()
+# Apply FuncFormatter to the x-axis
+ax.xaxis.set_major_formatter(mticker.FuncFormatter(comma_formatter))
+
+plt
+```
+
+## ...but there's no meaningful difference in performance
+
+To see the difference, we need to compare a query that filters by a column other than date:
+
+:::: {.columns}
+
+::: {.column}
+```{dot}
+//| echo: false
+```{python}
+#| echo: false
+#| output: asis
+print(duckdb.sql("""
+EXPLAIN (ANALYZE, FORMAT graphviz)
+SELECT id, "vehicle.trip.trip_id", "vehicle.vehicle.label"
+FROM vehicle_positions_partitioned
+WHERE "vehicle.timestamp" > 100000
+LIMIT 5
+""").fetchone()[1])
+```
+```
+
+:::
+
+::: {.column}
+
+```{python}
+#| include: false
+(
+    duckdb
+    .from_parquet("s3://mbta-ctd-dataplatform-dev-springboard/lamp/optimized_RT_VEHICLE_POSITIONS/*/*/*/*.parquet", hive_partitioning = True)
+    .create_view("vehicle_positions_optimized", replace = True)
+)
+```
+
+```{dot}
+//| echo: false
+```{python}
+#| echo: false
+#| output: asis
+print(duckdb.sql("""
+EXPLAIN (ANALYZE, FORMAT graphviz)
+SELECT id, "vehicle.trip.trip_id", "vehicle.vehicle.label"
+FROM vehicle_positions_optimized
+WHERE "vehicle.timestamp" > 100000
+LIMIT 5
+""").fetchone()[1])
+```
+```
+
+:::
+
+::::
