@@ -28,6 +28,7 @@ class FilteredHyperJob(HyperJob):
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
         rollup_num_days: int | None = 7,  # default this to a week of data
+        partition_template: str = "year={yy}/month={mm}/day={dd}/",
         parquet_preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
         parquet_filter: pc.Expression | None = None,
         dataframe_filter: Callable[[pl.DataFrame], pl.DataFrame] | None = None,
@@ -42,6 +43,7 @@ class FilteredHyperJob(HyperJob):
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema  # expected output schema passed in
+        self.partition_template = partition_template
         self.rollup_num_days = rollup_num_days
         self.parquet_preprocess = parquet_preprocess  # level 1 | complex preprocess
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
@@ -55,11 +57,11 @@ class FilteredHyperJob(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: DatabaseManager | None) -> bool:
-        return self.create_tableau_parquet(num_days=self.rollup_num_days)
+        return self.create_tableau_parquet(num_days=self.rollup_num_days, partition_template=self.partition_template)
 
     # pylint: disable=R0914, R0912
     # pylint too many local variables (more than 15)
-    def create_tableau_parquet(self, num_days: Optional[int]) -> bool:
+    def create_tableau_parquet(self, num_days: Optional[int], partition_template: str) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
 
@@ -79,12 +81,11 @@ class FilteredHyperJob(HyperJob):
             # this will currently update hourly. will monitor
             end_date = datetime.now().date()
             start_date = end_date - timedelta(days=num_days)
-            bucket_filter_template = "year={yy}/month={mm}/day={dd}/"
             # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
             s3_uris = file_list_from_s3_date_range(
                 bucket_name=self.remote_input_location.bucket,
                 file_prefix=self.remote_input_location.prefix,
-                path_template=bucket_filter_template,
+                path_template=partition_template,
                 end_date=end_date,
                 start_date=start_date,
             )

@@ -6,6 +6,8 @@ from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.tableau.jobs.lamp_jobs import (
+    HyperBusOperatorMappingAll,
+    HyperBusOperatorMappingRecent,
     HyperDevGreenGtfsRtTripUpdates,
     HyperDevGreenGtfsRtVehiclePositions,
     HyperGtfsRtTripUpdates,
@@ -127,7 +129,9 @@ def start_bus_parquet_updates() -> None:
 
     parquet_update_jobs: List[HyperJob] = [
         HyperBusPerformanceRecent(),
+        HyperBusOperatorMappingRecent,
         HyperBusPerformanceAll(),
+        HyperBusOperatorMappingAll,
     ]
 
     for job in parquet_update_jobs:
