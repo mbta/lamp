@@ -56,11 +56,6 @@ class TMDailyWorkPiece(dy.Schema):
     logoff_time = dy.Datetime(nullable=True, time_zone=None)  # seconds after midnight converted to UTC..then None
     public_operator_id = dy.Int64(nullable=True)
 
-    # @dy.rule()
-    # def one_to_one_trip_id_operator_id() -> pl.Expr:
-    #     return pl.col("tm_block_id").n_unique() == pl.col("public_operator_id").n_unique()
-
-
 def generate_tm_events(
     tm_files: List[str],
     tm_scheduled: TransitMasterTables,
