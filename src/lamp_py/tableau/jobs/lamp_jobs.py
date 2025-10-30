@@ -105,6 +105,7 @@ HyperBusOperatorMappingRecent = FilteredHyperJob(
     dataframe_filter=None,
     parquet_filter=None,
     tableau_project_name=LAMP_API_PROJECT,
+    partition_template=""
 )
 
 HyperBusOperatorMappingAll = FilteredHyperJob(
@@ -115,4 +116,5 @@ HyperBusOperatorMappingAll = FilteredHyperJob(
     dataframe_filter=None,
     parquet_filter=None,
     tableau_project_name=LAMP_API_PROJECT,
+    partition_template=""
 )
