@@ -135,14 +135,15 @@ def join_tm_schedule_to_gtfs_schedule(
     )
 
     schedule = (
-        schedule.with_columns(
+        schedule.sort(pl.coalesce("tm_stop_sequence", "gtfs_stop_sequence"))
+        .with_columns(
             pl.col("tm_stop_sequence")
             .fill_null(strategy="forward")
-            .over(partition_by=["trip_id"], order_by=["gtfs_stop_sequence"])
+            .over(partition_by=["trip_id"])
             .alias("tm_filled_stop_sequence")
         )
         .with_columns(
-            pl.struct(pl.col("tm_filled_stop_sequence"), pl.col("gtfs_stop_sequence"))
+            pl.struct("tm_filled_stop_sequence", "tm_stop_sequence", "gtfs_stop_sequence")
             .rank("min")
             .over(["trip_id"])
             .alias("stop_sequence"),
