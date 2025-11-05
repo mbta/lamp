@@ -161,7 +161,8 @@ def join_rt_to_schedule(
             coalesce=True,
             suffix="_right_tm",
         )
-        .with_columns(
+    )
+    schedule_gtfs_tm = ( schedule_gtfs_tm.with_columns(
             pl.coalesce("vehicle_label", pl.lit("____")).alias("vehicle_label"),
             pl.coalesce(
                 pl.col("service_date"),
