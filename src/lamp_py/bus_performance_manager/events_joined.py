@@ -41,10 +41,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
         return pl.when(
-            pl.coalesce(
-                pl.col("point_type").eq(pl.lit("end")),  # TM says its the final stop or, if TM says nothing
-                pl.col("gtfs_stop_sequence").eq(pl.col("plan_stop_count")),  # GTFS says it's the final stop
-            ),
+            pl.col("point_type").eq(pl.lit("end")),
             pl.col("gtfs_last_in_transit_dt").is_not_null(),
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
@@ -178,12 +175,7 @@ def join_rt_to_schedule(
             .alias("stop_count"),
             pl.coalesce(
                 pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
-                pl.when(
-                    pl.coalesce(
-                        pl.col("point_type").eq(pl.lit("end")),
-                        pl.col("gtfs_stop_sequence").eq(pl.col("plan_stop_count")),
-                    )
-                ).then(  # and it's the last stop on the route
+                pl.when(pl.col("point_type").eq(pl.lit("end"))).then(  # and it's the last stop on the route
                     pl.col("gtfs_last_in_transit_dt")
                 ),  # use the last IN_TRANSIT_TO datetime
             ).alias("gtfs_arrival_dt"),

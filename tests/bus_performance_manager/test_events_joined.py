@@ -11,44 +11,28 @@ from lamp_py.bus_performance_manager.events_joined import BusEvents
 
 
 @pytest.mark.parametrize(
-    ["point_type", "gtfs_stop_sequence", "plan_stop_count", "gtfs_last_in_transit_dt", "gtfs_arrival_dt", "num_rows"],
+    ["point_type", "gtfs_last_in_transit_dt", "gtfs_arrival_dt", "num_rows"],
     [
         (
             "mid",
-            3,
-            4,
             datetime(2000, 1, 1, 2),
             None,
-            nullcontext(3),
-        ),
-        (
-            None,
-            3,
-            3,
-            datetime(2000, 1, 1, 2),
-            datetime(2000, 1, 1, 2),
             nullcontext(3),
         ),
         (
             "end",
             None,
             None,
-            datetime(2000, 1, 1, 2),
-            datetime(2000, 1, 1, 2),
             nullcontext(3),
         ),
         (
             "end",
-            3,
-            3,
             datetime(2000, 1, 1, 2),
             None,
             pytest.raises(ValidationError, match="final_stop_has_arrival_dt"),
         ),
         (
             "end",
-            3,
-            3,
             datetime(2000, 1, 1, 2),
             datetime(2000, 1, 1, 2),
             nullcontext(3),
@@ -56,7 +40,6 @@ from lamp_py.bus_performance_manager.events_joined import BusEvents
     ],
     ids=[
         "not-last-stop",  # pass
-        "missing-TM-stop-data",  # pass
         "missing-GTFS-stop-data",  # pass
         "final-stop-but-no-gtfs-arrival",  # fail
         "all-data-present",  # pass
@@ -65,8 +48,6 @@ from lamp_py.bus_performance_manager.events_joined import BusEvents
 def test_dy_final_stop_has_arrival_dt(
     dy_gen: Generator,
     point_type: str,
-    gtfs_stop_sequence: list[int],
-    plan_stop_count: int,
     gtfs_last_in_transit_dt: datetime,
     gtfs_arrival_dt: list[datetime],
     num_rows: pytest.RaisesExc,
@@ -77,8 +58,6 @@ def test_dy_final_stop_has_arrival_dt(
         vehicle_label=pl.lit("x"),
         service_date=pl.lit(date(2000, 1, 1)),
         point_type=pl.Series(values=["start", "mid", point_type]),
-        gtfs_stop_sequence=pl.Series(values=[1, 2, gtfs_stop_sequence]),
-        plan_stop_count=pl.lit(plan_stop_count),
         gtfs_last_in_transit_dt=pl.Series(
             values=[datetime(2000, 1, 1), datetime(2000, 1, 1, 1), gtfs_last_in_transit_dt]
         ),
