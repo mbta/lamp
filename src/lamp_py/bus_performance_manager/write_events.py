@@ -11,8 +11,9 @@ from lamp_py.runtime_utils.lamp_exception import LampExpectedNotFoundError, Lamp
 from lamp_py.runtime_utils.remote_files import bus_events, bus_operator_mapping
 from lamp_py.runtime_utils.remote_files import VERSION_KEY
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.aws.s3 import get_last_modified_object, upload_file
+from lamp_py.aws.s3 import get_last_modified_object, object_exists, upload_file
 from lamp_py.tableau.jobs.bus_performance import BUS_RECENT_NDAYS
+from lamp_py.utils.date_range_builder import build_data_range_paths
 
 
 # pylint: disable=R0914
@@ -123,6 +124,8 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
     range. If not, regenerate the num_days range (== BUS_RECENT date range)
     so BUS_RECENT tableau events has all columns needed
 
+    Check if any days in the num_days range are missing - if so, regenerate
+
     input:
         num_days: number of days to regenerate with write_bus_metrics
     """
@@ -139,6 +142,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
     if latest_event_file:
         today = service_date_from_filename(latest_event_file["s3_obj_path"])
 
+        # check if schema match - regenerate if no match
         if today:
             start_day = today - timedelta(days=num_days)
             latest_path = os.path.join(bus_events.s3_uri, f"{today.strftime('%Y%m%d')}.parquet")
@@ -157,4 +161,21 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
             regenerate_bus_metrics_logger.add_metadata(
                 regenerated=regenerate_days, start_date=prior_path, end_date=latest_path
             )
-            regenerate_bus_metrics_logger.log_complete()
+
+            # check if any file paths are missing - regenerate all if any in the expected range are missing
+            expected_bus_events_paths = build_data_range_paths(
+                bus_events.s3_uri + "/{yy}{mm:02d}{dd:02d}.parquet", start_date=start_day, end_date=today
+            )
+            expected_bus_operator_mapping_paths = build_data_range_paths(
+                bus_operator_mapping.s3_uri + "/operator_mapping_pii_{yy}{mm:02d}{dd:02d}.parquet",
+                start_date=start_day,
+                end_date=today,
+            )
+
+            for day in zip(expected_bus_events_paths, expected_bus_operator_mapping_paths):
+                if not object_exists(day[0]) or not object_exists(day[1]):
+                    regenerate_bus_metrics_logger.add_metadata(regenerate_missing_day=day[0])
+                    missing_date = service_date_from_filename(day[0])
+                    write_bus_metrics(start_date=missing_date, end_date=missing_date, **debug_flags)
+
+    regenerate_bus_metrics_logger.log_complete()
