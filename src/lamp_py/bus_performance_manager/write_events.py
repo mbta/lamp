@@ -175,7 +175,7 @@ def regenerate_bus_metrics_recent(num_days: int = BUS_RECENT_NDAYS, **debug_flag
             for day in zip(expected_bus_events_paths, expected_bus_operator_mapping_paths):
                 if not object_exists(day[0]) or not object_exists(day[1]):
                     regenerate_bus_metrics_logger.add_metadata(regenerate_missing_day=day[0])
-                    write_bus_metrics(start_date=start_day, end_date=today, **debug_flags)
-                    break
+                    missing_date = service_date_from_filename(day[0])
+                    write_bus_metrics(start_date=missing_date, end_date=missing_date, **debug_flags)
 
     regenerate_bus_metrics_logger.log_complete()
