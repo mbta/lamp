@@ -1,6 +1,7 @@
 from datetime import date
 
 import polars as pl
+import dataframely as dy
 
 from lamp_py.utils.gtfs_utils import gtfs_from_parquet
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
@@ -152,6 +153,27 @@ def canonical_stop_sequence(service_date: date) -> pl.DataFrame:
     )
 
 
+# class GtfsSchedule(dy.Schema):
+#     plan_trip_id = dy.String(),
+#     stop_id = dy.String(),
+#     stop_sequence = dy.Int64(),
+#     checkpoint_id = dy.String(),
+#     block_id = dy.String(),
+#     route_id = dy.String(),
+#     service_id = dy.String(),
+#     route_pattern_id = dy.String(),
+#     route_pattern_typicality = dy.Int64(),
+#     direction_id = dy.Int64(),
+#     direction = dy.String(),
+#     direction_destination = dy.String(),
+#     stop_name = dy.String(),
+#     plan_stop_count = dy.String(),
+#     plan_start_time = dy.String(),
+#     plan_start_dt = dy.String(),
+#     plan_stop_departure_dt = dy.String(),
+#     plan_travel_time_seconds = dy.String(),
+#     plan_route_direction_headway_seconds = dy.String(),
+#     plan_direction_destination_headway_seconds = dy.String(),
 def stop_events_for_date(service_date: date) -> pl.DataFrame:
     """
     all stop event related GTFS data for a service_date
