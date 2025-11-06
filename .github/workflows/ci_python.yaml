@@ -120,6 +120,8 @@ jobs:
       - name: Run pytest With Coverage
         run: |
           poetry run pytest \
+          -n auto \
+          --dist loadfile \
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
           --cov-branch \
