@@ -1,0 +1,251 @@
+---
+author: crunkel@mbta.com
+date: 2025-10-31
+title: What would a response from a `recent_events` endpoint look like?
+format:
+    gfm:
+        code-fold: show
+---
+
+I want to create a data sample to align with GO and the API codeowners on the interface for Flashback.
+I could do this in Notion but I think that it would be helpful to try it in our codebase with real data to think through some of the mechanics.
+
+For this sample, I'll use the aggregated responses of the enhanced Vehicle Positions endpoint:
+
+```{python}
+import polars as pl
+
+uri = "s3://mbta-ctd-dataplatform-springboard/lamp/RT_VEHICLE_POSITIONS/year=2025/month=11/day=4/2025-11-04T00:00:00.parquet"
+
+(
+    pl.scan_parquet(uri)
+    .head(5)
+    .collect()
+)
+```
+
+As part of Bus Performance Manager, LAMP created logic to transform these responses into events.
+
+```{python}
+from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
+```
+
+The function takes as an input an s3 URI so we'll pass the same URI again:
+
+```{python}
+from datetime import date
+
+sample = generate_gtfs_rt_events(date(2025, 11, 4), [uri])
+```
+
+A close reading of the log message shows that this function takes 6 seconds to run for a whole day.
+This is neither terrible nor great for a whole day and I think it could be sped up by removing the `.collect()` statement in the middle of this code and remove some logging that's not needed for flashback.
+
+Now to the real question: what does this sample look like?
+
+```{python}
+sample.head(5)
+```
+
+Parity with the `predictions` endpoint requires filtering by:
+
+- `latitude`
+- `longitude`
+- `direction_id`
+- `route_type`
+- `stop`
+- `route`
+- `trip`
+- `revenue`
+- `route_pattern`
+
+So, this sample doesn't give exactly the fields needed but it has the real-time components that users won't get anywhere else:
+
+- `vehicle_id`
+- `gtfs_arrival_dt`
+- `gtfs_departure_dt`
+
+I want to replicate the structure of [realtime trip updates](https://cdn.mbta.com/realtime/TripUpdates_enhanced.json) here:
+
+```json
+[
+    {
+      "id": "72040316",
+      "trip_update": {
+        "timestamp": 1762442485,
+        "stop_time_update": [
+          {
+            "stop_id": "74614",
+            "stop_sequence": 1,
+            "departure": {
+              "time": 1762444800,
+              "uncertainty": 300
+            }
+          },
+          {
+            "stop_id": "74615",
+            "stop_sequence": 2,
+            "arrival": {
+              "time": 1762444948,
+              "uncertainty": 300
+            },
+            "departure": {
+              "time": 1762444948,
+              "uncertainty": 300
+            }
+          },
+          {
+            "stop_id": "74616",
+            "stop_sequence": 3,
+            "arrival": {
+              "time": 1762445026,
+              "uncertainty": 300
+            },
+            "departure": {
+              "time": 1762445026,
+              "uncertainty": 300
+            }
+          },
+          {
+            "stop_id": "74617",
+            "stop_sequence": 4,
+            "arrival": {
+              "time": 1762445144,
+              "uncertainty": 300
+            }
+          }
+        ],
+        "trip": {
+          "start_time": "11:00:00",
+          "direction_id": 1,
+          "trip_id": "72040316",
+          "route_id": "746",
+          "start_date": "20251106",
+          "revenue": true,
+          "last_trip": false
+        }
+      }
+    }
+]
+```
+
+We can easily do this by making `pl.Struct` types.
+
+```{python}
+from datetime import datetime
+
+structured_sample = (
+    sample
+    .filter(pl.col("gtfs_arrival_dt").is_not_null() | pl.col("gtfs_departure_dt").is_not_null())
+    .sort("gtfs_stop_sequence") # for easier reading
+    .with_columns(
+        stop_events = pl.struct(
+            stop_id = pl.col("stop_id"),
+            stop_sequence = pl.col("gtfs_stop_sequence"),
+            arrived = pl.col("gtfs_arrival_dt").dt.epoch("s"),
+            departed = pl.col("gtfs_departure_dt").dt.epoch("s")
+        )
+    )
+    .group_by(
+        pl.concat_str(pl.col("trip_id"), pl.lit("-"), pl.col("vehicle_id")).alias("id"),
+    )
+    .agg(
+        trip = pl.struct([
+            pl.col(c).first().alias(c)
+            for c in ["start_time", "direction_id", "route_id", "service_date", "trip_id"]
+        ]),
+        stop_events = pl.implode("stop_events"),
+    )
+    .select(
+        pl.col("id"),
+        pl.lit(datetime.now().timestamp()).alias("timestamp"),
+        pl.col("trip").struct.with_fields(revenue = pl.lit(True)),
+        pl.col("stop_events"),
+    )
+)
+```
+
+Which then outputs events like:
+
+```{python}
+import json
+
+print(
+    json.dumps( # output as string, controlling indentation
+        json.loads( # load as dict
+            structured_sample.head(1).write_ndjson() # output as string but can't control indent
+        ),
+        indent = 2
+    )
+)
+```
+
+
+Now, suppose we wanted to serve a file like this---for the whole day---via our API.
+What kind of size would we be dealing with?
+Python provides a utility to measure the size of a string:
+
+```{python}
+import sys
+
+sys.getsizeof(structured_sample.write_json()) / 1024**2 # to megabytes
+```
+
+Remember this is only for bus, so multiply the size by 2.5x to approximate the added data for heavy, light, and commuter rail.
+If we compress this file, we can get it to:
+
+```{python}
+import gzip
+
+sys.getsizeof(
+    gzip.compress(
+        structured_sample.write_json().encode("utf-8")
+    )
+) / 1024**2
+```
+
+The realtime predictions file is still much smaller: from 3MB uncompressed it drops to 350MB, and that's for all modes.
+But that file is only a few hours.
+If we took only events with departures or arrivals that occurred between 7a and 9a, then we could shrink this further.
+
+```{python}
+sys.getsizeof(
+    gzip.compress(
+        structured_sample
+        .with_columns(
+            pl.col("stop_events").list.filter(
+                pl.coalesce(
+                    pl.element().struct.field("departed"),
+                    pl.element().struct.field("arrived"),
+                )
+                .is_between(datetime(2025, 11, 4, 7).timestamp(), datetime(2025, 11, 4, 9).timestamp())
+            )
+        )
+        .filter(pl.col("stop_events").list.len() > 0)
+        .write_json()
+        .encode("utf-8")
+    )
+) / 1024**2
+```
+
+That's not quite the same but it's in the ballpark, which is probably what matters.
+I'll store this file in the `analysis/flashback` folder to share it:
+
+```{python}
+with gzip.open("mock_stop_events.json.gz", "wt", encoding = "utf-8") as file:
+    file.write(
+        structured_sample
+        .with_columns(
+            pl.col("stop_events").list.filter(
+                pl.coalesce(
+                    pl.element().struct.field("departed"),
+                    pl.element().struct.field("arrived"),
+                )
+                .is_between(datetime(2025, 11, 4, 7).timestamp(), datetime(2025, 11, 4, 9).timestamp())
+            )
+        )
+        .filter(pl.col("stop_events").list.len() > 0)
+        .write_json()
+    )
+```
+
