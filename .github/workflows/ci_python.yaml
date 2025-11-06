@@ -117,16 +117,18 @@ jobs:
       - uses: ./.github/actions/python_deps
 
       # Execute tests and generate coverage report
-      - name: Run pytest With Coverage
+      - name: Run pytest With Coverage 1
         run: |
           poetry run pytest \
           -n auto \
-          --dist loadgroup \
+          --ignore tests/performance_manager/
+      - name: Run pytest With Coverage 2
+        run: |
+          poetry run pytest tests/performance_manager/ \
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
-
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
