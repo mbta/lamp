@@ -73,20 +73,19 @@ sample = generate_gtfs_rt_events(date(2025, 11, 4), [uri])
 
 </details>
 
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=started, free_disk_mb=339794, free_mem_pct=23, service_date=2025-11-04
-    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=977c92ca-093f-48fe-93e7-dbd85c875aa3, process_id=40737, status=started, free_disk_mb=339794, free_mem_pct=23, service_date=2025-11-04, file_count=1, reader_engine=polars
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=started, free_disk_mb=339794, free_mem_pct=23, file=routes, service_date=2025-11-04
-    INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/credentials
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=add_metadata, free_disk_mb=339794, free_mem_pct=23, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=23, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=23, duration=0.93, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
-    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=977c92ca-093f-48fe-93e7-dbd85c875aa3, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=21, duration=3.11, service_date=2025-11-04, file_count=1, reader_engine=polars
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=21, service_date=2025-11-04, rows_from_parquet=3563271
-    INFO:root:parent=unknown, process_name=position_to_events, uuid=ed55f39e-72d4-4e33-b7f1-dbee1a0bd81c, process_id=40737, status=started, free_disk_mb=339798, free_mem_pct=20, valid_records=275038, invalid_records=0
-    INFO:root:parent=unknown, process_name=position_to_events, uuid=ed55f39e-72d4-4e33-b7f1-dbee1a0bd81c, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=20, valid_records=275038, invalid_records=0
-    INFO:root:parent=unknown, process_name=position_to_events, uuid=ed55f39e-72d4-4e33-b7f1-dbee1a0bd81c, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=20, duration=0.00, valid_records=275038, invalid_records=0
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=20, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=20, duration=4.38, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=73dca5ca-c2ee-4f8f-b4a1-969a6ccf7914, process_id=61897, status=started, free_disk_mb=337511, free_mem_pct=16, service_date=2025-11-04
+    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=d4363de5-36b4-49b5-a30c-24da4614667c, process_id=61897, status=started, free_disk_mb=337511, free_mem_pct=16, service_date=2025-11-04, file_count=1, reader_engine=polars
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=9a15a39d-2103-4d94-8d94-4f4ceafbae1e, process_id=61897, status=started, free_disk_mb=337511, free_mem_pct=16, file=routes, service_date=2025-11-04
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=9a15a39d-2103-4d94-8d94-4f4ceafbae1e, process_id=61897, status=add_metadata, free_disk_mb=337511, free_mem_pct=16, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=9a15a39d-2103-4d94-8d94-4f4ceafbae1e, process_id=61897, status=add_metadata, free_disk_mb=337511, free_mem_pct=17, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=9a15a39d-2103-4d94-8d94-4f4ceafbae1e, process_id=61897, status=complete, free_disk_mb=337511, free_mem_pct=17, duration=1.07, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
+    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=d4363de5-36b4-49b5-a30c-24da4614667c, process_id=61897, status=complete, free_disk_mb=337511, free_mem_pct=20, duration=3.45, service_date=2025-11-04, file_count=1, reader_engine=polars
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=73dca5ca-c2ee-4f8f-b4a1-969a6ccf7914, process_id=61897, status=add_metadata, free_disk_mb=337511, free_mem_pct=20, service_date=2025-11-04, rows_from_parquet=3563271
+    INFO:root:parent=unknown, process_name=position_to_events, uuid=9d597501-28f4-4a34-bd43-c42136c38e7d, process_id=61897, status=started, free_disk_mb=337511, free_mem_pct=18, valid_records=275038, invalid_records=0
+    INFO:root:parent=unknown, process_name=position_to_events, uuid=9d597501-28f4-4a34-bd43-c42136c38e7d, process_id=61897, status=add_metadata, free_disk_mb=337511, free_mem_pct=18, valid_records=275038, invalid_records=0
+    INFO:root:parent=unknown, process_name=position_to_events, uuid=9d597501-28f4-4a34-bd43-c42136c38e7d, process_id=61897, status=complete, free_disk_mb=337511, free_mem_pct=18, duration=0.00, valid_records=275038, invalid_records=0
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=73dca5ca-c2ee-4f8f-b4a1-969a6ccf7914, process_id=61897, status=add_metadata, free_disk_mb=337511, free_mem_pct=18, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=73dca5ca-c2ee-4f8f-b4a1-969a6ccf7914, process_id=61897, status=complete, free_disk_mb=337511, free_mem_pct=18, duration=4.50, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
 
 A close reading of the log message shows that this function takes 6
 seconds to run for a whole day. This is neither terrible nor great for a
@@ -117,11 +116,11 @@ sample.head(5)
 | trip_id | stop_id | route_id | service_date | start_time | start_dt | gtfs_stop_sequence | stop_count | direction_id | vehicle_id | vehicle_label | gtfs_first_in_transit_dt | gtfs_last_in_transit_dt | gtfs_arrival_dt | gtfs_departure_dt | latitude | longitude |
 |----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
 | str | str | str | date | i64 | datetime\[μs\] | i64 | u32 | i8 | str | str | datetime\[μs, UTC\] | datetime\[μs, UTC\] | datetime\[μs, UTC\] | datetime\[μs, UTC\] | f64 | f64 |
-| "71994084" | "5588" | "111" | 2025-11-04 | 61260 | 2025-11-04 17:01:00 | 3 | 23 | 1 | "y1994" | "1994" | null | 2025-11-04 22:01:07 UTC | 2025-11-04 22:01:07 UTC | 2025-11-04 22:01:24 UTC | 42.412344 | -71.031495 |
-| "71465588" | "144" | "9" | 2025-11-04 | 58200 | 2025-11-04 16:10:00 | 3 | 27 | 0 | "y1780" | "1780" | 2025-11-04 21:12:37 UTC | 2025-11-04 21:13:05 UTC | 2025-11-04 21:13:05 UTC | 2025-11-04 21:14:30 UTC | 42.35079 | -71.07459 |
-| "71997490" | "2584" | "96" | 2025-11-04 | 27900 | 2025-11-04 07:45:00 | 21 | 28 | 1 | "y1404" | "1404" | 2025-11-04 13:09:06 UTC | 2025-11-04 13:09:16 UTC | 2025-11-04 13:09:22 UTC | 2025-11-04 13:09:31 UTC | 42.392179 | -71.119713 |
-| "71987706" | "3722" | "225" | 2025-11-04 | 34500 | 2025-11-04 09:35:00 | 13 | 26 | 1 | "y0808" | "0808" | 2025-11-04 14:38:11 UTC | 2025-11-04 14:38:33 UTC | null | null | 42.233186 | -70.975716 |
-| "72094606" | "15618" | "34E" | 2025-11-04 | 24000 | 2025-11-04 06:40:00 | 32 | 80 | 0 | "y1657" | "1657" | 2025-11-04 12:01:27 UTC | 2025-11-04 12:01:39 UTC | 2025-11-04 12:01:39 UTC | 2025-11-04 12:01:45 UTC | 42.244528 | -71.17616 |
+| "71466618" | "1510" | "15" | 2025-11-04 | 45960 | 2025-11-04 12:46:00 | 20 | 30 | 0 | "y1834" | "1834" | 2025-11-04 18:13:24 UTC | 2025-11-04 18:13:42 UTC | 2025-11-04 18:13:42 UTC | 2025-11-04 18:14:22 UTC | 42.309814 | -71.063715 |
+| "71997686" | "6283" | "108" | 2025-11-04 | 37800 | 2025-11-04 10:30:00 | 2 | 39 | 1 | "y1411" | "1411" | 2025-11-04 15:30:10 UTC | 2025-11-04 15:30:22 UTC | 2025-11-04 15:30:22 UTC | 2025-11-04 15:30:28 UTC | 42.432846 | -71.026932 |
+| "72093879" | "16434" | "30" | 2025-11-04 | 31500 | 2025-11-04 08:45:00 | 14 | 26 | 0 | "y1682" | "1682" | 2025-11-04 13:58:56 UTC | 2025-11-04 14:00:28 UTC | 2025-11-04 14:00:33 UTC | 2025-11-04 14:01:06 UTC | 42.27992 | -71.11891 |
+| "71372951" | "1365" | "66" | 2025-11-04 | 42240 | 2025-11-04 11:44:00 | 11 | 33 | 0 | "y3202" | "3202" | 2025-11-04 16:56:01 UTC | 2025-11-04 16:56:57 UTC | 2025-11-04 16:56:57 UTC | 2025-11-04 16:57:17 UTC | 42.333385 | -71.106552 |
+| "71826067" | "5666" | "120" | 2025-11-04 | 40800 | 2025-11-04 11:20:00 | 10 | 35 | 0 | "y3331" | "3331" | 2025-11-04 16:30:21 UTC | 2025-11-04 16:30:52 UTC | 2025-11-04 16:30:55 UTC | 2025-11-04 16:31:30 UTC | 42.380564 | -71.023832 |
 
 </div>
 
@@ -252,6 +251,8 @@ structured_sample = (
 
 Which then outputs events like:
 
+## Example Flashback output
+
 <details open class="code-fold">
 <summary>Code</summary>
 
@@ -271,142 +272,358 @@ print(
 </details>
 
     {
-      "id": "71465892-y1827",
-      "timestamp": 1762452874.803778,
+      "id": "71997479-y1434",
+      "timestamp": 1762458979.508543,
       "trip": {
-        "start_time": 50460,
-        "direction_id": 0,
-        "route_id": "1",
+        "start_time": 56640,
+        "direction_id": 1,
+        "route_id": "411",
         "service_date": "2025-11-04",
-        "trip_id": "71465892",
+        "trip_id": "71997479",
         "revenue": true
       },
       "stop_events": [
         {
-          "stop_id": "64",
+          "stop_id": "4761",
           "stop_sequence": 1,
-          "arrived": 1762281485,
-          "departed": 1762282893
+          "arrived": 1762287722,
+          "departed": 1762289006
         },
         {
-          "stop_id": "1",
+          "stop_id": "44762",
           "stop_sequence": 2,
-          "arrived": 1762282912,
-          "departed": 1762282935
+          "arrived": 1762289052,
+          "departed": 1762289064
         },
         {
-          "stop_id": "2",
+          "stop_id": "5699",
           "stop_sequence": 3,
-          "arrived": 1762282954,
-          "departed": 1762282985
+          "arrived": 1762289118,
+          "departed": 1762289128
         },
         {
-          "stop_id": "6",
+          "stop_id": "15799",
           "stop_sequence": 4,
-          "arrived": 1762283069,
-          "departed": 1762283128
+          "arrived": 1762289284,
+          "departed": 1762289376
         },
         {
-          "stop_id": "10003",
+          "stop_id": "15782",
           "stop_sequence": 5,
-          "arrived": 1762283264,
-          "departed": 1762283304
+          "arrived": 1762289461,
+          "departed": 1762289484
         },
         {
-          "stop_id": "10590",
+          "stop_id": "5783",
+          "stop_sequence": 6,
+          "arrived": 1762289552,
+          "departed": 1762289574
+        },
+        {
+          "stop_id": "5784",
+          "stop_sequence": 7,
+          "arrived": 1762289612,
+          "departed": 1762289648
+        },
+        {
+          "stop_id": "4733",
           "stop_sequence": 8,
-          "arrived": 1762283656,
-          "departed": 1762283718
+          "arrived": 1762289691,
+          "departed": 1762289804
         },
         {
-          "stop_id": "87",
+          "stop_id": "5786",
           "stop_sequence": 9,
-          "arrived": 1762283771,
-          "departed": 1762283847
+          "arrived": 1762289843,
+          "departed": 1762289865
         },
         {
-          "stop_id": "188",
+          "stop_id": "15787",
           "stop_sequence": 10,
-          "arrived": 1762283949,
-          "departed": 1762284037
+          "arrived": 1762289891,
+          "departed": 1762289910
         },
         {
-          "stop_id": "89",
+          "stop_id": "5788",
           "stop_sequence": 11,
-          "arrived": 1762284045,
-          "departed": 1762284111
+          "arrived": 1762289922,
+          "departed": 1762289966
         },
         {
-          "stop_id": "91",
+          "stop_id": "57641",
           "stop_sequence": 12,
-          "arrived": 1762284159,
-          "departed": 1762284261
+          "arrived": 1762290053,
+          "departed": 1762290183
         },
         {
-          "stop_id": "93",
+          "stop_id": "5765",
           "stop_sequence": 13,
-          "arrived": 1762284470,
-          "departed": 1762284567
+          "arrived": 1762290208,
+          "departed": 1762290242
         },
         {
-          "stop_id": "95",
+          "stop_id": "35765",
           "stop_sequence": 14,
-          "arrived": 1762284670,
-          "departed": 1762284692
+          "arrived": 1762290249,
+          "departed": 1762290254
         },
         {
-          "stop_id": "97",
+          "stop_id": "6250",
           "stop_sequence": 15,
-          "arrived": 1762284801,
-          "departed": 1762284873
+          "arrived": 1762290349,
+          "departed": 1762290374
         },
         {
-          "stop_id": "99",
+          "stop_id": "6251",
           "stop_sequence": 16,
-          "arrived": 1762284973,
-          "departed": 1762285030
+          "arrived": 1762290388,
+          "departed": 1762290388
         },
         {
-          "stop_id": "101",
+          "stop_id": "6252",
           "stop_sequence": 17,
-          "arrived": 1762285069,
-          "departed": 1762285119
+          "arrived": 1762290395,
+          "departed": 1762290415
         },
         {
-          "stop_id": "102",
+          "stop_id": "6253",
           "stop_sequence": 18,
-          "arrived": 1762285228,
-          "departed": 1762285298
+          "arrived": 1762290422,
+          "departed": 1762290438
         },
         {
-          "stop_id": "104",
+          "stop_id": "6254",
           "stop_sequence": 19,
-          "arrived": 1762285325,
-          "departed": 1762285355
+          "arrived": 1762290438,
+          "departed": 1762290478
         },
         {
-          "stop_id": "106",
+          "stop_id": "6255",
           "stop_sequence": 20,
-          "arrived": 1762285375,
-          "departed": 1762285431
+          "arrived": 1762290478,
+          "departed": 1762290497
         },
         {
-          "stop_id": "107",
+          "stop_id": "6256",
           "stop_sequence": 21,
-          "arrived": 1762285437,
-          "departed": 1762285461
+          "arrived": 1762290504,
+          "departed": 1762290514
         },
         {
-          "stop_id": "108",
+          "stop_id": "6257",
           "stop_sequence": 22,
-          "arrived": 1762285503,
-          "departed": 1762285539
+          "arrived": 1762290530,
+          "departed": 1762290558
         },
         {
-          "stop_id": "109",
+          "stop_id": "6258",
           "stop_sequence": 23,
-          "arrived": 1762285552,
-          "departed": 1762285591
+          "arrived": 1762290573,
+          "departed": 1762290594
+        },
+        {
+          "stop_id": "6259",
+          "stop_sequence": 24,
+          "arrived": 1762290601,
+          "departed": 1762290619
+        },
+        {
+          "stop_id": "6260",
+          "stop_sequence": 25,
+          "arrived": 1762290645,
+          "departed": 1762290668
+        },
+        {
+          "stop_id": "6262",
+          "stop_sequence": 26,
+          "arrived": 1762290701,
+          "departed": 1762290737
+        },
+        {
+          "stop_id": "7414",
+          "stop_sequence": 27,
+          "arrived": 1762290893,
+          "departed": 1762290934
+        },
+        {
+          "stop_id": "45534",
+          "stop_sequence": 28,
+          "arrived": 1762291153,
+          "departed": 1762291185
+        },
+        {
+          "stop_id": "6267",
+          "stop_sequence": 29,
+          "arrived": 1762291263,
+          "departed": 1762291375
+        },
+        {
+          "stop_id": "7415",
+          "stop_sequence": 30,
+          "arrived": 1762291518,
+          "departed": 1762291518
+        },
+        {
+          "stop_id": "7417",
+          "stop_sequence": 31,
+          "arrived": 1762291565,
+          "departed": 1762291602
+        },
+        {
+          "stop_id": "7418",
+          "stop_sequence": 32,
+          "arrived": 1762291608,
+          "departed": 1762291616
+        },
+        {
+          "stop_id": "7419",
+          "stop_sequence": 33,
+          "arrived": 1762291623,
+          "departed": 1762291651
+        },
+        {
+          "stop_id": "46267",
+          "stop_sequence": 34,
+          "arrived": 1762291695,
+          "departed": 1762291710
+        },
+        {
+          "stop_id": "46268",
+          "stop_sequence": 35,
+          "arrived": 1762291757,
+          "departed": 1762291786
+        },
+        {
+          "stop_id": "8336",
+          "stop_sequence": 36,
+          "arrived": 1762291847,
+          "departed": 1762291879
+        },
+        {
+          "stop_id": "8338",
+          "stop_sequence": 37,
+          "arrived": 1762291888,
+          "departed": 1762291911
+        },
+        {
+          "stop_id": "18338",
+          "stop_sequence": 38,
+          "arrived": 1762291916,
+          "departed": 1762291976
+        },
+        {
+          "stop_id": "17463",
+          "stop_sequence": 39,
+          "arrived": 1762291979,
+          "departed": 1762291989
+        },
+        {
+          "stop_id": "8576",
+          "stop_sequence": 40,
+          "arrived": 1762291998,
+          "departed": 1762292009
+        },
+        {
+          "stop_id": "8577",
+          "stop_sequence": 41,
+          "arrived": 1762292032,
+          "departed": 1762292084
+        },
+        {
+          "stop_id": "7536",
+          "stop_sequence": 42,
+          "arrived": 1762292091,
+          "departed": 1762292126
+        },
+        {
+          "stop_id": "7537",
+          "stop_sequence": 43,
+          "arrived": 1762292145,
+          "departed": 1762292180
+        },
+        {
+          "stop_id": "7539",
+          "stop_sequence": 44,
+          "arrived": 1762292195,
+          "departed": 1762292210
+        },
+        {
+          "stop_id": "7540",
+          "stop_sequence": 45,
+          "arrived": 1762292227,
+          "departed": 1762292305
+        },
+        {
+          "stop_id": "9021",
+          "stop_sequence": 46,
+          "arrived": 1762292305,
+          "departed": 1762292335
+        },
+        {
+          "stop_id": "9023",
+          "stop_sequence": 47,
+          "arrived": 1762292353,
+          "departed": 1762292387
+        },
+        {
+          "stop_id": "9024",
+          "stop_sequence": 48,
+          "arrived": 1762292393,
+          "departed": 1762292429
+        },
+        {
+          "stop_id": "9025",
+          "stop_sequence": 49,
+          "arrived": 1762292443,
+          "departed": 1762292508
+        },
+        {
+          "stop_id": "9026",
+          "stop_sequence": 50,
+          "arrived": 1762292530,
+          "departed": 1762292559
+        },
+        {
+          "stop_id": "5440",
+          "stop_sequence": 51,
+          "arrived": 1762292587,
+          "departed": 1762292601
+        },
+        {
+          "stop_id": "5441",
+          "stop_sequence": 52,
+          "arrived": 1762292611,
+          "departed": 1762292630
+        },
+        {
+          "stop_id": "5442",
+          "stop_sequence": 53,
+          "arrived": 1762292658,
+          "departed": 1762292706
+        },
+        {
+          "stop_id": "5443",
+          "stop_sequence": 54,
+          "arrived": 1762292715,
+          "departed": 1762292763
+        },
+        {
+          "stop_id": "5444",
+          "stop_sequence": 55,
+          "arrived": 1762292782,
+          "departed": 1762292782
+        },
+        {
+          "stop_id": "5445",
+          "stop_sequence": 56,
+          "arrived": 1762292801,
+          "departed": 1762292873
+        },
+        {
+          "stop_id": "15431",
+          "stop_sequence": 57,
+          "arrived": 1762292931,
+          "departed": 1762292956
         }
       ]
     }
@@ -447,7 +664,7 @@ sys.getsizeof(
 
 </details>
 
-    2.9281177520751953
+    2.9295339584350586
 
 The realtime predictions file is still much smaller: from 3MB
 uncompressed it drops to 350MB, and that’s for all modes. But that file
@@ -479,7 +696,7 @@ sys.getsizeof(
 
 </details>
 
-    0.48502540588378906
+    0.48604297637939453
 
 That’s not quite the same but it’s in the ballpark, which is probably
 what matters. I’ll store this file (uncompressed) in the
@@ -556,6 +773,8 @@ turn this file into an endpoint that returned responses like the
 
 For us, the data would look like:
 
+## Example API response
+
 <details open class="code-fold">
 <summary>Code</summary>
 
@@ -597,34 +816,34 @@ print(
 
     {
       "attributes": {
-        "direction_id": 1,
-        "stop_sequence": 3,
+        "direction_id": 0,
+        "stop_sequence": 20,
         "revenue": "REVENUE",
-        "arrived": "2025-11-04T22:01:07+00:00",
-        "departed": "2025-11-04T22:01:24+00:00"
+        "arrived": "2025-11-04T18:13:42+00:00",
+        "departed": "2025-11-04T18:14:22+00:00"
       },
       "relationships": {
         "route": {
           "data": {
-            "id": "111",
+            "id": "15",
             "type": "route"
           }
         },
         "vehicle": {
           "data": {
-            "id": "y1994",
+            "id": "y1834",
             "type": "vehicle"
           }
         },
         "stop": {
           "data": {
-            "id": "5588",
+            "id": "1510",
             "type": "stop"
           }
         },
         "trip": {
           "data": {
-            "id": "71994084",
+            "id": "71466618",
             "type": "trip"
           }
         }

@@ -167,7 +167,10 @@ structured_sample = (
 
 Which then outputs events like:
 
+## Example Flashback output
+
 ```{python}
+#| label: transit-data-example-events
 import json
 
 print(
@@ -295,6 +298,8 @@ Concentrate would then turn this file into an endpoint that returned responses l
 ```
 
 For us, the data would look like:
+
+## Example API response
 
 ```{python}
 print(
