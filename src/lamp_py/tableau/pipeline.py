@@ -79,6 +79,8 @@ def start_hyper_updates() -> None:
         HyperRtAlerts(),
         HyperBusPerformanceAll(),
         HyperBusPerformanceRecent(),
+        HyperBusOperatorMappingRecent,
+        HyperBusOperatorMappingAll,
         HyperGtfsRtVehiclePositions,
         HyperGtfsRtTripUpdates,
         HyperDevGreenGtfsRtVehiclePositions,
