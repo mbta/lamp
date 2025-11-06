@@ -119,7 +119,7 @@ jobs:
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
-          poetry run pytest \
+          poetry run pytest -n auto --dist loadgroup\
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
           --cov-branch \
