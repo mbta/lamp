@@ -73,19 +73,20 @@ sample = generate_gtfs_rt_events(date(2025, 11, 4), [uri])
 
 </details>
 
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=7bd49d69-8d97-4fc2-83dd-6a125ffcabd0, process_id=34002, status=started, free_disk_mb=339759, free_mem_pct=25, service_date=2025-11-04
-    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=7c29ce9c-6d63-44b8-94a3-4e232378282d, process_id=34002, status=started, free_disk_mb=339759, free_mem_pct=25, service_date=2025-11-04, file_count=1, reader_engine=polars
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=224602da-e0b4-4ad1-8512-b1fb1cf75067, process_id=34002, status=started, free_disk_mb=339759, free_mem_pct=25, file=routes, service_date=2025-11-04
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=224602da-e0b4-4ad1-8512-b1fb1cf75067, process_id=34002, status=add_metadata, free_disk_mb=339759, free_mem_pct=25, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=224602da-e0b4-4ad1-8512-b1fb1cf75067, process_id=34002, status=add_metadata, free_disk_mb=339759, free_mem_pct=25, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
-    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=224602da-e0b4-4ad1-8512-b1fb1cf75067, process_id=34002, status=complete, free_disk_mb=339759, free_mem_pct=25, duration=0.90, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
-    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=7c29ce9c-6d63-44b8-94a3-4e232378282d, process_id=34002, status=complete, free_disk_mb=339757, free_mem_pct=25, duration=3.12, service_date=2025-11-04, file_count=1, reader_engine=polars
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=7bd49d69-8d97-4fc2-83dd-6a125ffcabd0, process_id=34002, status=add_metadata, free_disk_mb=339757, free_mem_pct=25, service_date=2025-11-04, rows_from_parquet=3563271
-    INFO:root:parent=unknown, process_name=position_to_events, uuid=022b8f9d-d170-46ca-beaa-a470acbd8775, process_id=34002, status=started, free_disk_mb=339757, free_mem_pct=24, valid_records=275038, invalid_records=0
-    INFO:root:parent=unknown, process_name=position_to_events, uuid=022b8f9d-d170-46ca-beaa-a470acbd8775, process_id=34002, status=add_metadata, free_disk_mb=339757, free_mem_pct=24, valid_records=275038, invalid_records=0
-    INFO:root:parent=unknown, process_name=position_to_events, uuid=022b8f9d-d170-46ca-beaa-a470acbd8775, process_id=34002, status=complete, free_disk_mb=339757, free_mem_pct=24, duration=0.00, valid_records=275038, invalid_records=0
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=7bd49d69-8d97-4fc2-83dd-6a125ffcabd0, process_id=34002, status=add_metadata, free_disk_mb=339757, free_mem_pct=24, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
-    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=7bd49d69-8d97-4fc2-83dd-6a125ffcabd0, process_id=34002, status=complete, free_disk_mb=339757, free_mem_pct=24, duration=4.02, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=started, free_disk_mb=339794, free_mem_pct=23, service_date=2025-11-04
+    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=977c92ca-093f-48fe-93e7-dbd85c875aa3, process_id=40737, status=started, free_disk_mb=339794, free_mem_pct=23, service_date=2025-11-04, file_count=1, reader_engine=polars
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=started, free_disk_mb=339794, free_mem_pct=23, file=routes, service_date=2025-11-04
+    INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/credentials
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=add_metadata, free_disk_mb=339794, free_mem_pct=23, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=23, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
+    INFO:root:parent=unknown, process_name=gtfs_from_parquet, uuid=1d573ecb-9a22-4e80-b08c-6a0a70bfabb1, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=23, duration=0.93, file=routes, service_date=2025-11-04, gtfs_file=s3://mbta-ctd-dataplatform-staging-archive/lamp/gtfs_archive/2025/routes.parquet, gtfs_row_count=398
+    INFO:root:parent=unknown, process_name=read_vehicle_positions, uuid=977c92ca-093f-48fe-93e7-dbd85c875aa3, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=21, duration=3.11, service_date=2025-11-04, file_count=1, reader_engine=polars
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=21, service_date=2025-11-04, rows_from_parquet=3563271
+    INFO:root:parent=unknown, process_name=position_to_events, uuid=ed55f39e-72d4-4e33-b7f1-dbee1a0bd81c, process_id=40737, status=started, free_disk_mb=339798, free_mem_pct=20, valid_records=275038, invalid_records=0
+    INFO:root:parent=unknown, process_name=position_to_events, uuid=ed55f39e-72d4-4e33-b7f1-dbee1a0bd81c, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=20, valid_records=275038, invalid_records=0
+    INFO:root:parent=unknown, process_name=position_to_events, uuid=ed55f39e-72d4-4e33-b7f1-dbee1a0bd81c, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=20, duration=0.00, valid_records=275038, invalid_records=0
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=add_metadata, free_disk_mb=339798, free_mem_pct=20, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
+    INFO:root:parent=unknown, process_name=generate_gtfs_rt_events, uuid=09e69b8b-7689-4e20-87c3-0009b99e97d2, process_id=40737, status=complete, free_disk_mb=339798, free_mem_pct=20, duration=4.38, service_date=2025-11-04, rows_from_parquet=3563271, events_for_day=275038
 
 A close reading of the log message shows that this function takes 6
 seconds to run for a whole day. This is neither terrible nor great for a
@@ -116,11 +117,11 @@ sample.head(5)
 | trip_id | stop_id | route_id | service_date | start_time | start_dt | gtfs_stop_sequence | stop_count | direction_id | vehicle_id | vehicle_label | gtfs_first_in_transit_dt | gtfs_last_in_transit_dt | gtfs_arrival_dt | gtfs_departure_dt | latitude | longitude |
 |----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
 | str | str | str | date | i64 | datetime\[μs\] | i64 | u32 | i8 | str | str | datetime\[μs, UTC\] | datetime\[μs, UTC\] | datetime\[μs, UTC\] | datetime\[μs, UTC\] | f64 | f64 |
-| "71694475" | "2681" | "88" | 2025-11-04 | 46200 | 2025-11-04 12:50:00 | 16 | 27 | 1 | "y2080" | "2080" | 2025-11-04 18:03:38 UTC | 2025-11-04 18:03:47 UTC | 2025-11-04 18:03:51 UTC | 2025-11-04 18:04:14 UTC | 42.3894 | -71.106371 |
-| "71987666" | "3896" | "230" | 2025-11-04 | 57600 | 2025-11-04 16:00:00 | 48 | 68 | 0 | "y0757" | "0757" | 2025-11-04 21:47:47 UTC | 2025-11-04 21:49:01 UTC | 2025-11-04 21:49:01 UTC | 2025-11-04 21:49:36 UTC | 42.159995 | -71.006223 |
-| "71466060" | "1475" | "17" | 2025-11-04 | 57000 | 2025-11-04 15:50:00 | 16 | 28 | 1 | "y1904" | "1904" | 2025-11-04 21:01:11 UTC | 2025-11-04 21:01:17 UTC | null | null | 42.311536 | -71.0631 |
-| "71465731" | "34" | "7" | 2025-11-04 | 54480 | 2025-11-04 15:08:00 | 3 | 15 | 1 | "y1793" | "1793" | 2025-11-04 20:09:45 UTC | 2025-11-04 20:09:59 UTC | 2025-11-04 20:10:02 UTC | 2025-11-04 20:10:12 UTC | 42.33825 | -71.027297 |
-| "71466081" | "21148" | "45" | 2025-11-04 | 42900 | 2025-11-04 11:55:00 | 25 | 26 | 1 | "y1818" | "1818" | 2025-11-04 17:15:01 UTC | 2025-11-04 17:15:07 UTC | 2025-11-04 17:15:07 UTC | 2025-11-04 17:15:26 UTC | 42.331237 | -71.092055 |
+| "71994084" | "5588" | "111" | 2025-11-04 | 61260 | 2025-11-04 17:01:00 | 3 | 23 | 1 | "y1994" | "1994" | null | 2025-11-04 22:01:07 UTC | 2025-11-04 22:01:07 UTC | 2025-11-04 22:01:24 UTC | 42.412344 | -71.031495 |
+| "71465588" | "144" | "9" | 2025-11-04 | 58200 | 2025-11-04 16:10:00 | 3 | 27 | 0 | "y1780" | "1780" | 2025-11-04 21:12:37 UTC | 2025-11-04 21:13:05 UTC | 2025-11-04 21:13:05 UTC | 2025-11-04 21:14:30 UTC | 42.35079 | -71.07459 |
+| "71997490" | "2584" | "96" | 2025-11-04 | 27900 | 2025-11-04 07:45:00 | 21 | 28 | 1 | "y1404" | "1404" | 2025-11-04 13:09:06 UTC | 2025-11-04 13:09:16 UTC | 2025-11-04 13:09:22 UTC | 2025-11-04 13:09:31 UTC | 42.392179 | -71.119713 |
+| "71987706" | "3722" | "225" | 2025-11-04 | 34500 | 2025-11-04 09:35:00 | 13 | 26 | 1 | "y0808" | "0808" | 2025-11-04 14:38:11 UTC | 2025-11-04 14:38:33 UTC | null | null | 42.233186 | -70.975716 |
+| "72094606" | "15618" | "34E" | 2025-11-04 | 24000 | 2025-11-04 06:40:00 | 32 | 80 | 0 | "y1657" | "1657" | 2025-11-04 12:01:27 UTC | 2025-11-04 12:01:39 UTC | 2025-11-04 12:01:39 UTC | 2025-11-04 12:01:45 UTC | 42.244528 | -71.17616 |
 
 </div>
 
@@ -270,166 +271,142 @@ print(
 </details>
 
     {
-      "id": "71987884-y0815",
-      "timestamp": 1762447374.908796,
+      "id": "71465892-y1827",
+      "timestamp": 1762452874.803778,
       "trip": {
-        "start_time": 48360,
-        "direction_id": 1,
-        "route_id": "216",
+        "start_time": 50460,
+        "direction_id": 0,
+        "route_id": "1",
         "service_date": "2025-11-04",
-        "trip_id": "71987884",
+        "trip_id": "71465892",
         "revenue": true
       },
       "stop_events": [
         {
-          "stop_id": "3265",
+          "stop_id": "64",
           "stop_sequence": 1,
-          "arrived": 1762280207,
-          "departed": 1762280767
+          "arrived": 1762281485,
+          "departed": 1762282893
         },
         {
-          "stop_id": "3266",
+          "stop_id": "1",
           "stop_sequence": 2,
-          "arrived": 1762280773,
-          "departed": 1762280779
+          "arrived": 1762282912,
+          "departed": 1762282935
         },
         {
-          "stop_id": "3267",
+          "stop_id": "2",
           "stop_sequence": 3,
-          "arrived": 1762280785,
-          "departed": 1762280785
+          "arrived": 1762282954,
+          "departed": 1762282985
         },
         {
-          "stop_id": "3268",
+          "stop_id": "6",
           "stop_sequence": 4,
-          "arrived": 1762280791,
-          "departed": 1762280803
+          "arrived": 1762283069,
+          "departed": 1762283128
         },
         {
-          "stop_id": "32681",
+          "stop_id": "10003",
           "stop_sequence": 5,
-          "arrived": 1762280809,
-          "departed": 1762280815
+          "arrived": 1762283264,
+          "departed": 1762283304
         },
         {
-          "stop_id": "3269",
-          "stop_sequence": 6,
-          "arrived": 1762280833,
-          "departed": 1762280833
-        },
-        {
-          "stop_id": "3270",
-          "stop_sequence": 7,
-          "arrived": 1762280853,
-          "departed": 1762280853
-        },
-        {
-          "stop_id": "3271",
+          "stop_id": "10590",
           "stop_sequence": 8,
-          "arrived": 1762280859,
-          "departed": 1762280865
+          "arrived": 1762283656,
+          "departed": 1762283718
         },
         {
-          "stop_id": "3272",
+          "stop_id": "87",
           "stop_sequence": 9,
-          "arrived": 1762280873,
-          "departed": 1762280879
+          "arrived": 1762283771,
+          "departed": 1762283847
         },
         {
-          "stop_id": "3273",
+          "stop_id": "188",
           "stop_sequence": 10,
-          "arrived": 1762280884,
-          "departed": 1762280896
+          "arrived": 1762283949,
+          "departed": 1762284037
         },
         {
-          "stop_id": "3276",
+          "stop_id": "89",
+          "stop_sequence": 11,
+          "arrived": 1762284045,
+          "departed": 1762284111
+        },
+        {
+          "stop_id": "91",
           "stop_sequence": 12,
-          "arrived": 1762280932,
-          "departed": 1762280932
+          "arrived": 1762284159,
+          "departed": 1762284261
         },
         {
-          "stop_id": "32760",
+          "stop_id": "93",
           "stop_sequence": 13,
-          "arrived": 1762280932,
-          "departed": 1762280932
+          "arrived": 1762284470,
+          "departed": 1762284567
         },
         {
-          "stop_id": "3277",
+          "stop_id": "95",
           "stop_sequence": 14,
-          "arrived": 1762280938,
-          "departed": 1762280952
+          "arrived": 1762284670,
+          "departed": 1762284692
         },
         {
-          "stop_id": "3278",
+          "stop_id": "97",
           "stop_sequence": 15,
-          "arrived": 1762280999,
-          "departed": 1762280999
+          "arrived": 1762284801,
+          "departed": 1762284873
         },
         {
-          "stop_id": "3280",
+          "stop_id": "99",
+          "stop_sequence": 16,
+          "arrived": 1762284973,
+          "departed": 1762285030
+        },
+        {
+          "stop_id": "101",
           "stop_sequence": 17,
-          "arrived": 1762281012,
-          "departed": 1762281012
+          "arrived": 1762285069,
+          "departed": 1762285119
         },
         {
-          "stop_id": "3281",
+          "stop_id": "102",
           "stop_sequence": 18,
-          "arrived": 1762281018,
-          "departed": 1762281030
+          "arrived": 1762285228,
+          "departed": 1762285298
         },
         {
-          "stop_id": "3283",
+          "stop_id": "104",
           "stop_sequence": 19,
-          "arrived": 1762281061,
-          "departed": 1762281069
+          "arrived": 1762285325,
+          "departed": 1762285355
         },
         {
-          "stop_id": "32831",
+          "stop_id": "106",
           "stop_sequence": 20,
-          "arrived": 1762281082,
-          "departed": 1762281123
+          "arrived": 1762285375,
+          "departed": 1762285431
         },
         {
-          "stop_id": "3286",
+          "stop_id": "107",
+          "stop_sequence": 21,
+          "arrived": 1762285437,
+          "departed": 1762285461
+        },
+        {
+          "stop_id": "108",
           "stop_sequence": 22,
-          "arrived": 1762281178,
-          "departed": 1762281203
+          "arrived": 1762285503,
+          "departed": 1762285539
         },
         {
-          "stop_id": "3287",
+          "stop_id": "109",
           "stop_sequence": 23,
-          "arrived": 1762281259,
-          "departed": 1762281271
-        },
-        {
-          "stop_id": "3288",
-          "stop_sequence": 24,
-          "arrived": 1762281290,
-          "departed": 1762281337
-        },
-        {
-          "stop_id": "32910",
-          "stop_sequence": 25,
-          "arrived": 1762281368,
-          "departed": 1762281380
-        },
-        {
-          "stop_id": "32912",
-          "stop_sequence": 27,
-          "arrived": 1762281416,
-          "departed": 1762281479
-        },
-        {
-          "stop_id": "3640",
-          "stop_sequence": 28,
-          "arrived": 1762281526,
-          "departed": 1762281597
-        },
-        {
-          "stop_id": "3038",
-          "stop_sequence": 29,
-          "arrived": 1762281602,
-          "departed": 1762281624
+          "arrived": 1762285552,
+          "departed": 1762285591
         }
       ]
     }
@@ -470,7 +447,7 @@ sys.getsizeof(
 
 </details>
 
-    2.927931785583496
+    2.9281177520751953
 
 The realtime predictions file is still much smaller: from 3MB
 uncompressed it drops to 350MB, and that’s for all modes. But that file
@@ -502,31 +479,155 @@ sys.getsizeof(
 
 </details>
 
-    0.48584747314453125
+    0.48502540588378906
 
 That’s not quite the same but it’s in the ballpark, which is probably
-what matters. I’ll store this file in the `analysis/flashback` folder to
-share it:
+what matters. I’ll store this file (uncompressed) in the
+`analysis/flashback` folder to share it:
 
 <details open class="code-fold">
 <summary>Code</summary>
 
 ``` python
-with gzip.open("mock_stop_events.json.gz", "wt", encoding = "utf-8") as file:
-    file.write(
-        structured_sample
-        .with_columns(
-            pl.col("stop_events").list.filter(
-                pl.coalesce(
-                    pl.element().struct.field("departed"),
-                    pl.element().struct.field("arrived"),
-                )
-                .is_between(datetime(2025, 11, 4, 7).timestamp(), datetime(2025, 11, 4, 9).timestamp())
+(
+    structured_sample
+    .with_columns(
+        pl.col("stop_events").list.filter(
+            pl.coalesce(
+                pl.element().struct.field("departed"),
+                pl.element().struct.field("arrived"),
             )
+            .is_between(datetime(2025, 11, 4, 7).timestamp(), datetime(2025, 11, 4, 9).timestamp())
         )
-        .filter(pl.col("stop_events").list.len() > 0)
-        .write_json()
     )
+    .filter(pl.col("stop_events").list.len() > 0)
+    .write_json("mock_stop_events.json")
+)
 ```
 
 </details>
+
+This is the format LAMP would output for the API. Concentrate would then
+turn this file into an endpoint that returned responses like the
+`predictions` endpoint:
+
+``` json
+{
+    "attributes": {
+        "arrival_time": null,
+        "arrival_uncertainty": null,
+        "departure_time": null,
+        "departure_uncertainty": null,
+        "direction_id": 0,
+        "last_trip": false,
+        "revenue": "REVENUE",
+        "schedule_relationship": "CANCELLED",
+        "status": null,
+        "stop_sequence": 2,
+        "update_type": null
+    },
+    "id": "prediction-71468273-1-2-1",
+    "relationships": {
+    "route": {
+        "data": {
+            "id": "1",
+            "type": "route"
+        }
+    },
+    "stop": {
+        "data": {
+            "id": "1",
+            "type": "stop"
+        }
+    },
+    "trip": {
+        "data": {
+            "id": "71468273",
+            "type": "trip"
+        }
+    },
+    "vehicle": {
+        "data": null
+    }
+    },
+    "type": "prediction"
+}
+```
+
+For us, the data would look like:
+
+<details open class="code-fold">
+<summary>Code</summary>
+
+``` python
+print(
+    json.dumps(
+        json.loads(
+            (
+                sample
+                .select(
+                    attributes = pl.struct(
+                        direction_id = pl.col("direction_id"),
+                        stop_sequence = pl.col("gtfs_stop_sequence"),
+                        revenue = pl.lit("REVENUE"),
+                        arrived = pl.col("gtfs_arrival_dt"),
+                        departed = pl.col("gtfs_departure_dt"),
+                    ),
+                    relationships = pl.struct(
+                        [
+                            pl.struct(
+                                data = pl.struct(
+                                    id = pl.col(f"{c}_id"),
+                                    type = pl.lit(c),
+                                )
+                            ).alias(c) for c in ["route", "vehicle", "stop", "trip"]
+                        ]
+                    ),
+                    type = pl.lit("stop_event"),
+                )
+                .head(1)
+                .write_ndjson()
+            )
+        ), indent = 2
+    )
+)
+```
+
+</details>
+
+    {
+      "attributes": {
+        "direction_id": 1,
+        "stop_sequence": 3,
+        "revenue": "REVENUE",
+        "arrived": "2025-11-04T22:01:07+00:00",
+        "departed": "2025-11-04T22:01:24+00:00"
+      },
+      "relationships": {
+        "route": {
+          "data": {
+            "id": "111",
+            "type": "route"
+          }
+        },
+        "vehicle": {
+          "data": {
+            "id": "y1994",
+            "type": "vehicle"
+          }
+        },
+        "stop": {
+          "data": {
+            "id": "5588",
+            "type": "stop"
+          }
+        },
+        "trip": {
+          "data": {
+            "id": "71994084",
+            "type": "trip"
+          }
+        }
+      },
+      "type": "stop_event"
+    }
