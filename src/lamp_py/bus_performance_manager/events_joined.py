@@ -41,7 +41,7 @@ class BusEvents(CombinedSchedule, TransitMasterEvents):
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
         return pl.when(
-            pl.col("stop_sequence").eq(pl.col("stop_count")),
+            pl.col("point_type").eq(pl.lit("end")),
             pl.col("gtfs_last_in_transit_dt").is_not_null(),
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
