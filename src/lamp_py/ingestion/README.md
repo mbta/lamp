@@ -52,3 +52,118 @@ GTFS-RT parquet files are transformed and partitioned based on their `Converter 
 GTFS Zip files are converted to yearly partitioned parquet files, using a differential compression process, and exported to AWS S3 for publishing/storage.
 
 For more Information about these files, please see: https://performancedata.mbta.com/
+
+# Protecting personal data
+
+For files we ingest without personal data, the data flows intact from the `incoming` bucket to `springboard` unless their contents contain invalid schema, encoding, contents, etc:
+
+```mermaid
+flowchart LR;
+
+subgraph incoming
+inc[lamp/*]
+end
+subgraph springboard
+s[lamp/*]
+end
+subgraph error
+e[lamp/*]
+end
+
+inc --> ing[/ingestion/] --valid--> s
+ing --invalid--> e
+```
+
+Files that include protected data add an additionanl step to separately store that data.
+Protected data columns are sent, by role to a subdirectory of the `lamp-restricted` prefix according to the access role required to view them.
+
+```mermaid
+flowchart LR;
+
+subgraph incoming
+inc[lamp/]
+end
+subgraph springboard
+s[lamp/]
+sp["lamp-restricted/{role}"]
+end
+subgraph error
+e[lamp/]
+end
+
+inc --> ing[/ingestion/] --valid unprotected records--> s
+ing --valid protected records--> sp
+ing --invalid records--> e
+```
+
+Each file in the `lamp-restricted` prefix can be joined back to the same-named file in the `lamp` prefix by the primary keys of the files.
+For example, consider operator fields contained in messages from BusLoc:
+
+```json
+{
+    "id": "1735689597_3277",
+    "vehicle": {
+        "operator": {
+            "id": 12345,
+            "name": "Lee",
+            "first_name": "Sam",
+            "last_name": "Lee",
+            "logon_time": 1735683380
+        }
+    }
+}
+```
+
+In our approach, `name`, `first_name`, `last_name`, and (potentially) `vehicle.operator.id` should be protected.
+This message would be stored in `springboard/lamp/BUS_VEHICLE_POSITIONS/` as
+
+```json
+{
+    "id": "1735689597_3277",
+    "vehicle": {
+        "operator": {
+            "logon_time": 1735683380
+        }
+    }
+}
+```
+
+The protected values are split between a location accessible to those who can access operator ID and those who can access operator name.
+(In this example, it's likely those who can access name can also access Id but consider the possibility of distinct protected fields such as `name` and `credit_card_number`.)
+So, in `springboard/lamp-restricted/` there woudld be 2 new streams of files created:
+
+1. `springboard/lamp-restricted/operator-id/BUS_VEHICLE_POSITIONS/`, with records like
+
+    ```json
+    {
+        "id": "1735689597_3277",
+        "vehicle": {
+            "operator": {
+                "id": 12345
+            }
+        }
+    }
+    ```
+    Which can be read by users with `GetObject` privileges on `springboard/lamp-restricted/operator-id/`
+
+2. `springboard/lamp-restricted/operator-name/BUS_VEHICLE_POSITIONS`, with records like
+
+    ```json
+    {
+        "id": "1735689597_3277",
+        "vehicle": {
+            "operator": {
+                "name": "Lee",
+                "first_name": "Sam",
+                "last_name": "Lee",
+            }
+        }
+    }
+    ```
+    Which can be read by users with `GetObject` privileges on `springboard/lamp-restricted/operator-name/`
+
+Users would then join on `id` to reassemble the full records.
+
+This approach allows us to control access by information type without provisioning access per file. It also provides users a predictable way to locate and re-assemble protected information.
+However, it does limit users' ability to aggregate by protected fields.
+An alternative approach could anonymize operator Id but keep it consistent over service dates.
