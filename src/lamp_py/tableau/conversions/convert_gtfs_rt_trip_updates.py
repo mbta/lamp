@@ -121,41 +121,6 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
     process_logger = ProcessLogger("lrtp_devgreen")
     process_logger.log_start()
 
-    def temporary_lrtp_assign_new_trip_ids(trip_updates: pl.DataFrame, threshold_sec: int = 60 * 15) -> pl.DataFrame:
-        trip_updates = (
-            trip_updates.sort("trip_update.timestamp")
-            .with_columns(
-                pl.col("trip_update.timestamp")
-                .diff()
-                .alias("mdiff")
-                .over("trip_update.trip.trip_id", "trip_update.trip.start_date")
-            )
-            .with_columns(
-                pl.when(pl.col("mdiff") < threshold_sec)
-                .then(0)
-                .otherwise(1)
-                .fill_null(0)
-                .cum_sum()
-                .cast(pl.String)
-                .alias("new_id")
-                .over("trip_update.trip.trip_id", "trip_update.trip.start_date")
-            )
-            .with_columns(
-                pl.when(pl.col("new_id").ne("1"))
-                .then(
-                    pl.concat_str(
-                        [pl.col("trip_update.trip.trip_id"), pl.lit("_LAMP"), pl.col("new_id")], ignore_nulls=True
-                    )
-                )
-                .alias("trip_update.trip.trip_id1")
-            )
-            .with_columns(
-                pl.coalesce("trip_update.trip.trip_id1", "trip_update.trip.trip_id").alias("trip_update.trip.trip_id")
-            )
-            .drop("trip_update.trip.trip_id1")
-        )
-        return trip_updates
-
     trip_updates = apply_timezone_conversions(trip_updates)
     # filter down to only terminals - original data
     trip_updates = trip_updates.filter(
@@ -166,7 +131,6 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
         pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
         pl.col("trip_update.stop_time_update.departure.time").sub(pl.col("feed_timestamp")).dt.total_seconds().ge(1),
     )
-    trip_updates = temporary_lrtp_assign_new_trip_ids(trip_updates)
     trip_updates = append_prediction_valid_duration(trip_updates)
     valid = LightRailTerminalTripUpdates.validate(trip_updates)
 
