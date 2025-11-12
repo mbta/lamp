@@ -1,5 +1,6 @@
 import os
 import datetime
+import tempfile
 
 import pyarrow
 import pyarrow.parquet as pq
@@ -11,7 +12,6 @@ from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import tableau_rail
 
 
 class HyperRtRail(HyperJob):
@@ -21,12 +21,13 @@ class HyperRtRail(HyperJob):
         self,
         route_type_operator: str,
         route_type_operand: str,
+        *args,
+        **kwargs,
     ) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name="LAMP_ALL_RT_fields.hyper",
-            remote_parquet_path=f"{tableau_rail.s3_uri}/LAMP_ALL_RT_fields.parquet",
-            lamp_version="1.2.2",
+            *args,
+            **kwargs,
         )
         self.table_query = f"""SELECT
                date(vt.service_date::text) as service_date
@@ -124,7 +125,8 @@ class HyperRtRail(HyperJob):
         # batch_size/row group size of input parquet files can also impact
         # memory usage of batched ParquetWriter operations
         self.ds_batch_size = 1024 * 256
-        self.db_parquet_path = "/tmp/db_local.parquet"
+        self._tmp_dir = tempfile.TemporaryDirectory()
+        self.db_parquet_path = os.path.join(self._tmp_dir, "db_local.parquet")
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
@@ -237,7 +239,7 @@ class HyperRtRail(HyperJob):
             batch_readahead=1,
             fragment_readahead=0,
         )
-        filter_path = "/tmp/filter_local.parquet"
+        filter_path = os.path.join(self._tmp_dir, "filter_local.parquet")
 
         old_batch_count = 0
         old_batch_rows = 0
@@ -262,7 +264,7 @@ class HyperRtRail(HyperJob):
             pd.dataset(self.db_parquet_path),
         ]
 
-        combine_parquet_path = "/tmp/combine.parquet"
+        combine_parquet_path = os.path.join(self._tmp_dir, "combine.parquet")
         combine_batches = pd.dataset(
             joined_dataset,
             schema=self.output_processed_schema,
