@@ -15,8 +15,9 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     HyperGtfsRtVehiclePositions,
     HyperGtfsRtVehiclePositionsAllLightRail,
     HyperGtfsRtVehiclePositionsHeavyRail,
+    HyperRtRailSubway,
+    HyperRtRailCommuter,
 )
-from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
 from lamp_py.tableau.jobs.gtfs_rail import (
     HyperServiceIdByRoute,
@@ -64,17 +65,12 @@ def start_hyper_updates() -> None:
     # parquet and hyper all in one
     start_spare_updates()
 
-    # hyper_file_name="LAMP_ALL_RT_fields.hyper",
-    # remote_parquet_path=f"{tableau_rail.s3_uri}/LAMP_ALL_RT_fields.parquet",
-    # lamp_version="1.2.2",
+    #
     hyper_jobs: List[HyperJob] = [
         HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
         HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
-        HyperRtRail(
-            route_type_operator="<",
-            route_type_operand="2",
-        ),  # light rail and heavy rail
-        HyperRtRail(route_type_operator="=", route_type_operand="2"),  # commuter rail
+        HyperRtRailSubway,
+        HyperRtRailCommuter,
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
         HyperStaticCalendarDates(),
@@ -109,7 +105,8 @@ def start_parquet_updates(db_manager: DatabaseManager) -> None:
     parquet_update_jobs: List[HyperJob] = [
         HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
         HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
-        HyperRtRail(),
+        HyperRtRailSubway,
+        HyperRtRailCommuter,
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
         HyperStaticCalendarDates(),

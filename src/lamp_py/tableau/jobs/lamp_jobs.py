@@ -1,3 +1,4 @@
+import os
 from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.tableau.conversions import (
     convert_gtfs_rt_trip_updates,
@@ -127,8 +128,8 @@ HyperRtRailSubway = (
     HyperRtRail(
         route_type_operator="<",
         route_type_operand="2",  # enum 1 = local rail
-        hyper_file_name=tableau_rail_subway.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
-        remote_parquet_path=tableau_rail_subway.s3_uri,
+        hyper_file_name=os.path.join(tableau_rail_subway.s3_uri, "LAMP_RAIL_RT_fields.hyper"),
+        remote_parquet_path=os.path.join(tableau_rail_subway.s3_uri, "LAMP_RAIL_RT_fields.parquet"),
         lamp_version="1.2.2",
     ),
 )  # light rail and heavy rail
@@ -137,8 +138,8 @@ HyperRtRailCommuter = (
     HyperRtRail(
         route_type_operator="=",
         route_type_operand="2",  # enum 2 = commuter rail
-        hyper_file_name=tableau_rail_commuter.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
-        remote_parquet_path=tableau_rail_commuter.s3_uri,
+        hyper_file_name=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.hyper"),
+        remote_parquet_path=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.parquet"),
         lamp_version="1.0.0",
     ),
 )  # commuter rail
