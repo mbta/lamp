@@ -94,7 +94,7 @@ def add_views_to_local_metastore(
 
 
 def pipeline(
-    views: dict[str, List[rf.S3Location]], local_location: str = ":memory:", remote_location: str | None = None
+    views: dict[str, List[rf.S3Location]], local_location: str = ":memory:", remote_location: rf.S3Location | None = None
 ) -> None:
     "Create duckdb metastore and upload to specified location."
     pl = ProcessLogger("lightswitch.pipeline", local_location=local_location)
@@ -107,7 +107,7 @@ def pipeline(
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location)
-        upload_file(local_location, remote_location)
+        upload_file(local_location, remote_location.s3_uri)
 
     pl.log_complete()
 
@@ -116,5 +116,5 @@ if __name__ == "__main__":
     pipeline(
         HIVE_VIEWS,
         local_location="/tmp/lamp.db",
-        remote_location="s3://mbta-ctd-dataplatform-dev-archive/lamp/catalog.db",
+        remote_location=rf.lightswitch,
     )
