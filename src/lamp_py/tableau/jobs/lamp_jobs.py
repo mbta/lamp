@@ -20,8 +20,12 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_rt_vehicle_positions_all_light_rail_7_day,
     tableau_bus_operator_mapping_recent,
     tableau_bus_operator_mapping_all,
+    tableau_rail_commuter,
+    tableau_rail_subway,
 )
+
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
@@ -118,3 +122,23 @@ HyperBusOperatorMappingAll = FilteredHyperJob(
     tableau_project_name=LAMP_API_PROJECT,
     partition_template="",
 )
+
+HyperRtRailSubway = (
+    HyperRtRail(
+        route_type_operator="<",
+        route_type_operand="2",  # enum 1 = local rail
+        hyper_file_name=tableau_rail_subway.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
+        remote_parquet_path=tableau_rail_subway.s3_uri,
+        lamp_version="1.2.2",
+    ),
+)  # light rail and heavy rail
+
+HyperRtRailCommuter = (
+    HyperRtRail(
+        route_type_operator="=",
+        route_type_operand="2",  # enum 2 = commuter rail
+        hyper_file_name=tableau_rail_commuter.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
+        remote_parquet_path=tableau_rail_commuter.s3_uri,
+        lamp_version="1.0.0",
+    ),
+)  # commuter rail
