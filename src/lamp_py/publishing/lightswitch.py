@@ -3,6 +3,7 @@ from typing import List
 
 import duckdb
 from lamp_py.runtime_utils import remote_files as rf
+from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
@@ -50,8 +51,9 @@ HIVE_VIEWS = {
 
 def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
     "Register IAM credentials with duckdb."
+    connection.install_extension("aws")
     connection.load_extension("aws")
-    return connection.sql(
+    return connection.sql(  # type: ignore[index]
         """
     CREATE SECRET IF NOT EXISTS secret (
         TYPE s3, 
@@ -101,6 +103,18 @@ def pipeline(  # pylint: disable=dangerous-default-value
     "Create duckdb metastore and upload to specified location."
     pl = ProcessLogger("lightswitch.pipeline", local_location=local_location)
     pl.log_start()
+
+    os.environ["SERVICE_NAME"] = "lightswitch"
+
+    validate_environment(
+        required_variables=[
+            "SPRINGBOARD_BUCKET",
+            "PUBLIC_ARCHIVE_BUCKET",
+            "INCOMING_BUCKET",
+            "ARCHIVE_BUCKET",
+            "ERROR_BUCKET",
+        ],
+    )
 
     with duckdb.connect(local_location) as con:
         auth = authenticate(con)

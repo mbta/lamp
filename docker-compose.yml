@@ -49,6 +49,15 @@ services:
       - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
     command: ["poetry", "run", "bus_performance_manager"]
 
+  lightswitch:
+    container_name: lightswitch
+    env_file: .env
+    build: .
+    working_dir: /lamp
+    volumes:
+      - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
+    command: ["poetry", "run", "lightswitch"]
+
   seed_metadata:
     container_name: seed_metadata
     env_file: .env

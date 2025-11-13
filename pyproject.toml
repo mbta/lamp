@@ -34,6 +34,7 @@ alembic = "^1.10.2"
 types-pytz = "^2024.1.0.20240203"
 pyodbc = "^5.2.0"
 polars = "^1.32.0"
+duckdb = "^1.4.2"
 
 [tool.poetry.group.tableau]
 optional = false
