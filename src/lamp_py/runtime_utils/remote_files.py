@@ -167,7 +167,7 @@ tableau_rail_subway = S3Location(
 )
 
 tableau_rail_commuter = S3Location(
-    bucket=S3_PUBLIC,
+    bucket=S3_ARCHIVE,
     prefix=os.path.join(TABLEAU, "rail"),
 )
 
