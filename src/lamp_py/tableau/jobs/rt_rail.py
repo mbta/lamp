@@ -1,6 +1,6 @@
 import os
 import datetime
-import tempfile
+from typing import Any
 
 import pyarrow
 import pyarrow.parquet as pq
@@ -21,13 +21,11 @@ class HyperRtRail(HyperJob):
         self,
         route_type_operator: str,
         route_type_operand: str,
-        *args,
-        **kwargs,
+        **hyper_job_args: Any,
     ) -> None:
         HyperJob.__init__(
             self,
-            *args,
-            **kwargs,
+            **hyper_job_args,
         )
         self.table_query = f"""SELECT
                date(vt.service_date::text) as service_date
