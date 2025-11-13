@@ -125,8 +125,9 @@ class HyperRtRail(HyperJob):
         # batch_size/row group size of input parquet files can also impact
         # memory usage of batched ParquetWriter operations
         self.ds_batch_size = 1024 * 256
-        self._tmp_dir = tempfile.TemporaryDirectory()
-        self.db_parquet_path = os.path.join(self._tmp_dir, "db_local.parquet")
+
+        # /tmp/db_local_RAIL_xyz.parquet
+        self.db_parquet_path = os.path.join("tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
@@ -239,7 +240,7 @@ class HyperRtRail(HyperJob):
             batch_readahead=1,
             fragment_readahead=0,
         )
-        filter_path = os.path.join(self._tmp_dir, "filter_local.parquet")
+        filter_path = os.path.join("tmp", "filter_local_" + os.path.basename(self.remote_parquet_path))
 
         old_batch_count = 0
         old_batch_rows = 0
@@ -264,7 +265,8 @@ class HyperRtRail(HyperJob):
             pd.dataset(self.db_parquet_path),
         ]
 
-        combine_parquet_path = os.path.join(self._tmp_dir, "combine.parquet")
+        combine_parquet_path = os.path.join("tmp", "combine_" + os.path.basename(self.remote_parquet_path))
+
         combine_batches = pd.dataset(
             joined_dataset,
             schema=self.output_processed_schema,
