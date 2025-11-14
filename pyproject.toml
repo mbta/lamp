@@ -17,6 +17,7 @@ seed_metadata = 'lamp_py.postgres.seed_metadata:run'
 hyper_update = 'lamp_py.tableau.pipeline:start_hyper_updates'
 transit_master_ingestion = 'lamp_py.ingestion_tm.pipeline:start'
 ad_hoc = 'lamp_py.ad_hoc.pipeline:start'
+lightswitch = 'lamp_py.publishing.lightswitch:pipeline'
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -33,6 +34,7 @@ alembic = "^1.10.2"
 types-pytz = "^2024.1.0.20240203"
 pyodbc = "^5.2.0"
 polars = "^1.32.0"
+duckdb = "^1.4.2"
 
 [tool.poetry.group.tableau]
 optional = false
