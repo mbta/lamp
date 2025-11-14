@@ -125,7 +125,7 @@ class HyperRtRail(HyperJob):
         self.ds_batch_size = 1024 * 256
 
         # /tmp/db_local_RAIL_xyz.parquet
-        self.db_parquet_path = os.path.join("tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
+        self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
@@ -238,7 +238,7 @@ class HyperRtRail(HyperJob):
             batch_readahead=1,
             fragment_readahead=0,
         )
-        filter_path = os.path.join("tmp", "filter_local_" + os.path.basename(self.remote_parquet_path))
+        filter_path = os.path.join("/tmp", "filter_local_" + os.path.basename(self.remote_parquet_path))
 
         old_batch_count = 0
         old_batch_rows = 0
@@ -263,7 +263,7 @@ class HyperRtRail(HyperJob):
             pd.dataset(self.db_parquet_path),
         ]
 
-        combine_parquet_path = os.path.join("tmp", "combine_" + os.path.basename(self.remote_parquet_path))
+        combine_parquet_path = os.path.join("/tmp", "combine_" + os.path.basename(self.remote_parquet_path))
 
         combine_batches = pd.dataset(
             joined_dataset,
