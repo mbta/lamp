@@ -160,10 +160,17 @@ public_alerts_file = S3Location(
     bucket=S3_PUBLIC,
     prefix=os.path.join(TABLEAU, "alerts", "LAMP_RT_ALERTS.parquet"),
 )
-tableau_rail = S3Location(
+
+tableau_rail_subway = S3Location(
     bucket=S3_PUBLIC,
     prefix=os.path.join(TABLEAU, "rail"),
 )
+
+tableau_rail_commuter = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "rail"),
+)
+
 tableau_bus_recent = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_RECENT_Bus_Events.parquet"))
 tableau_bus_all = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_ALL_Bus_Events.parquet"))
 
