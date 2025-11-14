@@ -1,4 +1,5 @@
 import os
+from typing import Generator
 
 import pytest
 import duckdb
@@ -9,7 +10,9 @@ from tests.test_resources import rt_vehicle_positions, tm_route_file
 
 
 @pytest.fixture(name="duckdb_con")
-def fixture_duckdb_con(path: str = ":memory:", read_only: bool = False) -> duckdb.DuckDBPyConnection:
+def fixture_duckdb_con(
+    path: str = ":memory:", read_only: bool = False
+) -> Generator[duckdb.DuckDBPyConnection, None, None]:
     "Reusable DuckDB instance, scoped to each function."
     yield duckdb.connect(path, read_only)
     try:
@@ -32,14 +35,12 @@ def fixture_duckdb_con(path: str = ":memory:", read_only: bool = False) -> duckd
 def test_build_view(duckdb_con: duckdb.DuckDBPyConnection, partition_strategy: str, data_location: S3Location) -> None:
     "It gracefully creates the view using the specified partition strategy."
     view_name = build_view(duckdb_con, "test", data_location, partition_strategy)
-    assert (
-        duckdb_con.sql(
-            f"""
+    view_exists = duckdb_con.sql(  # type: ignore[index]
+        f"""
         SELECT count(*) FROM duckdb_views() WHERE view_name = '{view_name}' AND internal = false
     """
-        ).fetchone()[0]
-        == 1
-    )
+    ).fetchone()[0]
+    assert view_exists == 1
 
 
 # test if all views get built
