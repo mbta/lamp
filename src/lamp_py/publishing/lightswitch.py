@@ -110,7 +110,6 @@ def pipeline(  # pylint: disable=dangerous-default-value
         required_variables=[
             "SPRINGBOARD_BUCKET",
             "PUBLIC_ARCHIVE_BUCKET",
-            "INCOMING_BUCKET",
             "ARCHIVE_BUCKET",
         ],
     )
