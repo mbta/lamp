@@ -308,10 +308,10 @@ print(
             (
                 sample
                 .select(
+                    id = pl.concat_str([pl.lit("stop-event"), pl.col("trip_id"), pl.col("vehicle_id"), pl.col("gtfs_stop_sequence")], separator = "-", ignore_nulls = True),
                     attributes = pl.struct(
                         direction_id = pl.col("direction_id"),
                         stop_sequence = pl.col("gtfs_stop_sequence"),
-                        revenue = pl.lit("REVENUE"),
                         arrived = pl.col("gtfs_arrival_dt"),
                         departed = pl.col("gtfs_departure_dt"),
                     ),
