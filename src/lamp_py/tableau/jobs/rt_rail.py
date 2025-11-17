@@ -8,25 +8,28 @@ import pyarrow.compute as pc
 import pyarrow.dataset as pd
 import sqlalchemy as sa
 
+from lamp_py.common.gtfs_types import RouteType
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-
-
 class HyperRtRail(HyperJob):
     """HyperJob for LAMP RT Rail data"""
 
     def __init__(
         self,
         route_type_operator: str,
-        route_type_operand: str,
+        route_type_operand: RouteType,
         **hyper_job_args: Any,
     ) -> None:
         HyperJob.__init__(
             self,
             **hyper_job_args,
         )
+
+        operator_set = {">", ">=", "=", "<", "<="}
+        assert(route_type_operator in operator_set)
+
         self.table_query = f"""SELECT
                date(vt.service_date::text) as service_date
                , vt.service_date::text::timestamp + make_interval(secs => vt.start_time) as start_datetime
@@ -100,7 +103,7 @@ class HyperRtRail(HyperJob):
                vt.route_id = sr.route_id
                AND vt.static_version_key = sr.static_version_key
              WHERE 
-               sr.route_type {route_type_operator}{route_type_operand}
+               sr.route_type {route_type_operator}{str(route_type_operand.value)}
                AND (
                    ve.canonical_stop_sequence > 1
                    OR ve.canonical_stop_sequence IS NULL
