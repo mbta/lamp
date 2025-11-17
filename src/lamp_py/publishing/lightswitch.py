@@ -112,7 +112,6 @@ def pipeline(  # pylint: disable=dangerous-default-value
             "PUBLIC_ARCHIVE_BUCKET",
             "INCOMING_BUCKET",
             "ARCHIVE_BUCKET",
-            "ERROR_BUCKET",
         ],
     )
 
