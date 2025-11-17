@@ -13,6 +13,8 @@ from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
 class HyperRtRail(HyperJob):
     """HyperJob for LAMP RT Rail data"""
 
@@ -28,7 +30,7 @@ class HyperRtRail(HyperJob):
         )
 
         operator_set = {">", ">=", "=", "<", "<="}
-        assert(route_type_operator in operator_set)
+        assert route_type_operator in operator_set
 
         self.table_query = f"""SELECT
                date(vt.service_date::text) as service_date

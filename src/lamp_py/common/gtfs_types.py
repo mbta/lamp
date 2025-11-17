@@ -7,10 +7,12 @@ from enum import Enum
 # 3 - Bus. Used for short- and long-distance bus routes.
 # 4 - Ferry. Used for short- and long-distance boat service.
 
+
 class RouteType(Enum):
     """
     RouteType enums to specify allowable values in downstream processing
     """
+
     LIGHT_RAIL = 0
     SUBWAY_METRO = 1
     COMMUTER_RAIL = 2
