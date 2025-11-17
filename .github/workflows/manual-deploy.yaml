@@ -4,7 +4,8 @@ run-name: "env: ${{github.event.inputs.environment}} |
  🚂: ${{ fromJson(github.event.inputs.deploy-rail-pm) == 1}} |
  🚌: ${{ fromJson(github.event.inputs.deploy-bus-pm) == 1}} |
  ™️: ${{ fromJson(github.event.inputs.deploy-tm-ingestion) == 1}} |
- 📊: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) == 1}}"
+ 📊: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) == 1}} |
+ 💡: ${{ fromJson(github.event.inputs.deploy-lightswitch) == 1}}"
 
 on:
   workflow_dispatch:
@@ -36,6 +37,10 @@ on:
         description: Deploy Tableau Publisher (not run on Dev)
         default: false
         type: boolean
+      deploy-lightswitch:
+        description: Deploy Lightswitch
+        default: false
+        type: boolean
 
 jobs:
   deploy:
@@ -51,4 +56,5 @@ jobs:
       deploy-bus-pm: ${{ fromJson(github.event.inputs.deploy-bus-pm) }}
       deploy-tm-ingestion: ${{ fromJson(github.event.inputs.deploy-tm-ingestion) }}
       deploy-tableau-publisher: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) }}
+      deploy-lightswitch: ${{ fromJson(github.event.inputs.deploy-lightswitch) }}
     secrets: inherit
