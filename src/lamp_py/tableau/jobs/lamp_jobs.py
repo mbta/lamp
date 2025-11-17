@@ -1,4 +1,6 @@
+import os
 from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
+from lamp_py.common.gtfs_types import RouteType
 from lamp_py.tableau.conversions import (
     convert_gtfs_rt_trip_updates,
     convert_gtfs_rt_vehicle_position,
@@ -20,8 +22,12 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_rt_vehicle_positions_all_light_rail_7_day,
     tableau_bus_operator_mapping_recent,
     tableau_bus_operator_mapping_all,
+    tableau_rail_commuter,
+    tableau_rail_subway,
 )
+
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
@@ -117,4 +123,22 @@ HyperBusOperatorMappingAll = FilteredHyperJob(
     parquet_filter=None,
     tableau_project_name=LAMP_API_PROJECT,
     partition_template="",
+)
+
+# light rail and heavy rail - Enum Types < 2 == 0, 1
+HyperRtRailSubway = HyperRtRail(
+    route_type_operator="<",
+    route_type_operand=RouteType.COMMUTER_RAIL,
+    hyper_file_name="LAMP_ALL_RT_fields.hyper",
+    remote_parquet_path=os.path.join(tableau_rail_subway.s3_uri, "LAMP_ALL_RT_fields.parquet"),
+    lamp_version="1.2.2",
+)
+
+# commuter rail - Enum types == 2 == COMMUTER_RAIL
+HyperRtRailCommuter = HyperRtRail(
+    route_type_operator="=",
+    route_type_operand=RouteType.COMMUTER_RAIL,
+    hyper_file_name="LAMP_COMMUTER_RAIL_RT_fields.hyper",
+    remote_parquet_path=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.parquet"),
+    lamp_version="1.0.0",
 )
