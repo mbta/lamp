@@ -68,7 +68,7 @@ jobs:
       - run: poetry run pylint src tests --rcfile pyproject.toml
 
   test:
-    name: Test
+    name: TestRail
     runs-on: ubuntu-22.04
     needs: setup
 
