@@ -67,8 +67,8 @@ jobs:
 
       - run: poetry run pylint src tests --rcfile pyproject.toml
 
-  testrail:
-    name: TestRail
+  test_rail_db:
+    name: TestRailDatabase
     runs-on: ubuntu-22.04
     needs: setup
 
@@ -120,7 +120,7 @@ jobs:
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
-          poetry run pytest tests/performance_manager \
+          poetry run pytest tests/performance_manager/test_performance_manager.py \
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
           --cov-branch \
@@ -133,9 +133,36 @@ jobs:
         uses: mbta/github-actions-report-lcov@v4
         with:
           coverage-files: coverage.info
-          artifact-name: python-code-coverage
+          artifact-name: python-code-coverage-rail-db
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+  testrail:
+    name: TestRail
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest tests/performance_manager \
+          --ignore=tests/performance_manager/test_performance_manager.py \
+          --cov-report lcov:coverage.info \
+          --cov-report term-missing \
+          --cov-branch \
+          --cov=lamp_py
+
+      # Upload Coverage as an Artifact for Subsequent Jobs
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
+      - name: Report code coverage
+        uses: mbta/github-actions-report-lcov@v4
+        with:
+          coverage-files: coverage.info
+          artifact-name: python-code-coverage-rail
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   testbus:
     name: TestBus
@@ -161,5 +188,5 @@ jobs:
         uses: mbta/github-actions-report-lcov@v4
         with:
           coverage-files: coverage.info
-          artifact-name: python-code-coverage
+          artifact-name: python-code-coverage-bus
           github-token: ${{ secrets.GITHUB_TOKEN }}
