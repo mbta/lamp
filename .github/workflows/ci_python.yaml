@@ -71,6 +71,10 @@ jobs:
     name: Test
     runs-on: ubuntu-22.04
     needs: setup
+
+    concurrency:
+      group: python-ci-tests-${{ github.ref }}
+      cancel-in-progress: true    
     env:
       BOOTSTRAPPED: 1
       MD_DB_HOST: local_rds
@@ -119,9 +123,38 @@ jobs:
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
-          poetry run pytest \
-          -n auto \
-          --dist loadfile \
+          poetry run pytest tests/performance_manager \
+          --cov-report lcov:coverage.info \
+          --cov-report term-missing \
+          --cov-branch \
+          --cov=lamp_py
+
+      # Upload Coverage as an Artifact for Subsequent Jobs
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
+      - name: Report code coverage
+        uses: mbta/github-actions-report-lcov@v4
+        with:
+          coverage-files: coverage.info
+          artifact-name: python-code-coverage
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
+  test:
+    name: TestBus
+    runs-on: ubuntu-22.04
+    needs: setup
+    concurrency:
+      group: python-ci-tests-${{ github.ref }}
+      cancel-in-progress: true        
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest tests/bus_performance_manager \
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
           --cov-branch \
