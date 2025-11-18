@@ -147,7 +147,7 @@ jobs:
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
-          poetry run pytest tests/performance_manager \
+          poetry run pytest -n auto tests/performance_manager \
           --ignore=tests/performance_manager/test_performance_manager.py \
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
@@ -175,7 +175,7 @@ jobs:
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
-          poetry run pytest tests/bus_performance_manager \
+          poetry run pytest -n auto tests/bus_performance_manager \
           --cov-report lcov:coverage.info \
           --cov-report term-missing \
           --cov-branch \
