@@ -67,7 +67,7 @@ jobs:
 
       - run: poetry run pylint src tests --rcfile pyproject.toml
 
-  test:
+  testrail:
     name: TestRail
     runs-on: ubuntu-22.04
     needs: setup
@@ -140,7 +140,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
 
-  test:
+  testbus:
     name: TestBus
     runs-on: ubuntu-22.04
     needs: setup
