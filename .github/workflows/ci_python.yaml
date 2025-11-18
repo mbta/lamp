@@ -74,7 +74,7 @@ jobs:
 
     concurrency:
       group: python-ci-tests-${{ github.ref }}
-      cancel-in-progress: true    
+      cancel-in-progress: true
     env:
       BOOTSTRAPPED: 1
       MD_DB_HOST: local_rds
@@ -146,7 +146,7 @@ jobs:
     needs: setup
     concurrency:
       group: python-ci-tests-${{ github.ref }}
-      cancel-in-progress: true        
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/python_deps
