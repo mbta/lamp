@@ -72,9 +72,6 @@ jobs:
     runs-on: ubuntu-22.04
     needs: setup
 
-    concurrency:
-      group: python-ci-tests-${{ github.ref }}
-      cancel-in-progress: true
     env:
       BOOTSTRAPPED: 1
       MD_DB_HOST: local_rds
@@ -144,9 +141,6 @@ jobs:
     name: TestBus
     runs-on: ubuntu-22.04
     needs: setup
-    concurrency:
-      group: python-ci-tests-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/python_deps
