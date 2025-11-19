@@ -169,8 +169,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: artifact-upload-codecov-bus
         with:
-          name: bus_coverage
-          path: lamp_codecov/coverage_bus.info
+          name: lamp_codecov
+          path: coverage_bus.info
 
   testother:
     name: TestOther
