@@ -127,9 +127,7 @@ jobs:
           --cov-branch \
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
-        id: artifact-upload-codecov-step
         with:
-          name: rail_db_coverage
           path: lamp_codecov/coverage_rail_db.info
 
   testrail:
@@ -139,16 +137,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/python_deps
-
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
           poetry run pytest -n auto tests/performance_manager \
           --ignore=tests/performance_manager/test_performance_manager.py \
-          --cov-report lcov:coverage_rail.info \
+          --cov-report lcov:lamp_codecov/coverage_rail.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        with:
+          path: lamp_codecov/coverage_rail.info
 
   testbus:
     name: TestBus
@@ -167,9 +167,7 @@ jobs:
           --cov-branch \
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
-        id: artifact-upload-codecov-bus
         with:
-          name: bus_coverage
           path: lamp_codecov/coverage_bus.info
 
   testother:
@@ -186,20 +184,23 @@ jobs:
           poetry run pytest -n auto \
           --ignore=tests/performance_manager \
           --ignore=tests/bus_performance_manager \
-          --cov-report lcov:coverage_other.info \
+          --cov-report lcov:lamp_codecov/coverage_other.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        with:
+          path: lamp_codecov/coverage_other.info
 
   uploadcodedov:
     name: CodeCov
     runs-on: ubuntu-22.04
     needs:
       - setup
-      # - testraildb
-      # - testrail
+      - testraildb
+      - testrail
       - testbus
-      # - testother
+      - testother
     steps:
       - uses: actions/checkout@v3
       - name: download-artifact
