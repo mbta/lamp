@@ -193,19 +193,19 @@ jobs:
   uploadcodedov:
     name: CodeCov
     runs-on: ubuntu-22.04
-    needs: 
-    - setup
-    - testraildb
-    - testrail
-    - testbus
-    - testtherest
+    needs:
+      - setup
+      - testraildb
+      - testrail
+      - testbus
+      - testtherest
     steps:
-    # Upload Coverage as an Artifact for Subsequent Jobs
-    - name: Setup LCOV
-      uses: hrishikesh-kadam/setup-lcov@v1
-    - name: Report code coverage
-      uses: mbta/github-actions-report-lcov@v4
-      with:
-        coverage-files: coverage_*.info
-        artifact-name: python-code-coverage-rail
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Upload Coverage as an Artifact for Subsequent Jobs
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
+      - name: Report code coverage
+        uses: mbta/github-actions-report-lcov@v4
+        with:
+          coverage-files: coverage_*.info
+          artifact-name: python-code-coverage-rail
+          github-token: ${{ secrets.GITHUB_TOKEN }}
