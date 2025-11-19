@@ -162,7 +162,7 @@ jobs:
       - name: Run pytest With Coverage
         run: |
           poetry run pytest -n auto tests/bus_performance_manager \
-          --cov-report lcov:coverage_bus.info \
+          --cov-report lcov:lamp_codecov/coverage_bus.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
