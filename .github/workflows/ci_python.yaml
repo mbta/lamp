@@ -201,6 +201,7 @@ jobs:
       - testbus
       # - testother
     steps:
+      - uses: actions/checkout@v3
       - name: download-artifact
         uses: actions/download-artifact@v4
         with:
