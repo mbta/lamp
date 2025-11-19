@@ -100,7 +100,7 @@ env = [
 [tool.pylint]
 disable = [
   # disable doc string requirements
- "missing-module-docstring",
+  "missing-module-docstring",
   # allow catching a generic exception
   "broad-except",
   # caught by black
