@@ -121,20 +121,10 @@ jobs:
       - name: Run pytest With Coverage
         run: |
           poetry run pytest tests/performance_manager/test_performance_manager.py \
-          --cov-report lcov:coverage.info \
+          --cov-report lcov:coverage_rail_db.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
-
-      # Upload Coverage as an Artifact for Subsequent Jobs
-      - name: Setup LCOV
-        uses: hrishikesh-kadam/setup-lcov@v1
-      - name: Report code coverage
-        uses: mbta/github-actions-report-lcov@v4
-        with:
-          coverage-files: coverage.info
-          artifact-name: python-code-coverage-rail-db
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   testrail:
     name: TestRail
@@ -149,20 +139,10 @@ jobs:
         run: |
           poetry run pytest -n auto tests/performance_manager \
           --ignore=tests/performance_manager/test_performance_manager.py \
-          --cov-report lcov:coverage.info \
+          --cov-report lcov:coverage_rail.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
-
-      # Upload Coverage as an Artifact for Subsequent Jobs
-      - name: Setup LCOV
-        uses: hrishikesh-kadam/setup-lcov@v1
-      - name: Report code coverage
-        uses: mbta/github-actions-report-lcov@v4
-        with:
-          coverage-files: coverage.info
-          artifact-name: python-code-coverage-rail
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   testbus:
     name: TestBus
@@ -176,7 +156,26 @@ jobs:
       - name: Run pytest With Coverage
         run: |
           poetry run pytest -n auto tests/bus_performance_manager \
-          --cov-report lcov:coverage.info \
+          --cov-report lcov:coverage_bus.info \
+          --cov-report term-missing \
+          --cov-branch \
+          --cov=lamp_py
+
+  testother:
+    name: TestOther
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest -n auto \
+          --ignore=tests/performance_manager \
+          --ignore=tests/bus_performance_manager \
+          --cov-report lcov:coverage_other.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
@@ -190,3 +189,23 @@ jobs:
           coverage-files: coverage.info
           artifact-name: python-code-coverage-bus
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  uploadcodedov:
+    name: CodeCov
+    runs-on: ubuntu-22.04
+    needs: 
+    - setup
+    - testraildb
+    - testrail
+    - testbus
+    - testtherest
+    steps:
+    # Upload Coverage as an Artifact for Subsequent Jobs
+    - name: Setup LCOV
+      uses: hrishikesh-kadam/setup-lcov@v1
+    - name: Report code coverage
+      uses: mbta/github-actions-report-lcov@v4
+      with:
+        coverage-files: coverage_*.info
+        artifact-name: python-code-coverage-rail
+        github-token: ${{ secrets.GITHUB_TOKEN }}
