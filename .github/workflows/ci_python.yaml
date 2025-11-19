@@ -198,7 +198,7 @@ jobs:
       - testraildb
       - testrail
       - testbus
-      - testtherest
+      - testother
     steps:
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Setup LCOV
