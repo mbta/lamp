@@ -625,7 +625,7 @@ def test_vp_only(
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
     md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [p for p in test_files() if "RT_VEHICLE_POSITIONS" in p and ("hourt=12" in p or "hour=13" in p)]
+    paths = [p for p in test_files() if "RT_VEHICLE_POSITIONS" in p and ("hour=12" in p or "hour=13" in p)]
     seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
@@ -651,7 +651,7 @@ def test_tu_only(
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
     md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [p for p in test_files() if "RT_TRIP_UPDATES" in p and ("hourt=12" in p or "hour=13" in p)]
+    paths = [p for p in test_files() if "RT_TRIP_UPDATES" in p and ("hour=12" in p or "hour=13" in p)]
     seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
@@ -677,7 +677,7 @@ def test_vp_and_tu(
     rpm_db_manager.truncate_table(VehicleTrips, restart_identity=True)
     md_db_manager.execute(sa.delete(MetadataLog.__table__).where(~MetadataLog.path.contains("FEED_INFO")))
 
-    paths = [p for p in test_files() if "hourt=12" in p or "hour=13" in p]
+    paths = [p for p in test_files() if "hour=12" in p or "hour=13" in p]
     seed_metadata(md_db_manager, paths)
 
     process_gtfs_rt_files(rpm_db_manager=rpm_db_manager, md_db_manager=md_db_manager)
