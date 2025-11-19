@@ -71,7 +71,8 @@ jobs:
     name: TestRailDatabase
     runs-on: ubuntu-22.04
     needs: setup
-
+    outputs:
+      output1: ${{ steps.artifact-upload-codecov-step.outputs.artifact-id }}
     env:
       BOOTSTRAPPED: 1
       MD_DB_HOST: local_rds
@@ -121,10 +122,15 @@ jobs:
       - name: Run pytest With Coverage
         run: |
           poetry run pytest tests/performance_manager/test_performance_manager.py \
-          --cov-report lcov:coverage_rail_db.info \
+          --cov-report lcov:lamp_codecov/coverage_rail_db.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        id: artifact-upload-codecov-step
+        with:
+          name: rail_db_coverage
+          path: lamp_codecov/coverage_rail_db.info
 
   testrail:
     name: TestRail
@@ -160,6 +166,11 @@ jobs:
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        id: artifact-upload-codecov-bus
+        with:
+          name: bus_coverage
+          path: lamp_codecov/coverage_bus.info
 
   testother:
     name: TestOther
@@ -185,11 +196,17 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - setup
-      - testraildb
-      - testrail
+      # - testraildb
+      # - testrail
       - testbus
-      - testother
+      # - testother
     steps:
+      - name: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: lamp_codecov/
+      - name: Display structure of downloaded files
+        run: ls -R lamp_codecov/
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
@@ -197,5 +214,5 @@ jobs:
         uses: mbta/github-actions-report-lcov@v4
         with:
           coverage-files: coverage_*.info
-          artifact-name: python-code-coverage-rail
+          artifact-name: python-code-coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}
