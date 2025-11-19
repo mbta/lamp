@@ -169,8 +169,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: artifact-upload-codecov-bus
         with:
-          name: lamp_codecov
-          path: coverage_bus.info
+          name: bus_coverage
+          path: lamp_codecov/coverage_bus.info
 
   testother:
     name: TestOther
@@ -213,6 +213,6 @@ jobs:
       - name: Report code coverage
         uses: mbta/github-actions-report-lcov@v4
         with:
-          coverage-files: lamp_codecov/coverage_*.info
+          coverage-files: lamp_codecov/*/coverage_*.info
           artifact-name: python-code-coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}
