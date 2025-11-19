@@ -69,7 +69,7 @@ jobs:
 
   # the test suite is split up into multiple jobs here to speed in running in CI
   # the dominant tests are the sequential-required Rail DB tests
-  # the artifacts are uploaded, and then downloaded by the final codecov job to 
+  # the artifacts are uploaded, and then downloaded by the final codecov job to
   # gather and process all of the codecov artifacts for a final report
   testraildb:
     name: TestRailDatabase
