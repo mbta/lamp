@@ -128,6 +128,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          name: upload-codecov-artifact-rail-db
           path: lamp_codecov/coverage_rail_db.info
 
   testrail:
@@ -148,6 +149,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          name: upload-codecov-artifact-rail
           path: lamp_codecov/coverage_rail.info
 
   testbus:
@@ -168,6 +170,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          name: upload-codecov-artifact-bus
           path: lamp_codecov/coverage_bus.info
 
   testother:
@@ -190,6 +193,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          name: upload-codecov-artifact-other
           path: lamp_codecov/coverage_other.info
 
   uploadcodedov:
