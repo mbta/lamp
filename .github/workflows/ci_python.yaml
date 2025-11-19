@@ -67,12 +67,14 @@ jobs:
 
       - run: poetry run pylint src tests --rcfile pyproject.toml
 
+  # the test suite is split up into multiple jobs here to speed in running in CI
+  # the dominant tests are the sequential-required Rail DB tests
+  # the artifacts are uploaded, and then downloaded by the final codecov job to 
+  # gather and process all of the codecov artifacts for a final report
   testraildb:
     name: TestRailDatabase
     runs-on: ubuntu-22.04
     needs: setup
-    outputs:
-      output1: ${{ steps.artifact-upload-codecov-step.outputs.artifact-id }}
     env:
       BOOTSTRAPPED: 1
       MD_DB_HOST: local_rds
@@ -128,6 +130,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
           name: upload-codecov-artifact-rail-db
           path: lamp_codecov/coverage_rail_db.info
 
@@ -149,6 +152,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
           name: upload-codecov-artifact-rail
           path: lamp_codecov/coverage_rail.info
 
@@ -170,6 +174,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
           name: upload-codecov-artifact-bus
           path: lamp_codecov/coverage_bus.info
 
@@ -193,6 +198,7 @@ jobs:
           --cov=lamp_py
       - uses: actions/upload-artifact@v4
         with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
           name: upload-codecov-artifact-other
           path: lamp_codecov/coverage_other.info
 
