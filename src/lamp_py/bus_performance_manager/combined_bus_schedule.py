@@ -142,7 +142,7 @@ def join_tm_schedule_to_gtfs_schedule(
             .alias("tm_filled_stop_sequence")
         )
         .with_columns(
-            pl.struct("tm_filled_stop_sequence", "tm_stop_sequence", "gtfs_stop_sequence")
+            pl.struct("tm_filled_stop_sequence", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")
             .rank("min")
             .over(["trip_id"])
             .alias("stop_sequence"),

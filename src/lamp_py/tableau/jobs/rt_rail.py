@@ -1,5 +1,6 @@
 import os
 import datetime
+from typing import Any
 
 import pyarrow
 import pyarrow.parquet as pq
@@ -7,111 +8,117 @@ import pyarrow.compute as pc
 import pyarrow.dataset as pd
 import sqlalchemy as sa
 
+from lamp_py.common.gtfs_types import RouteType
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import tableau_rail
 
 
 class HyperRtRail(HyperJob):
     """HyperJob for LAMP RT Rail data"""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        route_type_operator: str,
+        route_type_operand: RouteType,
+        **hyper_job_args: Any,
+    ) -> None:
         HyperJob.__init__(
             self,
-            hyper_file_name="LAMP_ALL_RT_fields.hyper",
-            remote_parquet_path=f"{tableau_rail.s3_uri}/LAMP_ALL_RT_fields.parquet",
-            lamp_version="1.2.2",
+            **hyper_job_args,
         )
-        self.table_query = (
-            "SELECT"
-            "   date(vt.service_date::text) as service_date"
-            "   , vt.service_date::text::timestamp + make_interval(secs => vt.start_time) as start_datetime"
-            "   , vt.service_date::text::timestamp + make_interval(secs => vt.static_start_time) as static_start_datetime"
-            "   , ve.stop_sequence"
-            "   , ve.canonical_stop_sequence"
-            "   , prev_ve.canonical_stop_sequence as previous_canonical_stop_sequence"
-            "   , ve.sync_stop_sequence"
-            "   , prev_ve.sync_stop_sequence as previous_sync_stop_sequence"
-            "   , ve.stop_id"
-            "   , prev_ve.stop_id as previous_stop_id"
-            "   , ve.parent_station"
-            "   , prev_ve.parent_station as previous_parent_station"
-            "   , ss.stop_name as stop_name"
-            "   , prev_ss.stop_name as previous_stop_name"
-            "   , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime"
-            "   , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime"
-            "   , TIMEZONE('America/New_York', TO_TIMESTAMP(next_ve.vp_move_timestamp)) as stop_departure_datetime"
-            "   , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) - vt.service_date::text::timestamp))::int as previous_stop_departure_sec"
-            "   , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) - vt.service_date::text::timestamp))::int as stop_arrival_sec"
-            "   , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(next_ve.vp_move_timestamp)) - vt.service_date::text::timestamp))::int as stop_departure_sec"
-            "   , vt.revenue as is_revenue"
-            "   , vt.direction_id::int"
-            "   , vt.route_id"
-            "   , vt.branch_route_id"
-            "   , vt.trunk_route_id"
-            "   , vt.start_time"
-            "   , vt.vehicle_id"
-            "   , vt.stop_count"
-            "   , vt.trip_id"
-            "   , vt.vehicle_label"
-            "   , vt.vehicle_consist"
-            "   , vt.direction"
-            "   , vt.direction_destination"
-            "   , vt.static_trip_id_guess"
-            "   , vt.static_start_time"
-            "   , vt.static_stop_count"
-            "   , vt.first_last_station_match as exact_static_trip_match"
-            "   , vt.static_version_key"
-            "   , ve.travel_time_seconds"
-            "   , ve.dwell_time_seconds"
-            "   , ve.headway_trunk_seconds"
-            "   , ve.headway_branch_seconds"
-            " FROM "
-            "   vehicle_events ve"
-            " LEFT JOIN "
-            "   vehicle_trips vt"
-            " ON "
-            "   ve.pm_trip_id = vt.pm_trip_id"
-            " LEFT JOIN "
-            "   vehicle_events prev_ve"
-            " ON "
-            "   ve.pm_event_id = prev_ve.next_trip_stop_pm_event_id"
-            " LEFT JOIN "
-            "   vehicle_events next_ve"
-            " ON "
-            "   ve.pm_event_id = next_ve.previous_trip_stop_pm_event_id"
-            " LEFT JOIN "
-            "   static_stops ss"
-            " ON "
-            "   ve.stop_id = ss.stop_id"
-            "   AND vt.static_version_key = ss.static_version_key"
-            " LEFT JOIN "
-            "   static_stops prev_ss"
-            " ON "
-            "   prev_ve.stop_id = prev_ss.stop_id"
-            "   AND vt.static_version_key = prev_ss.static_version_key"
-            " LEFT JOIN "
-            "   static_routes sr"
-            " ON "
-            "   vt.route_id = sr.route_id"
-            "   AND vt.static_version_key = sr.static_version_key"
-            " WHERE "
-            "   sr.route_type < 2"
-            "   AND ("
-            "       ve.canonical_stop_sequence > 1"
-            "       OR ve.canonical_stop_sequence IS NULL"
-            "   )"
-            "   AND ("
-            "       ve.vp_stop_timestamp IS NOT null"
-            "       OR ve.vp_move_timestamp IS NOT null"
-            "   )"
-            "   %s"
-            " ORDER BY "
-            "   ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id, vt.start_time"
-            ";"
-        )
+
+        operator_set = {">", ">=", "=", "<", "<="}
+        assert route_type_operator in operator_set
+
+        self.table_query = f"""SELECT
+               date(vt.service_date::text) as service_date
+               , vt.service_date::text::timestamp + make_interval(secs => vt.start_time) as start_datetime
+               , vt.service_date::text::timestamp + make_interval(secs => vt.static_start_time) as static_start_datetime
+               , ve.stop_sequence
+               , ve.canonical_stop_sequence
+               , prev_ve.canonical_stop_sequence as previous_canonical_stop_sequence
+               , ve.sync_stop_sequence
+               , prev_ve.sync_stop_sequence as previous_sync_stop_sequence
+               , ve.stop_id
+               , prev_ve.stop_id as previous_stop_id
+               , ve.parent_station
+               , prev_ve.parent_station as previous_parent_station
+               , ss.stop_name as stop_name
+               , prev_ss.stop_name as previous_stop_name
+               , TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) as previous_stop_departure_datetime
+               , TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) as stop_arrival_datetime
+               , TIMEZONE('America/New_York', TO_TIMESTAMP(next_ve.vp_move_timestamp)) as stop_departure_datetime
+               , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) - vt.service_date::text::timestamp))::int as previous_stop_departure_sec
+               , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(COALESCE(ve.vp_stop_timestamp,  ve.tu_stop_timestamp))) - vt.service_date::text::timestamp))::int as stop_arrival_sec
+               , extract(epoch FROM (TIMEZONE('America/New_York', TO_TIMESTAMP(next_ve.vp_move_timestamp)) - vt.service_date::text::timestamp))::int as stop_departure_sec
+               , vt.revenue as is_revenue
+               , vt.direction_id::int
+               , vt.route_id
+               , vt.branch_route_id
+               , vt.trunk_route_id
+               , vt.start_time
+               , vt.vehicle_id
+               , vt.stop_count
+               , vt.trip_id
+               , vt.vehicle_label
+               , vt.vehicle_consist
+               , vt.direction
+               , vt.direction_destination
+               , vt.static_trip_id_guess
+               , vt.static_start_time
+               , vt.static_stop_count
+               , vt.first_last_station_match as exact_static_trip_match
+               , vt.static_version_key
+               , ve.travel_time_seconds
+               , ve.dwell_time_seconds
+               , ve.headway_trunk_seconds
+               , ve.headway_branch_seconds
+             FROM 
+               vehicle_events ve
+             LEFT JOIN 
+               vehicle_trips vt
+             ON 
+               ve.pm_trip_id = vt.pm_trip_id
+             LEFT JOIN 
+               vehicle_events prev_ve
+             ON 
+               ve.pm_event_id = prev_ve.next_trip_stop_pm_event_id
+             LEFT JOIN 
+               vehicle_events next_ve
+             ON 
+               ve.pm_event_id = next_ve.previous_trip_stop_pm_event_id
+             LEFT JOIN 
+               static_stops ss
+             ON 
+               ve.stop_id = ss.stop_id
+               AND vt.static_version_key = ss.static_version_key
+             LEFT JOIN 
+               static_stops prev_ss
+             ON 
+               prev_ve.stop_id = prev_ss.stop_id
+               AND vt.static_version_key = prev_ss.static_version_key
+             LEFT JOIN 
+               static_routes sr
+             ON 
+               vt.route_id = sr.route_id
+               AND vt.static_version_key = sr.static_version_key
+             WHERE 
+               sr.route_type {route_type_operator}{str(route_type_operand.value)}
+               AND (
+                   ve.canonical_stop_sequence > 1
+                   OR ve.canonical_stop_sequence IS NULL
+               )
+               AND (
+                   ve.vp_stop_timestamp IS NOT null
+                   OR ve.vp_move_timestamp IS NOT null
+               )
+               %s
+             ORDER BY 
+               ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id, vt.start_time
+            ;
+            """
         # based on testing, batch_size of 1024 * 256 should result in a maximum
         # memory usage of ~9GB for this dataset.
         #
@@ -121,7 +128,9 @@ class HyperRtRail(HyperJob):
         # batch_size/row group size of input parquet files can also impact
         # memory usage of batched ParquetWriter operations
         self.ds_batch_size = 1024 * 256
-        self.db_parquet_path = "/tmp/db_local.parquet"
+
+        # /tmp/db_local_RAIL_xyz.parquet
+        self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
@@ -234,7 +243,7 @@ class HyperRtRail(HyperJob):
             batch_readahead=1,
             fragment_readahead=0,
         )
-        filter_path = "/tmp/filter_local.parquet"
+        filter_path = os.path.join("/tmp", "filter_local_" + os.path.basename(self.remote_parquet_path))
 
         old_batch_count = 0
         old_batch_rows = 0
@@ -259,7 +268,8 @@ class HyperRtRail(HyperJob):
             pd.dataset(self.db_parquet_path),
         ]
 
-        combine_parquet_path = "/tmp/combine.parquet"
+        combine_parquet_path = os.path.join("/tmp", "combine_" + os.path.basename(self.remote_parquet_path))
+
         combine_batches = pd.dataset(
             joined_dataset,
             schema=self.output_processed_schema,
