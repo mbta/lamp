@@ -231,6 +231,9 @@ tableau_devgreen_rt_trip_updates_lightrail_60_day = S3Location(
 # dataframely errors
 data_validation_errors = S3Location(bucket=S3_ERROR, prefix=os.path.join(LAMP, "data_validation"))
 
+# lightswitch
+lightswitch = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "catalog.db"))
+
 
 #### GTFS-RT TO TABLEAU
 class GTFSArchive(S3Location):

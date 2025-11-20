@@ -37,6 +37,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy-lightswitch:
+        description: Should a new Lightswitch catalog be deployed?
+        required: false
+        default: false
+        type: boolean
       deploy-ad-hoc:
         description: Should the Ad-Hoc Runner be Deployed
         required: false
@@ -132,6 +137,16 @@ jobs:
           ecs-cluster: lamp
           ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
           ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy Lightswitch catalog
+        id: deploy-lightswitch
+        if: ${{ inputs.deploy-lightswitch }}
+        uses: mbta/actions/deploy-scheduled-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-lightswitch-${{ inputs.environment }}
+          ecs-task-definition: lamp-lightswitch-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - name: Deploy Ad-Hoc Process
         id: deploy-ad-hoc
