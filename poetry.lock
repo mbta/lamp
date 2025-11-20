@@ -121,17 +121,30 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "boto3"
+<<<<<<< HEAD
 version = "1.41.1"
+=======
+version = "1.41.0"
+>>>>>>> ab98126 (botocore bump poetry lock)
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.9"
 files = [
+<<<<<<< HEAD
     {file = "boto3-1.41.1-py3-none-any.whl", hash = "sha256:05009dadcb0c63a2a4a11780f615362a811aa85e7a6950f2793ecf8055fcd1f2"},
     {file = "boto3-1.41.1.tar.gz", hash = "sha256:fdee48cff828cfe0fb66295ae4d5f47736ee35f11e1de6be6c6dcd910f0810a4"},
 ]
 
 [package.dependencies]
 botocore = ">=1.41.1,<1.42.0"
+=======
+    {file = "boto3-1.41.0-py3-none-any.whl", hash = "sha256:d5c454bb23655b052073c8dc6703dda5360825b72b1691822ae7709050b96390"},
+    {file = "boto3-1.41.0.tar.gz", hash = "sha256:73bf7f63152406404c0359c013a692e884b98a3b297160058a38f00ef19e375b"},
+]
+
+[package.dependencies]
+botocore = ">=1.41.0,<1.42.0"
+>>>>>>> ab98126 (botocore bump poetry lock)
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.15.0,<0.16.0"
 
@@ -140,13 +153,22 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
+<<<<<<< HEAD
 version = "1.41.1"
+=======
+version = "1.41.0"
+>>>>>>> ab98126 (botocore bump poetry lock)
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.9"
 files = [
+<<<<<<< HEAD
     {file = "botocore-1.41.1-py3-none-any.whl", hash = "sha256:0db40b7dbddef56fe8cfa06b5eda73b327786db9d64c09c3a616fc9b5548120d"},
     {file = "botocore-1.41.1.tar.gz", hash = "sha256:e98095492ef8f18d0d6a02ba87d9135c663d4627322e049228143b3a4ef4c2a3"},
+=======
+    {file = "botocore-1.41.0-py3-none-any.whl", hash = "sha256:a5018d6268eee358dfc5d86e596c3062b4e225690acaf946f54c00063b804bf8"},
+    {file = "botocore-1.41.0.tar.gz", hash = "sha256:555afbf86a644bfa4ebd7bd98d717b53b792e6bbb2c49f2b308fb06964cf1655"},
+>>>>>>> ab98126 (botocore bump poetry lock)
 ]
 
 [package.dependencies]
@@ -3291,4 +3313,8 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
+<<<<<<< HEAD
 content-hash = "2a405b7e60f634e6e8cfb6268db7db2ae36f7458c7f2f5b31809c5c8b8049aba"
+=======
+content-hash = "75d9851659bbed7ae4e04eae921e0a64da486845666237126ff50921171ca7a7"
+>>>>>>> ab98126 (botocore bump poetry lock)
