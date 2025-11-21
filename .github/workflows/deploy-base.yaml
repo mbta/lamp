@@ -148,6 +148,7 @@ jobs:
           ecs-service: lamp-lightswitch-${{ inputs.environment }}
           ecs-task-definition: lamp-lightswitch-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+          allow-zero-desired: true
       - name: Deploy Ad-Hoc Process
         id: deploy-ad-hoc
         if: ${{ inputs.deploy-ad-hoc }}
