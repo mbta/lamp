@@ -1,4 +1,5 @@
 import os
+from contextlib import nullcontext
 from typing import Generator
 
 import pytest
@@ -44,10 +45,24 @@ def test_build_view(duckdb_con: duckdb.DuckDBPyConnection, partition_strategy: s
 
 
 # test if all views get built
-def test_add_views_to_local_metastore(duckdb_con: duckdb.DuckDBPyConnection) -> None:
+@pytest.mark.parametrize(
+    ["view_list", "view_names"],
+    [
+        (
+            {"/*/*/*/*/*.parquet": [rt_vehicle_positions], "": [tm_route_file]},
+            nullcontext(["RT_VEHICLE_POSITIONS", "TMMAIN_ROUTE"]),
+        ),
+        ({"fake_location": [rt_vehicle_positions]}, pytest.raises(Exception)),
+    ],
+    ids=[
+        "valid",
+        "invalid",
+    ],
+)
+def test_add_views_to_local_metastore(
+    duckdb_con: duckdb.DuckDBPyConnection, view_list: dict, view_names: pytest.RaisesExc
+) -> None:
     "It builds the views that are passed to it."
-    views = {"/*/*/*/*/*.parquet": [rt_vehicle_positions], "": [tm_route_file]}
-
-    built_view_list = add_views_to_local_metastore(duckdb_con, views)  # type: ignore[arg-type]
-    passed_view_list = ["RT_VEHICLE_POSITIONS", "TMMAIN_ROUTE"]
-    assert passed_view_list == built_view_list
+    built_view_list = add_views_to_local_metastore(duckdb_con, view_list)
+    with view_names:
+        assert built_view_list == view_names.enter_result  # type: ignore[attr-defined]

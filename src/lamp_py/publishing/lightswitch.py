@@ -8,7 +8,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
 HIVE_VIEWS = {
-    "/*/*/*/*.parquet": [
+    "/*/*/*/*.parquet": [  # year-month-day partitioned directories
         rf.springboard_rt_vehicle_positions,
         rf.springboard_rt_trip_updates,
         rf.springboard_devgreen_rt_vehicle_positions,
@@ -19,12 +19,12 @@ HIVE_VIEWS = {
         rf.bus_vehicle_positions,
         rf.bus_trip_updates,
     ],
-    "/*.parquet": [
+    "/*.parquet": [  # timestamp- or date-partitioned directories
         rf.tm_stop_crossing,
         rf.tm_daily_work_piece,
         rf.tm_daily_logged_message,
     ],
-    "": [
+    "": [  # files
         rf.tm_daily_sched_adherence_waiver_file,
         rf.tm_geo_node_file,
         rf.tm_route_file,
@@ -90,7 +90,13 @@ def add_views_to_local_metastore(
         built_views: List[str] = []
         for k in views.keys():
             for item in views[k]:
-                built_views.append(build_view(con, os.path.splitext(os.path.basename(item.prefix))[0], item, k))
+                try:
+                    view_name = build_view(con, os.path.splitext(os.path.basename(item.prefix))[0], item, k)
+                except Exception as e:
+                    pl = ProcessLogger("add_views_to_local_metastore", view_target=f"{item.s3_uri}{k}")
+                    pl.log_failure(e)
+                    continue
+                built_views.append(view_name)
 
     return built_views
 
