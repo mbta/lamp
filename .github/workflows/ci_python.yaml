@@ -67,8 +67,12 @@ jobs:
 
       - run: poetry run pylint src tests --rcfile pyproject.toml
 
-  test:
-    name: Test
+  # the test suite is split up into multiple jobs here to speed in running in CI
+  # the dominant tests are the sequential-required Rail DB tests
+  # the artifacts are uploaded, and then downloaded by the final codecov job to
+  # gather and process all of the codecov artifacts for a final report
+  testraildb:
+    name: TestRailDatabase
     runs-on: ubuntu-22.04
     needs: setup
     env:
@@ -119,18 +123,108 @@ jobs:
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
         run: |
-          poetry run pytest \
-          --cov-report lcov:coverage.info \
+          poetry run pytest tests/performance_manager/test_performance_manager.py \
+          --cov-report lcov:lamp_codecov/coverage_rail_db.info \
           --cov-report term-missing \
           --cov-branch \
           --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
+          name: upload-codecov-artifact-rail-db
+          path: lamp_codecov/coverage_rail_db.info
 
+  testrail:
+    name: TestRail
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest -n auto tests/performance_manager \
+          --ignore=tests/performance_manager/test_performance_manager.py \
+          --cov-report lcov:lamp_codecov/coverage_rail.info \
+          --cov-report term-missing \
+          --cov-branch \
+          --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
+          name: upload-codecov-artifact-rail
+          path: lamp_codecov/coverage_rail.info
+
+  testbus:
+    name: TestBus
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest -n auto tests/bus_performance_manager \
+          --cov-report lcov:lamp_codecov/coverage_bus.info \
+          --cov-report term-missing \
+          --cov-branch \
+          --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
+          name: upload-codecov-artifact-bus
+          path: lamp_codecov/coverage_bus.info
+
+  testother:
+    name: TestOther
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+
+      # Execute tests and generate coverage report
+      - name: Run pytest With Coverage
+        run: |
+          poetry run pytest -n auto \
+          --ignore=tests/performance_manager \
+          --ignore=tests/bus_performance_manager \
+          --cov-report lcov:lamp_codecov/coverage_other.info \
+          --cov-report term-missing \
+          --cov-branch \
+          --cov=lamp_py
+      - uses: actions/upload-artifact@v4
+        with:
+          # name is arbitrary - must not be default becuse otherwise artifact names would conflict
+          name: upload-codecov-artifact-other
+          path: lamp_codecov/coverage_other.info
+
+  uploadcodedov:
+    name: CodeCov
+    runs-on: ubuntu-22.04
+    needs:
+      - setup
+      - testraildb
+      - testrail
+      - testbus
+      - testother
+    steps:
+      - uses: actions/checkout@v3
+      - name: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: lamp_codecov/
+      - name: Display structure of downloaded files
+        run: ls -R lamp_codecov/
       # Upload Coverage as an Artifact for Subsequent Jobs
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
       - name: Report code coverage
         uses: mbta/github-actions-report-lcov@v4
         with:
-          coverage-files: coverage.info
+          coverage-files: lamp_codecov/*/coverage_*.info
           artifact-name: python-code-coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}

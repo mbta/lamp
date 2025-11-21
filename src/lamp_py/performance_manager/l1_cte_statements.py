@@ -150,6 +150,7 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
         .str.splitn(":", 3)
         .struct.rename_fields(["hour", "minute", "second"])
         .alias("fields")
+        .cast(pl.Int64)
     ).unnest("fields")
 
     static_trips = static_trips.with_columns(
