@@ -1,0 +1,24 @@
+name: Lightswitch Deploy & Run
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Staging", "Deploy to Production"]
+    types: [completed]
+    paths:
+      - 'src/lamp_py/publishing/lightswitch.py'
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-base.yaml
+    with:
+      # pass the inputs from the workflow dispatch through to the deploy base. the booleans are
+      # converted to strings, so flip them back using fromJson function
+      environment: staging
+      deploy-lightswitch: true
+    secrets: inherit
+  run_lightswitch_task:
+    needs: deploy
+    uses: ./.github/workflows/run-task.yaml
+    with:
+      environment: staging
+      task: Lightswitch 
