@@ -15,6 +15,7 @@ on:
         options:
           - Tableau Publisher
           - Transit Master Ingestion
+          - Lightswitch
 
 jobs:
   run_task:
@@ -31,6 +32,8 @@ jobs:
             echo "task_name=tableau-publisher" >> $GITHUB_ENV
           elif [ "${{ inputs.task }}" == "Transit Master Ingestion" ]; then
             echo "task_name=tm-ingestion" >> $GITHUB_ENV
+          elif [ "${{ inputs.task }}" == "Lightswitch" ]; then
+            echo "task_name=lightswitch" >> $GITHUB_ENV
           fi
       - name: Run Task Action
         uses: ./.github/actions/run_task

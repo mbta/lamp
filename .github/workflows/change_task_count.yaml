@@ -21,6 +21,7 @@ on:
           - rail-performance-manager
           - bus-performance-manager
           - ad-hoc
+          - lightswitch
 
 jobs:
   set_count:
