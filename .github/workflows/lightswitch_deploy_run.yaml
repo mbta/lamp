@@ -21,4 +21,4 @@ jobs:
     uses: ./.github/workflows/run-task.yaml
     with:
       environment: staging
-      task: Lightswitch 
+      task: Lightswitch
