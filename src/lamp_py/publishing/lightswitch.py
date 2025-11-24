@@ -4,6 +4,7 @@ from typing import List
 import duckdb
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
@@ -99,6 +100,9 @@ def add_views_to_local_metastore(
                 result = build_view(con, view_name, item, k)
                 if result:
                     built_views.append(view_name)
+
+    if not built_views:
+        raise EmptyDataStructureException
 
     return built_views
 

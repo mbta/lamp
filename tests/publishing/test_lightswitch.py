@@ -1,10 +1,12 @@
 import os
+from contextlib import nullcontext
 from typing import Generator
 
 import pytest
 import duckdb
 
 from lamp_py.publishing.lightswitch import build_view, add_views_to_local_metastore
+from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
 
@@ -43,18 +45,20 @@ def test_build_view(
     [
         (
             {"/*/*/*/*/*.parquet": [rt_vehicle_positions], "": [tm_route_file]},
-            ["RT_VEHICLE_POSITIONS", "TMMAIN_ROUTE"],
+            nullcontext(["RT_VEHICLE_POSITIONS", "TMMAIN_ROUTE"]),
         ),
-        ({"fake location": [rt_vehicle_positions], "": [tm_route_file]}, ["TMMAIN_ROUTE"]),
+        ({"fake location": [rt_vehicle_positions], "": [tm_route_file]}, nullcontext(["TMMAIN_ROUTE"])),
+        ({"fake location": [rt_vehicle_positions]}, pytest.raises(Exception)),
     ],
     ids=[
         "valid",
-        "1-invalid",
+        "1-valid",
+        "all-invalid",
     ],
 )
 def test_add_views_to_local_metastore(
-    duckdb_con: duckdb.DuckDBPyConnection, view_dict: dict, view_names: list[str]
+    duckdb_con: duckdb.DuckDBPyConnection, view_dict: dict, view_names: pytest.RaisesExc
 ) -> None:
     "It builds the views that are passed to it."
-    built_view_list = add_views_to_local_metastore(duckdb_con, view_dict)
-    assert built_view_list == view_names
+    with view_names:
+        assert view_names.enter_result == add_views_to_local_metastore(duckdb_con, view_dict)  # type: ignore[attr-defined]
