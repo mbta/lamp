@@ -70,7 +70,7 @@ def build_view(
     data_location: rf.S3Location,
     partition_strategy: str = "",
 ) -> bool:
-    "Create view using data location according to partitions."
+    """Create view using data location according to partitions."""
     pl = ProcessLogger("build_view")
 
     view_target = f"{data_location.s3_uri}{partition_strategy}"
