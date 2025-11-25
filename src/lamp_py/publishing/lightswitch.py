@@ -112,7 +112,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
     local_location: str = "/tmp/lamp.db",
     remote_location: rf.S3Location | None = rf.lightswitch,
 ) -> None:
-    "Create duckdb metastore and upload to specified location."
+    """Create duckdb metastore and upload to specified location."""
     pl = ProcessLogger("lightswitch.pipeline", local_location=local_location)
     pl.log_start()
 
