@@ -16,6 +16,12 @@ on:
           - Tableau Publisher
           - Transit Master Ingestion
           - Lightswitch
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+      task:
+        type: string
 
 jobs:
   run_task:
