@@ -19,18 +19,9 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: Environment
-        type: choice
-        options:
-          - staging
-          - prod
+        type: string
       task:
-        description: Task
-        type: choice
-        options:
-          - Tableau Publisher
-          - Transit Master Ingestion
-          - Lightswitch
+        type: string
 
 jobs:
   run_task:
