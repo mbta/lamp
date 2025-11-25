@@ -16,6 +16,21 @@ on:
           - Tableau Publisher
           - Transit Master Ingestion
           - Lightswitch
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options:
+          - staging
+          - prod
+      task:
+        description: Task
+        type: choice
+        options:
+          - Tableau Publisher
+          - Transit Master Ingestion
+          - Lightswitch
 
 jobs:
   run_task:
