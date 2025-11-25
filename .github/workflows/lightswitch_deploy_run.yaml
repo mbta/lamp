@@ -6,6 +6,10 @@ on:
     types: [completed]
     paths:
       - 'src/lamp_py/publishing/lightswitch.py'
+    secrets:
+      AWS_ROLE_ARN:
+        description: AWS_ROLE_ARN
+        required: true
 
 jobs:
   deploy:
@@ -22,3 +26,4 @@ jobs:
     with:
       environment: staging
       task: Lightswitch
+    secrets: inherit
