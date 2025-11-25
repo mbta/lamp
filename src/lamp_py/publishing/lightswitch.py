@@ -4,11 +4,12 @@ from typing import List
 import duckdb
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
 
 HIVE_VIEWS = {
-    "/*/*/*/*.parquet": [
+    "/*/*/*/*.parquet": [  # year-month-day partitioned directories
         rf.springboard_rt_vehicle_positions,
         rf.springboard_rt_trip_updates,
         rf.springboard_devgreen_rt_vehicle_positions,
@@ -19,12 +20,12 @@ HIVE_VIEWS = {
         rf.bus_vehicle_positions,
         rf.bus_trip_updates,
     ],
-    "/*.parquet": [
+    "/*.parquet": [  # timestamp- or date-partitioned directories
         rf.tm_stop_crossing,
         rf.tm_daily_work_piece,
         rf.tm_daily_logged_message,
     ],
-    "": [
+    "": [  # files
         rf.tm_daily_sched_adherence_waiver_file,
         rf.tm_geo_node_file,
         rf.tm_route_file,
@@ -68,17 +69,22 @@ def build_view(
     view_name: str,
     data_location: rf.S3Location,
     partition_strategy: str = "",
-) -> str:
+) -> bool:
     "Create view using data location according to partitions."
     pl = ProcessLogger("build_view")
 
     view_target = f"{data_location.s3_uri}{partition_strategy}"
     pl.add_metadata(view_name=view_name, view_target=view_target)
 
-    connection.from_parquet(view_target, hive_partitioning=True).create_view(view_name)
+    try:
+        connection.from_parquet(view_target, hive_partitioning=True).create_view(view_name)
+        return True
+    except Exception as e:
+        pl.log_failure(e)
+
     pl.log_complete()
 
-    return view_name
+    return False
 
 
 def add_views_to_local_metastore(
@@ -90,7 +96,13 @@ def add_views_to_local_metastore(
         built_views: List[str] = []
         for k in views.keys():
             for item in views[k]:
-                built_views.append(build_view(con, os.path.splitext(os.path.basename(item.prefix))[0], item, k))
+                view_name = os.path.splitext(os.path.basename(item.prefix))[0]
+                result = build_view(con, view_name, item, k)
+                if result:
+                    built_views.append(view_name)
+
+    if not built_views:
+        raise EmptyDataStructureException
 
     return built_views
 

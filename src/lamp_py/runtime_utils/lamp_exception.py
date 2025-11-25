@@ -49,3 +49,9 @@ class LampInvalidProcessingError(Exception):
     """
     Exception raised when invalid processing state is reached with inputs
     """
+
+
+class EmptyDataStructureException(Exception):
+    """
+    Raised when returning an empty data structure.
+    """
