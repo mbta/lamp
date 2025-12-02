@@ -253,6 +253,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
             )
             .alias("plan_stop_departure_dt")
             .dt.replace_time_zone(None),
+            pl.lit(service_date).alias("service_date"),
         )
         .drop(
             "arrival_time",

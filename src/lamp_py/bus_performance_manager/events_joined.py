@@ -14,6 +14,7 @@ from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 class BusEvents(CombinedSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
+    route_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -89,7 +90,7 @@ class BusPerformanceManager(dy.Collection):
     @dy.filter()
     def preserve_tm_events(self) -> pl.LazyFrame:
         "If values in TransitMaster are not null, then downstream records should also not be null for those columns."
-        keys = ["trip_id", "tm_stop_sequence", "tm_actual_arrival_dt", "tm_actual_departure_dt", "tm_scheduled_time_dt"]
+        keys = ["trip_id", "tm_stop_sequence", "tm_actual_arrival_dt", "tm_actual_departure_dt", "vehicle_label"]
 
         missing_tm_events = self.tm.join(  # locate events that have mismatched event values
             self.bus, how="anti", on=keys, nulls_equal=True
@@ -124,26 +125,22 @@ def join_rt_to_schedule(
         remove_overload_and_rare_variant_suffix(pl.col("trip_id")),
     )
     schedule_vehicles = schedule.join(
-        pl.concat(
-            [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
-        ).unique(),
+        pl.concat([tm.select("trip_id", "vehicle_label"), gtfs.select("trip_id", "vehicle_label")]).unique(),
         how="left",
-        on=["trip_id", "stop_id"],
+        on=["trip_id"],
         coalesce=True,
     )
 
     schedule_gtfs = (
         schedule_vehicles.sort(by="gtfs_stop_sequence")
-        .join_asof(
-            gtfs.sort(by="gtfs_stop_sequence"),
-            on="gtfs_stop_sequence",
-            by=["trip_id", "stop_id", "vehicle_label"],
-            strategy="nearest",
+        .join(
+            gtfs,
+            on=["gtfs_stop_sequence", "trip_id", "stop_id", "vehicle_label", "route_id"],
+            how="left",
             coalesce=True,
             suffix="_right_gtfs",
         )
         .drop(
-            "route_id_right_gtfs",
             "direction_id_right_gtfs",
         )
     )
@@ -152,12 +149,10 @@ def join_rt_to_schedule(
     # asof strategy finds nearest value match between "asof" columns if exact match is not found
     # will perform regular left join on "by" columns
     schedule_gtfs_tm = (
-        schedule_gtfs.sort(by="tm_stop_sequence")
-        .join_asof(
-            tm.sort(by="tm_stop_sequence"),
-            on="tm_stop_sequence",
-            by=["trip_id", "stop_id", "vehicle_label"],
-            strategy="nearest",
+        schedule_gtfs.join(
+            tm,
+            on=["tm_stop_sequence", "trip_id", "stop_id", "vehicle_label", "route_id"],
+            how="left",
             coalesce=True,
             suffix="_right_tm",
         )
