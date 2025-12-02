@@ -103,10 +103,6 @@ def join_tm_schedule_to_gtfs_schedule(
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("schedule_joined"),
-            pl.col("tm_stop_sequence")
-            .fill_null(strategy="forward")
-            .over(partition_by=["trip_id"], order_by=pl.col("plan_stop_departure_dt"))
-            .alias("tm_filled_stop_sequence"),
         )
         .filter(
             pl.when(
@@ -116,7 +112,7 @@ def join_tm_schedule_to_gtfs_schedule(
             .otherwise(pl.lit(True))  # keep all non-overloaded trips
         )
         .with_columns(
-            pl.struct("tm_filled_stop_sequence", "plan_stop_departure_dt", "gtfs_stop_sequence", "plan_start_dt")
+            pl.struct("plan_stop_departure_dt", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")
             .rank("min")
             .over(
                 [
