@@ -23,7 +23,8 @@ class CombinedSchedule(TransitMasterSchedule):
     plan_stop_count = dy.UInt32(nullable=True)
     plan_start_time = dy.Int64(nullable=True)
     plan_start_dt = dy.Datetime(nullable=True, time_zone=None)  # America/New_York
-    plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)  # America/New_York
+    plan_stop_departure_dt = dy.Datetime(primary_key=True, time_zone=None)  # America/New_York
+    tm_scheduled_time_sam = dy.Int64(nullable=True)
     plan_travel_time_seconds = dy.Int64(nullable=True)
     plan_route_direction_headway_seconds = dy.Int64(nullable=True)
     plan_direction_destination_headway_seconds = dy.Int64(nullable=True)
@@ -32,7 +33,6 @@ class CombinedSchedule(TransitMasterSchedule):
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = dy.Int64(nullable=True)
-    tm_gtfs_sequence_diff = dy.Int64(nullable=True)
     point_type = dy.String(nullable=True)
 
 
@@ -52,44 +52,27 @@ def join_tm_schedule_to_gtfs_schedule(
     process_logger = ProcessLogger("join_tm_schedule_to_gtfs_schedule")
     process_logger.log_start()
 
-    tm_schedule = tm.tm_schedule.filter(
-        pl.col("TRIP_SERIAL_NUMBER")
-        .cast(pl.String)
-        .is_in(gtfs.with_columns(remove_rare_variant_route_suffix("plan_trip_id"))["plan_trip_id"].unique().implode())
-    ).collect()
-
     if debug_flags.get("write_intermediates"):
-        tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
+        tm.tm_schedule.sink_parquet("/tmp/tm_schedule.parquet")
 
     # gtfs_schedule: contains _1, _2. Does not contain -OL
     # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
         gtfs.rename({"plan_trip_id": "trip_id", "stop_sequence": "gtfs_stop_sequence"})
         .with_columns(remove_rare_variant_route_suffix(pl.col("trip_id")))
-        .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
-            tm.tm_pattern_geo_node_xref.collect(),
-            on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
-            how="left",
+            tm.tm_schedule.collect(),
+            on=["service_date", "trip_id", "stop_id", "plan_stop_departure_dt"],
+            how="full",
             coalesce=True,
         )
-        .with_columns(
-            (
-                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
-                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
-                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
-                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
-                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
-            )
-        )
+        .with_columns(pl.coalesce("route_id", "route_id_right").alias("route_id"))
         # this operation fills in the nulls for the selected columns after the join- the commented out ones do not make sense to fill in
         # leaving them in as comments to make clear that this is a conscious choice
         .with_columns(
             pl.col(
                 [
                     "trip_id",
-                    # "stop_id"
-                    # "stop_sequence",
                     "block_id",
                     "route_id",
                     "service_id",
@@ -98,15 +81,11 @@ def join_tm_schedule_to_gtfs_schedule(
                     "direction_id",
                     "direction",
                     "direction_destination",
-                    # "stop_name",
                     "plan_stop_count",
                     "plan_start_time",
                     "plan_start_dt",
-                    # "plan_stop_departure_dt",
                     "pattern_id",
-                    # "plan_travel_time_seconds",
-                    # "plan_route_direction_headway_seconds",
-                    # "plan_direction_destination_headway_seconds"
+                    "trip_overload_id",
                 ]
             )
             .fill_null(strategy="forward")  # handle added non-rev stops that are at the beginning
@@ -123,28 +102,27 @@ def join_tm_schedule_to_gtfs_schedule(
             .when(pl.col("tm_stop_sequence").is_null())
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
-            .alias("schedule_joined")
-        )
-    ).with_row_index()
-
-    schedule = schedule.with_columns(
-        (pl.col("gtfs_stop_sequence") - pl.col("tm_stop_sequence")).alias("tm_gtfs_sequence_diff").abs(),
-    )
-    schedule = schedule.remove(
-        pl.col("index").is_in(schedule.filter(pl.col("tm_gtfs_sequence_diff") > 2)["index"].implode())
-    )
-
-    schedule = (
-        schedule.with_columns(
+            .alias("schedule_joined"),
             pl.col("tm_stop_sequence")
             .fill_null(strategy="forward")
-            .over(partition_by=["trip_id"], order_by=pl.coalesce("tm_stop_sequence", "gtfs_stop_sequence"))
-            .alias("tm_filled_stop_sequence")
+            .over(partition_by=["trip_id"], order_by=pl.col("plan_stop_departure_dt"))
+            .alias("tm_filled_stop_sequence"),
+        )
+        .filter(
+            pl.when(
+                pl.col("trip_overload_id").max().over("trip_id").gt(0),  # for overloaded TM trips
+            )
+            .then(pl.col("schedule_joined").eq("JOIN"))  # take the records that matched GTFS Schedule
+            .otherwise(pl.lit(True))  # keep all non-overloaded trips
         )
         .with_columns(
-            pl.struct("tm_filled_stop_sequence", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")
+            pl.struct("tm_filled_stop_sequence", "plan_stop_departure_dt", "gtfs_stop_sequence", "plan_start_dt")
             .rank("min")
-            .over(["trip_id"])
+            .over(
+                [
+                    "trip_id",
+                ]
+            )
             .alias("stop_sequence"),
         )
         .with_columns(
@@ -156,7 +134,6 @@ def join_tm_schedule_to_gtfs_schedule(
             .then(pl.lit("mid"))
             .alias("point_type")
         )
-        .select(CombinedSchedule.column_names())
     )
 
     valid = process_logger.log_dataframely_filter_results(*CombinedSchedule.filter(schedule))
