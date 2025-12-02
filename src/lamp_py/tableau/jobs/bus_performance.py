@@ -49,7 +49,6 @@ bus_schema = pyarrow.schema(
         ("timepoint_order", pyarrow.uint32()),
         ("timepoint_id", pyarrow.int64()),
         ("pattern_id", pyarrow.int64()),
-        ("tm_scheduled_time_dt", pyarrow.timestamp("us")),
         ("tm_actual_arrival_dt", pyarrow.timestamp("us")),
         ("tm_actual_departure_dt", pyarrow.timestamp("us")),
         ("tm_scheduled_time_sam", pyarrow.int64()),

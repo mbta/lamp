@@ -14,7 +14,6 @@ from ..test_resources import (
     tm_vehicle_file,
     tm_stop_crossings,
     tm_daily_logged_message,
-    tm_pattern_geo_node_xref_file,
     tm_time_point_file,
 )
 
@@ -44,8 +43,8 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
         tm_time_point_file,
     )
     monkeypatch.setattr(
-        "lamp_py.bus_performance_manager.events_tm_schedule.tm_pattern_geo_node_xref_file",
-        tm_pattern_geo_node_xref_file,
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_stop_crossing",
+        tm_stop_crossings,
     )
     tm_sc_dir = tm_stop_crossings.s3_uri
     print(tm_sc_dir)
@@ -91,7 +90,9 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     service_date_utc = service_date_est.dt.convert_time_zone("UTC")
 
     # run the generate tm events function on our input files
-    bus_events = generate_tm_events(tm_files=[stop_crossings_filepath], tm_scheduled=generate_tm_schedule())
+    bus_events = generate_tm_events(
+        tm_files=[stop_crossings_filepath], tm_scheduled=generate_tm_schedule(service_date_tmp.date())
+    )
 
     # ensure data has been extracted from the filepath
     assert not bus_events.is_empty()
@@ -112,9 +113,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
 
     # check that all scheduled, arrival and departure timestamps happen after the start of the service date
     assert bus_events.filter(
-        (pl.col("tm_actual_arrival_dt") < service_date_utc)
-        | (pl.col("tm_actual_departure_dt") < service_date_utc)
-        | (pl.col("tm_scheduled_time_dt") < service_date_utc)
+        (pl.col("tm_actual_arrival_dt") < service_date_utc) | (pl.col("tm_actual_departure_dt") < service_date_utc)
     ).is_empty()
     # check that all departure times are after the arrival times
     assert bus_events.filter(pl.col("tm_actual_arrival_dt") > pl.col("tm_actual_departure_dt")).is_empty()
@@ -126,7 +125,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
         | pl.col("stop_id").str.starts_with("0")
     ).is_empty()
 
-    # scheduled_time_sam, actual_arrival_time_sam, actual_departure_time_sam - these are unprocessed straight from TM.
+    # actual_arrival_time_sam, actual_departure_time_sam - these are unprocessed straight from TM.
     # sam = seconds after midnight
     # intended for comparison/data validation
 
@@ -134,7 +133,6 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     # tm_actual_departure_dt 2024-06-01 13:13:47 UTC - seconds after midnight = 47627
     # actual_departure_time - 33227
     # 47627-33227 = 14400 / 60 / 60 = 4 hrs - (UTC -> EDT (UTC-04:00))
-    assert not bus_events["tm_scheduled_time_sam"].has_nulls()
     assert not bus_events["tm_actual_arrival_time_sam"].has_nulls()
     assert not bus_events["tm_actual_departure_time_sam"].has_nulls()
     assert (
@@ -153,10 +151,5 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
     assert (
         (bus_events.select(pl.col("tm_actual_arrival_dt") - service_date_utc)).to_series().dt.total_seconds()
         - bus_events["tm_actual_arrival_time_sam"]
-        == 0
-    ).all()
-    assert (
-        (bus_events.select(pl.col("tm_scheduled_time_dt") - service_date_utc)).to_series().dt.total_seconds()
-        - bus_events["tm_scheduled_time_sam"]
         == 0
     ).all()
