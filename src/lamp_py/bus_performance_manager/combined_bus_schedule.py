@@ -2,31 +2,17 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_rt import remove_rare_variant_route_suffix
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
-from lamp_py.bus_performance_manager.events_tm import TransitMasterSchedule
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule, TransitMasterPatternGeoNodeXref
+from lamp_py.bus_performance_manager.events_tm import TransitMasterTimepoints
+from lamp_py.bus_performance_manager.events_gtfs_schedule import GTFSBusSchedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class CombinedSchedule(TransitMasterSchedule):
-    "Union of GTFS and TransitMaster bus schedules."
-    checkpoint_id = dy.String(nullable=True)
+class CombinedSchedule(TransitMasterTimepoints, GTFSBusSchedule):
+    """Union of GTFS and TransitMaster bus schedules."""
+
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     stop_sequence = dy.UInt32(primary_key=True, min=1)
-    block_id = dy.String(nullable=True)
-    service_id = dy.String(nullable=True)
-    route_pattern_id = dy.String(nullable=True)
-    route_pattern_typicality = dy.Int64(nullable=True)
-    direction_id = dy.Int8(nullable=True)
-    direction = dy.String(nullable=True)
-    direction_destination = dy.String(nullable=True)
-    stop_name = dy.String(nullable=True)
-    plan_stop_count = dy.UInt32(nullable=True)
-    plan_start_time = dy.Int64(nullable=True)
-    plan_start_dt = dy.Datetime(nullable=True, time_zone=None)  # America/New_York
-    plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)  # America/New_York
-    plan_travel_time_seconds = dy.Int64(nullable=True)
-    plan_route_direction_headway_seconds = dy.Int64(nullable=True)
-    plan_direction_destination_headway_seconds = dy.Int64(nullable=True)
     schedule_joined = dy.String(nullable=False)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -38,7 +24,10 @@ class CombinedSchedule(TransitMasterSchedule):
 
 # pylint: disable=R0801
 def join_tm_schedule_to_gtfs_schedule(
-    gtfs: pl.DataFrame, tm: TransitMasterTables, **debug_flags: dict[str, bool]
+    gtfs: dy.DataFrame[GTFSBusSchedule],
+    tm_schedule: dy.DataFrame[TransitMasterSchedule],
+    tm_pattern_geo_node_xref: dy.DataFrame[TransitMasterPatternGeoNodeXref],
+    **debug_flags: dict[str, bool],
 ) -> dy.DataFrame[CombinedSchedule]:
     """
     Returns a schedule including GTFS stops, TransitMaster timepoints, and shuttle trips not sourced from TransitMaster.
@@ -52,23 +41,22 @@ def join_tm_schedule_to_gtfs_schedule(
     process_logger = ProcessLogger("join_tm_schedule_to_gtfs_schedule")
     process_logger.log_start()
 
-    tm_schedule = tm.tm_schedule.filter(
+    relevant_tm_schedule = tm_schedule.filter(
         pl.col("TRIP_SERIAL_NUMBER")
         .cast(pl.String)
-        .is_in(gtfs.with_columns(remove_rare_variant_route_suffix("plan_trip_id"))["plan_trip_id"].unique().implode())
-    ).collect()
+        .is_in(gtfs.with_columns(remove_rare_variant_route_suffix("trip_id"))["trip_id"].unique().implode())
+    )
 
     if debug_flags.get("write_intermediates"):
-        tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
+        relevant_tm_schedule.write_parquet("/tmp/tm_schedule.parquet")
 
     # gtfs_schedule: contains _1, _2. Does not contain -OL
     # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
-        gtfs.rename({"plan_trip_id": "trip_id", "stop_sequence": "gtfs_stop_sequence"})
-        .with_columns(remove_rare_variant_route_suffix(pl.col("trip_id")))
-        .join(tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
+        gtfs.with_columns(remove_rare_variant_route_suffix(pl.col("trip_id")))
+        .join(relevant_tm_schedule, on=["trip_id", "stop_id"], how="full", coalesce=True)
         .join(
-            tm.tm_pattern_geo_node_xref.collect(),
+            tm_pattern_geo_node_xref,
             on=["PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID"],
             how="left",
             coalesce=True,

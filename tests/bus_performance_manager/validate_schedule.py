@@ -72,12 +72,14 @@ service_date = datetime.date(year=2025, month=6, day=26)
 if REGENERATE:
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
     tm_schedule = generate_tm_schedule()
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule)
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(
+        gtfs_schedule, tm_schedule.tm_schedule, tm_schedule.tm_pattern_geo_node_xref
+    )
 
     gtfs_schedule.write_parquet(f"gtfs_schedule__service_date_{str(service_date)}.parquet")
-    tm_schedule = tm_schedule.tm_schedule.filter(
+    tm_schedule = tm_schedule.filter(
         pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs_schedule["plan_trip_id"].unique().implode())
-    ).collect()
+    )
     tm_schedule = tm_schedule.write_parquet(f"tm_schedule__service_date_{str(service_date)}.parquet")
     combined_schedule.write_parquet(f"combined_schedule__service_date_{str(service_date)}.parquet")
 

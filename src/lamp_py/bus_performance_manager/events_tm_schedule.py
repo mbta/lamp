@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+
+import dataframely as dy
 import polars as pl
 
+from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
 from lamp_py.runtime_utils.remote_files import (
     tm_geo_node_file,
     tm_route_file,
@@ -9,6 +12,34 @@ from lamp_py.runtime_utils.remote_files import (
     tm_time_point_file,
     tm_pattern_geo_node_xref_file,
 )
+
+
+class TransitMasterPatternGeoNodeXref(dy.Schema):
+    """Timepoints and stop sequences by route pattern."""
+
+    PATTERN_ID = dy.Int64(primary_key=True)
+    PATTERN_GEO_NODE_SEQ = dy.Int64(primary_key=True)
+    TIME_POINT_ID = dy.Int64(nullable=True)
+    GEO_NODE_ID = dy.Int64(nullable=True)
+    timepoint_order = dy.UInt32(nullable=True)
+
+
+class TransitMasterSchedule(dy.Schema):
+    """TransitMaster scheduled events."""
+
+    TRIP_ID = dy.Int64(nullable=True)
+    TRIP_SERIAL_NUMBER = dy.Int64(nullable=True)
+    PATTERN_ID = TransitMasterPatternGeoNodeXref.PATTERN_ID
+    PATTERN_GEO_NODE_SEQ = TransitMasterPatternGeoNodeXref.PATTERN_GEO_NODE_SEQ
+    TIME_POINT_ID = TransitMasterPatternGeoNodeXref.TIME_POINT_ID
+    GEO_NODE_ID = TransitMasterPatternGeoNodeXref.GEO_NODE_ID
+    GEO_NODE_ABBR = dy.String(nullable=True)
+    TIME_POINT_ABBR = dy.String(nullable=True)
+    TIME_PT_NAME = dy.String(nullable=True)
+    trip_id = BusBaseSchema.trip_id
+    stop_id = BusBaseSchema.stop_id
+    tm_planned_sequence_end = dy.Int64(nullable=True)
+    tm_planned_sequence_start = dy.Int64(nullable=True)
 
 
 # pylint: disable=R0902
@@ -22,12 +53,12 @@ class TransitMasterTables:
     tm_routes: pl.LazyFrame
     tm_vehicles: pl.LazyFrame
     tm_time_points: pl.LazyFrame
-    tm_pattern_geo_node_xref: pl.LazyFrame  # to get actual timepoints (non_null)
+    tm_pattern_geo_node_xref: dy.DataFrame[TransitMasterPatternGeoNodeXref]
     tm_pattern_geo_node_xref_full: pl.LazyFrame  # to get all stop sequence (including non-timepoint)
     tm_trip_geo_tp: pl.LazyFrame  # derived
     tm_trip_geo_tp_full: pl.LazyFrame  # derived
     tm_sequences: pl.LazyFrame  # derived
-    tm_schedule: pl.LazyFrame
+    tm_schedule: dy.DataFrame[TransitMasterSchedule]
 
 
 def generate_tm_schedule() -> TransitMasterTables:
@@ -107,7 +138,7 @@ def generate_tm_schedule() -> TransitMasterTables:
     #
 
     # N patterns (at least 1) per Route - but we don't know Routes yet here
-    tm_pattern_geo_node_xref = (
+    tm_pattern_geo_node_xref = TransitMasterPatternGeoNodeXref.validate(
         pl.scan_parquet(tm_pattern_geo_node_xref_file.s3_uri)
         .select("PATTERN_ID", "PATTERN_GEO_NODE_SEQ", "TIME_POINT_ID", "GEO_NODE_ID")
         .filter(
@@ -116,8 +147,9 @@ def generate_tm_schedule() -> TransitMasterTables:
             & pl.col("PATTERN_ID").is_not_null()
             & pl.col("PATTERN_GEO_NODE_SEQ").is_not_null()
         )
-    ).with_columns(
-        pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
+        .with_columns(
+            pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
+        )
     )
 
     # Current
@@ -135,7 +167,7 @@ def generate_tm_schedule() -> TransitMasterTables:
     # this is the truth to reference and compare STOP_CROSSING records with to determine timepoint_order
     tm_trip_geo_tp = (
         tm_trips.join(
-            tm_pattern_geo_node_xref,
+            tm_pattern_geo_node_xref.lazy(),
             on="PATTERN_ID",
             how="left",
             coalesce=True,
@@ -161,13 +193,15 @@ def generate_tm_schedule() -> TransitMasterTables:
         pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
     )
 
-    tm_schedule = tm_trip_geo_tp_full.with_columns(
-        pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"), pl.col("GEO_NODE_ABBR").alias("stop_id")
-    ).join(
-        tm_sequences,
-        on="TRIP_ID",
-        how="left",
-        coalesce=True,
+    tm_schedule = TransitMasterSchedule.validate(
+        tm_trip_geo_tp_full.with_columns(
+            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"), pl.col("GEO_NODE_ABBR").alias("stop_id")
+        ).join(
+            tm_sequences,
+            on="TRIP_ID",
+            how="left",
+            coalesce=True,
+        )
     )
 
     return TransitMasterTables(

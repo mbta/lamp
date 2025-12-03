@@ -5,6 +5,7 @@ from typing import List
 import dataframely as dy
 import polars as pl
 
+from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
 from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
 from lamp_py.runtime_utils.remote_files import (
     tm_trip_file,
@@ -17,14 +18,7 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class BusBaseSchema(dy.Schema):
-    "Common schema for bus schedule and event datasets."
-    trip_id = dy.String(primary_key=True, nullable=False)
-    stop_id = dy.String(nullable=False)
-    route_id = dy.String(nullable=False)
-
-
-class TransitMasterSchedule(BusBaseSchema):
+class TransitMasterTimepoints(BusBaseSchema):
     "Scheduled stops in TransitMaster."
     timepoint_abbr = dy.String(nullable=True)
     timepoint_id = dy.Int64(nullable=True)
@@ -33,7 +27,7 @@ class TransitMasterSchedule(BusBaseSchema):
     tm_stop_sequence = dy.Int64(primary_key=True, nullable=False)
 
 
-class TransitMasterEvents(TransitMasterSchedule):
+class TransitMasterEvents(TransitMasterTimepoints):
     "Scheduled and actual stops in TransitMaster."
     tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
