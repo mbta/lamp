@@ -100,3 +100,78 @@ def test_dy_consecutive_null_stop_sequences_ordered_correctly(
 
     with expected_rows:
         assert TestCombinedSchedule.validate(df, cast=True).height == expected_rows.enter_result  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    [
+        "gtfs_stop_sequence",
+        "gtfs_stop_id",
+        "raises",
+    ],
+    [
+        ([1, 2, 3, 4], ["a", "b", "c", "d"], nullcontext()),
+        (
+            [1, 2, 4, 3],
+            [
+                "a",
+                "b",
+                "d",
+                "c",
+            ],
+            nullcontext(),
+        ),
+        ([1, 2, 3], ["z", "b", "c"], nullcontext()),
+    ],
+    ids=[
+        "originally-in-order",
+        "originally-out-of-order",
+        "stop_sequence_1-disagreement",
+    ],
+)
+def test_join_tm_schedule_to_gtfs_schedule(
+    dy_gen: dy.random.Generator, gtfs_stop_sequence: list[int], gtfs_stop_id: list[str], raises: pytest.RaisesExc
+) -> None:
+    """Given out-of-order GTFS stops, it returns correctly ordered sequences."""
+    pattern_id = pl.lit(100)
+    time_point_id = pl.lit(100)
+
+    pattern_geo_node_seq = pl.Series(values=[1, 2, 3])
+    trip_id = pl.lit("1")
+
+    gtfs = GTFSBusSchedule.cast(
+        GTFSBusSchedule.sample(len(gtfs_stop_id), generator=dy_gen).with_columns(
+            trip_id=trip_id,
+            stop_id=pl.Series(values=gtfs_stop_id),  # d and c do not match
+            gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),  # out of order
+        )
+    )
+
+    tm_schedule = TransitMasterSchedule.cast(
+        TransitMasterSchedule.sample(3, generator=dy_gen).with_columns(
+            PATTERN_ID=pattern_id,
+            PATTERN_GEO_NODE_SEQ=pattern_geo_node_seq,
+            TIME_POINT_ID=time_point_id,
+            stop_id=pl.Series(
+                values=[
+                    "a",
+                    "b",
+                    "c",
+                ]
+            ),
+            trip_id=trip_id,
+            TRIP_SERIAL_NUMBER=trip_id,
+        )
+    )
+
+    tm_pattern_geo_node_xref = TransitMasterPatternGeoNodeXref.cast(
+        TransitMasterPatternGeoNodeXref.sample(3, generator=dy_gen).with_columns(
+            PATTERN_ID=pattern_id,
+            PATTERN_GEO_NODE_SEQ=pattern_geo_node_seq,
+            TIME_POINT_ID=time_point_id,
+        )
+    )
+
+    with raises:
+        assert not TestCombinedSchedule.validate(
+            join_tm_schedule_to_gtfs_schedule(gtfs, tm_schedule, tm_pattern_geo_node_xref), cast=True
+        ).is_empty()
