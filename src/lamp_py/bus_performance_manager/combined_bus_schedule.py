@@ -89,7 +89,9 @@ def join_tm_schedule_to_gtfs_schedule(
             .alias("schedule_joined"),
         )
         .filter(
-            pl.when(
+            pl.when(pl.col("trip_overload_id").is_null())
+            .then(pl.lit(True))
+            .when(
                 pl.col("trip_overload_id").max().over("trip_id").gt(0),  # for overloaded TM trips
             )
             .then(

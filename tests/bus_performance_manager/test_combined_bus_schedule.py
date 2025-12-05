@@ -161,8 +161,8 @@ def test_correct_sequencing(
     gtfs = GTFSBusSchedule.cast(
         GTFSBusSchedule.sample(len(gtfs_stop_id), generator=dy_gen).with_columns(
             trip_id=trip_id,
-            stop_id=pl.Series(values=gtfs_stop_id),  # d and c do not match
-            gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),  # out of order
+            stop_id=pl.Series(values=gtfs_stop_id),
+            gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),
             plan_stop_departure_dt=pl.Series(values=gtfs_plan_stop_departure_dt),
         )
     )
@@ -191,5 +191,60 @@ def test_correct_sequencing(
         ).is_empty()
 
 
-def test_drop_overloads() -> None:
+@pytest.mark.parametrize(
+    [
+        "gtfs_plan_stop_departure_dt",
+        "raises",
+    ],
+    [
+        ([datetime(2025, 1, 1, 1, 0), datetime(2025, 1, 1, 2, 0), datetime(2025, 1, 1, 3, 0)], nullcontext()),
+        ([datetime(2025, 1, 1, 1, 30), datetime(2025, 1, 1, 2, 30), datetime(2025, 1, 1, 3, 30)], nullcontext()),
+    ],
+    ids=[
+        "1-match",
+        "0-matches",
+    ],
+)
+def test_drop_overloads(
+    dy_gen: dy.random.Generator, gtfs_plan_stop_departure_dt: list[datetime], raises: pytest.RaisesExc
+) -> None:
     """It only returns one TM trip per trip_id."""
+    trip_id = pl.lit("1")
+    stop_id = ["a", "b", "c"]
+    stop_sequence = [1, 2, 3]
+
+    gtfs = GTFSBusSchedule.cast(
+        GTFSBusSchedule.sample(len(stop_id), generator=dy_gen).with_columns(
+            trip_id=trip_id,
+            stop_id=pl.Series(values=stop_id),
+            gtfs_stop_sequence=pl.Series(values=stop_sequence),
+            plan_stop_departure_dt=pl.Series(values=gtfs_plan_stop_departure_dt),
+        )
+    )
+
+    tm_schedule = TransitMasterSchedule.cast(
+        TransitMasterSchedule.sample(9, generator=dy_gen).with_columns(
+            tm_stop_sequence=pl.Series(values=stop_sequence * 3),
+            plan_stop_departure_dt=pl.Series(
+                values=[
+                    datetime(2025, 1, 1, 0, 59),
+                    datetime(2025, 1, 1, 1, 59),
+                    datetime(2025, 1, 1, 2, 59),
+                    datetime(2025, 1, 1, 1, 0),
+                    datetime(2025, 1, 1, 2, 0),
+                    datetime(2025, 1, 1, 3, 0),
+                    datetime(2025, 1, 1, 1, 1),
+                    datetime(2025, 1, 1, 2, 1),
+                    datetime(2025, 1, 1, 3, 1),
+                ]
+            ),
+            stop_id=pl.Series(values=stop_id * 3),
+            trip_id=trip_id,
+            trip_overload_id=pl.Series(values=[1, 1, 1, 2, 2, 2, 3, 3, 3]),
+        )
+    )
+
+    with raises:
+        assert not TestCombinedSchedule.validate(
+            join_tm_schedule_to_gtfs_schedule(gtfs, tm_schedule), cast=True
+        ).is_empty()

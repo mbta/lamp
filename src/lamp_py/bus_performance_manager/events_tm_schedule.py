@@ -21,17 +21,17 @@ class TransitMasterSchedule(BusBaseSchema):
     """TransitMaster scheduled events."""
 
     pattern_id = dy.Int64(nullable=True)
-    tm_stop_sequence = dy.Int64(nullable=True)
+    tm_stop_sequence = dy.Int64(primary_key=True)
     timepoint_id = dy.Int64(nullable=True)
     timepoint_abbr = dy.String(nullable=True)
     timepoint_name = dy.String(nullable=True)
     tm_planned_sequence_end = dy.Int64(nullable=True)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     service_date = dy.Date(nullable=True)
-    plan_stop_departure_dt = plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)
+    plan_stop_departure_dt = dy.Datetime(primary_key=True, time_zone=None)
     timepoint_order = dy.UInt32(nullable=True)
     trip_overload_id = dy.Int8(nullable=True)
-    STOP_CROSSING_ID = dy.Int64(primary_key=True)
+    STOP_CROSSING_ID = dy.Int64(nullable=False)
 
 
 # pylint: disable=R0902
@@ -126,12 +126,6 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
             pl.col("TRIP_ID").is_not_null(),
             # by allowing null `VEHICLE_ID`, we get all scheduled and actual trips for the day
         )
-        .sort("VEHICLE_ID", nulls_last=True)
-        .unique(
-            subset=["STOP_CROSSING_ID"],
-            keep="first",  # if there are duplicate records for the same plan_stop_departure_dt, keep the record with the non-null vehicle ID so that we can join to that in events_tm
-            maintain_order=True,
-        )
         .join(tm_trips, on="TRIP_ID", how="left")
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left")
         .join(tm_time_points, on="TIME_POINT_ID", how="left")
@@ -156,6 +150,12 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
                 pl.col("PATTERN_GEO_NODE_SEQ").max().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_end"),
                 pl.col("PATTERN_GEO_NODE_SEQ").min().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_start"),
             )
+        )
+        .sort("VEHICLE_ID", nulls_last=True)
+        .unique(
+            subset=TransitMasterSchedule.primary_keys(),
+            keep="first",  # if there are duplicate records for the same plan_stop_departure_dt, keep the record with the non-null vehicle ID so that we can join to that in events_tm
+            maintain_order=True,
         )
         .with_columns(  # overloaded trips need to be distinguished
             pl.col("tm_stop_sequence")
