@@ -18,15 +18,6 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class TransitMasterTimepoints(BusBaseSchema):
-    "Scheduled stops in TransitMaster."
-    timepoint_abbr = dy.String(nullable=True)
-    timepoint_id = dy.Int64(nullable=True)
-    timepoint_name = dy.String(nullable=True)
-    timepoint_order = dy.UInt32(nullable=True)
-    tm_stop_sequence = dy.Int64(primary_key=True, nullable=False)
-
-
 class TransitMasterEvents(BusBaseSchema):
     "Scheduled and actual stops in TransitMaster."
     tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -82,12 +73,6 @@ def generate_tm_events(
                 & pl.col("TRIP_ID").is_not_null()
                 & pl.col("VEHICLE_ID").is_not_null()
                 & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
-            )
-            .join(
-                tm_scheduled.tm_routes,
-                on="ROUTE_ID",
-                how="left",
-                coalesce=True,
             )
             .join(
                 tm_scheduled.tm_vehicles,

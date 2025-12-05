@@ -13,7 +13,7 @@ class BusBaseSchema(dy.Schema):
 
     trip_id = dy.String(primary_key=True, nullable=False)
     stop_id = dy.String(nullable=False)
-    route_id = dy.String(nullable=False)
+    route_id = dy.String(primary_key=True)
 
 
 class GTFSBusSchedule(BusBaseSchema):

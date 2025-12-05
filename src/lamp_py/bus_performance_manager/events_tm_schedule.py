@@ -17,33 +17,19 @@ from lamp_py.runtime_utils.remote_files import (
 )
 
 
-class TransitMasterPatternGeoNodeXref(dy.Schema):
-    """Timepoints and stop sequences by route pattern."""
-
-    PATTERN_ID = dy.Int64(primary_key=True)
-    PATTERN_GEO_NODE_SEQ = dy.Int64(primary_key=True)
-    TIME_POINT_ID = dy.Int64(nullable=True)
-    GEO_NODE_ID = dy.Int64(nullable=True)
-    timepoint_order = dy.UInt32(nullable=True)
-
-
-class TransitMasterSchedule(dy.Schema):
+class TransitMasterSchedule(BusBaseSchema):
     """TransitMaster scheduled events."""
 
     pattern_id = dy.Int64(nullable=True)
     tm_stop_sequence = dy.Int64(nullable=True)
     timepoint_id = dy.Int64(nullable=True)
-    stop_id = dy.String(nullable=True)
     timepoint_abbr = dy.String(nullable=True)
     timepoint_name = dy.String(nullable=True)
-    trip_id = BusBaseSchema.trip_id
-    stop_id = BusBaseSchema.stop_id
     tm_planned_sequence_end = dy.Int64(nullable=True)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     service_date = dy.Date(nullable=True)
     plan_stop_departure_dt = plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)
     timepoint_order = dy.UInt32(nullable=True)
-    route_id = BusBaseSchema.route_id
     trip_overload_id = dy.Int8(nullable=True)
     STOP_CROSSING_ID = dy.Int64(primary_key=True)
 
