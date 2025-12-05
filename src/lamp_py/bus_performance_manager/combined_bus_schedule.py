@@ -24,7 +24,6 @@ class CombinedBusSchedule(GTFSBusSchedule):
     tm_planned_sequence_end = TransitMasterSchedule.tm_planned_sequence_end
     tm_planned_sequence_start = TransitMasterSchedule.tm_planned_sequence_start
     timepoint_order = TransitMasterSchedule.timepoint_order
-    scheduled_departure_time_sam = dy.Int64(nullable=True)
 
 
 # pylint: disable=R0801
@@ -93,11 +92,13 @@ def join_tm_schedule_to_gtfs_schedule(
             pl.when(
                 pl.col("trip_overload_id").max().over("trip_id").gt(0),  # for overloaded TM trips
             )
-            .then(pl.col("schedule_joined").eq("JOIN"))  # take the records that matched GTFS Schedule
-            .otherwise(pl.lit(True))  # keep all non-overloaded trips
+            .then(
+                pl.col("schedule_joined").eq("JOIN").any().over(["trip_id", "trip_overload_id"])
+            )  # keep the trip that matched GTFS Schedule
+            .otherwise(pl.lit(True))  # also keep all non-overloaded trips
         )
         .with_columns(
-            pl.struct("plan_stop_departure_dt", "gtfs_stop_sequence", "plan_start_dt")
+            pl.struct("plan_stop_departure_dt", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")
             .rank("min")
             .over(["trip_id"])
             .alias("stop_sequence"),

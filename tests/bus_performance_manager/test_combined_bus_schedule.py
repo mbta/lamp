@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from datetime import datetime
 
 import pytest
 import dataframely as dy
@@ -6,11 +7,11 @@ import polars as pl
 from dataframely.exc import ValidationError
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import GTFSBusSchedule
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterPatternGeoNodeXref, TransitMasterSchedule
-from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule, join_tm_schedule_to_gtfs_schedule
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
+from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedBusSchedule, join_tm_schedule_to_gtfs_schedule
 
 
-class TestCombinedSchedule(CombinedSchedule):
+class TestCombinedSchedule(CombinedBusSchedule):
     """Edge case checks that would be expensive to run in production."""
 
     @dy.rule()
@@ -50,7 +51,7 @@ def test_dy_first_stop_sequence_has_gtfs_record(
     expected_rows: pytest.RaisesExc,
 ) -> None:
     """It filters out records with non-null TM records before non-null GTFS records at the first stop_sequence."""
-    df = CombinedSchedule.sample(3, generator=dy_gen).with_columns(
+    df = CombinedBusSchedule.sample(3, generator=dy_gen).with_columns(
         trip_id=pl.lit("1"),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         tm_stop_sequence=pl.Series(values=tm_stop_sequence),
@@ -91,7 +92,7 @@ def test_dy_consecutive_null_stop_sequences_ordered_correctly(
     expected_rows: pytest.RaisesExc,
 ) -> None:
     """It filters rows that are out of order."""
-    df = CombinedSchedule.sample(4, generator=dy_gen).with_columns(
+    df = CombinedBusSchedule.sample(4, generator=dy_gen).with_columns(
         trip_id=pl.lit("1"),
         gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),  # out of order
         tm_stop_sequence=pl.Series(values=tm_stop_sequence),
@@ -106,10 +107,16 @@ def test_dy_consecutive_null_stop_sequences_ordered_correctly(
     [
         "gtfs_stop_sequence",
         "gtfs_stop_id",
+        "gtfs_plan_stop_departure_dt",
         "raises",
     ],
     [
-        ([1, 2, 3, 4], ["a", "b", "c", "d"], nullcontext()),
+        (
+            [1, 2, 3, 4],
+            ["a", "b", "c", "d"],
+            [datetime(2025, 1, 1, 1), datetime(2025, 1, 1, 2), datetime(2025, 1, 1, 3), datetime(2025, 1, 1, 4)],
+            nullcontext(),
+        ),
         (
             [1, 2, 4, 3],
             [
@@ -118,24 +125,37 @@ def test_dy_consecutive_null_stop_sequences_ordered_correctly(
                 "d",
                 "c",
             ],
+            [datetime(2025, 1, 1, 1), datetime(2025, 1, 1, 2), datetime(2025, 1, 1, 4), datetime(2025, 1, 1, 3)],
             nullcontext(),
         ),
-        ([1, 2, 3], ["z", "b", "c"], nullcontext()),
+        (
+            [1, 2, 3],
+            ["z", "b", "c"],
+            [datetime(2025, 1, 1, 1), datetime(2025, 1, 1, 2), datetime(2025, 1, 1, 3)],
+            nullcontext(),
+        ),
+        (
+            [1, 2, 3],
+            ["a", "z", "c"],
+            [datetime(2025, 1, 1, 1), datetime(2025, 1, 1, 2, 30), datetime(2025, 1, 1, 3)],
+            nullcontext(),
+        ),
     ],
     ids=[
         "originally-in-order",
         "originally-out-of-order",
-        "stop_sequence_1-disagreement",
+        "startpoint-disagreement",
+        "midpoint-disagreement",
     ],
 )
-def test_join_tm_schedule_to_gtfs_schedule(
-    dy_gen: dy.random.Generator, gtfs_stop_sequence: list[int], gtfs_stop_id: list[str], raises: pytest.RaisesExc
+def test_correct_sequencing(
+    dy_gen: dy.random.Generator,
+    gtfs_stop_sequence: list[int],
+    gtfs_stop_id: list[str],
+    gtfs_plan_stop_departure_dt: list[datetime],
+    raises: pytest.RaisesExc,
 ) -> None:
     """Given out-of-order GTFS stops, it returns correctly ordered sequences."""
-    pattern_id = pl.lit(100)
-    time_point_id = pl.lit(100)
-
-    pattern_geo_node_seq = pl.Series(values=[1, 2, 3])
     trip_id = pl.lit("1")
 
     gtfs = GTFSBusSchedule.cast(
@@ -143,14 +163,16 @@ def test_join_tm_schedule_to_gtfs_schedule(
             trip_id=trip_id,
             stop_id=pl.Series(values=gtfs_stop_id),  # d and c do not match
             gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),  # out of order
+            plan_stop_departure_dt=pl.Series(values=gtfs_plan_stop_departure_dt),
         )
     )
 
     tm_schedule = TransitMasterSchedule.cast(
         TransitMasterSchedule.sample(3, generator=dy_gen).with_columns(
-            PATTERN_ID=pattern_id,
-            PATTERN_GEO_NODE_SEQ=pattern_geo_node_seq,
-            TIME_POINT_ID=time_point_id,
+            tm_stop_sequence=pl.Series(values=[1, 2, 3]),
+            plan_stop_departure_dt=pl.Series(
+                values=[datetime(2025, 1, 1, 1), datetime(2025, 1, 1, 2), datetime(2025, 1, 1, 3)]
+            ),
             stop_id=pl.Series(
                 values=[
                     "a",
@@ -159,19 +181,15 @@ def test_join_tm_schedule_to_gtfs_schedule(
                 ]
             ),
             trip_id=trip_id,
-            TRIP_SERIAL_NUMBER=trip_id,
-        )
-    )
-
-    tm_pattern_geo_node_xref = TransitMasterPatternGeoNodeXref.cast(
-        TransitMasterPatternGeoNodeXref.sample(3, generator=dy_gen).with_columns(
-            PATTERN_ID=pattern_id,
-            PATTERN_GEO_NODE_SEQ=pattern_geo_node_seq,
-            TIME_POINT_ID=time_point_id,
+            trip_overload_id=pl.lit(0),
         )
     )
 
     with raises:
         assert not TestCombinedSchedule.validate(
-            join_tm_schedule_to_gtfs_schedule(gtfs, tm_schedule, tm_pattern_geo_node_xref), cast=True
+            join_tm_schedule_to_gtfs_schedule(gtfs, tm_schedule), cast=True
         ).is_empty()
+
+
+def test_drop_overloads() -> None:
+    """It only returns one TM trip per trip_id."""

@@ -71,10 +71,8 @@ service_date = datetime.date(year=2025, month=6, day=26)
 
 if REGENERATE:
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
-    tm_schedule = generate_tm_schedule()
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(
-        gtfs_schedule, tm_schedule.tm_schedule, tm_schedule.tm_pattern_geo_node_xref
-    )
+    tm_schedule = generate_tm_schedule(service_date)
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule.tm_schedule)
 
     gtfs_schedule.write_parquet(f"gtfs_schedule__service_date_{str(service_date)}.parquet")
     tm_schedule = tm_schedule.filter(

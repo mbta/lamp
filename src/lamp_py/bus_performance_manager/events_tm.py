@@ -6,7 +6,7 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables, TransitMasterSchedule
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
 from lamp_py.runtime_utils.remote_files import (
     tm_trip_file,
     tm_vehicle_file,
@@ -25,7 +25,7 @@ class TransitMasterEvents(BusBaseSchema):
     tm_actual_arrival_time_sam = dy.Int64(nullable=True)
     tm_actual_departure_time_sam = dy.Int64(nullable=True)
     vehicle_label = dy.String(nullable=False, primary_key=True)
-    tm_stop_sequence = TransitMasterSchedule.tm_stop_sequence
+    tm_stop_sequence = dy.Int64(primary_key=True)
 
 
 class TMDailyWorkPiece(dy.Schema):
@@ -64,51 +64,48 @@ def generate_tm_events(
     # remove leading zeros from route ids where they exist
     # convert arrival and departure times to utc datetimes
     # cast everything else as a string
-    if len(tm_files) > 0:
-        tm_stop_crossings = (
-            pl.scan_parquet(tm_files)
-            .filter(
-                pl.col("ROUTE_ID").is_not_null()
-                & pl.col("GEO_NODE_ID").is_not_null()
-                & pl.col("TRIP_ID").is_not_null()
-                & pl.col("VEHICLE_ID").is_not_null()
-                & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
-            )
-            .join(
-                tm_scheduled.tm_vehicles,
-                on="VEHICLE_ID",
-                how="left",
-                coalesce=True,
-            )
-            .join(tm_scheduled.tm_schedule.lazy(), on="STOP_CROSSING_ID", how="inner")
-            .with_columns(
-                pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
-                (
-                    (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds="ACT_ARRIVAL_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
-                    .alias("tm_actual_arrival_dt")
-                ),
-                (
-                    (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds="ACT_DEPARTURE_TIME"))
-                    .dt.replace_time_zone("America/New_York", ambiguous="earliest")
-                    .dt.convert_time_zone("UTC")
-                    .alias("tm_actual_departure_dt")
-                ),
-                pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
-                pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
-            )
-            .select(TransitMasterEvents.column_names())
-            .collect()
+    tm_stop_crossings = (
+        pl.scan_parquet(tm_files)
+        .filter(
+            pl.col("ROUTE_ID").is_not_null()
+            & pl.col("GEO_NODE_ID").is_not_null()
+            & pl.col("TRIP_ID").is_not_null()
+            & pl.col("VEHICLE_ID").is_not_null()
+            & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
         )
+        .join(
+            tm_scheduled.tm_vehicles,
+            on="VEHICLE_ID",
+            how="left",
+            coalesce=True,
+        )
+        .join(tm_scheduled.tm_schedule.lazy(), on="STOP_CROSSING_ID", how="inner")
+        .with_columns(
+            pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
+            (
+                (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds="ACT_ARRIVAL_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                .dt.convert_time_zone("UTC")
+                .alias("tm_actual_arrival_dt")
+            ),
+            (
+                (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds="ACT_DEPARTURE_TIME"))
+                .dt.replace_time_zone("America/New_York", ambiguous="earliest")
+                .dt.convert_time_zone("UTC")
+                .alias("tm_actual_departure_dt")
+            ),
+            pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
+            pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
+        )
+        .select(TransitMasterEvents.column_names())
+        .collect()
+    )
 
-        valid = logger.log_dataframely_filter_results(*TransitMasterEvents.filter(tm_stop_crossings))
+    valid = logger.log_dataframely_filter_results(*TransitMasterEvents.filter(tm_stop_crossings))
 
-        logger.log_complete()
+    logger.log_complete()
 
-        return valid
-    else:
-        return TransitMasterEvents.create_empty()
+    return valid
 
 
 def create_public_operator_id_map(daily_work: pl.DataFrame, seed: float = datetime.now().timestamp()) -> pl.DataFrame:

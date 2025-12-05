@@ -89,7 +89,12 @@ class BusPerformanceManager(dy.Collection):
     @dy.filter()
     def preserve_tm_events(self) -> pl.LazyFrame:
         "If values in TransitMaster are not null, then downstream records should also not be null for those columns."
-        keys = ["trip_id", "tm_stop_sequence", "tm_actual_arrival_dt", "tm_actual_departure_dt", "tm_scheduled_time_dt"]
+        keys = [
+            "trip_id",
+            "tm_stop_sequence",
+            "tm_actual_arrival_dt",
+            "tm_actual_departure_dt",
+        ]
 
         missing_tm_events = self.tm.join(  # locate events that have mismatched event values
             self.bus, how="anti", on=keys, nulls_equal=True
