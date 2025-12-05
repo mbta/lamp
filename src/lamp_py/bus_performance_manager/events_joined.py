@@ -5,13 +5,13 @@ from lamp_py.bus_performance_manager.events_tm import (
     TMDailyWorkPiece,
     TransitMasterEvents,
 )
-from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
+from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedBusSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents):
+class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
@@ -99,7 +99,7 @@ class BusPerformanceManager(dy.Collection):
 
 
 def join_rt_to_schedule(
-    schedule: dy.DataFrame[CombinedSchedule],
+    schedule: dy.DataFrame[CombinedBusSchedule],
     gtfs: dy.DataFrame[GTFSEvents],
     tm: dy.DataFrame[TransitMasterEvents],
     tm_operator: dy.DataFrame[TMDailyWorkPiece],

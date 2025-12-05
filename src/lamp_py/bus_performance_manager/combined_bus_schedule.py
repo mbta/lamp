@@ -2,7 +2,7 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_rt import remove_rare_variant_route_suffix
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule, TransitMasterPatternGeoNodeXref
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
 from lamp_py.bus_performance_manager.events_gtfs_schedule import GTFSBusSchedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
