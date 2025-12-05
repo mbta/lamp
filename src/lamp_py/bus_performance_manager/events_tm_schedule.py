@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from datetime import date
+import os
 
 import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     tm_geo_node_file,
     tm_route_file,
@@ -11,6 +14,7 @@ from lamp_py.runtime_utils.remote_files import (
     tm_vehicle_file,
     tm_time_point_file,
     tm_pattern_geo_node_xref_file,
+    tm_stop_crossing,
 )
 
 
@@ -27,19 +31,22 @@ class TransitMasterPatternGeoNodeXref(dy.Schema):
 class TransitMasterSchedule(dy.Schema):
     """TransitMaster scheduled events."""
 
-    TRIP_ID = dy.Int64(nullable=True)
-    TRIP_SERIAL_NUMBER = dy.Int64(nullable=True)
-    PATTERN_ID = TransitMasterPatternGeoNodeXref.PATTERN_ID
-    PATTERN_GEO_NODE_SEQ = TransitMasterPatternGeoNodeXref.PATTERN_GEO_NODE_SEQ
-    TIME_POINT_ID = TransitMasterPatternGeoNodeXref.TIME_POINT_ID
-    GEO_NODE_ID = TransitMasterPatternGeoNodeXref.GEO_NODE_ID
-    GEO_NODE_ABBR = dy.String(nullable=True)
-    TIME_POINT_ABBR = dy.String(nullable=True)
-    TIME_PT_NAME = dy.String(nullable=True)
+    pattern_id = dy.Int64(nullable=True)
+    tm_stop_sequence = dy.Int64(nullable=True)
+    timepoint_id = dy.Int64(nullable=True)
+    stop_id = dy.String(nullable=True)
+    timepoint_abbr = dy.String(nullable=True)
+    timepoint_name = dy.String(nullable=True)
     trip_id = BusBaseSchema.trip_id
     stop_id = BusBaseSchema.stop_id
     tm_planned_sequence_end = dy.Int64(nullable=True)
     tm_planned_sequence_start = dy.Int64(nullable=True)
+    service_date = dy.Date(nullable=True)
+    plan_stop_departure_dt = plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)
+    timepoint_order = dy.UInt32(nullable=True)
+    route_id = BusBaseSchema.route_id
+    trip_overload_id = dy.Int8(nullable=True)
+    STOP_CROSSING_ID = dy.Int64(primary_key=True)
 
 
 # pylint: disable=R0902
@@ -57,11 +64,10 @@ class TransitMasterTables:
     tm_pattern_geo_node_xref_full: pl.LazyFrame  # to get all stop sequence (including non-timepoint)
     tm_trip_geo_tp: pl.LazyFrame  # derived
     tm_trip_geo_tp_full: pl.LazyFrame  # derived
-    tm_sequences: pl.LazyFrame  # derived
     tm_schedule: dy.DataFrame[TransitMasterSchedule]
 
 
-def generate_tm_schedule() -> TransitMasterTables:
+def generate_tm_schedule(service_date: date) -> TransitMasterTables:
     """
 
     non service tiemepoints
@@ -77,6 +83,8 @@ def generate_tm_schedule() -> TransitMasterTables:
     """
     # the geo node id is the transit master key and the geo node abbr is the
     # gtfs stop id
+    logger = ProcessLogger("generate_tm_schedule")
+    logger.log_start()
     tm_geo_nodes = (
         pl.scan_parquet(tm_geo_node_file.s3_uri)
         .select(
@@ -188,21 +196,74 @@ def generate_tm_schedule() -> TransitMasterTables:
     )
     # TRIP_ID or [TRIP_SERIAL_NUMBER, PATTERN_ID] uniquely identify a TM "Trip".
     # TRIP_SERIAL_NUMBER is the publicly facing number (and gets aliased to "TRIP_ID" below)
-    tm_sequences = tm_trip_geo_tp.group_by(["TRIP_ID"]).agg(
-        pl.col("PATTERN_GEO_NODE_SEQ").max().alias("tm_planned_sequence_end"),
-        pl.col("PATTERN_GEO_NODE_SEQ").min().alias("tm_planned_sequence_start"),
-    )
 
-    tm_schedule = TransitMasterSchedule.validate(
-        tm_trip_geo_tp_full.with_columns(
-            pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"), pl.col("GEO_NODE_ABBR").alias("stop_id")
-        ).join(
-            tm_sequences,
-            on="TRIP_ID",
-            how="left",
-            coalesce=True,
+    stop_crossings = (
+        pl.scan_parquet(os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime("%Y%m%d")}.parquet"))
+        .filter(
+            pl.col("ROUTE_ID").is_not_null(),
+            pl.col("GEO_NODE_ID").is_not_null(),
+            pl.col("TRIP_ID").is_not_null(),
+            # by allowing null `VEHICLE_ID`, we get all scheduled and actual trips for the day
+        )
+        .sort("VEHICLE_ID", nulls_last=True)
+        .unique(
+            subset=["STOP_CROSSING_ID"],
+            keep="first",  # if there are duplicate records for the same plan_stop_departure_dt, keep the record with the non-null vehicle ID so that we can join to that in events_tm
+            maintain_order=True,
+        )
+        .join(tm_trips, on="TRIP_ID", how="left")
+        .join(tm_geo_nodes, on="GEO_NODE_ID", how="left")
+        .join(tm_time_points, on="TIME_POINT_ID", how="left")
+        .join(tm_routes, on="ROUTE_ID", how="left")
+        .with_columns(
+            (
+                pl.col("CALENDAR_ID").cast(pl.String).str.to_date("1%Y%m%d").alias("service_date"),
+                pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).alias("trip_id"),
+                pl.col("GEO_NODE_ABBR").alias("stop_id"),
+                pl.col("PATTERN_GEO_NODE_SEQ").cast(pl.Int64).alias("tm_stop_sequence"),
+                pl.col("TIME_POINT_ID").cast(pl.Int64).alias("timepoint_id"),
+                pl.col("TIME_POINT_ABBR").cast(pl.String).alias("timepoint_abbr"),
+                pl.col("TIME_PT_NAME").cast(pl.String).alias("timepoint_name"),
+                pl.col("PATTERN_ID").cast(pl.Int64).alias("pattern_id"),
+                (
+                    pl.col("CALENDAR_ID").cast(pl.String).str.to_datetime("1%Y%m%d", time_unit="us")
+                    + pl.duration(seconds=pl.col("SCHEDULED_TIME"))
+                ).alias("plan_stop_departure_dt"),
+                pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
+                pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
+                pl.col("ROUTE_ABBR").str.strip_chars_start(pl.lit("0")).alias("route_id"),
+                pl.col("PATTERN_GEO_NODE_SEQ").max().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_end"),
+                pl.col("PATTERN_GEO_NODE_SEQ").min().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_start"),
+            )
+        )
+        .with_columns(  # overloaded trips need to be distinguished
+            pl.col("tm_stop_sequence")
+            .rank()
+            .over(["trip_id", "tm_stop_sequence"], order_by="plan_stop_departure_dt")
+            .cast(pl.Int8)
+            .alias("trip_overload_id")
+        )
+        .select(
+            "service_date",
+            "trip_id",
+            "stop_id",
+            "pattern_id",
+            "tm_stop_sequence",
+            "tm_planned_sequence_start",
+            "tm_planned_sequence_end",
+            "plan_stop_departure_dt",
+            "tm_scheduled_time_sam",
+            "timepoint_id",
+            "timepoint_abbr",
+            "timepoint_name",
+            "timepoint_order",
+            "route_id",
+            "trip_overload_id",
+            "STOP_CROSSING_ID",
         )
     )
+
+    tm_schedule = logger.log_dataframely_filter_results(*TransitMasterSchedule.filter(stop_crossings))
 
     return TransitMasterTables(
         tm_geo_nodes=tm_geo_nodes,
@@ -214,6 +275,5 @@ def generate_tm_schedule() -> TransitMasterTables:
         tm_trip_geo_tp=tm_trip_geo_tp,
         tm_trip_geo_tp_full=tm_trip_geo_tp_full,
         tm_pattern_geo_node_xref_full=tm_pattern_geo_node_xref_full,
-        tm_sequences=tm_sequences,
         tm_schedule=tm_schedule,
     )
