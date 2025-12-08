@@ -24,6 +24,7 @@ class CombinedBusSchedule(GTFSBusSchedule):
     tm_planned_sequence_end = TransitMasterSchedule.tm_planned_sequence_end
     tm_planned_sequence_start = TransitMasterSchedule.tm_planned_sequence_start
     timepoint_order = TransitMasterSchedule.timepoint_order
+    plan_stop_departure_sam = dy.Int64(nullable=True)
 
 
 # pylint: disable=R0801
@@ -54,8 +55,17 @@ def join_tm_schedule_to_gtfs_schedule(
         .join(
             tm_schedule.drop("route_id"), on=["trip_id", "stop_id", "plan_stop_departure_dt"], how="full", coalesce=True
         )
-        # this operation fills in the nulls for the selected columns after the join- the commented out ones do not make sense to fill in
-        # leaving them in as comments to make clear that this is a conscious choice
+        # this operation fills in the nulls for trip-level columns after the join
+        # the stop-level values do not make sense to fill in
+        # leaving the stop-level values as comments to make clear that this is a conscious choice:
+        #
+        # stop_id
+        # stop_sequence
+        # stop_name
+        # plan_stop_departure_dt
+        # plan_travel_time_seconds
+        # plan_route_direction_headway_seconds
+        # plan_direction_destination_headway_seconds
         .with_columns(
             pl.col(
                 [
@@ -87,6 +97,7 @@ def join_tm_schedule_to_gtfs_schedule(
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("schedule_joined"),
+            pl.col("plan_stop_departure_dt").cast(pl.Int64).alias("plan_stop_departure_sam"),
         )
         .filter(
             pl.when(pl.col("trip_overload_id").is_null())
@@ -96,8 +107,8 @@ def join_tm_schedule_to_gtfs_schedule(
             )
             .then(
                 pl.col("schedule_joined").eq("JOIN").any().over(["trip_id", "trip_overload_id"])
-            )  # keep the trip that matched GTFS Schedule
-            .otherwise(pl.lit(True))  # also keep all non-overloaded trips
+            )  # keep the trip that matched GTFS Schedule plan_stop_departure_dts
+            .otherwise(pl.lit(True))  # also keep non-overloaded trips
         )
         .with_columns(
             pl.struct("plan_stop_departure_dt", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")

@@ -69,6 +69,7 @@ bus_schema = pyarrow.schema(
         ("plan_start_dt", pyarrow.timestamp("us")),
         ("stop_name", pyarrow.large_string()),
         ("plan_stop_departure_dt", pyarrow.timestamp("us")),
+        ("plan_stop_departure_sam", pyarrow.int64()),
         ("plan_travel_time_seconds", pyarrow.int64()),
         ("plan_route_direction_headway_seconds", pyarrow.int64()),
         ("plan_direction_destination_headway_seconds", pyarrow.int64()),

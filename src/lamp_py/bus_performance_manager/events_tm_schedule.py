@@ -144,7 +144,6 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
                     pl.col("CALENDAR_ID").cast(pl.String).str.to_datetime("1%Y%m%d", time_unit="us")
                     + pl.duration(seconds=pl.col("SCHEDULED_TIME"))
                 ).alias("plan_stop_departure_dt"),
-                pl.col("SCHEDULED_TIME").cast(pl.Int64).alias("tm_scheduled_time_sam"),
                 pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
                 pl.col("ROUTE_ABBR").str.strip_chars_start(pl.lit("0")).alias("route_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").max().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_end"),
