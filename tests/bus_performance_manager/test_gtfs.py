@@ -93,7 +93,7 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     # mock files from S3 with https://performancedata paths
     exists_patch.return_value = True
 
-    bus_events = bus_gtfs_schedule_events_for_date(SERVICE_DATE)
+    scheduled_bus_events = bus_gtfs_schedule_events_for_date(SERVICE_DATE)
 
     # regeneration line:
     # drop new lines in expected_bus_events
@@ -101,22 +101,22 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     # run this
     # breakpoint()
     # trip_id_list = ['63256578', '63361458', '63089353', '63071767', '63256596', '63101043', '63256882', '63072828', '63156984', '63362022', 'ElmSt2-684858-217-HaverhillBradfordVanV1', 'ElmSt2-684849-208-HaverhillBradfordVanV1', 'ElmSt2-684842-201-HaverhillBradfordVanV1', '63361157', '63070975', '63157369', '63157836', '63075088', '63070693']
-    # bus_events.filter(pl.col.plan_trip_id.is_in(trip_id_list)).sort(by=["plan_trip_id", "stop_sequence"]).write_csv('tests/bus_performance_manager/bus_test_gtfs.csv')
+    # scheduled_bus_events.filter(pl.col.trip_id.is_in(trip_id_list)).sort(by=["trip_id", "gtfs_stop_sequence"]).write_csv('tests/bus_performance_manager/bus_test_gtfs.csv')
 
     # CSV Bus events
     expected_bus_events = pl.read_csv(
         os.path.join(current_dir, "bus_test_gtfs.csv"),
-        schema=bus_events.schema,
-    ).sort(by=["plan_trip_id", "stop_sequence"])
+        schema=scheduled_bus_events.schema,
+    ).sort(by=["trip_id", "gtfs_stop_sequence"])
     # CSV trips
-    expected_trips = expected_bus_events.select("plan_trip_id").unique()
+    expected_trips = expected_bus_events.select("trip_id").unique()
     # Filter and sort pipeline events for CSV trips
-    bus_events = bus_events.join(expected_trips, on="plan_trip_id", how="right").sort(
-        by=["plan_trip_id", "stop_sequence"]
+    bus_events = scheduled_bus_events.join(expected_trips, on="trip_id", how="right").sort(
+        by=["trip_id", "gtfs_stop_sequence"]
     )
 
-    for trip_id in bus_events.get_column("plan_trip_id").unique():
-        trip = bus_events.filter((pl.col("plan_trip_id") == trip_id))
+    for trip_id in bus_events.get_column("trip_id").unique():
+        trip = bus_events.filter((pl.col("trip_id") == trip_id))
         # try:
         # the first stop does not have a "travel to time" - so it must be null
         assert trip["plan_travel_time_seconds"].head(1).is_null()[0]
@@ -155,17 +155,17 @@ def test_gtfs_events_for_date(exists_patch: mock.MagicMock) -> None:
     for column in expected_bus_events.columns:
         if column in skip_columns:
             continue
-        for trip_id in expected_bus_events.get_column("plan_trip_id").unique():
+        for trip_id in expected_bus_events.get_column("trip_id").unique():
             try:
-                trip = bus_events.filter((pl.col("plan_trip_id") == trip_id))
+                trip = bus_events.filter((pl.col("trip_id") == trip_id))
 
                 pl_test.assert_series_equal(
                     trip.get_column(column),
-                    expected_bus_events.filter((pl.col("plan_trip_id") == trip_id)).get_column(column),
+                    expected_bus_events.filter((pl.col("trip_id") == trip_id)).get_column(column),
                 )
             except Exception as exception:
                 logging.error(
-                    "Process values (column=%s - plan_trip_id=%s) do not match bus_test_gtfs.csv",
+                    "Process values (column=%s - trip_id=%s) do not match bus_test_gtfs.csv",
                     column,
                     trip_id,
                 )
