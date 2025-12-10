@@ -35,7 +35,7 @@ def build_time_range_paths(
     delta: datetime.timedelta = datetime.timedelta(seconds=1),
 ) -> list[str]:
     """
-    Given an f-string template, fill in the {} in template with all the days between
+    Given an f-string template, fill in the {} in template with all the datetimes between
     start_date and end_date (inclusive) and return the result as a list of strings
     """
 
