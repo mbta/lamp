@@ -1,5 +1,5 @@
 from typing import Optional, Callable
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -16,6 +16,11 @@ from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 
 
+def days_ago(num_days: int):
+    """helper function to get a date() object set to num_days ago"""
+    return (datetime.now() - timedelta(days=num_days)).date()
+
+
 # pylint: disable=R0917,R0902,R0913
 # pylint too many local variables (more than 15)
 class FilteredHyperJob(HyperJob):
@@ -27,7 +32,8 @@ class FilteredHyperJob(HyperJob):
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
-        rollup_num_days: int | None = 7,  # default this to a week of data
+        start_date: date | None = days_ago(7),  # default this the past week of data
+        end_date: date | None = datetime.now().date(),
         partition_template: str = "year={yy}/month={mm}/day={dd}/",
         parquet_preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
         parquet_filter: pc.Expression | None = None,
@@ -44,7 +50,13 @@ class FilteredHyperJob(HyperJob):
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema  # expected output schema passed in
         self.partition_template = partition_template
-        self.rollup_num_days = rollup_num_days
+
+        if start_date is not None and end_date is not None:
+            assert start_date <= end_date
+
+        self.start_date = start_date
+        self.end_date = end_date
+
         self.parquet_preprocess = parquet_preprocess  # level 1 | complex preprocess
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
@@ -57,11 +69,11 @@ class FilteredHyperJob(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: DatabaseManager | None) -> bool:
-        return self.create_tableau_parquet(num_days=self.rollup_num_days, partition_template=self.partition_template)
+        return self.create_tableau_parquet(partition_template=self.partition_template)
 
     # pylint: disable=R0914, R0912
     # pylint too many local variables (more than 15)
-    def create_tableau_parquet(self, num_days: Optional[int], partition_template: str) -> bool:
+    def create_tableau_parquet(self, partition_template: str) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
 
@@ -73,21 +85,18 @@ class FilteredHyperJob(HyperJob):
         -------
         True if parquet created, False otherwise
         """
-        if num_days is not None:
+        if self.start_date is not None and self.end_date is not None:
             # limitation of filtered hyper only does whole days.
             # update to allow start/end set by hour, to get the entire
             # previous days uploads working
             # need to implement new input daily_upload_hour as well
             # this will currently update hourly. will monitor
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=num_days)
-            # self.remote_input_location.bucket = 'mbta-ctd-dataplatform-staging-springboard'
             s3_uris = file_list_from_s3_date_range(
                 bucket_name=self.remote_input_location.bucket,
                 file_prefix=self.remote_input_location.prefix,
                 path_template=partition_template,
-                end_date=end_date,
-                start_date=start_date,
+                end_date=self.end_date,
+                start_date=self.start_date,
             )
         else:
             s3_uris = file_list_from_s3(
@@ -101,7 +110,9 @@ class FilteredHyperJob(HyperJob):
             format="parquet",
             filesystem=S3FileSystem(),
         )
-        process_logger = ProcessLogger("filtered_hyper_create_parquet", num_days=num_days)
+        process_logger = ProcessLogger(
+            "filtered_hyper_create_parquet", start_date=self.start_date, end_date=self.end_date
+        )
         process_logger.log_start()
         if len(ds_paths) == 0:
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
