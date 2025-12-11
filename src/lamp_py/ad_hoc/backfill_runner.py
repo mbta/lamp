@@ -33,7 +33,7 @@ import polars as pl
 # specialize GtfsRtConverter
 
 
-class GtfsRtAdHocConverter(GtfsRtConverter):
+class GtfsRtTripsAdHocConverter(GtfsRtConverter):
     """
     Converter that handles GTFS Real Time JSON data
 
@@ -45,7 +45,7 @@ class GtfsRtAdHocConverter(GtfsRtConverter):
         config_type: ConfigType,
         metadata_queue: Queue[Optional[str]],
         output_location: str,
-        polars_filter: pl.Expr,
+        polars_filter: pl.Expr | bool = True, # default to true - which will essentially not filter
         max_workers: int = 4,
     ) -> None:
         GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
@@ -132,12 +132,7 @@ class GtfsRtAdHocConverter(GtfsRtConverter):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
                 # the error and move on to the next file.
-                if result_dt is not None:
-                    logging.info(
-                        "processing: %s",
-                        result_filename,
-                    )
-                else:
+                if result_dt is None:
                     logging.error(
                         "skipping processing: %s",
                         result_filename,
@@ -175,66 +170,63 @@ class GtfsRtAdHocConverter(GtfsRtConverter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-bucket_filter = "lamp/delta"
+def delta_reingestion_runner(start_date, end_date, final_output_base, polars_filter = None, max_workers = 4, tmp_output_location = "/tmp/gtfs-rt-continuous/"):
 
-start_date = datetime(2025, 12, 1, 0, 0, 0)
-end_date = datetime(2025, 12, 2, 0, 0, 0)
-
-logger = ProcessLogger("backfiller")
-
-while start_date <= end_date:
-    prefix = (
-        os.path.join(
-            LAMP,
-            "delta",
-            start_date.strftime("%Y"),
-            start_date.strftime("%m"),
-            start_date.strftime("%d"),
+    logger = ProcessLogger("backfiller")
+    logger.log_start()
+    while start_date <= end_date:
+        prefix = (
+            os.path.join(
+                LAMP,
+                "delta",
+                start_date.strftime("%Y"),
+                start_date.strftime("%m"),
+                start_date.strftime("%d"),
+            )
+            + "/"
         )
-        + "/"
-    )
 
-    file_list = file_list_from_s3(
-        S3_ARCHIVE,
-        prefix,
-        in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
-    )
+        file_list = file_list_from_s3(
+            S3_ARCHIVE,
+            prefix,
+            in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
+        )
 
-    print(len(file_list))
+        print(len(file_list))
 
-    breakpoint()
+        converter = GtfsRtTripsAdHocConverter(
+            config_type=ConfigType.RT_TRIP_UPDATES,
+            metadata_queue=None,
+            output_location=tmp_output_location,
+            polars_filter=polars_filter,
+            max_workers=max_workers,
+        )
+        converter.add_files(file_list)
+        converter.convert()
 
-    converter = GtfsRtAdHocConverter(
-        config_type=ConfigType.RT_TRIP_UPDATES,
-        metadata_queue=None,
-        output_location="/Users/hhuang/lamp/gtfs-rt-continuous",
-        polars_filter=pl.col("trip_update.trip.route_id").is_in(
-            ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
-        ),
-        max_workers=22,
-    )
-    converter.add_files(file_list)
-    converter.convert()
+        # Define the path to your input Parquet files (can use a glob pattern)
+        input_path = f"{output_location}/lamp/RT_TRIP_UPDATES/year={start_date.year}/month={start_date.month}/day={start_date.day}/"
+        # output_file = "/tmp/combined_file.parquet"
+        output_path = f"{final_output_base}/{start_date.year}_{start_date.month}_{start_date.day}.parquet"
 
-    # Define the path to your input Parquet files (can use a glob pattern)
-    input_path = f"/Users/hhuang/lamp/gtfs-rt-continuous/lamp/RT_TRIP_UPDATES/year={start_date.year}/month={start_date.month}/day={start_date.day}/"
-    # output_file = "/tmp/combined_file.parquet"
-    output_file2 = f"/Users/hhuang/dataset/{start_date.year}_{start_date.month}_{start_date.day}.parquet"
+        # Create a dataset from the input files
+        ds = pd.dataset(input_path, format="parquet")
 
-    # Create a dataset from the input files
-    ds = pd.dataset(input_path, format="parquet")
+        # experiment 3 - compression. 600mb
+        with pq.ParquetWriter(output_path, schema=ds.schema, compression="zstd", compression_level=3) as writer:
+            for batch in ds.to_batches(batch_size=512 * 1024):
+                writer.write_batch(batch)
 
-    # experiment 3 - compression. 600mb
-    with pq.ParquetWriter(output_file2, schema=ds.schema, compression="zstd", compression_level=3) as writer:
-        for batch in ds.to_batches(batch_size=512 * 1024):
-            writer.write_batch(batch)
+        start_date = start_date + timedelta(days=1)
 
-    start_date = start_date + timedelta(days=1)
+if __name__ == "__main__":
 
-    # output to somewhere
-
-    # apply tableau transforms
-
-    # process under tableau
-
-# upload
+    start_date = datetime(2025, 12, 1, 0, 0, 0)
+    end_date = datetime(2025, 12, 2, 0, 0, 0)
+    output_location="/Users/hhuang/lamp/gtfs-rt-continuous"
+    polars_filter = pl.col("trip_update.trip.route_id").is_in(
+                ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
+            )
+    max_workers = 22
+    final_output_base = "/Users/hhuang/dataset"
+    delta_reingestion_runner(start_date=start_date, end_date=end_date, tmp_output_location=output_location, final_output_base=final_output_base, polars_filter=polars_filter, max_workers=22)
