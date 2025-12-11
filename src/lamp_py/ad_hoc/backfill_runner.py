@@ -175,86 +175,30 @@ class GtfsRtAdHocConverter(GtfsRtConverter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-
-# # Define the path to your input Parquet files (can use a glob pattern)
-# input_path = "/tmp/test/"
-# output_file = "/tmp/combined_file.parquet"
-# output_file2 = "/tmp/combined_file_parquet_writer.parquet"
-
-# # Create a dataset from the input files
-# ds = pd.dataset(input_path, format="parquet")
-
-
-# ## experiment 1 - 2gb. exploded. Why?
-# # Read the dataset and write it to a single Parquet file
-# # pd.write_dataset(ds, output_file)
-# # pq.ParquetWriter(hash_pq_path, schema=out_ds.schema,
-
-# # # experiment 2 - no compression. 1.3gb
-# # with pq.ParquetWriter(output_file2, schema=ds.schema) as writer:
-# #     for batch in ds.to_batches(batch_size=512 * 1024):
-# #         writer.write_batch(batch)
-
-
-# # experiment 3 - compression. 600mb
-# with pq.ParquetWriter(output_file2, schema=ds.schema, compression="zstd", compression_level=3) as writer:
-#     for batch in ds.to_batches(batch_size=512 * 1024):
-#         writer.write_batch(batch)
-
-
-# breakpoint()
-# exit()
-# output_prefix = os.path.join(S3_SPRINGBOARD, "DEV_GREEN_UNFILTERED_TRIP_UPDATES")
-
-# read from delta archive between dates
-# s3://mbta-ctd-dataplatform-archive/lamp/delta/2025/11/01/2025-11-01T00:00:00Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz
 bucket_filter = "lamp/delta"
-# tm_template = "1{yy}{mm:02}{dd:02}"
 
-# path_template = f"{yy}/{mm:02}/{dd:02}/{yy}-{mm:02}-{dd:02}T00:00:00Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz"
 start_date = datetime(2025, 12, 1, 0, 0, 0)
 end_date = datetime(2025, 12, 2, 0, 0, 0)
-# end_date = datetime(2025, 11, 24, 23, 59, 59)
-# start_time = time.time()
+
 logger = ProcessLogger("backfiller")
 
-# timedelta = end_date - start_date
-# Generate a list of datetime objects for each hour in a day
-# dt.timedelta(hours=x) adds the correct offset to the start time
-all_times = [start_date + timedelta(seconds=x) for x in range(24 * 60 * 60)]
-
-# curtime = start_date
-# Use a list comprehension to format the datetime objects into file paths
-# .strftime('%Y-%m-%d_%H-%M-%S') formats the datetime object into a string
-# os.path.join handles path concatenation for different operating systems
-file_list = [
-    os.path.join("s3://", S3_ARCHIVE, LAMP, "delta", f"{curtime.year}/{curtime.month:02}/{curtime.day:02}/{curtime.year}-{curtime.month:02}-{curtime.day:02}T{curtime.hour:02}:{curtime.minute:02}:{curtime.second:02}Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz")
-    for curtime in all_times
-]
-
-# import multiprocessing
-
-# print()
-# breakpoint()
-
-
 while start_date <= end_date:
-    # prefix = (
-    #     os.path.join(
-    #         LAMP,
-    #         "delta",
-    #         start_date.strftime("%Y"),
-    #         start_date.strftime("%m"),
-    #         start_date.strftime("%d"),
-    #     )
-    #     + "/"
-    # )
+    prefix = (
+        os.path.join(
+            LAMP,
+            "delta",
+            start_date.strftime("%Y"),
+            start_date.strftime("%m"),
+            start_date.strftime("%d"),
+        )
+        + "/"
+    )
 
-    # file_list = file_list_from_s3(
-    #     S3_ARCHIVE,
-    #     prefix,
-    #     in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
-    # )
+    file_list = file_list_from_s3(
+        S3_ARCHIVE,
+        prefix,
+        in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
+    )
 
     print(len(file_list))
 
@@ -280,16 +224,6 @@ while start_date <= end_date:
     # Create a dataset from the input files
     ds = pd.dataset(input_path, format="parquet")
 
-    ## experiment 1 - 2gb. exploded. Why?
-    # Read the dataset and write it to a single Parquet file
-    # pd.write_dataset(ds, output_file)
-    # pq.ParquetWriter(hash_pq_path, schema=out_ds.schema,
-
-    # # experiment 2 - no compression. 1.3gb
-    # with pq.ParquetWriter(output_file2, schema=ds.schema) as writer:
-    #     for batch in ds.to_batches(batch_size=512 * 1024):
-    #         writer.write_batch(batch)
-
     # experiment 3 - compression. 600mb
     with pq.ParquetWriter(output_file2, schema=ds.schema, compression="zstd", compression_level=3) as writer:
         for batch in ds.to_batches(batch_size=512 * 1024):
@@ -297,30 +231,10 @@ while start_date <= end_date:
 
     start_date = start_date + timedelta(days=1)
 
-#     os.path.join(BASE_DIR, FILE_TEMPLATE.format(timestamp=time_obj.strftime('%Y-%m-%d_%H-%M-%S')))
-#     for time_obj in hourly_times
-# ]
+    # output to somewhere
 
-# files = file_list_from_s3_date_range(bucket_name=S3_ARCHIVE, file_prefix=bucket_filter, path_template=path_template, start_date=start_date, end_date=start_date)
+    # apply tableau transforms
 
-
-# date time range path builder - faster than listing..86k max. (if per second...which it is < than)
-# try/except for times that dont exist
-
-
-# logger.add_metadata(files=len(files))
-
-# with open("cache_files.txt", "w") as file:
-#     for item in files:
-#         file.write(f"{item}\n")
-
-# breakpoint()
-# grouped_files = group_sort_file_list(files)
-
-# grou
-
-# re-construct springboard file (rail and light rail)
-
-# process under tableau
+    # process under tableau
 
 # upload
