@@ -87,19 +87,57 @@ def build_view(
     return False
 
 
+def register_read_ymd(
+    connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """Register function in DuckDB using SQL text."""
+    pl = ProcessLogger("register_read_ymd")
+    pl.log_start()
+    connection.sql(
+        """
+        CREATE OR REPLACE MACRO read_ymd
+
+            (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
+             SELECT *
+             FROM read_parquet(
+                list_transform(
+                    range(
+                        start_date,
+                        end_date,
+                        INTERVAL 1 DAY
+                    ),
+                    lambda x : strftime(
+                        concat_ws(
+                            '/',
+                            bucket,
+                            'lamp',
+                            directory_name,
+                            'year=%Y/month=%-m/day=%-d/%xT%H:%M:%S.parquet'
+                        ),
+                        x
+                    )
+                ),
+                hive_partitioning = True
+            )
+            )
+        """
+    )
+
+    pl.log_complete()
+
+
 def add_views_to_local_metastore(
     connection: duckdb.DuckDBPyConnection, views: dict[str, List[rf.S3Location]]
 ) -> List[str]:
     "Add views of remote Parquet files to duckdb database."
 
-    with connection as con:
-        built_views: List[str] = []
-        for k in views.keys():
-            for item in views[k]:
-                view_name = os.path.splitext(os.path.basename(item.prefix))[0]
-                result = build_view(con, view_name, item, k)
-                if result:
-                    built_views.append(view_name)
+    built_views: List[str] = []
+    for k in views.keys():
+        for item in views[k]:
+            view_name = os.path.splitext(os.path.basename(item.prefix))[0]
+            result = build_view(connection, view_name, item, k)
+            if result:
+                built_views.append(view_name)
 
     if not built_views:
         raise EmptyDataStructureException
@@ -130,6 +168,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
         auth = authenticate(con)
         pl.add_metadata(authenticated=auth)
         add_views_to_local_metastore(con, views)
+        register_read_ymd(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)
