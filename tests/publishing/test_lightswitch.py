@@ -5,8 +5,12 @@ from typing import Generator
 import pytest
 import duckdb
 
-from lamp_py.publishing.lightswitch import build_view, add_views_to_local_metastore
-from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
+from lamp_py.publishing.lightswitch import (
+    build_view,
+    add_views_to_local_metastore,
+    register_read_ymd,
+    authenticate,
+)
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
 
@@ -62,3 +66,38 @@ def test_add_views_to_local_metastore(
     "It builds the views that are passed to it."
     with view_names:
         assert view_names.enter_result == add_views_to_local_metastore(duckdb_con, view_dict)  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ["bucket"],
+    [
+        ("s3://mbta-ctd-dataplatform-springboard",),
+        ("s3://mbta-ctd-dataplatform-staging-springboard",),
+    ],
+    ids=["prod", "staging"],
+)
+@pytest.mark.parametrize(
+    ["directory_name", "raises"],
+    [
+        ("RT_VEHICLE_POSITIONS", nullcontext()),
+        ("foo", pytest.raises(Exception)),
+    ],
+    ids=[
+        "exists",
+        "does-not-exist",
+    ],
+)
+def test_register_read_ymd(
+    duckdb_con: duckdb.DuckDBPyConnection,
+    bucket: str,
+    directory_name: str,
+    raises: pytest.RaisesExc,
+) -> None:
+    """It raises errors on directories that don't exist."""
+    with raises:
+        with duckdb_con:
+            authenticate(duckdb_con)
+            register_read_ymd(duckdb_con)
+            assert duckdb_con.sql(
+                f"SELECT * FROM read_ymd('{directory_name}', '2024-06-01' :: DATE, '2024-06-02' :: DATE, '{bucket}')"
+            )
