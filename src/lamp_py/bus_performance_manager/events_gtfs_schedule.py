@@ -1,10 +1,41 @@
 from datetime import date
 
+import dataframely as dy
 import polars as pl
 
 from lamp_py.utils.gtfs_utils import gtfs_from_parquet
 from lamp_py.performance_manager.gtfs_utils import start_time_to_seconds
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+
+
+class BusBaseSchema(dy.Schema):
+    """Common schema for bus schedule and event datasets."""
+
+    trip_id = dy.String(primary_key=True, nullable=False)
+    stop_id = dy.String(nullable=False)
+    route_id = dy.String(primary_key=True)
+
+
+class GTFSBusSchedule(BusBaseSchema):
+    """Joined table of scheduled GTFS trips."""
+
+    gtfs_stop_sequence = dy.Int64(primary_key=True)
+    checkpoint_id = dy.String(nullable=True)
+    block_id = dy.String(nullable=True)
+    service_id = dy.String(nullable=True)
+    route_pattern_id = dy.String(nullable=True)
+    route_pattern_typicality = dy.Int64(nullable=True)
+    direction_id = dy.Int8(nullable=True)
+    direction = dy.String(nullable=True)
+    direction_destination = dy.String(nullable=True)
+    stop_name = dy.String(nullable=True)
+    plan_stop_count = dy.UInt32(nullable=True)
+    plan_start_time = dy.Int64(nullable=True)
+    plan_travel_time_seconds = dy.Int64(nullable=True)
+    plan_route_direction_headway_seconds = dy.Int64(nullable=True)
+    plan_direction_destination_headway_seconds = dy.Int64(nullable=True)
+    plan_start_dt = dy.Datetime(nullable=True, time_zone=None)
+    plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)
 
 
 def service_ids_for_date(service_date: date) -> pl.DataFrame:
@@ -110,48 +141,6 @@ def trips_for_date(service_date: date) -> pl.DataFrame:
     )
 
 
-def canonical_stop_sequence(service_date: date) -> pl.DataFrame:
-    """
-    Create canonical stop sequence values for specified service date
-
-    :param service_date: service date of requested GTFS data
-
-    :return dataframe:
-        route_id -> String
-        direction_id -> Int64
-        stop_id -> String
-        canon_stop_sequence -> u32
-    """
-
-    canonical_trip_ids = (
-        gtfs_from_parquet("route_patterns", service_date)
-        .filter((pl.col("route_pattern_typicality") == 1) | (pl.col("route_pattern_typicality") == 5))
-        .sort(pl.col("route_pattern_typicality"), descending=True)
-        .unique(["route_id", "direction_id"], keep="first")
-        .select(
-            "route_id",
-            "direction_id",
-            "representative_trip_id",
-        )
-    )
-
-    return (
-        gtfs_from_parquet("stop_times", service_date)
-        .join(
-            canonical_trip_ids,
-            left_on="trip_id",
-            right_on="representative_trip_id",
-            how="inner",
-        )
-        .select(
-            "route_id",
-            "direction_id",
-            "stop_id",
-            pl.col("stop_sequence").rank("ordinal").over("route_id", "direction_id").alias("canon_stop_sequence"),
-        )
-    )
-
-
 def stop_events_for_date(service_date: date) -> pl.DataFrame:
     """
     all stop event related GTFS data for a service_date
@@ -174,7 +163,6 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         stop_name -> String
         parent_station -> String
         plan_stop_count -> UInt32
-        # canon_stop_sequence -> UInt32
         arrival_seconds -> Int64
         departure_seconds -> Int64
         plan_start_time -> Int64
@@ -188,7 +176,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         "arrival_time",
         "departure_time",
         "stop_id",
-        "stop_sequence",
+        pl.col("stop_sequence").alias("gtfs_stop_sequence"),
         "checkpoint_id",
     )
 
@@ -200,9 +188,6 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
         "stop_name",
         "parent_station",
     )
-
-    # canonical stop sequence logic currently under review
-    # canon_stop_sequences = canonical_stop_sequence(service_date)
 
     stop_events = (
         stop_times.join(
@@ -225,11 +210,6 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
             on="trip_id",
             how="left",
         )
-        # .join(
-        #     canon_stop_sequences,
-        #     on=["route_pattern_id", "stop_id"],
-        #     how="left",
-        # )
         .with_columns(
             (pl.col("arrival_time").map_elements(start_time_to_seconds, return_dtype=pl.Int64)).alias(
                 "arrival_seconds"
@@ -278,7 +258,7 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     # plan_travel_time_seconds - how many seconds in schedule between subsequent stops, for a trip
     stop_events = stop_events.with_columns(
         (pl.col("arrival_seconds") - pl.col("departure_seconds").shift())
-        .over("trip_id", order_by="stop_sequence")
+        .over("trip_id", order_by="gtfs_stop_sequence")
         .alias("plan_travel_time_seconds")
     )
 
@@ -305,29 +285,11 @@ def stop_event_metrics(stop_events: pl.DataFrame) -> pl.DataFrame:
     return stop_events
 
 
-def bus_gtfs_schedule_events_for_date(service_date: date) -> pl.DataFrame:
+def bus_gtfs_schedule_events_for_date(service_date: date) -> dy.DataFrame[GTFSBusSchedule]:
     """
     Create data frame of all GTFS data needed by Bus PM app for a service_date
 
-    :return dataframe:
-        plan_trip_id -> String
-        stop_id -> String
-        stop_sequence -> Int64
-        block_id -> String
-        route_id -> String
-        service_id -> String
-        route_pattern_id -> String
-        route_pattern_typicality -> Int64
-        direction_id -> Int8
-        direction -> String
-        direction_destination -> String
-        stop_name -> String
-        plan_stop_count -> UInt32
-        plan_start_time -> Int64
-        plan_start_dt -> Datetime
-        plan_travel_time_seconds -> Int64
-        plan_route_direction_headway_seconds -> Int64
-        plan_direction_destination_headway_seconds -> Int64
+    :return GTFSBusSchedule:
     """
     logger = ProcessLogger("bus_gtfs_schedule_events_for_date", service_date=service_date)
     logger.log_start()
@@ -336,14 +298,10 @@ def bus_gtfs_schedule_events_for_date(service_date: date) -> pl.DataFrame:
 
     stop_events = stop_event_metrics(stop_events)
 
-    drop_columns = [
-        "arrival_seconds",
-        "departure_seconds",
-        "parent_station",
-    ]
-    stop_events = stop_events.drop(drop_columns).rename({"trip_id": "plan_trip_id"})
+    stop_events = stop_events.select(GTFSBusSchedule.column_names())
 
-    logger.add_metadata(events_for_day=stop_events.shape[0])
+    valid = logger.log_dataframely_filter_results(*GTFSBusSchedule.filter(stop_events))
 
     logger.log_complete()
-    return stop_events
+
+    return valid

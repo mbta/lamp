@@ -5,13 +5,13 @@ from lamp_py.bus_performance_manager.events_tm import (
     TMDailyWorkPiece,
     TransitMasterEvents,
 )
-from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedSchedule
+from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedBusSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
-class BusEvents(CombinedSchedule, TransitMasterEvents):
+class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
     service_date = dy.Date(primary_key=True)
@@ -89,7 +89,12 @@ class BusPerformanceManager(dy.Collection):
     @dy.filter()
     def preserve_tm_events(self) -> pl.LazyFrame:
         "If values in TransitMaster are not null, then downstream records should also not be null for those columns."
-        keys = ["trip_id", "tm_stop_sequence", "tm_actual_arrival_dt", "tm_actual_departure_dt", "tm_scheduled_time_dt"]
+        keys = [
+            "trip_id",
+            "tm_stop_sequence",
+            "tm_actual_arrival_dt",
+            "tm_actual_departure_dt",
+        ]
 
         missing_tm_events = self.tm.join(  # locate events that have mismatched event values
             self.bus, how="anti", on=keys, nulls_equal=True
@@ -99,7 +104,7 @@ class BusPerformanceManager(dy.Collection):
 
 
 def join_rt_to_schedule(
-    schedule: dy.DataFrame[CombinedSchedule],
+    schedule: dy.DataFrame[CombinedBusSchedule],
     gtfs: dy.DataFrame[GTFSEvents],
     tm: dy.DataFrame[TransitMasterEvents],
     tm_operator: dy.DataFrame[TMDailyWorkPiece],

@@ -97,10 +97,10 @@ def run_bus_performance_pipeline(
     gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
 
     # no OL, no _1, _2 trips??
-    tm_schedule = generate_tm_schedule()
+    tm_schedule = generate_tm_schedule(service_date)
 
     # full join results in _1, _2, all TM, all GTFS
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule, **debug_flags)
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule.tm_schedule, **debug_flags)
 
     # _1, _2, -OL1, -OL2
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
