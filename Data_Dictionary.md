@@ -266,7 +266,7 @@ In generating this dataset, translation string fields contain only the English t
 ## LAMP_Bus_Events
 
 LAMP_ALL_Bus_Events & LAMP_RECENT_Bus_Events have the same data dictionary.\
-Each row represents a unique `trip_id`-`stop_id` pair for each `service_date` of bus service.\
+Each row represents a unique `trip_id`-`stop_sequence`-`vehicle_label` combination for each `service_date` of bus service.\
 The bus data incorporates an additional data source: TransitMaster. Buses have TransitMaster devices to keep track of their location.
 
 | field name | type | description | source | temporary |
@@ -308,6 +308,8 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | plan_stop_count | uint32 | planned stop count from [stop_times.txt](https://gtfs.org/schedule/reference/#stop_timestxt) of `plan_trip_id` trip | LAMP Calculated |
 | plan_start_time	| int64 | Earliest `arrival_time` from [stop_times.txt](https://gtfs.org/documentation/schedule/reference/#stop_timestxt) for `plan_trip_id` | GTFS |
 | plan_start_dt	| datetime | equivalent to `start_datetime` if planned trip, otherwise GTFS-RT `start_date` added to `plan_start_time` | LAMP Calculated |
+| plan_stop_departure_dt | datetime | datetime that a `trip_id` was scheduled to depart from a stop | GTFS Schedule when available; TransitMaster for stops/timepoints not available in GTFS; overload adjustments not represented | No
+| plan_stop_departure_sam | int64 | `plan_stop_departure_dt` expressed as seconds after `service_date` midnight | same as `plan_stop_departure_dt` | No
 | stop_name | string | equivalent to GTFS `stop_name` from [stops.txt](https://gtfs.org/schedule/reference/#stopstxt) for `stop_id` | GTFS
 | plan_travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
 | plan_route_direction_headway_seconds	| int64 | planned seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
