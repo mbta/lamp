@@ -29,8 +29,9 @@ jobs:
             exit 1
           fi
   deploy:
+    needs: [check-tag]
     # if check-tag succeeded (new release) or was skipped (merge to main)
-    if: ${{ contains(fromJSON('["success", "skipped"]'), jobs.check-tag.result) }}
+    if: ${{ contains(fromJSON('["success", "skipped"]'), needs.check-tag.result) }}
     uses: ./.github/workflows/deploy-base.yaml
     with:
       # if the trigger is a tag then deploy to prod; otherwise deploy to staging
