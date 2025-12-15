@@ -94,7 +94,6 @@ def test_register_read_ymd(
 
     with raises:
         with duckdb_con:
-            authenticate(duckdb_con)
             register_read_ymd(duckdb_con)
             assert duckdb_con.sql(
                 f"SELECT * FROM read_ymd('{directory_name}', '2024-06-01' :: DATE, '2024-06-02' :: DATE, '{tmp_path.resolve()}')"
