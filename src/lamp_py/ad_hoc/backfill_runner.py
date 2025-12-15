@@ -15,8 +15,12 @@ from lamp_py.ingestion.converter import ConfigType
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import file_list_from_s3
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, TABLEAU, S3Location
 import polars as pl
+
+from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob, days_ago
+from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
 
 # read everything from a day in archive
 # parse it json like before...rerun processing, spit out tmp file
@@ -215,10 +219,55 @@ def delta_reingestion_runner(start_date, end_date, final_output_base, polars_fil
         # experiment 3 - compression. 600mb
         with pq.ParquetWriter(output_path, schema=ds.schema, compression="zstd", compression_level=3) as writer:
             for batch in ds.to_batches(batch_size=512 * 1024):
-                writer.write_batch(batch)
+                writer.write_batch(batch)                   
 
         start_date = start_date + timedelta(days=1)
 
+    # now combine them
+
+    tableau_adhoc_output = S3Location(
+        bucket=S3_ARCHIVE,
+        prefix=os.path.join("adhoc", TABLEAU, "rail"),
+    )
+    
+    hyperjob = FilteredHyperJob(
+        remote_input_location=final_output_base,
+        remote_output_location=tableau_adhoc_output,
+        start_date=start_date,
+        end_date=end_date,
+        processed_schema=convert_gtfs_rt_trip_updates.TripUpdates.pyarrow_schema(),
+        dataframe_filter=select_only_required,
+        parquet_filter=None,
+        tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
+    )
+
+    hyperjob.run_parquet()
+    # hyperjob.run_hyper()
+
+
+    # trip_update.trip.trip_id
+    # trip_update.trip.start_date
+    # trip_update.stop_time_update.departure.time - Convert from Epoch format to regular datetime
+    # feed_timestamp - Convert from Epoch format to regular datetime
+    # Filter data to trip_update.trip.revenue = TRUE, trip_update.stop_time_update.schedule_relationship != SKIPPED, and trip_update.trip.schedule_relationship != CANCELED        
+
+def select_only_required(df: pl.DataFrame) -> pl.DataFrame:
+    # Filter data to  = TRUE, trip_update.stop_time_update.schedule_relationship != SKIPPED, and trip_update.trip.schedule_relationship != CANCELED        
+
+    df = df.filter(
+            # pl.col("trip_update.stop_time_update.departure.time").is_not_null(),
+            # pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids),
+            pl.col("trip_update.trip.revenue"),
+            pl.col("trip_update.trip.schedule_relationship").ne("CANCELED"),
+            pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
+            # pl.col("trip_update.stop_time_update.departure.time").sub(pl.col("feed_timestamp")).dt.total_seconds().ge(1),
+        ).select([
+            "trip_update.trip.trip_id"
+            "trip_update.trip.start_date"
+            "trip_update.stop_time_update.departure.time" #  - Convert from Epoch format to regular datetime
+            "feed_timestamp" # - Convert from Epoch format to regular datetime
+            ])
+    # 
 if __name__ == "__main__":
 
     start_date = datetime(2025, 12, 1, 0, 0, 0)
