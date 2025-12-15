@@ -34,13 +34,13 @@ jobs:
     uses: ./.github/workflows/deploy-base.yaml
     with:
       # if the trigger is a tag then deploy to prod; otherwise deploy to staging
-      environment: ${{ (github.ref_type == 'tag' && 'prod') || 'staging' }}
+      environment: ${{ github.ref_type == 'tag' && 'prod' || 'staging' }}
       deploy-lightswitch: true
     secrets: inherit
   run_lightswitch_task:
     needs: deploy
     uses: ./.github/workflows/run-task.yaml
     with:
-      environment: ${{ (github.ref_type == 'tag' && 'prod') || 'staging' }}
+      environment: ${{ github.ref_type == 'tag' && 'prod' || 'staging' }}
       task: Lightswitch
     secrets: inherit
