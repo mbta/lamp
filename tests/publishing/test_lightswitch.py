@@ -11,7 +11,6 @@ from lamp_py.publishing.lightswitch import (
     build_view,
     add_views_to_local_metastore,
     register_read_ymd,
-    authenticate,
 )
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
