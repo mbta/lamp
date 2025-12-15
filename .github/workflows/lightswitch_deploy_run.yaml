@@ -29,8 +29,8 @@ jobs:
             exit 1
           fi
   deploy:
-    # if the job was triggered by a push or it was triggered by a tag and the preceding task didn't fail
-    if: ${{ github.ref_type != 'tag' || !failure() }}
+    # if check-tag succeeded or was skipped
+    if: ${{ contains(['success', 'skipped'], jobs.check-tag.result) }}
     uses: ./.github/workflows/deploy-base.yaml
     with:
       # if the trigger is a tag then deploy to prod; otherwise deploy to staging
