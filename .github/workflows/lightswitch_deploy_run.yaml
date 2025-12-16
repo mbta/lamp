@@ -28,18 +28,10 @@ jobs:
              (e.g. v1.2.3) '$TAG_NAME' does NOT follow semantic versioning."
             exit 1
           fi
-  deploy:
+  run:
     needs: [check-tag]
     # if check-tag succeeded (new release) or was skipped (merge to main)
     if: ${{ contains(fromJSON('["success", "skipped"]'), needs.check-tag.result) }}
-    uses: ./.github/workflows/deploy-base.yaml
-    with:
-      # if the trigger is a tag then deploy to prod; otherwise deploy to staging
-      environment: ${{ github.ref_type == 'tag' && 'prod' || 'staging' }}
-      deploy-lightswitch: true
-    secrets: inherit
-  run_lightswitch_task:
-    needs: deploy
     uses: ./.github/workflows/run-task.yaml
     with:
       environment: ${{ github.ref_type == 'tag' && 'prod' || 'staging' }}
