@@ -7,6 +7,7 @@ on:
         description: Environment
         type: choice
         options:
+          - dev
           - staging
           - prod
       task:
@@ -16,12 +17,21 @@ on:
           - Tableau Publisher
           - Transit Master Ingestion
           - Lightswitch
+      ref:
+        description: Branch, Commit, or Tag
+        type: string
+        required: true
+        default: main
   workflow_call:
     inputs:
       environment:
         type: string
       task:
         type: string
+      ref:
+        type: string
+        required: false
+        default: main
 
 jobs:
   run_task:
@@ -32,6 +42,9 @@ jobs:
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+
       - name: Generate Task Name
         run: |
           if [ "${{ inputs.task }}" == "Tableau Publisher" ]; then

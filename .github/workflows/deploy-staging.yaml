@@ -22,5 +22,5 @@ jobs:
       deploy-bus-pm: true
       deploy-tm-ingestion: true
       deploy-tableau-publisher: true
-      deploy-lightswitch: false
+      deploy-lightswitch: true
     secrets: inherit
