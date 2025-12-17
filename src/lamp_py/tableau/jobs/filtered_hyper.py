@@ -130,7 +130,7 @@ class FilteredHyperJob(HyperJob):
                 batch_readahead=1,
                 fragment_readahead=0,
             ):
-                # don't write empty batch if no rows
+                # don't check empty batch if no rows
                 if batch.num_rows == 0:
                     continue
 
@@ -157,8 +157,10 @@ class FilteredHyperJob(HyperJob):
                         for col in added_columns:
                             polars_df = polars_df.with_columns(pl.lit(None).alias(col))
                         polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
-
-                    writer.write_table(polars_df.to_arrow())
+                    
+                    # don't write empty batch if no rows
+                    if polars_df.height > 0:
+                        writer.write_table(polars_df.to_arrow())
                 else:
                     # filtered on self.parquet_filter and self.parquet_preprocess
                     if isinstance(batch, pyarrow.RecordBatch):
