@@ -97,7 +97,10 @@ def join_tm_schedule_to_gtfs_schedule(
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("schedule_joined"),
-            pl.col("plan_stop_departure_dt").cast(pl.Int64).alias("plan_stop_departure_sam"),
+            pl.col("plan_stop_departure_dt")
+            .sub(pl.col("service_date").cast(pl.Datetime))
+            .dt.total_seconds()
+            .alias("plan_stop_departure_sam"),
         )
         .filter(
             pl.when(pl.col("trip_overload_id").is_null())
