@@ -2,7 +2,6 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
-from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 class TripUpdates(dy.Schema):

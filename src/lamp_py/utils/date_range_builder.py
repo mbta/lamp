@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-import datetime
 
 
 # Create a DataFrame with two date columns

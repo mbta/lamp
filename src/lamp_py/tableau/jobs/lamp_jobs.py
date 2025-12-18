@@ -1,4 +1,3 @@
-from datetime import datetime
 import os
 from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.common.gtfs_types import RouteType

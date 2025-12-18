@@ -1,26 +1,27 @@
+# pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name
+
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from queue import Queue
-import time
 from typing import Dict, Iterable, List, Optional
 import pyarrow
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
+import dataframely as dy
+import polars as pl
+
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
-import dataframely as dy
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import file_list_from_s3, upload_file
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, TABLEAU, S3Location
-import polars as pl
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
 
-from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob, days_ago
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
 
 # read everything from a day in archive
@@ -38,6 +39,7 @@ from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
 # specialize GtfsRtConverter
 
 
+# pylint disable=too-many-arguments
 class GtfsRtTripsAdHocConverter(GtfsRtConverter):
     """
     Converter that handles GTFS Real Time JSON data
@@ -158,13 +160,13 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
                     self.data_parts[dt_part] = TableData()
                     tmp = self.detail.transform_for_write(rt_data)
                     df = pl.from_arrow(tmp)
-                    self.data_parts[dt_part].table = df.filter(self.filter).to_arrow()
+                    self.data_parts[dt_part].table = df.filter(self.filter).to_arrow()  # type: ignore
 
                 else:
                     self.data_parts[dt_part].table = pyarrow.concat_tables(
                         [
                             self.data_parts[dt_part].table,
-                            pl.from_arrow(self.detail.transform_for_write(rt_data)).filter(self.filter).to_arrow(),
+                            pl.from_arrow(self.detail.transform_for_write(rt_data)).filter(self.filter).to_arrow(),  # type: ignore
                         ]
                     )
 
@@ -180,14 +182,30 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
 
 
 def delta_reingestion_runner(
-    start_date: datetime,
-    end_date: datetime,
+    start_date: date,
+    end_date: date,
     final_output_base: S3Location,
     polars_filter: pl.Expr | None = None,
     max_workers: int = 4,
     local_output_location: str = "/tmp/gtfs-rt-continuous/",
 ) -> None:
+    """
+    Docstring for delta_reingestion_runner
 
+    :param start_date: start of reingestion range
+    :type start_date: date
+    :param end_date: end of reingestion range
+    :type end_date: date
+    :param final_output_base: final resting prefix-path of output artifacts
+    :type final_output_base: S3Location
+    :param polars_filter: optional polars expression filter to be applied
+    :type polars_filter: pl.Expr | None
+    :param max_workers: number of worker threads to ingest delta files with - default is 4
+    :type max_workers: int
+    :param local_output_location: temporary working directory to place outputs
+    :type local_output_location: str
+
+    """
     logger = ProcessLogger("backfiller")
     logger.log_start()
 
@@ -218,7 +236,7 @@ def delta_reingestion_runner(
         # construct and run converter once per day
         converter = GtfsRtTripsAdHocConverter(
             config_type=ConfigType.RT_TRIP_UPDATES,
-            metadata_queue=None,
+            metadata_queue=Queue(),
             output_location=local_output_location,
             polars_filter=polars_filter,
             max_workers=max_workers,
@@ -279,6 +297,14 @@ def delta_reingestion_runner(
 
 
 def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Docstring for adhoc_convert_tz_filter_revenue_only
+
+    :param df: trip_updates dataframe
+    :type df: polars DataFrame
+    :return: trip_updates with timezones converted and filtered to revenue only
+    :rtype: polars DataFrame
+    """
     # Filter data to  = TRUE, trip_update.stop_time_update.schedule_relationship != SKIPPED, and trip_update.trip.schedule_relationship != CANCELED
     df = df.with_columns(
         pl.from_epoch(pl.col("trip_update.stop_time_update.departure.time"), time_unit="s")
@@ -307,25 +333,26 @@ def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
     )
 
     return df
-    #
 
 
 if __name__ == "__main__":
 
-    start_date = datetime(2025, 10, 24, 0, 0, 0)
-    end_date = datetime(2025, 11, 24, 0, 0, 0)
-    local_output_location = "/Users/hhuang/lamp/gtfs-rt-continuous"
+    LOCAL_OUTPUT_TMP = "/Users/hhuang/lamp/gtfs-rt-continuous"
+    MAX_WORKERS = 22
+
+    start = datetime(2025, 10, 24, 0, 0, 0)
+    end = datetime(2025, 11, 24, 0, 0, 0)
+
     polars_filter = pl.col("trip_update.trip.route_id").is_in(
         ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
     )
-    max_workers = 22
 
     final_output_base = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
 
     delta_reingestion_runner(
-        start_date=start_date,
-        end_date=end_date,
-        local_output_location=local_output_location,
+        start_date=start,
+        end_date=end,
+        local_output_location=LOCAL_OUTPUT_TMP,
         final_output_base=final_output_base,
         polars_filter=polars_filter,
         max_workers=22,

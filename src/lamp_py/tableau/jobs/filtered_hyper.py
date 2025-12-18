@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Callable
 from datetime import date, datetime, timedelta
 import pyarrow
 import pyarrow.parquet as pq
