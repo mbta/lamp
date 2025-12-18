@@ -16,7 +16,7 @@ from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 
 
-def days_ago(num_days: int):
+def days_ago(num_days: int) -> date:
     """helper function to get a date() object set to num_days ago"""
     return (datetime.now() - timedelta(days=num_days)).date()
 
@@ -157,7 +157,7 @@ class FilteredHyperJob(HyperJob):
                         for col in added_columns:
                             polars_df = polars_df.with_columns(pl.lit(None).alias(col))
                         polars_df = self.dataframe_filter(polars_df).select(writer.schema.names)
-                    
+
                     # don't write empty batch if no rows
                     if polars_df.height > 0:
                         writer.write_table(polars_df.to_arrow())
