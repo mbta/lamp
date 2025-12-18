@@ -5,6 +5,8 @@ LAMP is a collection of applications used to measure performance of the MBTA tra
 * [Ingestion (Parquet Archiver)](src/lamp_py/ingestion/README.md)
 * [Rail Performance Manager](src/lamp_py/performance_manager/README.md)
 * [Bus Performance Manager](src/lamp_py/bus_performance_manager/README.md)
+* [Tableau Publisher](src/lamp_py/tableau/README.md)
+* [Lightswitch Catalog](src/lamp_py/publishing/README.md)
 
 ## Architecture
 

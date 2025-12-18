@@ -1,0 +1,139 @@
+---
+title: "How to use Lightswitch"
+format:
+    gfm:
+        toc: true
+        reference-location: margin
+        html-table-processing: none
+execute:
+    warning: false
+    anchor-sections: true
+from: markdown+emoji
+---
+
+LAMP's metastore (data catalog?) provides users the experience of querying a relational database without requiring all the overhead that databases require (for the LAMP and Infra teams 🙂).
+That means a query that used to look like this:
+
+```sql
+SELECT *
+FROM read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet')
+LIMIT 10
+```
+
+Now can be written as:
+
+```sql
+SELECT *
+FROM lamp.BUS_VEHICLE_POSITIONS
+WHERE year = 2025
+AND month = 9
+AND day = 26
+LIMIT 10
+```
+
+## Configuration
+
+First, pick a DuckDB interface.
+As a default, stick with the included [DuckDB UI](https://duckdb.org/docs/stable/core_extensions/ui) for a minimal notebook.
+Other options are abundant but a few stand out:
+
+* [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview.html) for maximum extensibility
+* [DuckDB shell](https://shell.duckdb.org/) for a browser-based experience
+* [marimo](https://marimo.io/) for a shiny notebook experience
+* [DBeaver](https://dbeaver.io/) if you want the feel of an old SQL editor
+
+(This document is rendered by R's `duckdb` library and [Quarto](https://quarto.org/), which provides options for different outputs like websites, presentations, and PDFs.)
+
+```{r}
+#| include: false
+lamp <- DBI::dbConnect(duckdb::duckdb())
+```
+
+```{sql}
+#| include: false
+#| connection: lamp
+INSTALL httpfs;
+INSTALL icu;
+```
+
+To access the s3 buckets that hold LAMP data, you need to authenticate using their IAM account, which DuckDB supports natively via the DuckDB `aws` extension.
+
+```{sql}
+#| connection: lamp
+INSTALL aws;
+```
+
+I have already [authenticated using `awscli`](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods) so I can tell DuckDB to use those credentials.
+If you want to directly use an access key or set up a different authentication method, look at [DuckDB's docs](https://duckdb.org/docs/stable/core_extensions/aws.html).
+Since DuckDB doesn't persist credentials between sessions, you'll need to **run these next lines each time you start a DuckDB session**.
+
+```{sql}
+#| connection: lamp
+LOAD aws;
+CREATE OR REPLACE SECRET secret (
+    TYPE s3,
+    PROVIDER credential_chain
+);
+```
+
+Once authenticated, attach the Lightswitch data catalog.
+This is a DuckDB database that only holds views of LAMP Parquet URIs.
+For instance, the view for `RT_VEHICLE_POSITIONS` contains logic that lists the URLs for each `RT_VEHICLE_POSITIONS` file in LAMP's springboard bucket.
+
+```{sql}
+#| connection: lamp
+ATTACH 's3://mbta-ctd-dataplatform-staging-archive/lamp/catalog.db' AS lamp
+```
+
+And that's it!
+You're all set up.
+
+## Querying
+
+Get familiar with what's available by listing the database's views:
+
+```{sql}
+#| connection: lamp
+SHOW TABLES FROM lamp
+```
+
+GTFS-RT data is partitioned by `year`, `month`, and `day` and filtering the view by the partition is key to performance.
+Let's take `rt_vehicle_positions` for instance.
+
+```{sql}
+#| connection: lamp
+DESCRIBE lamp.rt_vehicle_positions
+```
+
+To query this view, apply a filter on `year`, `month`, and `day`:
+
+```{sql}
+#| connection: lamp
+SELECT *
+FROM lamp.rt_vehicle_positions
+WHERE year = 2025
+AND month = 10
+AND day BETWEEN 1 AND 9
+```
+
+⚠️ Unfortunately, DuckDB doesn't recognize `year`, `month`, and `day` as composing a date, so this query won't work:
+
+```sql
+SELECT *
+FROM lamp.rt_vehicle_positions
+WHERE file_date BETWEEN '2025-10-01' and '2025-10-09'
+```
+
+In addition, the native syntax is rather slow.
+To more efficiently query year-month-day partitioned datasets such as `rt_vehicle_positions`, use the function `lamp.read_ymd`, which accepts start and end dates.
+
+```{sql}
+#| connection: lamp
+SELECT *
+FROM lamp.read_ymd(
+    "RT_VEHICLE_POSITIONS", -- case sensitive
+    DATE '2025-10-01',
+    DATE '2025-10-10' -- end date is not inclusive
+)
+LIMIT 10
+```
