@@ -12,9 +12,10 @@ import pyarrow.parquet as pq
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
+import dataframely as dy
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.aws.s3 import file_list_from_s3
+from lamp_py.aws.s3 import file_list_from_s3, upload_file
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, TABLEAU, S3Location
 import polars as pl
 
@@ -49,7 +50,7 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
         config_type: ConfigType,
         metadata_queue: Queue[Optional[str]],
         output_location: str,
-        polars_filter: pl.Expr | bool = True, # default to true - which will essentially not filter
+        polars_filter: pl.Expr | None = None,  # default to true - which will essentially not filter
         max_workers: int = 4,
     ) -> None:
         GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
@@ -62,6 +63,9 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
+
+        if polars_filter is None:
+            polars_filter = pl.lit(None)
         self.filter = polars_filter
 
     def convert(self) -> None:
@@ -174,18 +178,29 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
 
-def delta_reingestion_runner(start_date, end_date, final_output_base, polars_filter = None, max_workers = 4, tmp_output_location = "/tmp/gtfs-rt-continuous/"):
+
+def delta_reingestion_runner(
+    start_date: datetime,
+    end_date: datetime,
+    final_output_base: S3Location,
+    polars_filter: pl.Expr | None = None,
+    max_workers: int = 4,
+    local_output_location: str = "/tmp/gtfs-rt-continuous/",
+) -> None:
 
     logger = ProcessLogger("backfiller")
     logger.log_start()
-    while start_date <= end_date:
+
+    cur_date = start_date
+
+    while cur_date <= end_date:
         prefix = (
             os.path.join(
                 LAMP,
                 "delta",
-                start_date.strftime("%Y"),
-                start_date.strftime("%m"),
-                start_date.strftime("%d"),
+                cur_date.strftime("%Y"),
+                cur_date.strftime("%m"),
+                cur_date.strftime("%d"),
             )
             + "/"
         )
@@ -198,84 +213,120 @@ def delta_reingestion_runner(start_date, end_date, final_output_base, polars_fil
 
         print(len(file_list))
 
+        #### Stage 1: local to local (MANY to many)
+
+        # construct and run converter once per day
         converter = GtfsRtTripsAdHocConverter(
             config_type=ConfigType.RT_TRIP_UPDATES,
             metadata_queue=None,
-            output_location=tmp_output_location,
+            output_location=local_output_location,
             polars_filter=polars_filter,
             max_workers=max_workers,
         )
         converter.add_files(file_list)
+        # this outputs to local output_location=tmp_output_location
         converter.convert()
 
+        #### Stage 2: local to local (many to 1)
+
         # Define the path to your input Parquet files (can use a glob pattern)
-        input_path = f"{output_location}/lamp/RT_TRIP_UPDATES/year={start_date.year}/month={start_date.month}/day={start_date.day}/"
-        # output_file = "/tmp/combined_file.parquet"
-        output_path = f"{final_output_base}/{start_date.year}_{start_date.month}_{start_date.day}.parquet"
+        input_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+        output_file = f"/tmp/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
 
         # Create a dataset from the input files
         ds = pd.dataset(input_path, format="parquet")
 
+        # write locally
         # experiment 3 - compression. 600mb
-        with pq.ParquetWriter(output_path, schema=ds.schema, compression="zstd", compression_level=3) as writer:
+        # pathlib.Path.mkdir(os.path.dirname(output_path), exist_ok=True)
+
+        with pq.ParquetWriter(output_file, schema=ds.schema, compression="zstd", compression_level=3) as writer:
             for batch in ds.to_batches(batch_size=512 * 1024):
-                writer.write_batch(batch)                   
+                writer.write_batch(batch)
 
-        start_date = start_date + timedelta(days=1)
+        #### Stage 3: local to remote (one to one)
 
-    # now combine them
+        # upload local to remote
+        upload_file(
+            output_file,
+            output_file.replace(
+                "/tmp/", f"{final_output_base.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+            ),
+        )
 
-    tableau_adhoc_output = S3Location(
-        bucket=S3_ARCHIVE,
-        prefix=os.path.join("adhoc", TABLEAU, "rail"),
-    )
-    
+        cur_date = cur_date + timedelta(days=1)
+
+    class MinimalSchema(dy.Schema):
+        "Intersection of descendant rail schemas."
+        trip_id = dy.String(nullable=True, alias="trip_update.trip.trip_id")
+        start_date = dy.String(nullable=True, alias="trip_update.trip.start_date")
+        feed_timestamp = dy.Datetime(nullable=True)
+        departure_time = dy.Datetime(nullable=True, alias="trip_update.stop_time_update.departure.time")
+
     hyperjob = FilteredHyperJob(
         remote_input_location=final_output_base,
-        remote_output_location=tableau_adhoc_output,
+        remote_output_location=final_output_base,
         start_date=start_date,
         end_date=end_date,
-        processed_schema=convert_gtfs_rt_trip_updates.TripUpdates.pyarrow_schema(),
-        dataframe_filter=select_only_required,
+        processed_schema=MinimalSchema.pyarrow_schema(),
+        dataframe_filter=adhoc_convert_tz_filter_revenue_only,
         parquet_filter=None,
         tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
     )
 
     hyperjob.run_parquet()
-    # hyperjob.run_hyper()
+    hyperjob.run_hyper()
 
 
-    # trip_update.trip.trip_id
-    # trip_update.trip.start_date
-    # trip_update.stop_time_update.departure.time - Convert from Epoch format to regular datetime
-    # feed_timestamp - Convert from Epoch format to regular datetime
-    # Filter data to trip_update.trip.revenue = TRUE, trip_update.stop_time_update.schedule_relationship != SKIPPED, and trip_update.trip.schedule_relationship != CANCELED        
-
-def select_only_required(df: pl.DataFrame) -> pl.DataFrame:
-    # Filter data to  = TRUE, trip_update.stop_time_update.schedule_relationship != SKIPPED, and trip_update.trip.schedule_relationship != CANCELED        
+def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
+    # Filter data to  = TRUE, trip_update.stop_time_update.schedule_relationship != SKIPPED, and trip_update.trip.schedule_relationship != CANCELED
+    df = df.with_columns(
+        pl.from_epoch(pl.col("trip_update.stop_time_update.departure.time"), time_unit="s")
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+        pl.from_epoch(pl.col("trip_update.stop_time_update.arrival.time"), time_unit="s")
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+        pl.from_epoch(pl.col("trip_update.timestamp"), time_unit="s")
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+        pl.from_epoch(pl.col("feed_timestamp"), time_unit="s")
+        .dt.convert_time_zone(time_zone="US/Eastern")
+        .dt.replace_time_zone(None),
+    )
 
     df = df.filter(
-            # pl.col("trip_update.stop_time_update.departure.time").is_not_null(),
-            # pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids),
-            pl.col("trip_update.trip.revenue"),
-            pl.col("trip_update.trip.schedule_relationship").ne("CANCELED"),
-            pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
-            # pl.col("trip_update.stop_time_update.departure.time").sub(pl.col("feed_timestamp")).dt.total_seconds().ge(1),
-        ).select([
-            "trip_update.trip.trip_id"
-            "trip_update.trip.start_date"
-            "trip_update.stop_time_update.departure.time" #  - Convert from Epoch format to regular datetime
-            "feed_timestamp" # - Convert from Epoch format to regular datetime
-            ])
-    # 
+        pl.col("trip_update.trip.revenue"),
+    ).select(
+        [
+            "trip_update.trip.trip_id",
+            "trip_update.trip.start_date",
+            "trip_update.stop_time_update.departure.time",  #  - Convert from Epoch format to regular datetime
+            "feed_timestamp",  # - Convert from Epoch format to regular datetime
+        ]
+    )
+
+    return df
+    #
+
+
 if __name__ == "__main__":
 
-    start_date = datetime(2025, 12, 1, 0, 0, 0)
-    end_date = datetime(2025, 12, 2, 0, 0, 0)
-    output_location="/Users/hhuang/lamp/gtfs-rt-continuous"
+    start_date = datetime(2025, 10, 24, 0, 0, 0)
+    end_date = datetime(2025, 11, 24, 0, 0, 0)
+    local_output_location = "/Users/hhuang/lamp/gtfs-rt-continuous"
     polars_filter = pl.col("trip_update.trip.route_id").is_in(
-                ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
-            )
+        ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
+    )
     max_workers = 22
-    final_output_base = "/Users/hhuang/dataset"
-    delta_reingestion_runner(start_date=start_date, end_date=end_date, tmp_output_location=output_location, final_output_base=final_output_base, polars_filter=polars_filter, max_workers=22)
+
+    final_output_base = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
+
+    delta_reingestion_runner(
+        start_date=start_date,
+        end_date=end_date,
+        local_output_location=local_output_location,
+        final_output_base=final_output_base,
+        polars_filter=polars_filter,
+        max_workers=22,
+    )
