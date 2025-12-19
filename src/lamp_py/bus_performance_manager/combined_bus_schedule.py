@@ -24,7 +24,7 @@ class CombinedBusSchedule(GTFSBusSchedule):
     tm_planned_sequence_end = TransitMasterSchedule.tm_planned_sequence_end
     tm_planned_sequence_start = TransitMasterSchedule.tm_planned_sequence_start
     timepoint_order = TransitMasterSchedule.timepoint_order
-    plan_stop_departure_sam = dy.Int64(nullable=True)
+    plan_stop_departure_sam = dy.Int64(nullable=False)
 
 
 # pylint: disable=R0801
@@ -69,6 +69,7 @@ def join_tm_schedule_to_gtfs_schedule(
         .with_columns(
             pl.col(
                 [
+                    "service_date",
                     "trip_id",
                     "block_id",
                     "route_id",
@@ -97,10 +98,6 @@ def join_tm_schedule_to_gtfs_schedule(
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("schedule_joined"),
-            pl.col("plan_stop_departure_dt")
-            .sub(pl.col("service_date").cast(pl.Datetime))
-            .dt.total_seconds()
-            .alias("plan_stop_departure_sam"),
         )
         .filter(
             pl.when(pl.col("trip_overload_id").is_null())
@@ -114,6 +111,10 @@ def join_tm_schedule_to_gtfs_schedule(
             .otherwise(pl.lit(True))  # also keep non-overloaded trips
         )
         .with_columns(
+            pl.col("plan_stop_departure_dt")
+            .sub(pl.col("service_date").cast(pl.Datetime))
+            .dt.total_seconds()
+            .alias("plan_stop_departure_sam"),
             pl.struct("plan_stop_departure_dt", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")
             .rank("min")
             .over(["trip_id"])

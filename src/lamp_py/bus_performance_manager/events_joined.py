@@ -8,13 +8,11 @@ from lamp_py.bus_performance_manager.events_tm import (
 from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedBusSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.utils.filter_bank import SERVICE_DATE_END_HOUR
 
 
 class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
     trip_id = dy.String(primary_key=True)
-    service_date = dy.Date(primary_key=True)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -168,16 +166,7 @@ def join_rt_to_schedule(
         )
         .with_columns(
             pl.coalesce("vehicle_label", pl.lit("____")).alias("vehicle_label"),
-            pl.coalesce(
-                pl.col("service_date"),
-                pl.when(pl.col("plan_start_dt").dt.hour() < SERVICE_DATE_END_HOUR)
-                .then(pl.col("plan_start_dt").dt.offset_by("-1d").dt.date())
-                .otherwise(pl.col("plan_start_dt").dt.date()),
-            ).alias("service_date"),
-            pl.col("stop_sequence")
-            .max()
-            .over(partition_by=["service_date", "trip_id", "vehicle_label"])
-            .alias("stop_count"),
+            pl.col("stop_sequence").max().over(partition_by=["trip_id", "vehicle_label"]).alias("stop_count"),
             pl.coalesce(
                 pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
                 pl.when(pl.col("point_type").eq(pl.lit("end"))).then(  # and it's the last stop on the route
