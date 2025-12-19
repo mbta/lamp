@@ -5,6 +5,7 @@ import tempfile
 from queue import Queue
 
 from abc import ABC, abstractmethod
+import dataframely as dy
 import polars as pl
 import pyarrow
 import pyarrow.dataset as pd
@@ -27,28 +28,46 @@ class GlidesConverter(ABC):
     Abstract Base Class for Archiving Glides Events
     """
 
-    glides_user = pyarrow.struct(
-        [
-            ("emailAddress", pyarrow.string()),
-            ("badgeNumber", pyarrow.string()),
-        ]
+    user = dy.Struct(
+        {
+            "email_address": dy.String(alias="emailAddress", metadata={"reader_roles": ["GlidesUserEmail"]}),
+            "badge_number": dy.String(alias="badgeNumber"),
+        }
     )
 
-    glides_location = pyarrow.struct(
-        [
-            ("gtfsId", pyarrow.string()),
-            ("todsId", pyarrow.string()),
-        ]
+    location = dy.Struct({"gtfs_id": dy.String(alias="gtfsId"), "tods_id": dy.String(alias="todsId")})
+
+    metadata = dy.Struct(
+        {
+            "location": location,
+            "author": user,
+            "input_type": dy.String(),
+            "input_timestamp": dy.String(alias="inputTimestamp"),
+        }
     )
 
-    glides_metadata = pyarrow.struct(
-        [
-            ("location", glides_location),
-            ("author", glides_user),
-            ("inputType", pyarrow.string()),
-            ("inputTimestamp", pyarrow.string()),
-        ]
+    trip_key = dy.Struct(
+        {
+            "serviceDate": dy.String(),
+            "tripId": dy.String(),
+            "startLocation": location,
+            "endLocation": location,
+            "startTime": dy.String(),
+            "endTime": dy.String(),
+            "revenue": dy.String(),
+            "glidesId": dy.String(),
+        }
     )
+
+    class Record(dy.Schema):
+        """Base record for all Glides record types."""
+
+        id = dy.String()
+        type = dy.String()
+        time = dy.Datetime(time_unit="ms")
+        source = dy.String()
+        specversion = dy.String()
+        dataschema = dy.String()
 
     def __init__(self, base_filename: str) -> None:
         self.tmp_dir = "/tmp"
@@ -140,44 +159,26 @@ class EditorChanges(GlidesConverter):
     https://mbta.github.io/schemas/events/glides/com.mbta.ctd.glides.editors_changed.v1
     """
 
+    class Record(GlidesConverter.Record):
+        """Edits made by one inspector session."""
+
+        data = dy.Struct(
+            {
+                "metadata": GlidesConverter.metadata,
+                "changes": dy.List(
+                    dy.Struct(
+                        {"type": dy.String(), "location": GlidesConverter.location, "editor": GlidesConverter.user}
+                    )
+                ),
+            }
+        )
+
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="editor_changes.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        """
-        Editor Changes Schema is the base Kinesis data plus metadata plus a
-        list of changes objects.
-        """
-        glides_editor_change = pyarrow.struct(
-            [
-                ("type", pyarrow.string()),
-                ("location", self.glides_location),
-                ("editor", self.glides_user),
-            ]
-        )
-
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        return pyarrow.schema(
-            [
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("metadata", self.glides_metadata),
-                            ("changes", pyarrow.list_(glides_editor_change)),
-                        ]
-                    ),
-                ),
-                ("id", pyarrow.string()),
-                ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                ("source", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("dataschema", pyarrow.string()),
-            ]
-        )
+        return self.Record.pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
@@ -203,46 +204,24 @@ class OperatorSignIns(GlidesConverter):
     https://mbta.github.io/schemas/events/glides/com.mbta.ctd.glides.operator_signed_in.v1
     """
 
+    class Record(GlidesConverter.Record):
+        """Operator confirmations of fitness for duty."""
+
+        data = dy.Struct(
+            {
+                "metadata": GlidesConverter.metadata,
+                "operator": dy.Struct({"badgeNumber": dy.String()}),
+                "signedInAt": dy.String(),
+                "signature": dy.Struct({"type": dy.String(), "version": dy.Int16()}),
+            }
+        )
+
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="operator_sign_ins.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        return pyarrow.schema(
-            [
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("metadata", self.glides_metadata),
-                            (
-                                "operator",
-                                pyarrow.struct([("badgeNumber", pyarrow.string())]),
-                            ),
-                            # a timestamp but it needs reformatting for pyarrow
-                            ("signedInAt", pyarrow.string()),
-                            (
-                                "signature",
-                                pyarrow.struct(
-                                    [
-                                        ("type", pyarrow.string()),
-                                        ("version", pyarrow.int16()),
-                                    ]
-                                ),
-                            ),
-                        ]
-                    ),
-                ),
-                ("id", pyarrow.string()),
-                ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                ("source", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("dataschema", pyarrow.string()),
-            ]
-        )
+        return self.Record.pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
@@ -265,66 +244,39 @@ class TripUpdates(GlidesConverter):
     https://mbta.github.io/schemas/events/glides/com.mbta.ctd.glides.trips_updated.v1
     """
 
+    class Record(GlidesConverter.Record):
+        """New information about trips, such as operator assignments or dropped trips."""
+
+        data = dy.Struct(
+            {
+                "metadata": GlidesConverter.metadata,
+                "tripUpdates": dy.List(
+                    dy.Struct(
+                        {
+                            "previousTripKey": GlidesConverter.trip_key,
+                            "type": dy.String(),
+                            "tripKey": GlidesConverter.trip_key,
+                            "comment": dy.String(),
+                            "startLocation": GlidesConverter.location,
+                            "endLocation": GlidesConverter.location,
+                            "startTime": dy.String(),  # can be "unset" string :(
+                            "endTime": dy.String(),  # can be "unset" string :(
+                            "cars": dy.String(),  # an array of objects
+                            "revenue": dy.String(),
+                            "dropped": dy.String(),
+                            "scheduled": dy.String(),  # an object with an array of objects
+                        }
+                    )
+                ),
+            }
+        )
+
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="trip_updates.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        glides_trip_key = pyarrow.struct(
-            [
-                ("serviceDate", pyarrow.string()),
-                ("tripId", pyarrow.string()),
-                ("startLocation", self.glides_location),
-                ("endLocation", self.glides_location),
-                ("startTime", pyarrow.string()),
-                ("endTime", pyarrow.string()),
-                ("revenue", pyarrow.string()),
-                ("glidesId", pyarrow.string()),
-            ]
-        )
-
-        glides_trip_update = pyarrow.struct(
-            [
-                ("previousTripKey", glides_trip_key),
-                ("type", pyarrow.string()),
-                ("tripKey", glides_trip_key),
-                ("comment", pyarrow.string()),
-                ("startLocation", self.glides_location),
-                ("endLocation", self.glides_location),
-                # can be "unset" string :(
-                ("startTime", pyarrow.string()),
-                # can be "unset" string :(
-                ("endTime", pyarrow.string()),
-                # an array of objects
-                ("cars", pyarrow.string()),
-                ("revenue", pyarrow.string()),
-                ("dropped", pyarrow.string()),
-                # an object with an array of objects
-                ("scheduled", pyarrow.string()),
-            ]
-        )
-
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        return pyarrow.schema(
-            [
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("metadata", self.glides_metadata),
-                            ("tripUpdates", pyarrow.list_(glides_trip_update)),
-                        ]
-                    ),
-                ),
-                ("id", pyarrow.string()),
-                ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                ("source", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("dataschema", pyarrow.string()),
-            ]
-        )
+        return self.Record.pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
@@ -368,39 +320,28 @@ class VehicleTripAssignment(GlidesConverter):
     https://mbta.github.io/schemas/events/glides/com.mbta.ctd.glides.vehicle_trip_assignment.v1
     """
 
+    class Record(GlidesConverter.Record):
+        """Which vehicle is operating each trip at the current moment."""
+
+        data = dy.Struct(
+            {
+                "vehicleId": dy.String(),
+                "tripKey": dy.Struct(
+                    {
+                        "serviceDate": dy.String(),
+                        "tripId": dy.String(),
+                        "scheduled": dy.String(),
+                    }
+                ),
+            }
+        )
+
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="vehicle_trip_assignment.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        glides_trip_key = pyarrow.struct(
-            [
-                ("serviceDate", pyarrow.string()),
-                ("tripId", pyarrow.string()),
-                ("scheduled", pyarrow.string()),
-            ]
-        )
-
-        return pyarrow.schema(
-            [
-                ("type", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("source", pyarrow.string()),
-                ("id", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("vehicleId", pyarrow.string()),
-                            ("tripKey", glides_trip_key),
-                        ]
-                    ),
-                ),
-            ]
-        )
+        return self.Record.pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
