@@ -340,8 +340,9 @@ def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
 
     return df
 
+
 def run_backfill():
-    
+
     LOCAL_OUTPUT_TMP = "/tmp/gtfs-rt-continuous"
 
     start = datetime(2025, 10, 24, 0, 0, 0)
@@ -355,7 +356,6 @@ def run_backfill():
     final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_20251024_20251124")
 
     final_output_base_vp = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_VEHICLE_POSITION_20251024_20251124.parquet")
-
 
     HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
         remote_input_location=springboard_rt_vehicle_positions,
