@@ -619,27 +619,29 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "dataframely"
-version = "1.14.0"
+version = "2.3.1"
 description = "A declarative, polars-native data frame validation library"
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "dataframely-1.14.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:d3d16cbfdcd05d497e904794d082aad9d83bd443573cfe20621104195e62b13b"},
-    {file = "dataframely-1.14.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:38a59df983e26531ba6303101570c3589f9f28158705a6098df270c390aa10a9"},
-    {file = "dataframely-1.14.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:95a6b53f40e74764811c93efa9af98a66b05fd85e5a12d609acb5ae0715e8dee"},
-    {file = "dataframely-1.14.0-cp310-abi3-win_amd64.whl", hash = "sha256:de4de51c954b9efcfd33e5d4725b12e750c394ab5c9577c6d20be6b01a8fbd76"},
-    {file = "dataframely-1.14.0-pp310-pypy310_pp73-macosx_10_12_x86_64.whl", hash = "sha256:6d95f430b2b15eaab64b0e4b746f5cb2b4caf82334cd70015a9a674b1a5510fa"},
-    {file = "dataframely-1.14.0.tar.gz", hash = "sha256:3135c4475a3906a4d62d845d20da7afafef0bdec268c322d1f54473bb852e087"},
+    {file = "dataframely-2.3.1-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:c4685865392bbe5c7dafbf06394f9779d25690d37fa4f87cc0196019504101dd"},
+    {file = "dataframely-2.3.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:c65ba3c6bf4e30586fc85256618921162712b2fcb80bfd8304f5a99c384389fe"},
+    {file = "dataframely-2.3.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4e26e20d0f8d9e70fbc5926e6c1398951eb6dc74e345832f132fe1ca3e972500"},
+    {file = "dataframely-2.3.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:faa92e74c4afde4509ed10dd6bedd5e98a38ac835123e9fc8d7f0b4c76e0c059"},
+    {file = "dataframely-2.3.1-cp310-abi3-win_amd64.whl", hash = "sha256:415e2148645ed44fcd2a920a71275d77283f7efb3f19a1f4cce66537c8d9cae3"},
+    {file = "dataframely-2.3.1.tar.gz", hash = "sha256:70b937d9d6fa30b0c60318509a1c67ce22142a9f54617825da66ad7a3330127d"},
 ]
 
 [package.dependencies]
+fsspec = ">=2025.9"
 numpy = "*"
-polars = ">=1.32"
+polars = ">=1.36"
 
 [package.extras]
 deltalake = ["deltalake"]
 pyarrow = ["pyarrow"]
 pydantic = ["pydantic (>=2)"]
+s3 = ["s3fs (>=2025.9)"]
 sqlalchemy = ["sqlalchemy"]
 
 [[package]]
@@ -881,6 +883,45 @@ symfont = ["sympy"]
 type1 = ["xattr"]
 unicode = ["unicodedata2 (>=17.0.0)"]
 woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
+
+[[package]]
+name = "fsspec"
+version = "2025.12.0"
+description = "File-system specification"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "fsspec-2025.12.0-py3-none-any.whl", hash = "sha256:8bf1fe301b7d8acfa6e8571e3b1c3d158f909666642431cc78a1b7b4dbc5ec5b"},
+    {file = "fsspec-2025.12.0.tar.gz", hash = "sha256:c505de011584597b1060ff778bb664c1bc022e87921b0e4f10cc9c44f9635973"},
+]
+
+[package.extras]
+abfs = ["adlfs"]
+adl = ["adlfs"]
+arrow = ["pyarrow (>=1)"]
+dask = ["dask", "distributed"]
+dev = ["pre-commit", "ruff (>=0.5)"]
+doc = ["numpydoc", "sphinx", "sphinx-design", "sphinx-rtd-theme", "yarl"]
+dropbox = ["dropbox", "dropboxdrivefs", "requests"]
+full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "dask", "distributed", "dropbox", "dropboxdrivefs", "fusepy", "gcsfs", "libarchive-c", "ocifs", "panel", "paramiko", "pyarrow (>=1)", "pygit2", "requests", "s3fs", "smbprotocol", "tqdm"]
+fuse = ["fusepy"]
+gcs = ["gcsfs"]
+git = ["pygit2"]
+github = ["requests"]
+gs = ["gcsfs"]
+gui = ["panel"]
+hdfs = ["pyarrow (>=1)"]
+http = ["aiohttp (!=4.0.0a0,!=4.0.0a1)"]
+libarchive = ["libarchive-c"]
+oci = ["ocifs"]
+s3 = ["s3fs"]
+sftp = ["paramiko"]
+smb = ["smbprotocol"]
+ssh = ["paramiko"]
+test = ["aiohttp (!=4.0.0a0,!=4.0.0a1)", "numpy", "pytest", "pytest-asyncio (!=0.22.0)", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-recording", "pytest-rerunfailures", "requests"]
+test-downstream = ["aiobotocore (>=2.5.4,<3.0.0)", "dask[dataframe,test]", "moto[server] (>4,<5)", "pytest-timeout", "xarray"]
+test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "distributed", "dropbox", "dropboxdrivefs", "fastparquet", "fusepy", "gcsfs", "jinja2", "kerchunk", "libarchive-c", "lz4", "notebook", "numpy", "ocifs", "pandas", "panel", "paramiko", "pyarrow", "pyarrow (>=1)", "pyftpdlib", "pygit2", "pytest", "pytest-asyncio (!=0.22.0)", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-recording", "pytest-rerunfailures", "python-snappy", "requests", "smbprotocol", "tqdm", "urllib3", "zarr", "zstandard"]
+tqdm = ["tqdm"]
 
 [[package]]
 name = "greenlet"
@@ -3354,4 +3395,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "15773c8430efa2fa19c99a806226fbc5779e9e668158932ca111798f23ccf986"
+content-hash = "291e645468280d9e52196f846e6d448416e8a150987832d40e0bae9475af556a"
