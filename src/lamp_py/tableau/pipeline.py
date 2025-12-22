@@ -59,6 +59,7 @@ def start_hyper_updates() -> None:
         ],
     )
 
+    print("change to force run")
     # make sure only one publisher runs at a time
     check_for_parallel_tasks()
 
