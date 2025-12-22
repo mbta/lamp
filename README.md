@@ -12,6 +12,8 @@ LAMP is a collection of applications used to measure performance of the MBTA tra
 
 LAMP application architecture is managed and described using `Terraform` in the [MBTA Devops](https://github.com/mbta/devops) github repository. 
 
+wat
+
 ![Architecture Diagram](./architecture.jpg)
 
 [Link](https://miro.com/app/board/uXjVOzXKW9s=/?share_link_id=356679616715) to Miro Diagram
