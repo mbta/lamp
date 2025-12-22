@@ -153,7 +153,7 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
                     continue
 
                 # create key for self.data_parts dictionary
-                dt_part = date(
+                dt_part = datetime(
                     year=result_dt.year,
                     month=result_dt.month,
                     day=result_dt.day,
@@ -341,7 +341,7 @@ def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def run_backfill():
+def run_backfill() -> None:
 
     LOCAL_OUTPUT_TMP = "/tmp/gtfs-rt-continuous"
 
