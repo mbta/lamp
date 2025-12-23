@@ -23,7 +23,8 @@ else:
                 FilteredHyperJob(
                     remote_input_location=springboard_input,
                     remote_output_location=tableau_output,
-                    rollup_num_days=None,
+                    start_date=None,
+                    end_date=None,
                     processed_schema=default_converter_from_s3(springboard_input),
                     parquet_preprocess=None,
                     dataframe_filter=PolarsDataFrameConverter.convert_to_tableau_flat_schema,

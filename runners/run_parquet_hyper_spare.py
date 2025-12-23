@@ -16,7 +16,6 @@ def start_spare_single() -> None:
     job = FilteredHyperJob(
         remote_input_location=springboard_spare_cases_with_history,
         remote_output_location=tableau_spare_cases_with_history,
-        rollup_num_days=None,
         processed_schema=default_converter_from_s3(springboard_spare_cases_with_history),
         parquet_preprocess=None,
         dataframe_filter=convert_to_tableau_flat_schema,
