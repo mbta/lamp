@@ -33,10 +33,8 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     trip_id_gtfs = dy.String(nullable=True)
     public_operator_id = dy.Int64(nullable=True)
 
-    # pylint: disable=no-method-argument
-
     @dy.rule()
-    def final_stop_has_arrival_dt() -> pl.Expr:
+    def final_stop_has_arrival_dt(cls) -> pl.Expr:
         """
         The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
         """
@@ -46,18 +44,16 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
     @dy.rule()
-    def _no_ol_trip_ids() -> pl.Expr:
+    def _no_ol_trip_ids(cls) -> pl.Expr:
         return ~pl.col("trip_id").str.contains("OL")
 
     @dy.rule()
-    def _no_split_trips1() -> pl.Expr:
+    def _no_split_trips1(cls) -> pl.Expr:
         return ~pl.col("trip_id").str.ends_with("_1")
 
     @dy.rule()
-    def _no_split_trips2() -> pl.Expr:
+    def _no_split_trips2(cls) -> pl.Expr:
         return ~pl.col("trip_id").str.ends_with("_2")
-
-    # pylint: enable=no-method-argument
 
 
 class BusPerformanceManager(dy.Collection):
@@ -70,20 +66,18 @@ class BusPerformanceManager(dy.Collection):
     def preserve_all_trips(self) -> pl.LazyFrame:
         "If trips appear in GTFS or TM, then they appear in downstream records."
         missing_gtfs_trips = (
-            self.gtfs.select(self.common_primary_keys())
+            self.gtfs.select(self.common_primary_key())
             .unique()
-            .join(self.bus, how="anti", on=self.common_primary_keys())
+            .join(self.bus, how="anti", on=self.common_primary_key())
         )
         missing_tm_trips = (
-            self.tm.select(self.common_primary_keys())
-            .unique()
-            .join(self.bus, how="anti", on=self.common_primary_keys())
+            self.tm.select(self.common_primary_key()).unique().join(self.bus, how="anti", on=self.common_primary_key())
         )
 
         return (
-            self.bus.select(self.common_primary_keys())
+            self.bus.select(self.common_primary_key())
             .unique()
-            .join(pl.concat([missing_gtfs_trips, missing_tm_trips]), on=self.common_primary_keys(), how="anti")
+            .join(pl.concat([missing_gtfs_trips, missing_tm_trips]), on=self.common_primary_key(), how="anti")
         )
 
     @dy.filter()
@@ -100,7 +94,7 @@ class BusPerformanceManager(dy.Collection):
             self.bus, how="anti", on=keys, nulls_equal=True
         )
 
-        return self.bus.join(missing_tm_events, how="anti", on=self.common_primary_keys())  # filter out those events
+        return self.bus.join(missing_tm_events, how="anti", on=self.common_primary_key())  # filter out those events
 
 
 def join_rt_to_schedule(
