@@ -4,6 +4,9 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD
 import polars as pl
 import plotly.express as px
+import pyarrow.dataset as pd
+import pyarrow.parquet as pq
+from pyarrow.fs import S3FileSystem
 
 # Problem: Looking into data quality issues is a very adhoc process right now. Expertise/knowledge
 # not centralized in code that is easily runnable (it's mostly in the app itself)
@@ -49,7 +52,10 @@ def batch_reader(files, parquet_output_path, pa_filter, pl_filter):
         for batch in ds.to_batches(batch_size=500_000, filter=pa_filter):
             if batch.num_rows == 0:
                 continue
-            batch = pl.from_arrow(batch).filter(pl_filter).to_arrow().cast(ds.schema)
+            if pl_filter is not None:
+                batch = pl.from_arrow(batch).filter(pl_filter).to_arrow().cast(ds.schema)
+            else:
+                batch = pl.from_arrow(batch).to_arrow().cast(ds.schema)
             if batch.num_rows == 0:
                 continue
             writer.write_table(batch)
@@ -78,8 +84,8 @@ def assert_timepoint_order_timepoint_id_correspond(df: pl.DataFrame):
     )
 
 
-def plot_lla(vp):
-    fig3 = px.scatter_map(vp, lat="latitude", lon="longitude", zoom=8, height=300)
+def plot_lla(vp, lat:str = "latitude", lon:str="longitude"):
+    fig3 = px.scatter_map(vp, lat=lat, lon=lon, zoom=8, height=300)
     fig3.update_layout(mapbox_style="open-street-map")
     fig3.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
     config2 = {"scrollZoom": True}
