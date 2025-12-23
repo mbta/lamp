@@ -85,6 +85,7 @@ class FilterBankRtVehiclePositions:
 
         light_rail = green_b | green_c | green_d | green_e | mattapan
         heavy_rail = orange | red | blue
+        rail = light_rail | heavy_rail
 
 
 class FilterBankRtTripUpdates:

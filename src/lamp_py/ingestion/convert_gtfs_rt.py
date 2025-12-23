@@ -85,7 +85,7 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]) -> None:
+    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 4) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
@@ -115,9 +115,10 @@ class GtfsRtConverter(Converter):
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
+        self.max_workers = max_workers  # move this to class variable to allow single threading by passing into class
+        self.max_tables_to_convert = 15  # limit number of tables produced on each event loop
 
     def convert(self) -> None:
-        max_tables_to_convert = 15
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
@@ -138,7 +139,7 @@ class GtfsRtConverter(Converter):
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
-                if table_count >= max_tables_to_convert:
+                if table_count >= self.max_tables_to_convert:
                     break
 
         except Exception as exception:
@@ -169,7 +170,6 @@ class GtfsRtConverter(Converter):
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-        max_workers = 4
 
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
@@ -177,7 +177,7 @@ class GtfsRtConverter(Converter):
         )
         process_logger.log_start()
 
-        with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
+        with ThreadPoolExecutor(max_workers=self.max_workers, initializer=self.thread_init) as pool:
             for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
