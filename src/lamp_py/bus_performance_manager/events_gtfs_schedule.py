@@ -35,7 +35,8 @@ class GTFSBusSchedule(BusBaseSchema):
     plan_route_direction_headway_seconds = dy.Int64(nullable=True)
     plan_direction_destination_headway_seconds = dy.Int64(nullable=True)
     plan_start_dt = dy.Datetime(nullable=True, time_zone=None)
-    plan_stop_departure_dt = dy.Datetime(nullable=True, time_zone=None)
+    plan_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
+    service_date = dy.Date(primary_key=True)
 
 
 def service_ids_for_date(service_date: date) -> pl.DataFrame:
@@ -221,6 +222,7 @@ def stop_events_for_date(service_date: date) -> pl.DataFrame:
             pl.col("direction_id").cast(pl.Int8),
         )
         .with_columns(
+            pl.lit(service_date).alias("service_date"),
             (
                 pl.datetime(service_date.year, service_date.month, service_date.day)
                 + pl.duration(seconds=pl.col("plan_start_time"))
