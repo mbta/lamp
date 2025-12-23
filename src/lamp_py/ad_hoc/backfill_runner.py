@@ -1,4 +1,4 @@
-# pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name
+# pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
 from concurrent.futures import ThreadPoolExecutor
 import logging
