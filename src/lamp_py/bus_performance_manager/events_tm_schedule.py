@@ -152,7 +152,7 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
         )
         .sort("VEHICLE_ID", nulls_last=True)
         .unique(
-            subset=TransitMasterSchedule.primary_keys(),
+            subset=TransitMasterSchedule.primary_key(),
             keep="first",  # if there are duplicate records for the same plan_stop_departure_dt, keep the record with the non-null vehicle ID so that we can join to that in events_tm
             maintain_order=True,
         )
