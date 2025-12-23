@@ -187,7 +187,6 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
 def delta_reingestion_runner(
     start_date: date,
     end_date: date,
-    intermediate_output_path: S3Location,
     final_output_path: S3Location,
     polars_filter: pl.Expr | None = None,
     max_workers: int = 4,
@@ -216,65 +215,63 @@ def delta_reingestion_runner(
     cur_date = start_date
 
     while cur_date <= end_date:
-        # prefix = (
-        #     os.path.join(
-        #         LAMP,
-        #         "delta",
-        #         cur_date.strftime("%Y"),
-        #         cur_date.strftime("%m"),
-        #         cur_date.strftime("%d"),
-        #     )
-        #     + "/"
-        # )
+        prefix = (
+            os.path.join(
+                LAMP,
+                "delta",
+                cur_date.strftime("%Y"),
+                cur_date.strftime("%m"),
+                cur_date.strftime("%d"),
+            )
+            + "/"
+        )
 
-        # file_list = file_list_from_s3(
-        #     S3_ARCHIVE,
-        #     prefix,
-        #     in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
-        # )
+        file_list = file_list_from_s3(
+            S3_ARCHIVE,
+            prefix,
+            in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
+        )
 
-        # print(len(file_list))
+        print(len(file_list))
 
-        # #### Stage 1: local to local (MANY to many)
+        #### Stage 1: local to local (MANY to many)
 
-        # # construct and run converter once per day
-        # converter = GtfsRtTripsAdHocConverter(
-        #     config_type=ConfigType.RT_TRIP_UPDATES,
-        #     metadata_queue=Queue(),
-        #     output_location=local_output_location,
-        #     polars_filter=polars_filter,
-        #     max_workers=max_workers,
-        # )
-        # converter.add_files(file_list)
-        # # this outputs to local output_location=tmp_output_location
-        # converter.convert()
+        # construct and run converter once per day
+        converter = GtfsRtTripsAdHocConverter(
+            config_type=ConfigType.RT_TRIP_UPDATES,
+            metadata_queue=Queue(),
+            output_location=local_output_location,
+            polars_filter=polars_filter,
+            max_workers=max_workers,
+        )
+        converter.add_files(file_list)
+        # this outputs to local output_location=tmp_output_location
+        converter.convert()
 
-        ### Stage 2: local to local (many to 1)
+        ## Stage 2: local to local (many to 1)
 
-        # # Define the path to your input Parquet files (can use a glob pattern)
-        # converter_output_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
-        # consolidated_parquet_output_file = f"/tmp/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+        # Define the path to your input Parquet files (can use a glob pattern)
+        converter_output_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+        consolidated_parquet_output_file = f"/tmp/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
 
-        # # Create a dataset from the input files
-        # ds = pd.dataset(converter_output_path, format="parquet")
+        # Create a dataset from the input files
+        ds = pd.dataset(converter_output_path, format="parquet")
 
-        # # write locally
-        # # experiment 3 - compression. 600mb
-        # # pathlib.Path.mkdir(os.path.dirname(output_path), exist_ok=True)
+        with pq.ParquetWriter(
+            consolidated_parquet_output_file, schema=ds.schema, compression="zstd", compression_level=3
+        ) as writer:
+            for batch in ds.to_batches(batch_size=512 * 1024):
+                writer.write_batch(batch)
 
-        # with pq.ParquetWriter(consolidated_parquet_output_file, schema=ds.schema, compression="zstd", compression_level=3) as writer:
-        #     for batch in ds.to_batches(batch_size=512 * 1024):
-        #         writer.write_batch(batch)
+        #### Stage 3: local to remote (one to one)
 
-        # #### Stage 3: local to remote (one to one)
-
-        # # upload local to remote
-        # upload_file(
-        #     consolidated_parquet_output_file,
-        #     consolidated_parquet_output_file.replace(
-        #         "/tmp/", f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
-        #     ),
-        # )
+        # upload local to remote
+        upload_file(
+            consolidated_parquet_output_file,
+            consolidated_parquet_output_file.replace(
+                "/tmp/", f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+            ),
+        )
 
         cur_date = cur_date + timedelta(days=1)
 
@@ -342,8 +339,10 @@ def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def run_backfill() -> None:
-
-    LOCAL_OUTPUT_TMP = "/tmp/gtfs-rt-continuous"
+    """
+    Full encapsulated method to call all of this backfill job
+    """
+    local_tmp_output = "/tmp/gtfs-rt-continuous"
 
     start = datetime(2025, 10, 24, 0, 0, 0)
     end = datetime(2025, 11, 24, 0, 0, 0)
@@ -352,12 +351,11 @@ def run_backfill() -> None:
         ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
     )
 
-    intermediate_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
     final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_20251024_20251124")
 
     final_output_base_vp = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_VEHICLE_POSITION_20251024_20251124.parquet")
 
-    HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
+    rt_vp_unfiltered_hyperjob = FilteredHyperJob(
         remote_input_location=springboard_rt_vehicle_positions,
         remote_output_location=final_output_base_vp,
         start_date=start,
@@ -368,16 +366,13 @@ def run_backfill() -> None:
         tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
     )
 
-    HyperGtfsRtVehiclePositionsAllLightRail.run_parquet()
-    HyperGtfsRtVehiclePositionsAllLightRail.create_local_hyper()
-
-    breakpoint()
+    rt_vp_unfiltered_hyperjob.run_parquet()
+    rt_vp_unfiltered_hyperjob.create_local_hyper()
 
     delta_reingestion_runner(
         start_date=start,
         end_date=end,
-        local_output_location=LOCAL_OUTPUT_TMP,
-        intermediate_output_path=intermediate_output_path,
+        local_output_location=local_tmp_output,
         final_output_path=final_output_path,
         polars_filter=polars_filter,
     )
