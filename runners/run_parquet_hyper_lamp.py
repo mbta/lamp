@@ -1,4 +1,3 @@
-import os
 import shutil
 from typing import List
 
@@ -12,7 +11,7 @@ from lamp_py.tableau.conversions.convert_gtfs_rt_vehicle_position import LightRa
 from lamp_py.tableau.conversions import convert_gtfs_rt_trip_updates, convert_gtfs_rt_vehicle_position
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceAll, HyperBusPerformanceRecent
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob, days_ago
 from lamp_py.tableau.pipeline import (
     start_bus_parquet_updates,
 )
@@ -41,7 +40,7 @@ from lamp_py.runtime_utils.remote_files import (
 TestHyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=springboard_devgreen_lrtp_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_60_day,
-    rollup_num_days=2,
+    start_date=days_ago(2),
     processed_schema=LightRailTerminalTripUpdates.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_devgreen,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
@@ -51,9 +50,9 @@ TestHyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
 TestHyperGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=springboard_rt_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_60_day,
-    rollup_num_days=2,
+    start_date=days_ago(2),
     processed_schema=LightRailTerminalTripUpdates.to_pyarrow_schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_devgreen,
+    dataframe_filter=None,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
@@ -61,7 +60,7 @@ TestHyperGtfsRtTripUpdates = FilteredHyperJob(
 TestHyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
     remote_input_location=springboard_rt_trip_updates,
     remote_output_location=tableau_rt_trip_updates_heavyrail_30_day,
-    rollup_num_days=3,
+    start_date=days_ago(2),
     processed_schema=HeavyRailTerminalTripUpdates.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.heavyrail,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.heavy_rail,
@@ -71,7 +70,7 @@ TestHyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
 TestHyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=springboard_devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
-    rollup_num_days=3,
+    start_date=days_ago(3),
     processed_schema=LightRailTerminalVehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
