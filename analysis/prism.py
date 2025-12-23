@@ -84,7 +84,7 @@ def assert_timepoint_order_timepoint_id_correspond(df: pl.DataFrame):
     )
 
 
-def plot_lla(vp, lat:str = "latitude", lon:str="longitude"):
+def plot_lla(vp, lat: str = "latitude", lon: str = "longitude"):
     fig3 = px.scatter_map(vp, lat=lat, lon=lon, zoom=8, height=300)
     fig3.update_layout(mapbox_style="open-street-map")
     fig3.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
