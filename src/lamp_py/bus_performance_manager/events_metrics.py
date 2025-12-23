@@ -30,12 +30,12 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     is_full_trip = dy.Bool(nullable=True)
 
     @dy.rule()
-    def departure_after_arrival() -> pl.Expr:  # pylint: disable=no-method-argument
+    def departure_after_arrival(cls) -> pl.Expr:
         "stop_departure_dt always follows stop_arrival_dt (when both are not null)."
         return pl.coalesce(pl.col("stop_arrival_dt") <= pl.col("stop_departure_dt"), pl.lit(True))
 
     @dy.rule()
-    def stop_sequence_implies_arrival_order() -> pl.Expr:  # pylint: disable=no-method-argument
+    def stop_sequence_implies_arrival_order(cls) -> pl.Expr:
         "Stop arrival increases monotonically with stop sequence."
         return pl.col("stop_arrival_dt").ge(  # dt for current stop greater or equal than
             pl.col("stop_arrival_dt")  # dt for
@@ -47,7 +47,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         )
 
     @dy.rule()
-    def stop_sequence_implies_departure_order() -> pl.Expr:  # pylint: disable=no-method-argument
+    def stop_sequence_implies_departure_order(cls) -> pl.Expr:
         "Stop departure increase monotonically with stop sequence."
         return pl.col("stop_departure_dt").ge(  # dt for current stop  # greater than
             pl.col("stop_departure_dt")  # dt for last stop
@@ -59,7 +59,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         )
 
     @dy.rule(group_by=["service_date", "trip_id", "vehicle_label"])
-    def travel_time_plus_stopped_duration_equals_total_trip() -> pl.Expr:  # pylint: disable=no-method-argument
+    def travel_time_plus_stopped_duration_equals_total_trip(cls) -> pl.Expr:
         "Summing the travel times and the stopped duration is equivalent to the total time from first arrival/departure to last arrival."
         return (
             pl.sum_horizontal("travel_time_seconds", "stopped_duration_seconds")

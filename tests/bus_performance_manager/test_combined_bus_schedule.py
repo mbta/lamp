@@ -15,14 +15,14 @@ class TestCombinedSchedule(CombinedBusSchedule):
     """Edge case checks that would be expensive to run in production."""
 
     @dy.rule()
-    def consecutive_null_stop_sequences_ordered_correctly() -> pl.Expr:  # pylint: disable=no-method-argument
+    def consecutive_null_stop_sequences_ordered_correctly(cls) -> pl.Expr:
         """Order smaller gtfs_stop_sequences before larger gtfs_stop_sequences."""
         return pl.col("gtfs_stop_sequence").gt(
             pl.col("gtfs_stop_sequence").shift().over(partition_by="trip_id", order_by="stop_sequence")
         )
 
     @dy.rule()
-    def first_stop_sequence_has_gtfs_record() -> pl.Expr:  # pylint: disable=no-method-argument
+    def first_stop_sequence_has_gtfs_record(cls) -> pl.Expr:
         """Order the non-null GTFS record first."""
         return (
             pl.col("gtfs_stop_sequence").is_null().all().over("trip_id")  # either the trip has no GTFS records at all

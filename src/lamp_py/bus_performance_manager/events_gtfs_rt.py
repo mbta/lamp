@@ -30,7 +30,7 @@ class GTFSEvents(BusBaseSchema):
     longitude = dy.Float64(nullable=True)
 
     @dy.rule()
-    def first_stop_has_departure_dt() -> pl.Expr:  # pylint: disable=no-method-argument
+    def first_stop_has_departure_dt(cls) -> pl.Expr:
         "The bus should always have a departure time from the first stop."
         return pl.when(pl.col("gtfs_stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_departure_dt").is_not_null())
 
