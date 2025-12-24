@@ -232,7 +232,7 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     return (
         table.with_columns(
             table.select(hash_columns)
-            .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
+            .map_rows(hash_gtfs_rt_row)
             .to_series(0)
             .alias(GTFS_RT_HASH_COL)
         )
