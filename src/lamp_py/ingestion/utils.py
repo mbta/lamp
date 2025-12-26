@@ -218,7 +218,7 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = table.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.uint64))
+    hash_schema = table.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.uint64()))
 
     table = pl.from_arrow(table)
     log.log_complete()
