@@ -1,9 +1,8 @@
-from lamp_py.ingestion.utils import hash_gtfs_rt_table
-import polars as pl
 import io
-from typing import Any
 import hashlib
 import pickle
+from typing import Any
+import polars as pl
 
 
 def hash_gtfs_rt_row_marked_for_removal_wip(row: Any) -> bytes:
