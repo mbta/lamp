@@ -205,11 +205,6 @@ def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
     )
 
 
-def hash_gtfs_rt_row(row: Any) -> pl.Binary:
-    """hash row from polars dataframe"""
-    return hashlib.md5(pickle.dumps(row), usedforsecurity=False).digest()
-
-
 def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     """
     add GTFS_RT_HASH_COL column to pyarrow table, if not already present
@@ -225,19 +220,12 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     hash_columns.remove("feed_timestamp")
     hash_columns = sorted(hash_columns)
 
-    hash_schema = table.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.large_binary()))
+    hash_schema = table.schema.append(pyarrow.field(GTFS_RT_HASH_COL, pyarrow.uint64))
 
     table = pl.from_arrow(table)
     log.log_complete()
     return (
-        table.with_columns(
-            table.select(hash_columns)
-            .map_rows(hash_gtfs_rt_row)
-            .to_series()
-            .alias(GTFS_RT_HASH_COL)
-        )
-        .to_arrow()
-        .cast(hash_schema)
+        table.with_columns(table.select(hash_columns).hash_rows().alias(GTFS_RT_HASH_COL)).to_arrow().cast(hash_schema)
     )
 
 
@@ -262,12 +250,7 @@ def hash_gtfs_rt_parquet(path: str) -> None:
             for batch in ds.iter_batches(batch_size=512 * 1024):
                 batch = pl.from_arrow(batch)
                 batch = (
-                    batch.with_columns(
-                        batch.select(hash_columns)
-                        .map_rows(hash_gtfs_rt_row, return_dtype=pl.Binary)
-                        .to_series(0)
-                        .alias(GTFS_RT_HASH_COL)
-                    )
+                    batch.with_columns(batch.select(hash_columns).hash_rows().alias(GTFS_RT_HASH_COL))
                     .to_arrow()
                     .cast(hash_schema)
                 )
