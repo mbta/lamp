@@ -233,7 +233,7 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
         table.with_columns(
             table.select(hash_columns)
             .map_rows(hash_gtfs_rt_row)
-            .to_series(0)
+            .to_series()
             .alias(GTFS_RT_HASH_COL)
         )
         .to_arrow()
