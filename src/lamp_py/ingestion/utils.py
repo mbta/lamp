@@ -8,7 +8,7 @@ import zoneinfo
 import pickle
 import hashlib
 import tempfile
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any
 from urllib import request
 from io import BytesIO
 
@@ -205,9 +205,9 @@ def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
     )
 
 
-def hash_gtfs_rt_row(row: Any) -> Tuple[bytes]:
+def hash_gtfs_rt_row(row: Any) -> pl.Binary:
     """hash row from polars dataframe"""
-    return (hashlib.md5(pickle.dumps(row), usedforsecurity=False).digest(),)
+    return hashlib.md5(pickle.dumps(row), usedforsecurity=False).digest()
 
 
 def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
