@@ -10,19 +10,11 @@ def hash_gtfs_rt_row_marked_for_removal_wip(row: Any) -> bytes:
     return hashlib.md5(pickle.dumps(row), usedforsecurity=False).digest()
 
 
-def test_hash_column_return_datatype() -> None:
+def test_polars_hashrows_equivalent_to_hash_gtfs_rt_row() -> None:
     """
-    return type of hash_gtfs_rt_row of Tuple[bytes] was coerced to binary before, but polars changes in 1.35 -> 1.36
-    resulted in the type now returning List[Binary]. This test is to catch changes in underlying inferred types
-    for future library upgrades.
-
-    We are no longer coercing the type, so this might never catch.
-
-    Remove this test if we ever remove the hash_gtfs_rt_row type logic from ingestion.
-
-    Investigate using just the base polars hash instead...why no
-
-    Check that all are hashable. check that same columns hash to the same value
+    Test to check that legacy hash_gtfs_rt_row_marked_for_removal_wip hashes to the same sets as
+    the built in polars method does. Can remove hash_gtfs_rt_row_marked_for_removal_wip once we 
+    are confident this always holds. 
     """
 
     table = pl.DataFrame(
