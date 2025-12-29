@@ -13,8 +13,8 @@ def hash_gtfs_rt_row_marked_for_removal_wip(row: Any) -> bytes:
 def test_polars_hashrows_equivalent_to_hash_gtfs_rt_row() -> None:
     """
     Test to check that legacy hash_gtfs_rt_row_marked_for_removal_wip hashes to the same sets as
-    the built in polars method does. Can remove hash_gtfs_rt_row_marked_for_removal_wip once we 
-    are confident this always holds. 
+    the built in polars method does. Can remove hash_gtfs_rt_row_marked_for_removal_wip once we
+    are confident this always holds.
     """
 
     table = pl.DataFrame(
