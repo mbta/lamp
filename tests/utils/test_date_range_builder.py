@@ -64,11 +64,13 @@ def test_next_leap_year_2028() -> None:
 
 def test_bus_events_format() -> None:
     """
-    
+    Ensure bus_events file dateformat string is correctly built by build_data_range_paths
     """
     bus_events_date_template = "{yy}{mm:02d}{dd:02d}.parquet"
 
-    out = build_data_range_paths(bus_events_date_template, start_date=datetime(2028, 2, 26), end_date=datetime(2028, 3, 2))
+    out = build_data_range_paths(
+        bus_events_date_template, start_date=datetime(2028, 2, 26), end_date=datetime(2028, 3, 2)
+    )
     print(out)
 
     assert out == [
