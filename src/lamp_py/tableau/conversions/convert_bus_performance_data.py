@@ -1,5 +1,4 @@
 import polars as pl
-from pyarrow import Table
 import pyarrow
 
 
