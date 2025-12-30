@@ -35,7 +35,10 @@ def test_with_alias(alias: str) -> None:
         ({"col1": dy.List(dy.List(dy.String(alias="nested")))}, {"col1.nested": dy.String()}),
         (
             {"col1": dy.Struct({"not_real_alias": dy.String(alias="real_alias"), "inner_col2": dy.Int16()})},
-            {"real_alias": dy.String(), "col1.inner_col2": dy.Int16()},
+            {
+                "real_alias": dy.String(),
+                "col1.inner_col2": dy.Int16(),
+            },  # this is an example of the unexpected behehavior when using both aliases and names
         ),
         (
             {
@@ -52,7 +55,10 @@ def test_with_alias(alias: str) -> None:
                     }
                 )
             },
-            {"col1.another_struct.another_struct.different_alias.str": dy.String(), "binary_col": dy.Binary()},
+            {
+                "col1.another_struct.another_struct.different_alias.str": dy.String(),
+                "binary_col": dy.Binary(),
+            },  # this is an example of the unexpected behehavior when using both aliases and names
         ),
         (
             {"col1": dy.List(dy.Struct({"field1": dy.List(dy.String(), alias="list"), "field2": dy.Bool()}))},
