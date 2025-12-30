@@ -147,7 +147,7 @@ tm_pattern_geo_node_xref_file = S3Location(
 # published by LAMP
 
 # BUMP - increment version here to regenerate bus events.
-# This is an expensive operation! Will take ~hours to complete. 
+# This is an expensive operation! Will take ~hours to complete.
 bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.3")
 bus_operator_mapping = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0")
 

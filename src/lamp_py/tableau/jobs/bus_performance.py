@@ -122,7 +122,7 @@ def create_bus_parquet(job: HyperJob, num_files: Optional[int]) -> None:
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-            writer.write_table(apply_bus_analysis_conversions(polars_df))
+            writer.write_table(apply_bus_analysis_conversions(polars_df).to_arrow())
 
 
 class HyperBusPerformanceAll(HyperJob):
