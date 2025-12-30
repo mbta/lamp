@@ -31,11 +31,11 @@ def test_with_alias(alias: str) -> None:
     [
         ({"col1": dy.String()}, {"col1": dy.String()}),
         ({"col1": dy.List(dy.String())}, {"col1": dy.String()}),
-        ({"col1": dy.List(dy.Int16(alias="number"))}, {"number": dy.Int16()}),
-        ({"col1": dy.List(dy.List(dy.String(alias="nested")))}, {"nested": dy.String()}),
+        ({"col1": dy.List(dy.Int16(alias="number"))}, {"col1.number": dy.Int16()}),
+        ({"col1": dy.List(dy.List(dy.String(alias="nested")))}, {"col1.nested": dy.String()}),
         (
             {"col1": dy.Struct({"not_real_alias": dy.String(alias="real_alias"), "inner_col2": dy.Int16()})},
-            {"col1.real_alias": dy.String(), "col1.inner_col2": dy.Int16()},
+            {"real_alias": dy.String(), "col1.inner_col2": dy.Int16()},
         ),
         (
             {
@@ -52,7 +52,7 @@ def test_with_alias(alias: str) -> None:
                     }
                 )
             },
-            {"col1.another_struct.another_struct.different_alias.str": dy.String(), "col1.binary_col": dy.Binary()},
+            {"col1.another_struct.another_struct.different_alias.str": dy.String(), "binary_col": dy.Binary()},
         ),
         (
             {"col1": dy.List(dy.Struct({"field1": dy.List(dy.String(), alias="list"), "field2": dy.Bool()}))},
@@ -62,6 +62,7 @@ def test_with_alias(alias: str) -> None:
             {"col1": dy.Array(dy.Int16(), shape=(3, 2))},
             {"col1": dy.Array(dy.Int16(), shape=(3, 2))},
         ),
+        ({"col1": dy.Struct({"col2": dy.List(dy.String(alias="col1"))})}, {"col1.col2.col1": dy.String()}),
     ],
     ids=[
         "no-nesting",
@@ -72,6 +73,7 @@ def test_with_alias(alias: str) -> None:
         "multi-level-struct",
         "mixed-list-struct",
         "array",
+        "repeated-names",
     ],
 )
 def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str, dy.Column]) -> None:

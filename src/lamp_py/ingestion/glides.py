@@ -16,11 +16,16 @@ from dateutil.relativedelta import relativedelta
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
+from lamp_py.utils.dataframely import with_alias, unnest_columns
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
     S3_SPRINGBOARD,
 )
+
+RFC3339_TIME_REGEX = r"[0-9]T[012][0-9]:[0-5][0-9]:[0-6][0-9](.[0-9]*)?(Z|[+-][012][0-9]:[0-5][0-9])$"
+GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be greater than 24 hours
+RFC3339_DATE_REGEX = r"^[0-9]{4}-[01][0-9]-[0-3]"
 
 
 class GlidesConverter(ABC):
@@ -30,37 +35,37 @@ class GlidesConverter(ABC):
 
     user = dy.Struct(
         {
-            "email_address": dy.String(alias="emailAddress", metadata={"reader_roles": ["GlidesUserEmail"]}),
-            "badge_number": dy.String(alias="badgeNumber"),
+            "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
+            "badgeNumber": dy.String(),
         }
     )
 
-    location = dy.Struct({"gtfs_id": dy.String(alias="gtfsId"), "tods_id": dy.String(alias="todsId")})
+    location = dy.Struct({"gtfsId": dy.String(nullable=True), "todsId": dy.String(nullable=True)})
 
     metadata = dy.Struct(
         {
             "location": location,
             "author": user,
-            "input_type": dy.String(),
-            "input_timestamp": dy.String(alias="inputTimestamp"),
+            "inputType": dy.String(),
+            "inputTimestamp": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX),
         }
     )
 
     trip_key = dy.Struct(
         {
-            "serviceDate": dy.String(),
-            "tripId": dy.String(),
+            "serviceDate": dy.String(nullable=True),
+            "tripId": dy.String(nullable=True),
             "startLocation": location,
             "endLocation": location,
-            "startTime": dy.String(),
-            "endTime": dy.String(),
-            "revenue": dy.String(),
+            "startTime": dy.String(nullable=True, regex=GTFS_TIME_REGEX),
+            "endTime": dy.String(nullable=True, regex=GTFS_TIME_REGEX),
+            "revenue": dy.String(nullable=True, regex=r"(non)?revenue"),
             "glidesId": dy.String(),
         }
     )
 
     class Record(dy.Schema):
-        """Base record for all Glides record types."""
+        """Base schema for all Glides records."""
 
         id = dy.String()
         type = dy.String()
@@ -68,6 +73,9 @@ class GlidesConverter(ABC):
         source = dy.String()
         specversion = dy.String()
         dataschema = dy.String()
+
+    class Table(Record):
+        """Base schema for all Glides tables."""
 
     def __init__(self, base_filename: str) -> None:
         self.tmp_dir = "/tmp"
@@ -84,6 +92,11 @@ class GlidesConverter(ABC):
     @abstractmethod
     def event_schema(self) -> pyarrow.schema:
         """Schema for incoming events before flattening"""
+
+    @property
+    @abstractmethod
+    def table_schema(self) -> pyarrow.schema:
+        """Schema for springboard-ready datasets after flattening."""
 
     @property
     @abstractmethod
@@ -124,7 +137,7 @@ class GlidesConverter(ABC):
 
             new_path = os.path.join(tmp_dir, self.base_filename)
             row_group_count = 0
-            with pq.ParquetWriter(new_path, schema=joined_ds.schema) as writer:
+            with pq.ParquetWriter(new_path, schema=self.table_schema()) as writer:
                 while start < now:
                     end = start + relativedelta(months=1)
                     if end < now:
@@ -137,7 +150,7 @@ class GlidesConverter(ABC):
 
                     if not row_group.is_empty():
                         unique_table = (
-                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(new_dataset.schema)
+                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(self.table_schema())
                         )
 
                         row_group_count += 1
@@ -167,18 +180,28 @@ class EditorChanges(GlidesConverter):
                 "metadata": GlidesConverter.metadata,
                 "changes": dy.List(
                     dy.Struct(
-                        {"type": dy.String(), "location": GlidesConverter.location, "editor": GlidesConverter.user}
+                        {
+                            "type": dy.String(regex=r"start|stop"),
+                            "location": GlidesConverter.location,
+                            "editor": GlidesConverter.user,
+                        }
                     )
                 ),
             }
         )
+
+    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
 
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="editor_changes.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        return self.Record.pyarrow_schema()
+        return self.Record.to_pyarrow_schema()
+
+    @property
+    def table_schema(self) -> pyarrow.schema:
+        return self.Table.to_pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
@@ -211,17 +234,23 @@ class OperatorSignIns(GlidesConverter):
             {
                 "metadata": GlidesConverter.metadata,
                 "operator": dy.Struct({"badgeNumber": dy.String()}),
-                "signedInAt": dy.String(),
+                "signedInAt": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX),
                 "signature": dy.Struct({"type": dy.String(), "version": dy.Int16()}),
             }
         )
+
+    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
 
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="operator_sign_ins.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        return self.Record.pyarrow_schema()
+        return self.Record.to_pyarrow_schema()
+
+    @property
+    def table_schema(self) -> pyarrow.schema:
+        return self.Table.to_pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
@@ -271,12 +300,18 @@ class TripUpdates(GlidesConverter):
             }
         )
 
+    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
+
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="trip_updates.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        return self.Record.pyarrow_schema()
+        return self.Record.to_pyarrow_schema()
+
+    @property
+    def table_schema(self) -> pyarrow.schema:
+        return self.Table.to_pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
@@ -336,12 +371,18 @@ class VehicleTripAssignment(GlidesConverter):
             }
         )
 
+    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
+
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="vehicle_trip_assignment.parquet")
 
     @property
     def event_schema(self) -> pyarrow.schema:
-        return self.Record.pyarrow_schema()
+        return self.Record.to_pyarrow_schema()
+
+    @property
+    def table_schema(self) -> pyarrow.schema:
+        return self.Table.to_pyarrow_schema()
 
     @property
     def unique_key(self) -> str:
