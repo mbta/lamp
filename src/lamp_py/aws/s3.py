@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import time
@@ -6,15 +7,18 @@ from datetime import date, datetime, timezone
 from io import BytesIO
 from threading import current_thread
 from typing import (
+    Any,
     Callable,
     Dict,
     IO,
+    Generator,
     Iterator,
     List,
     Optional,
     Union,
     cast,
 )
+from contextlib import contextmanager
 
 import boto3
 import botocore
@@ -251,11 +255,30 @@ def get_zip_buffer(filename: str) -> IO[bytes]:
     return BytesIO(zipped_file.get()["Body"].read())
 
 
+@contextmanager
+def override_log_level(set_log_level: int) -> Generator[None, Any, None]:
+    """
+    Context manager to temporarily suppress all logging to a certain level.
+    if set_log_level is logging.CRITICAL, all logging is suppressed
+    will always return to the originally set level upon exiting context
+    """
+    # Store the current state
+    previous_level = logging.root.manager.disable
+    try:
+        # Disables all logging at set_log_level or below
+        logging.disable(set_log_level)
+        yield
+    finally:
+        # Restore the previous state
+        logging.disable(previous_level)
+
+
 def file_list_from_s3(
     bucket_name: str,
     file_prefix: str,
     max_list_size: int = 250_000,
     in_filter: Optional[str] = None,
+    suppress_logging_below_level: int = logging.NOTSET,
 ) -> List[str]:
     """
     get a list of s3 objects
@@ -267,33 +290,35 @@ def file_list_from_s3(
         object path as s3://bucket-name/object-key
     ]
     """
-    process_logger = ProcessLogger("file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix)
-    process_logger.log_start()
+    with override_log_level(suppress_logging_below_level):
 
-    try:
-        s3_client = get_s3_client()
-        paginator = s3_client.get_paginator("list_objects_v2")
-        pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
+        process_logger = ProcessLogger("file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix)
+        process_logger.log_start()
 
-        filepaths = []
-        for page in pages:
-            if page["KeyCount"] == 0:
-                continue
-            for obj in page["Contents"]:
-                if obj["Size"] == 0:
+        try:
+            s3_client = get_s3_client()
+            paginator = s3_client.get_paginator("list_objects_v2")
+            pages = paginator.paginate(Bucket=bucket_name, Prefix=file_prefix)
+
+            filepaths = []
+            for page in pages:
+                if page["KeyCount"] == 0:
                     continue
-                if in_filter is None or in_filter in obj["Key"]:
-                    filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
+                for obj in page["Contents"]:
+                    if obj["Size"] == 0:
+                        continue
+                    if in_filter is None or in_filter in obj["Key"]:
+                        filepaths.append(os.path.join("s3://", bucket_name, obj["Key"]))
 
-            if len(filepaths) > max_list_size:
-                break
+                if len(filepaths) > max_list_size:
+                    break
 
-        process_logger.add_metadata(list_size=len(filepaths))
-        process_logger.log_complete()
-        return filepaths
-    except Exception as exception:
-        process_logger.log_failure(exception)
-        return []
+            process_logger.add_metadata(list_size=len(filepaths))
+            process_logger.log_complete()
+            return filepaths
+        except Exception as exception:
+            process_logger.log_failure(exception)
+            return []
 
 
 def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[Dict]:
@@ -371,7 +396,13 @@ def file_list_from_s3_date_range(
     paths = build_data_range_paths(path_template, start_date, end_date)
     full_list = []
     for search_path in paths:
-        full_list.extend(file_list_from_s3(bucket_name=bucket_name, file_prefix=os.path.join(file_prefix, search_path)))
+        full_list.extend(
+            file_list_from_s3(
+                bucket_name=bucket_name,
+                file_prefix=os.path.join(file_prefix, search_path),
+                suppress_logging_below_level=logging.CRITICAL,
+            )
+        )
     return full_list
 
 
