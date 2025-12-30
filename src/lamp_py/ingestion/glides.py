@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 import os
 from datetime import datetime
 import tempfile
@@ -16,7 +16,7 @@ from dateutil.relativedelta import relativedelta
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
-from lamp_py.utils.dataframely import with_alias, unnest_columns
+from lamp_py.utils.dataframely import unnest_columns
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
@@ -69,7 +69,7 @@ class GlidesConverter(ABC):
 
         id = dy.String()
         type = dy.String()
-        time = dy.Datetime(time_unit="ms")
+        time = dy.Datetime(time_unit="ms")  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
         source = dy.String()
         specversion = dy.String()
         dataschema = dy.String()
@@ -137,7 +137,7 @@ class GlidesConverter(ABC):
 
             new_path = os.path.join(tmp_dir, self.base_filename)
             row_group_count = 0
-            with pq.ParquetWriter(new_path, schema=self.table_schema()) as writer:
+            with pq.ParquetWriter(new_path, schema=self.table_schema) as writer:
                 while start < now:
                     end = start + relativedelta(months=1)
                     if end < now:
@@ -150,7 +150,7 @@ class GlidesConverter(ABC):
 
                     if not row_group.is_empty():
                         unique_table = (
-                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(self.table_schema())
+                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(self.table_schema)
                         )
 
                         row_group_count += 1
@@ -161,9 +161,11 @@ class GlidesConverter(ABC):
             os.replace(new_path, self.local_path)
             process_logger.add_metadata(row_group_count=row_group_count)
 
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
-
         process_logger.log_complete()
+
+    def upload_records(self) -> None:
+        """Upload local parquet file to remote storage."""
+        upload_file(file_name=self.local_path, object_path=self.remote_path)
 
 
 class EditorChanges(GlidesConverter):
@@ -190,7 +192,7 @@ class EditorChanges(GlidesConverter):
             }
         )
 
-    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
+    Table: Type[GlidesConverter.Table] = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
 
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="editor_changes.parquet")
@@ -239,7 +241,7 @@ class OperatorSignIns(GlidesConverter):
             }
         )
 
-    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
+    Table: Type[GlidesConverter.Table] = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
 
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="operator_sign_ins.parquet")
@@ -300,7 +302,7 @@ class TripUpdates(GlidesConverter):
             }
         )
 
-    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
+    Table: Type[GlidesConverter.Table] = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
 
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="trip_updates.parquet")
@@ -371,7 +373,7 @@ class VehicleTripAssignment(GlidesConverter):
             }
         )
 
-    Table = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
+    Table: Type[GlidesConverter.Table] = type("Table", (GlidesConverter.Table,), unnest_columns({"data": Record.data}))
 
     def __init__(self) -> None:
         GlidesConverter.__init__(self, base_filename="vehicle_trip_assignment.parquet")
@@ -433,6 +435,7 @@ def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Op
 
         for converter in converters:
             converter.append_records()
+            converter.upload_records()
             metadata_queue.put(converter.remote_path)
 
     except Exception as e:
