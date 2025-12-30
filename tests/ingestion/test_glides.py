@@ -99,7 +99,7 @@ def test_append_records(
     ids=["editor-changes", "operator-sign-ins", "trip-updates", "vehicle-trip-assignments"],
 )
 def test_ingest_glides_events(
-    converter: GlidesConverter, dy_gen: dy.random.Generator, mocker: MockerFixture, events_per_converter: int = 5
+    converter: GlidesConverter, dy_gen: dy.random.Generator, mocker: MockerFixture, events_per_converter: int = 500
 ) -> None:
     """It routes events to correct converter and writes them to specified storage."""
     test_records = (

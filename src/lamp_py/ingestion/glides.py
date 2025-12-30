@@ -123,7 +123,7 @@ class GlidesConverter(ABC):
 
         joined_ds = new_dataset
         if os.path.exists(self.local_path):
-            joined_ds = pd.dataset([new_dataset, pd.dataset(self.local_path)])
+            joined_ds = pd.dataset([new_dataset, pd.dataset(self.local_path)], schema=self.table_schema)
 
         process_logger.add_metadata(
             new_records=new_dataset.count_rows(),
