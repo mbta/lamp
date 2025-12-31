@@ -63,7 +63,7 @@ def main(args: argparse.Namespace) -> None:
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            scheduler.enter(int(args.interval), 1, iteration, kwargs={"do_recent_backfill": backfill_recent_once})
+            scheduler.enter(int(args.interval), 1, iteration, kwargs={"do_recent_backfill": backfill_recent_once}) # pylint: disable=E0606
 
     # schedule the initial loop and start the scheduler
     scheduler.enter(0, 1, iteration, kwargs={"do_recent_backfill": backfill_recent_once})
