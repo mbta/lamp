@@ -57,6 +57,7 @@ def main(args: argparse.Namespace) -> None:
             write_bus_metrics()
             if do_recent_backfill:
                 regenerate_bus_metrics_recent(num_days=bus_performance.BUS_ALL_NDAYS)  # just for backfill
+                backfill_recent_once = False
             start_bus_parquet_updates()
             process_logger.log_complete()
         except Exception as exception:
