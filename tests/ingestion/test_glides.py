@@ -53,6 +53,11 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
 
 
 @pytest.mark.parametrize(
+    ["column_transformations"],
+    [({},), ({"id": pl.col("id")},), ({"new_col": pl.lit(1)},)],
+    ids=["no-remote-records", "same-schema", "dropped-column"],
+)
+@pytest.mark.parametrize(
     [
         "converter",
     ],
@@ -65,7 +70,11 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
     ids=["editor-changes", "operator-sign-ins", "trip-updates", "vehicle-trip-assignments"],
 )
 def test_append_records(
-    dy_gen: dy.random.Generator, converter: GlidesConverter, tmp_path: Path, num_rows: int = 5
+    dy_gen: dy.random.Generator,
+    converter: GlidesConverter,
+    tmp_path: Path,
+    column_transformations: dict,
+    num_rows: int = 5,
 ) -> None:
     """It writes all records locally."""
     converter.records = converter.Record.sample(
@@ -78,11 +87,16 @@ def test_append_records(
         },
     ).to_dicts()
 
-    converter.tmp_dir = tmp_path.as_posix()
+    converter.local_path = tmp_path.joinpath(converter.base_filename).as_posix()
+
+    expectation = pl.scan_pyarrow_dataset(converter.convert_records()).collect()
+
+    if column_transformations:
+        remote_records = expectation.with_columns(**column_transformations)
+        remote_records.write_parquet(converter.local_path)
 
     converter.append_records()
 
-    expectation = pl.scan_pyarrow_dataset(converter.convert_records()).collect()
     assert_frame_equal(expectation, pl.read_parquet(converter.local_path), check_row_order=False)
 
 
@@ -124,7 +138,7 @@ def test_ingest_glides_events(
     mock_upload = mocker.Mock(return_value=True)
     mocker.patch("lamp_py.ingestion.glides.upload_file", mock_upload)
 
-    ingest_glides_events(kinesis_reader, Queue())
+    ingest_glides_events(kinesis_reader, Queue(), upload=True)
     assert Path(converter.local_path).exists()
     remove(converter.local_path)  # can't figure out how to patch the tmp_dir inside ingest_glides_events :/
     mock_upload.assert_any_call(file_name=converter.local_path, object_path=converter.remote_path)

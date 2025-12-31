@@ -1,3 +1,5 @@
+from typing import Type
+
 import dataframely as dy
 import pytest
 
@@ -80,6 +82,7 @@ def test_with_alias(alias: str) -> None:
         "mixed-list-struct",
         "array",
         "repeated-names",
+        # TODO : nullable struct, non-nullable interior col -> nullable top-level column
     ],
 )
 def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str, dy.Column]) -> None:
@@ -90,10 +93,10 @@ def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str
 
     new_columns = unnest_columns(columns)
 
-    ExpectedOutput = type("ExpectedOutput", (dy.Schema,), expected_output)
-    NewColumns = type("NewColumns", (dy.Schema,), new_columns)
+    ExpectedOutput: Type[dy.Schema] = type("ExpectedOutput", (dy.Schema,), expected_output)
+    NewColumns: Type[dy.Schema] = type("NewColumns", (dy.Schema,), new_columns)
 
     assert not {  # no nested structures
-        k: v for k, v in NewColumns.columns().items() if isinstance(v, (dy.Struct, dy.List))  # type: ignore[attr-defined]
+        k: v for k, v in NewColumns.columns().items() if isinstance(v, (dy.Struct, dy.List))
     }
-    assert ExpectedOutput.matches(NewColumns)  # type: ignore[attr-defined]
+    assert ExpectedOutput.matches(NewColumns)

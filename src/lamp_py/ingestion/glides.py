@@ -35,9 +35,10 @@ class GlidesConverter(ABC):
 
     user = dy.Struct(
         {
-            "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
-            "badgeNumber": dy.String(),
-        }
+            "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}, nullable=True),
+            "badgeNumber": dy.String(nullable=True),
+        },
+        nullable=True,
     )
 
     location = dy.Struct({"gtfsId": dy.String(nullable=True), "todsId": dy.String(nullable=True)})
@@ -46,8 +47,8 @@ class GlidesConverter(ABC):
         {
             "location": location,
             "author": user,
-            "inputType": dy.String(),
-            "inputTimestamp": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX),
+            "inputType": dy.String(nullable=True),
+            "inputTimestamp": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX, nullable=True),
         }
     )
 
@@ -60,7 +61,7 @@ class GlidesConverter(ABC):
             "startTime": dy.String(nullable=True, regex=GTFS_TIME_REGEX),
             "endTime": dy.String(nullable=True, regex=GTFS_TIME_REGEX),
             "revenue": dy.String(nullable=True, regex=r"(non)?revenue"),
-            "glidesId": dy.String(),
+            "glidesId": dy.String(nullable=True),
         }
     )
 
@@ -72,7 +73,7 @@ class GlidesConverter(ABC):
         time = dy.Datetime(time_unit="ms")  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
         source = dy.String()
         specversion = dy.String()
-        dataschema = dy.String()
+        dataschema = dy.String(nullable=True)
 
     class Table(Record):
         """Base schema for all Glides tables."""
@@ -121,9 +122,11 @@ class GlidesConverter(ABC):
 
         new_dataset = self.convert_records()
 
-        joined_ds = new_dataset
         if os.path.exists(self.local_path):
-            joined_ds = pd.dataset([new_dataset, pd.dataset(self.local_path)], schema=self.table_schema)
+            remote_records = pd.dataset(self.local_path, schema=self.table_schema)
+            joined_ds = pd.dataset([new_dataset, remote_records])
+        else:
+            joined_ds = new_dataset
 
         process_logger.add_metadata(
             new_records=new_dataset.count_rows(),
@@ -236,7 +239,7 @@ class OperatorSignIns(GlidesConverter):
             {
                 "metadata": GlidesConverter.metadata,
                 "operator": dy.Struct({"badgeNumber": dy.String()}),
-                "signedInAt": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX),
+                "signedInAt": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX, nullable=True),
                 "signature": dy.Struct({"type": dy.String(), "version": dy.Int16()}),
             }
         )
@@ -287,14 +290,14 @@ class TripUpdates(GlidesConverter):
                             "previousTripKey": GlidesConverter.trip_key,
                             "type": dy.String(),
                             "tripKey": GlidesConverter.trip_key,
-                            "comment": dy.String(),
+                            "comment": dy.String(nullable=True),
                             "startLocation": GlidesConverter.location,
                             "endLocation": GlidesConverter.location,
-                            "startTime": dy.String(),  # can be "unset" string :(
-                            "endTime": dy.String(),  # can be "unset" string :(
-                            "cars": dy.String(),  # an array of objects
-                            "revenue": dy.String(),
-                            "dropped": dy.String(),
+                            "startTime": dy.String(nullable=True),  # can be "unset" string :(
+                            "endTime": dy.String(nullable=True),  # can be "unset" string :(
+                            "cars": dy.String(nullable=True),  # an array of objects
+                            "revenue": dy.String(nullable=True),
+                            "dropped": dy.String(nullable=True),
                             "scheduled": dy.String(),  # an object with an array of objects
                         }
                     )
@@ -365,9 +368,9 @@ class VehicleTripAssignment(GlidesConverter):
                 "vehicleId": dy.String(),
                 "tripKey": dy.Struct(
                     {
-                        "serviceDate": dy.String(),
-                        "tripId": dy.String(),
-                        "scheduled": dy.String(),
+                        "serviceDate": dy.String(nullable=True),
+                        "tripId": dy.String(nullable=True),
+                        "scheduled": dy.String(nullable=True),
                     }
                 ),
             }
@@ -402,7 +405,9 @@ class VehicleTripAssignment(GlidesConverter):
         return tu_dataset
 
 
-def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_glides_events(
+    kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]], upload: bool = False
+) -> None:
     """
     ingest glides records from the kinesis stream and add them to parquet files
     """
@@ -435,7 +440,8 @@ def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Op
 
         for converter in converters:
             converter.append_records()
-            converter.upload_records()
+            if upload:
+                converter.upload_records()
             metadata_queue.put(converter.remote_path)
 
     except Exception as e:
