@@ -48,7 +48,7 @@ def main(args: argparse.Namespace) -> None:
 
     # function to call each time on the event loop, rescheduling the loop at the
     # end of each iteration
-    def iteration(do_recent_backfill: bool = True) -> None:
+    def iteration(do_recent_backfill: bool) -> None:
         """function to invoke on a scheduled routine"""
         check_for_sigterm()
         process_logger = ProcessLogger("event_loop")
@@ -63,12 +63,10 @@ def main(args: argparse.Namespace) -> None:
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            scheduler.enter(
-                int(args.interval), 1, iteration, kwargs={"do_recent_backfill": backfill_recent_once}
-            )  # pylint: disable=E0606
+            scheduler.enter(int(args.interval), 1, iteration, argument=(backfill_recent_once,))  # pylint: disable=E0606
 
     # schedule the initial loop and start the scheduler
-    scheduler.enter(0, 1, iteration, kwargs={"do_recent_backfill": backfill_recent_once})
+    scheduler.enter(0, 1, iteration, argument=(backfill_recent_once,))
     scheduler.run()
     main_process_logger.log_complete()
 
