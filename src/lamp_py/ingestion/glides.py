@@ -149,24 +149,20 @@ class VehicleTripAssignmentRecord(GlidesRecord):
     )
 
 
-class GlidesTable(GlidesRecord):
-    """Base schema for all Glides tables."""
-
-
-EditorChangesTable: Type[GlidesTable] = type(
-    "EditorChangesTable", (GlidesTable,), unnest_columns({"data": EditorChangesRecord.data})
+EditorChangesTable: Type[GlidesRecord] = type(
+    "EditorChangesTable", (GlidesRecord,), unnest_columns({"data": EditorChangesRecord.data})
 )
 
-OperatorSignInsTable: Type[GlidesTable] = type(
-    "OperatorSignInsTable", (GlidesTable,), unnest_columns({"data": OperatorSignInsRecord.data})
+OperatorSignInsTable: Type[GlidesRecord] = type(
+    "OperatorSignInsTable", (GlidesRecord,), unnest_columns({"data": OperatorSignInsRecord.data})
 )
 
-TripUpdatesTable: Type[GlidesTable] = type(
-    "TripUpdatesTable", (GlidesTable,), unnest_columns({"data": TripUpdatesRecord.data})
+TripUpdatesTable: Type[GlidesRecord] = type(
+    "TripUpdatesTable", (GlidesRecord,), unnest_columns({"data": TripUpdatesRecord.data})
 )
 
-VehicleTripAssignmentTable: Type[GlidesTable] = type(
-    "VehicleTripAssignmentTable", (GlidesTable,), unnest_columns({"data": VehicleTripAssignmentRecord.data})
+VehicleTripAssignmentTable: Type[GlidesRecord] = type(
+    "VehicleTripAssignmentTable", (GlidesRecord,), unnest_columns({"data": VehicleTripAssignmentRecord.data})
 )
 
 
@@ -175,7 +171,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
     Abstract Base Class for Archiving Glides Events
     """
 
-    def __init__(self, base_filename: str, record_schema: Type[GlidesRecord], table_schema: Type[GlidesTable]) -> None:
+    def __init__(self, base_filename: str, record_schema: Type[GlidesRecord], table_schema: Type[GlidesRecord]) -> None:
         self.tmp_dir = "/tmp"
         self.base_filename = base_filename
         self.type = self.base_filename.replace(".parquet", "")
