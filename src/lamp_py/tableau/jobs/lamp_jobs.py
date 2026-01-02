@@ -1,3 +1,4 @@
+from datetime import date
 import os
 from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.common.gtfs_types import RouteType
@@ -7,6 +8,9 @@ from lamp_py.tableau.conversions import (
 )
 
 from lamp_py.runtime_utils.remote_files import (
+    LAMP,
+    S3_ARCHIVE,
+    S3Location,
     springboard_rt_vehicle_positions,
     springboard_devgreen_rt_vehicle_positions,
     springboard_rt_trip_updates,  # main feed, all lines, unique records
@@ -25,6 +29,13 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_rail_commuter,
     tableau_rail_subway,
 )
+
+
+from lamp_py.runtime_utils.remote_files import (
+    bus_events,
+)
+from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
+from lamp_py.tableau.jobs.bus_performance import bus_schema
 
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob, days_ago
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
@@ -118,6 +129,38 @@ HyperBusOperatorMappingAll = FilteredHyperJob(
     remote_input_location=bus_operator_mapping,
     remote_output_location=tableau_bus_operator_mapping_all,
     start_date=days_ago(60),
+    processed_schema=TMDailyWorkPiece.to_pyarrow_schema(),
+    dataframe_filter=None,
+    parquet_filter=None,
+    tableau_project_name=LAMP_API_PROJECT,
+    partition_template="",
+)
+
+HyperBusFall2025 = FilteredHyperJob(
+    remote_input_location=bus_events,
+    remote_output_location=S3Location(
+        bucket=S3_ARCHIVE,
+        prefix=os.path.join(LAMP, "bus_rating_datasets", "year=2025", "Fall2025_BusMetrics.parquet"),
+        version="1.0",
+    ),
+    start_date=date(2025, 8, 24),
+    end_date=date(2025, 12, 13),
+    processed_schema=bus_schema,
+    dataframe_filter=apply_bus_analysis_conversions,
+    parquet_filter=None,
+    tableau_project_name=LAMP_API_PROJECT,
+    partition_template="{yy}{mm:02d}{dd:02d}.parquet",
+)
+
+HyperBusOperatorFall2025 = FilteredHyperJob(
+    remote_input_location=bus_operator_mapping,
+    remote_output_location=S3Location(
+        bucket=S3_ARCHIVE,
+        prefix=os.path.join(LAMP, "bus_rating_datasets", "year=2025", "Fall2025_Operator.parquet"),
+        version="1.0",
+    ),
+    start_date=date(2025, 8, 24),
+    end_date=date(2025, 12, 13),
     processed_schema=TMDailyWorkPiece.to_pyarrow_schema(),
     dataframe_filter=None,
     parquet_filter=None,
