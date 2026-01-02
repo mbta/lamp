@@ -16,7 +16,7 @@ from dateutil.relativedelta import relativedelta
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
-from lamp_py.utils.dataframely import unnest_columns
+from lamp_py.utils.dataframely import unnest_columns, with_nullable
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
@@ -35,7 +35,7 @@ class GlidesConverter(ABC):
 
     user = dy.Struct(
         {
-            "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}, nullable=True),
+            "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
             "badgeNumber": dy.String(nullable=True),
         },
         nullable=True,
@@ -47,22 +47,23 @@ class GlidesConverter(ABC):
         {
             "location": location,
             "author": user,
-            "inputType": dy.String(nullable=True),
+            "inputType": dy.String(),
             "inputTimestamp": dy.String(regex=RFC3339_DATE_REGEX + RFC3339_TIME_REGEX, nullable=True),
         }
     )
 
     trip_key = dy.Struct(
         {
-            "serviceDate": dy.String(nullable=True),
-            "tripId": dy.String(nullable=True),
+            "serviceDate": dy.String(),
+            "tripId": dy.String(),
             "startLocation": location,
             "endLocation": location,
-            "startTime": dy.String(nullable=True, regex=GTFS_TIME_REGEX),
-            "endTime": dy.String(nullable=True, regex=GTFS_TIME_REGEX),
-            "revenue": dy.String(nullable=True, regex=r"(non)?revenue"),
-            "glidesId": dy.String(nullable=True),
-        }
+            "startTime": dy.String(regex=GTFS_TIME_REGEX),
+            "endTime": dy.String(regex=GTFS_TIME_REGEX),
+            "revenue": dy.String(regex=r"(non)?revenue"),
+            "glidesId": dy.String(),
+        },
+        nullable=True,
     )
 
     class Record(dy.Schema):
@@ -182,7 +183,7 @@ class EditorChanges(GlidesConverter):
 
         data = dy.Struct(
             {
-                "metadata": GlidesConverter.metadata,
+                "metadata": with_nullable(GlidesConverter.metadata, True),
                 "changes": dy.List(
                     dy.Struct(
                         {
@@ -190,7 +191,8 @@ class EditorChanges(GlidesConverter):
                             "location": GlidesConverter.location,
                             "editor": GlidesConverter.user,
                         }
-                    )
+                    ),
+                    min_length=1,
                 ),
             }
         )
@@ -368,10 +370,11 @@ class VehicleTripAssignment(GlidesConverter):
                 "vehicleId": dy.String(),
                 "tripKey": dy.Struct(
                     {
-                        "serviceDate": dy.String(nullable=True),
-                        "tripId": dy.String(nullable=True),
-                        "scheduled": dy.String(nullable=True),
-                    }
+                        "serviceDate": dy.String(),
+                        "tripId": dy.String(),
+                        "scheduled": dy.String(),
+                    },
+                    nullable=True,
                 ),
             }
         )
