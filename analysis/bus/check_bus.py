@@ -169,6 +169,6 @@ print(df.height)
 #             if not isinstance(polars_df, pl.DataFrame):
 #                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-#             writer.write_table(apply_bus_analysis_conversions(polars_df))
+#             writer.write_table(apply_bus_analysis_conversions(polars_df).to_arrow())
 #         except Exception as exception:
 #             print(exception)

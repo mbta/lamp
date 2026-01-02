@@ -60,3 +60,24 @@ def test_next_leap_year_2028() -> None:
         "year=2028/month=3/day=1/2028-03-01T00:00:00.parquet",
         "year=2028/month=3/day=2/2028-03-02T00:00:00.parquet",
     ]
+
+
+def test_bus_events_format() -> None:
+    """
+    Ensure bus_events file dateformat string is correctly built by build_data_range_paths
+    """
+    bus_events_date_template = "{yy}{mm:02d}{dd:02d}.parquet"
+
+    out = build_data_range_paths(
+        bus_events_date_template, start_date=datetime(2028, 2, 26), end_date=datetime(2028, 3, 2)
+    )
+    print(out)
+
+    assert out == [
+        "20280226.parquet",
+        "20280227.parquet",
+        "20280228.parquet",
+        "20280229.parquet",
+        "20280301.parquet",
+        "20280302.parquet",
+    ]
