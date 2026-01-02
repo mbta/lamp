@@ -36,7 +36,7 @@ def write_batch(ds: pd.dataset, schema: pyarrow.schema) -> None:
             if not isinstance(polars_df, pl.DataFrame):
                 raise TypeError(f"Expected a Polars DataFrame or Series, but got {type(polars_df)}")
 
-            writer.write_table(apply_bus_analysis_conversions(polars_df))
+            writer.write_table(apply_bus_analysis_conversions(polars_df).to_arrow())
 
 
 def run_bus_events() -> None:
