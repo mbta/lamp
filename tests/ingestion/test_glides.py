@@ -35,7 +35,7 @@ from lamp_py.aws.kinesis import KinesisReader
 )
 def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter, num_rows: int = 5) -> None:
     """It returns datasets with the expected schema."""
-    converter.records = converter.Record.sample(
+    converter.records = converter.record_schema.sample(
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
@@ -47,9 +47,9 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
 
     table = pl.scan_pyarrow_dataset(converter.convert_records())
 
-    assert not converter.Table.validate(table).is_empty()
-    assert converter.Table.validate(table).select("id").unique().height == num_rows  # all records
-    assert set(converter.Table.column_names()) == set(table.collect_schema().names())  # no extra columns
+    assert not converter.table_schema.validate(table).is_empty()
+    assert converter.table_schema.validate(table).select("id").unique().height == num_rows  # all records
+    assert set(converter.table_schema.column_names()) == set(table.collect_schema().names())  # no extra columns
 
 
 @pytest.mark.parametrize(
@@ -77,7 +77,7 @@ def test_append_records(
     num_rows: int = 5,
 ) -> None:
     """It writes all records locally."""
-    converter.records = converter.Record.sample(
+    converter.records = converter.record_schema.sample(
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
@@ -117,7 +117,7 @@ def test_ingest_glides_events(
 ) -> None:
     """It routes events to correct converter and writes them to specified storage."""
     test_records = (
-        converter.Record.sample(  # generate test records
+        converter.record_schema.sample(  # generate test records
             num_rows=events_per_converter,
             generator=dy_gen,
             overrides={
