@@ -165,7 +165,7 @@ HyperBusOperatorFall2025 = FilteredHyperJob(
     dataframe_filter=None,
     parquet_filter=None,
     tableau_project_name=LAMP_API_PROJECT,
-    partition_template="",
+    partition_template="operator_map_pii_{yy}{mm:02d}{dd:02d}.parquet",
 )
 
 # light rail and heavy rail - Enum Types < 2 == 0, 1
