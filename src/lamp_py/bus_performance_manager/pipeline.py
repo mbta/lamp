@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-from datetime import date
 import logging
 import os
 import sched
