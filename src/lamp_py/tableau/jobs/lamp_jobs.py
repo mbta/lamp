@@ -122,7 +122,7 @@ HyperBusOperatorMappingRecent = FilteredHyperJob(
     dataframe_filter=None,
     parquet_filter=None,
     tableau_project_name=LAMP_API_PROJECT,
-    partition_template="",
+    partition_template="operator_map_pii_{yy}{mm:02d}{dd:02d}.parquet",
 )
 
 HyperBusOperatorMappingAll = FilteredHyperJob(
@@ -133,7 +133,7 @@ HyperBusOperatorMappingAll = FilteredHyperJob(
     dataframe_filter=None,
     parquet_filter=None,
     tableau_project_name=LAMP_API_PROJECT,
-    partition_template="",
+    partition_template="operator_map_pii_{yy}{mm:02d}{dd:02d}.parquet",
 )
 
 HyperBusFall2025 = FilteredHyperJob(
