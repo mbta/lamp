@@ -51,7 +51,7 @@ def main(args: argparse.Namespace) -> None:
         process_logger = ProcessLogger("event_loop")
         process_logger.log_start()
         try:
-            write_bus_metrics(start_date=date(2025, 1, 1))
+            write_bus_metrics()
             regenerate_bus_metrics_recent(num_days=bus_performance.BUS_ALL_NDAYS)  # just for backfill
             start_bus_parquet_updates()
             process_logger.log_complete()
