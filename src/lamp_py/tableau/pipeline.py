@@ -17,6 +17,8 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     HyperGtfsRtVehiclePositionsHeavyRail,
     HyperRtRailSubway,
     HyperRtRailCommuter,
+    HyperBusFall2025,
+    HyperBusOperatorFall2025,
 )
 from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
 from lamp_py.tableau.jobs.gtfs_rail import (
@@ -91,6 +93,8 @@ def start_hyper_updates() -> None:
         HyperGtfsRtVehiclePositionsHeavyRail,
         HyperGtfsRtTripUpdatesHeavyRail,
         HyperGtfsRtVehiclePositionsAllLightRail,
+        HyperBusFall2025,
+        HyperBusOperatorFall2025,
     ]
 
     for job in hyper_jobs:
@@ -138,6 +142,8 @@ def start_bus_parquet_updates() -> None:
         HyperBusOperatorMappingRecent,
         HyperBusPerformanceAll(),
         HyperBusOperatorMappingAll,
+        HyperBusFall2025,
+        HyperBusOperatorFall2025,
     ]
 
     for job in parquet_update_jobs:
