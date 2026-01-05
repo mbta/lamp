@@ -7,18 +7,15 @@ from datetime import date, datetime, timezone
 from io import BytesIO
 from threading import current_thread
 from typing import (
-    Any,
     Callable,
     Dict,
     IO,
-    Generator,
     Iterator,
     List,
     Optional,
     Union,
     cast,
 )
-from contextlib import contextmanager
 
 import boto3
 import botocore
@@ -32,7 +29,7 @@ import pyarrow.dataset as pd
 from pyarrow import Table, fs
 from pyarrow.util import guid
 
-from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.process_logger import ProcessLogger, override_log_level
 from lamp_py.utils.date_range_builder import build_data_range_paths
 
 
@@ -253,24 +250,6 @@ def get_zip_buffer(filename: str) -> IO[bytes]:
     zipped_file = s3_resource.Object(bucket_name=bucket, key=file)
 
     return BytesIO(zipped_file.get()["Body"].read())
-
-
-@contextmanager
-def override_log_level(set_log_level: int) -> Generator[None, Any, None]:
-    """
-    Context manager to temporarily suppress all logging to a certain level.
-    if set_log_level is logging.CRITICAL, all logging is suppressed
-    will always return to the originally set level upon exiting context
-    """
-    # Store the current state
-    previous_level = logging.root.manager.disable
-    try:
-        # Disables all logging at set_log_level or below
-        logging.disable(set_log_level)
-        yield
-    finally:
-        # Restore the previous state
-        logging.disable(previous_level)
 
 
 def file_list_from_s3(

@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import logging
 from pathlib import Path
 
@@ -5,7 +6,7 @@ import pytest
 import dataframely as dy
 import polars as pl
 from polars.testing import assert_frame_equal
-from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.process_logger import ProcessLogger, override_log_level
 from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.aws.ecs import running_in_aws
 
@@ -137,3 +138,44 @@ def test_0_errors(
     assert "invalid_records=0\n" in caplog.text
 
     assert_frame_equal(df1, valid)
+
+
+@pytest.mark.parametrize(
+    [
+        "level_adjustment",
+        "gets_logged",
+    ],
+    [
+        (+1, pytest.raises(IndexError)),
+        (-1, nullcontext()),
+    ],
+)
+@pytest.mark.parametrize(
+    [
+        "initial_level",
+    ],
+    [
+        (logging.INFO,),  # process logger level
+        (logging.WARNING,),
+        (logging.ERROR,),
+        (logging.CRITICAL,),
+        (logging.INFO,),
+        (logging.DEBUG,),
+    ],
+)
+def test_override_log_level(
+    initial_level: int, level_adjustment: int, gets_logged: pytest.RaisesExc, caplog: pytest.LogCaptureFixture
+) -> None:
+    """It prevents any logging messages above the specified level."""
+    # assert log level during context
+    # assert no logging messages at logging level
+    # assert some other logging messages
+    logger = logging.getLogger()
+    logger.setLevel(initial_level)
+    assert logger.level == initial_level
+
+    with override_log_level(initial_level + level_adjustment):
+        logger.log(initial_level, "foo")
+        with gets_logged:
+            assert caplog.record_tuples.pop()[2] == "foo"
+            assert caplog.record_tuples.pop()[1] == initial_level

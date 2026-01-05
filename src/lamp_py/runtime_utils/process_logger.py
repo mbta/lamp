@@ -4,9 +4,10 @@ import time
 import traceback
 import uuid
 import shutil
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Union, Optional, List
+from typing import Any, Dict, Union, Optional, List, Generator
 
 import dataframely as dy
 import psutil
@@ -190,6 +191,25 @@ class ProcessLogger:
             invalid.write_parquet(error_file)
 
         return valid
+
+
+@contextmanager
+def override_log_level(set_log_level: int) -> Generator[None, Any, None]:
+    """
+    Context manager to temporarily suppress all logging to a certain level.
+
+    if set_log_level is logging.CRITICAL, all logging is suppressed
+    will always return to the originally set level upon exiting context
+    """
+    # Store the current state
+    previous_level = logging.root.manager.disable
+    try:
+        # Disables all logging at set_log_level or below
+        logging.disable(set_log_level)
+        yield
+    finally:
+        # Restore the previous state
+        logging.disable(previous_level)
 
 
 def _get_validation_errors(invalid: dy.FailureInfo) -> list[ValidationError]:
