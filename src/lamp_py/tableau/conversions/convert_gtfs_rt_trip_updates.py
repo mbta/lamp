@@ -121,7 +121,7 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
         pl.col("trip_update.trip.revenue"),
         pl.col("trip_update.trip.schedule_relationship").ne("CANCELED"),
         pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
-        pl.col("trip_update.stop_time_update.departure.time").sub(pl.col("feed_timestamp")).dt.total_seconds().ge(1),
+        pl.col("trip_update.stop_time_update.departure.uncertainty").gt(0),  # remove early departure predictions
     )
     trip_updates = append_prediction_valid_duration(trip_updates)
     valid = LightRailTerminalTripUpdates.validate(trip_updates)
