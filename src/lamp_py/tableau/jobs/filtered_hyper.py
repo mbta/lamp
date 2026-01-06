@@ -125,7 +125,7 @@ class FilteredHyperJob(HyperJob):
         with pq.ParquetWriter(self.local_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
-                columns=[ col for col in ds.schema.names if col != "lamp_record_hash" ],
+                columns=[col for col in ds.schema.names if col != "lamp_record_hash"],
                 filter=self.parquet_filter,
                 batch_readahead=1,
                 fragment_readahead=0,
