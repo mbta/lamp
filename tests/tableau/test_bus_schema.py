@@ -16,5 +16,5 @@ def test_bus_parquet_convertible_to_bus_tableau_columns() -> None:
     # all columns in bus dataset should be in tableau dataset - just with type conversions
     assert set(sample.columns).difference(polars_df.columns) == excluded_columns
 
-    check = apply_bus_analysis_conversions(polars_df)
+    check = apply_bus_analysis_conversions(polars_df).to_arrow()
     assert check.schema == bus_df.schema
