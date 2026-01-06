@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 import os
-from datetime import datetime
+from datetime import datetime, UTC
 import tempfile
 from queue import Queue
 
 from abc import ABC, abstractmethod
+import dataframely as dy
 import polars as pl
 import pyarrow
 import pyarrow.dataset as pd
@@ -15,56 +16,183 @@ from dateutil.relativedelta import relativedelta
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
+from lamp_py.utils.dataframely import unnest_columns, with_nullable
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
     S3_SPRINGBOARD,
 )
 
+GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be greater than 24 hours
 
-class GlidesConverter(ABC):
+user = dy.Struct(
+    {
+        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
+        "badgeNumber": dy.String(nullable=True),
+    },
+    nullable=True,
+)
+
+location = dy.Struct({"gtfsId": dy.String(nullable=True), "todsId": dy.String(nullable=True)})
+
+metadata = dy.Struct(
+    {
+        "location": location,
+        "author": user,
+        "inputType": dy.String(),
+        "inputTimestamp": dy.Datetime(nullable=True, time_zone=UTC),
+    }
+)
+
+trip_key = dy.Struct(
+    {
+        "serviceDate": dy.Date(),
+        "tripId": dy.String(),
+        "startLocation": location,
+        "endLocation": location,
+        "startTime": dy.String(regex=GTFS_TIME_REGEX),
+        "endTime": dy.String(regex=GTFS_TIME_REGEX),
+        "revenue": dy.String(regex=r"(non)?revenue"),
+        "glidesId": dy.String(),
+    },
+    nullable=True,
+)
+
+
+class GlidesRecord(dy.Schema):
+    """Base schema for all Glides records."""
+
+    id = dy.String()
+    type = dy.String()
+    time = dy.Datetime(time_unit="ms")  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
+    source = dy.String()
+    specversion = dy.String()
+    dataschema = dy.String(nullable=True)
+
+
+class EditorChangesRecord(GlidesRecord):
+    """Edits made by one inspector session."""
+
+    data = dy.Struct(
+        {
+            "metadata": with_nullable(metadata, True),
+            "changes": dy.List(
+                dy.Struct(
+                    {
+                        "type": dy.String(regex=r"start|stop"),
+                        "location": location,
+                        "editor": user,
+                    }
+                ),
+                min_length=1,
+            ),
+        }
+    )
+
+
+class OperatorSignInsRecord(GlidesRecord):
+    """Operator confirmations of fitness for duty."""
+
+    data = dy.Struct(
+        {
+            "metadata": metadata,
+            "operator": dy.Struct({"badgeNumber": dy.String()}),
+            "signedInAt": dy.Datetime(nullable=True, time_zone=UTC),
+            "signature": dy.Struct({"type": dy.String(), "version": dy.Int16()}),
+        }
+    )
+
+
+class TripUpdatesRecord(GlidesRecord):
+    """New information about trips, such as operator assignments or dropped trips."""
+
+    data = dy.Struct(
+        {
+            "metadata": metadata,
+            "tripUpdates": dy.List(
+                dy.Struct(
+                    {
+                        "previousTripKey": trip_key,
+                        "type": dy.String(),
+                        "tripKey": trip_key,
+                        "comment": dy.String(nullable=True),
+                        "startLocation": location,
+                        "endLocation": location,
+                        "startTime": dy.String(nullable=True),  # can be "unset" string :(
+                        "endTime": dy.String(nullable=True),  # can be "unset" string :(
+                        "cars": dy.String(nullable=True),  # an array of objects
+                        "revenue": dy.String(nullable=True),
+                        "dropped": dy.String(nullable=True),
+                        "scheduled": dy.String(),  # an object with an array of objects
+                    }
+                )
+            ),
+        }
+    )
+
+
+class VehicleTripAssignmentRecord(GlidesRecord):
+    """Which vehicle is operating each trip at the current moment."""
+
+    data = dy.Struct(
+        {
+            "vehicleId": dy.String(),
+            "tripKey": dy.Struct(
+                {
+                    "serviceDate": dy.Date(),
+                    "tripId": dy.String(),
+                    "scheduled": dy.String(),
+                },
+                nullable=True,
+            ),
+        }
+    )
+
+
+EditorChangesTable: Type[GlidesRecord] = type(
+    "EditorChangesTable", (GlidesRecord,), unnest_columns({"data": EditorChangesRecord.data})
+)
+
+OperatorSignInsTable: Type[GlidesRecord] = type(
+    "OperatorSignInsTable", (GlidesRecord,), unnest_columns({"data": OperatorSignInsRecord.data})
+)
+
+TripUpdatesTable: Type[GlidesRecord] = type(
+    "TripUpdatesTable", (GlidesRecord,), unnest_columns({"data": TripUpdatesRecord.data})
+)
+
+VehicleTripAssignmentTable: Type[GlidesRecord] = type(
+    "VehicleTripAssignmentTable", (GlidesRecord,), unnest_columns({"data": VehicleTripAssignmentRecord.data})
+)
+
+
+class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
     """
     Abstract Base Class for Archiving Glides Events
     """
 
-    glides_user = pyarrow.struct(
-        [
-            ("emailAddress", pyarrow.string()),
-            ("badgeNumber", pyarrow.string()),
-        ]
-    )
-
-    glides_location = pyarrow.struct(
-        [
-            ("gtfsId", pyarrow.string()),
-            ("todsId", pyarrow.string()),
-        ]
-    )
-
-    glides_metadata = pyarrow.struct(
-        [
-            ("location", glides_location),
-            ("author", glides_user),
-            ("inputType", pyarrow.string()),
-            ("inputTimestamp", pyarrow.string()),
-        ]
-    )
-
-    def __init__(self, base_filename: str) -> None:
+    def __init__(self, base_filename: str, record_schema: Type[GlidesRecord], table_schema: Type[GlidesRecord]) -> None:
         self.tmp_dir = "/tmp"
         self.base_filename = base_filename
         self.type = self.base_filename.replace(".parquet", "")
         self.local_path = os.path.join(self.tmp_dir, self.base_filename)
         self.remote_path = f"s3://{S3_SPRINGBOARD}/{LAMP}/GLIDES/{base_filename}"
+        self.record_schema = record_schema
+        self.table_schema = table_schema
 
         self.records: List[Dict] = []
 
         self.download_remote()
 
     @property
-    @abstractmethod
-    def event_schema(self) -> pyarrow.schema:
-        """Schema for incoming events before flattening"""
+    def get_event_schema(self) -> pyarrow.schema:
+        """Pyarrow schema for incoming events before flattening"""
+        return self.record_schema.to_pyarrow_schema()
+
+    @property
+    def get_table_schema(self) -> pyarrow.schema:
+        """Pyarrow schema for springboard-ready datasets after flattening."""
+        return self.table_schema.to_pyarrow_schema()
 
     @property
     @abstractmethod
@@ -89,9 +217,11 @@ class GlidesConverter(ABC):
 
         new_dataset = self.convert_records()
 
-        joined_ds = new_dataset
         if os.path.exists(self.local_path):
-            joined_ds = pd.dataset([new_dataset, pd.dataset(self.local_path)])
+            remote_records = pd.dataset(self.local_path, schema=self.get_table_schema)
+            joined_ds = pd.dataset([new_dataset, remote_records])
+        else:
+            joined_ds = new_dataset
 
         process_logger.add_metadata(
             new_records=new_dataset.count_rows(),
@@ -105,7 +235,7 @@ class GlidesConverter(ABC):
 
             new_path = os.path.join(tmp_dir, self.base_filename)
             row_group_count = 0
-            with pq.ParquetWriter(new_path, schema=joined_ds.schema) as writer:
+            with pq.ParquetWriter(new_path, schema=self.get_table_schema) as writer:
                 while start < now:
                     end = start + relativedelta(months=1)
                     if end < now:
@@ -118,7 +248,7 @@ class GlidesConverter(ABC):
 
                     if not row_group.is_empty():
                         unique_table = (
-                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(new_dataset.schema)
+                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(self.get_table_schema)
                         )
 
                         row_group_count += 1
@@ -129,9 +259,11 @@ class GlidesConverter(ABC):
             os.replace(new_path, self.local_path)
             process_logger.add_metadata(row_group_count=row_group_count)
 
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
-
         process_logger.log_complete()
+
+    def upload_records(self) -> None:
+        """Upload local parquet file to remote storage."""
+        upload_file(file_name=self.local_path, object_path=self.remote_path)
 
 
 class EditorChanges(GlidesConverter):
@@ -141,42 +273,11 @@ class EditorChanges(GlidesConverter):
     """
 
     def __init__(self) -> None:
-        GlidesConverter.__init__(self, base_filename="editor_changes.parquet")
-
-    @property
-    def event_schema(self) -> pyarrow.schema:
-        """
-        Editor Changes Schema is the base Kinesis data plus metadata plus a
-        list of changes objects.
-        """
-        glides_editor_change = pyarrow.struct(
-            [
-                ("type", pyarrow.string()),
-                ("location", self.glides_location),
-                ("editor", self.glides_user),
-            ]
-        )
-
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        return pyarrow.schema(
-            [
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("metadata", self.glides_metadata),
-                            ("changes", pyarrow.list_(glides_editor_change)),
-                        ]
-                    ),
-                ),
-                ("id", pyarrow.string()),
-                ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                ("source", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("dataschema", pyarrow.string()),
-            ]
+        GlidesConverter.__init__(
+            self,
+            base_filename="editor_changes.parquet",
+            record_schema=EditorChangesRecord,
+            table_schema=EditorChangesTable,
         )
 
     @property
@@ -187,7 +288,7 @@ class EditorChanges(GlidesConverter):
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
 
-        editors_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
+        editors_table = pyarrow.Table.from_pylist(self.records, schema=self.get_event_schema)
         editors_table = flatten_table_schema(editors_table)
         editors_table = explode_table_column(editors_table, "data.changes")
         editors_table = flatten_table_schema(editors_table)
@@ -204,44 +305,11 @@ class OperatorSignIns(GlidesConverter):
     """
 
     def __init__(self) -> None:
-        GlidesConverter.__init__(self, base_filename="operator_sign_ins.parquet")
-
-    @property
-    def event_schema(self) -> pyarrow.schema:
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        return pyarrow.schema(
-            [
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("metadata", self.glides_metadata),
-                            (
-                                "operator",
-                                pyarrow.struct([("badgeNumber", pyarrow.string())]),
-                            ),
-                            # a timestamp but it needs reformatting for pyarrow
-                            ("signedInAt", pyarrow.string()),
-                            (
-                                "signature",
-                                pyarrow.struct(
-                                    [
-                                        ("type", pyarrow.string()),
-                                        ("version", pyarrow.int16()),
-                                    ]
-                                ),
-                            ),
-                        ]
-                    ),
-                ),
-                ("id", pyarrow.string()),
-                ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                ("source", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("dataschema", pyarrow.string()),
-            ]
+        GlidesConverter.__init__(
+            self,
+            base_filename="operator_sign_ins.parquet",
+            record_schema=OperatorSignInsRecord,
+            table_schema=OperatorSignInsTable,
         )
 
     @property
@@ -251,7 +319,7 @@ class OperatorSignIns(GlidesConverter):
     def convert_records(self) -> pd.Dataset:
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
-        osi_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
+        osi_table = pyarrow.Table.from_pylist(self.records, schema=self.get_event_schema)
         osi_table = flatten_table_schema(osi_table)
         osi_dataset = pd.dataset(osi_table)
 
@@ -266,64 +334,8 @@ class TripUpdates(GlidesConverter):
     """
 
     def __init__(self) -> None:
-        GlidesConverter.__init__(self, base_filename="trip_updates.parquet")
-
-    @property
-    def event_schema(self) -> pyarrow.schema:
-        glides_trip_key = pyarrow.struct(
-            [
-                ("serviceDate", pyarrow.string()),
-                ("tripId", pyarrow.string()),
-                ("startLocation", self.glides_location),
-                ("endLocation", self.glides_location),
-                ("startTime", pyarrow.string()),
-                ("endTime", pyarrow.string()),
-                ("revenue", pyarrow.string()),
-                ("glidesId", pyarrow.string()),
-            ]
-        )
-
-        glides_trip_update = pyarrow.struct(
-            [
-                ("previousTripKey", glides_trip_key),
-                ("type", pyarrow.string()),
-                ("tripKey", glides_trip_key),
-                ("comment", pyarrow.string()),
-                ("startLocation", self.glides_location),
-                ("endLocation", self.glides_location),
-                # can be "unset" string :(
-                ("startTime", pyarrow.string()),
-                # can be "unset" string :(
-                ("endTime", pyarrow.string()),
-                # an array of objects
-                ("cars", pyarrow.string()),
-                ("revenue", pyarrow.string()),
-                ("dropped", pyarrow.string()),
-                # an object with an array of objects
-                ("scheduled", pyarrow.string()),
-            ]
-        )
-
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        return pyarrow.schema(
-            [
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("metadata", self.glides_metadata),
-                            ("tripUpdates", pyarrow.list_(glides_trip_update)),
-                        ]
-                    ),
-                ),
-                ("id", pyarrow.string()),
-                ("type", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                ("source", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("dataschema", pyarrow.string()),
-            ]
+        GlidesConverter.__init__(
+            self, base_filename="trip_updates.parquet", record_schema=TripUpdatesRecord, table_schema=TripUpdatesTable
         )
 
     @property
@@ -352,7 +364,7 @@ class TripUpdates(GlidesConverter):
         process_logger.log_start()
 
         modified_records = [flatten_multitypes(r) for r in self.records]
-        tu_table = pyarrow.Table.from_pylist(modified_records, schema=self.event_schema)
+        tu_table = pyarrow.Table.from_pylist(modified_records, schema=self.get_event_schema)
         tu_table = flatten_table_schema(tu_table)
         tu_table = explode_table_column(tu_table, "data.tripUpdates")
         tu_table = flatten_table_schema(tu_table)
@@ -369,37 +381,11 @@ class VehicleTripAssignment(GlidesConverter):
     """
 
     def __init__(self) -> None:
-        GlidesConverter.__init__(self, base_filename="vehicle_trip_assignment.parquet")
-
-    @property
-    def event_schema(self) -> pyarrow.schema:
-        # NOTE: These tables will eventually be uniqued via polars, which will
-        # not work if any of the types in the schema are objects.
-        glides_trip_key = pyarrow.struct(
-            [
-                ("serviceDate", pyarrow.string()),
-                ("tripId", pyarrow.string()),
-                ("scheduled", pyarrow.string()),
-            ]
-        )
-
-        return pyarrow.schema(
-            [
-                ("type", pyarrow.string()),
-                ("specversion", pyarrow.string()),
-                ("source", pyarrow.string()),
-                ("id", pyarrow.string()),
-                ("time", pyarrow.timestamp("ms")),
-                (
-                    "data",
-                    pyarrow.struct(
-                        [
-                            ("vehicleId", pyarrow.string()),
-                            ("tripKey", glides_trip_key),
-                        ]
-                    ),
-                ),
-            ]
+        GlidesConverter.__init__(
+            self,
+            base_filename="vehicle_trip_assignment.parquet",
+            record_schema=VehicleTripAssignmentRecord,
+            table_schema=VehicleTripAssignmentTable,
         )
 
     @property
@@ -410,7 +396,7 @@ class VehicleTripAssignment(GlidesConverter):
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
 
-        tu_table = pyarrow.Table.from_pylist(self.records, schema=self.event_schema)
+        tu_table = pyarrow.Table.from_pylist(self.records, schema=self.get_event_schema)
         tu_table = flatten_table_schema(tu_table)
         tu_dataset = pd.dataset(tu_table)
 
@@ -418,7 +404,9 @@ class VehicleTripAssignment(GlidesConverter):
         return tu_dataset
 
 
-def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]]) -> None:
+def ingest_glides_events(
+    kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]], upload: bool = False
+) -> None:
     """
     ingest glides records from the kinesis stream and add them to parquet files
     """
@@ -451,6 +439,8 @@ def ingest_glides_events(kinesis_reader: KinesisReader, metadata_queue: Queue[Op
 
         for converter in converters:
             converter.append_records()
+            if upload:
+                converter.upload_records()
             metadata_queue.put(converter.remote_path)
 
     except Exception as e:
