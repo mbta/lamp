@@ -145,7 +145,7 @@ class VehicleTripAssignmentRecord(GlidesRecord):
             "vehicleId": dy.String(),
             "tripKey": dy.Struct(
                 {
-                    "serviceDate": dy.String(regex = RFC3339_DATE_REGEX),
+                    "serviceDate": dy.String(regex=RFC3339_DATE_REGEX),
                     "tripId": dy.String(),
                     "scheduled": dy.String(),
                 },
