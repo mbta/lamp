@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Type
 import os
-from datetime import datetime, UTC
+from datetime import datetime
 import tempfile
 from queue import Queue
 
@@ -23,6 +23,8 @@ from lamp_py.runtime_utils.remote_files import (
     S3_SPRINGBOARD,
 )
 
+RFC3339_DATE_REGEX = r"^20(?:([1-3][0-9]-[0-1][0-9]-[0-3][0-9]))"  # up to 2039-19-39
+RFC3339_DATETIME_REGEX = RFC3339_DATE_REGEX + r"T([0-2][0-9]:[0-5][0-9]:[0-5][0-9](?:\.\d+)?)(Z|[\+-]\d{2}:\d{2})?$"
 GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be greater than 24 hours
 
 user = dy.Struct(
@@ -40,13 +42,13 @@ metadata = dy.Struct(
         "location": location,
         "author": user,
         "inputType": dy.String(),
-        "inputTimestamp": dy.Datetime(nullable=True, time_zone=UTC),
+        "inputTimestamp": dy.String(nullable=True, regex=RFC3339_DATETIME_REGEX),  # coercable to datetime
     }
 )
 
 trip_key = dy.Struct(
     {
-        "serviceDate": dy.Date(),
+        "serviceDate": dy.String(regex=RFC3339_DATE_REGEX),
         "tripId": dy.String(),
         "startLocation": location,
         "endLocation": location,
@@ -64,7 +66,9 @@ class GlidesRecord(dy.Schema):
 
     id = dy.String()
     type = dy.String()
-    time = dy.Datetime(time_unit="ms")  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
+    time = dy.Datetime(  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
+        min=datetime(2024, 1, 1), max=datetime(2039, 12, 31)  # within Python's serializable range
+    )
     source = dy.String()
     specversion = dy.String()
     dataschema = dy.String(nullable=True)
@@ -97,7 +101,9 @@ class OperatorSignInsRecord(GlidesRecord):
         {
             "metadata": metadata,
             "operator": dy.Struct({"badgeNumber": dy.String()}),
-            "signedInAt": dy.Datetime(nullable=True, time_zone=UTC),
+            "signedInAt": dy.String(
+                nullable=True, regex=RFC3339_DATETIME_REGEX
+            ),  # a string coercable to a UTC datetime
             "signature": dy.Struct({"type": dy.String(), "version": dy.Int16()}),
         }
     )
@@ -139,7 +145,7 @@ class VehicleTripAssignmentRecord(GlidesRecord):
             "vehicleId": dy.String(),
             "tripKey": dy.Struct(
                 {
-                    "serviceDate": dy.Date(),
+                    "serviceDate": dy.String(regex=RFC3339_DATE_REGEX),
                     "tripId": dy.String(),
                     "scheduled": dy.String(),
                 },
