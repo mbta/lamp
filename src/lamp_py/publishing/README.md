@@ -28,37 +28,43 @@ LIMIT 10
 
 ## Configuration
 
-First, [install DuckDB](https://duckdb.org/install/).
-
-Next, choose a DuckDB interface. As a default, stick with the included
+First, pick a DuckDB interface. As a default, stick with the included
 [DuckDB UI](https://duckdb.org/docs/stable/core_extensions/ui) for a
 minimal notebook. Other options are abundant but a few stand out:
 
 - [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview.html)
   for maximum extensibility
-- [marimo](https://duckdb.org/docs/stable/guides/python/marimo) for a shiny notebook experience
-- [DBeaver](https://duckdb.org/docs/stable/guides/sql_editors/dbeaver) if you want the feel of an old SQL
+- [DuckDB shell](https://shell.duckdb.org/) for a browser-based
+  experience
+- [marimo](https://marimo.io/) for a shiny notebook experience
+- [DBeaver](https://dbeaver.io/) if you want the feel of an old SQL
   editor
 
-(This document uses
-[Quarto](https://quarto.org/), a notebook-like interface that can output many formats, such as websites, presentations, and PDFs.)
+(This document is rendered by R’s `duckdb` library and
+[Quarto](https://quarto.org/), which provides options for different
+outputs like websites, presentations, and PDFs.)
 
-To access the s3 buckets that hold LAMP data, you need to authenticate
-using your IAM account, which DuckDB supports natively via the DuckDB
-`aws` extension.
+To access the s3 buckets that hold LAMP data:
+
+1.  Configure DuckDB to use your AWS credentials, which it supports
+    natively thorugh the `aws` extension.
 
 ``` sql
 INSTALL aws;
 ```
 
-I have already [authenticated using
-`awscli`](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods)
-so I can tell DuckDB to use those credentials. If you want to directly
-use an access key or set up a different authentication method, look at
-[DuckDB’s
-docs](https://duckdb.org/docs/stable/core_extensions/aws.html). Since
-DuckDB doesn’t persist credentials between sessions, you’ll need to
-**run these next lines each time you start a DuckDB session**.
+2.  If you don’t have AWS credentials, [create an access
+    key](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-key-self-managed.html#Using_CreateAccessKey)
+    (against Amazon’s advice).
+3.  Connect DuckDB to those credentials either [using
+    `awscli`](https://docs.aws.amazon.com/cli/v1/reference/configure/#examples)
+    (recommended if you can install `awscli`) or by [setting environment
+    variables](https://duckdb.org/docs/stable/core_extensions/httpfs/s3api_legacy_authentication#legacy-authentication-scheme).
+    Our region is `us-east-1`. [DuckDB’s
+    docs](https://duckdb.org/docs/stable/core_extensions/aws.html) spell
+    out even more authentication options but these are the easiest.
+4.  Since DuckDB doesn’t automatically load credentials, **run these
+    next lines each time you start a DuckDB session**.
 
 ``` sql
 LOAD aws;
@@ -74,14 +80,13 @@ CREATE OR REPLACE SECRET secret (
 
 1 records
 
-Once authenticated, attach the Lightswitch data catalog. This is a
-DuckDB database that only holds views of LAMP Parquet URIs. For
-instance, the view for `RT_VEHICLE_POSITIONS` contains logic that lists
-the URLs for each `RT_VEHICLE_POSITIONS` file in LAMP’s springboard
-bucket.
+5.  Attach the Lightswitch data catalog. This is a DuckDB database that
+    only holds views of LAMP Parquet URIs. For instance, the view for
+    `RT_VEHICLE_POSITIONS` contains logic that lists the URLs for each
+    `RT_VEHICLE_POSITIONS` file in LAMP’s springboard bucket.
 
 ``` sql
-ATTACH 's3://mbta-ctd-dataplatform-archive/lamp/catalog.db' AS lamp
+ATTACH 's3://mbta-ctd-dataplatform-staging-archive/lamp/catalog.db' AS lamp
 ```
 
 And that’s it! You’re all set up.
