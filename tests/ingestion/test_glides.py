@@ -38,6 +38,11 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
     converter.records = converter.record_schema.sample(
         num_rows=num_rows,
         generator=dy_gen,
+        overrides={
+            "time": dy_gen.sample_datetime(
+                num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
+            ).cast(pl.Datetime(time_unit="ms"))
+        },
     ).to_dicts()
 
     table = pl.scan_pyarrow_dataset(converter.convert_records())
@@ -131,6 +136,11 @@ def test_ingest_glides_events(
         converter.record_schema.sample(  # generate test records
             num_rows=events_per_converter,
             generator=dy_gen,
+            overrides={
+                "time": dy_gen.sample_datetime(
+                    events_per_converter, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
+                ).cast(pl.Datetime(time_unit="ms"))
+            },
         )
         .with_columns(
             time=pl.col("time").dt.strftime("%Y-%m-%dT%H:%M:%SZ")
