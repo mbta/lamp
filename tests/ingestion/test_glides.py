@@ -1,3 +1,4 @@
+from datetime import datetime
 from os import remove
 from pathlib import Path
 from queue import Queue
@@ -7,7 +8,7 @@ from pytest_mock import MockerFixture
 import dataframely as dy
 import pytest
 import polars as pl
-from polars.testing import assert_frame_equal
+import pyarrow.parquet as pq
 
 from lamp_py.ingestion.glides import (
     GlidesConverter,
@@ -48,8 +49,13 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
 
 @pytest.mark.parametrize(
     ["column_transformations"],
-    [({},), ({"id": pl.col("id")},), ({"new_col": pl.lit(1)},)],
-    ids=["no-remote-records", "same-schema", "dropped-column"],
+    [
+        ({},),
+        ({"id": pl.col("id")},),
+        ({"new_col": pl.lit(1)},),
+        ({"time": pl.col("time").cast(pl.Datetime(time_unit="us")).dt.offset_by("1us")},),
+    ],
+    ids=["no-remote-records", "same-schema", "dropped-column", "truncated-timestamp"],
 )
 @pytest.mark.parametrize(
     [
@@ -67,26 +73,42 @@ def test_append_records(
     dy_gen: dy.random.Generator,
     converter: GlidesConverter,
     tmp_path: Path,
-    column_transformations: dict,
+    column_transformations: dict[str, pl.Expr],
     num_rows: int = 5,
 ) -> None:
-    """It writes all records locally."""
+    """It writes all records locally using the table schema."""
     converter.records = converter.record_schema.sample(
         num_rows=num_rows,
         generator=dy_gen,
+        overrides={
+            "time": dy_gen.sample_datetime(
+                num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
+            ).cast(pl.Datetime(time_unit="ms"))
+        },
     ).to_dicts()
 
     converter.local_path = tmp_path.joinpath(converter.base_filename).as_posix()
 
-    expectation = pl.scan_pyarrow_dataset(converter.convert_records()).collect()
+    expectation = converter.convert_records()
 
+    remote_records_height = 0
     if column_transformations:
-        remote_records = expectation.with_columns(**column_transformations)
+        remote_records = converter.table_schema.sample(
+            num_rows,
+            generator=dy_gen,
+            overrides={
+                "time": dy_gen.sample_datetime(
+                    num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
+                ).cast(pl.Datetime(time_unit="ms"))
+            },
+        ).with_columns(**column_transformations)
         remote_records.write_parquet(converter.local_path)
+        remote_records_height = remote_records.height
 
     converter.append_records()
 
-    assert_frame_equal(expectation, pl.read_parquet(converter.local_path), check_row_order=False)
+    assert pq.read_schema(converter.local_path) == converter.get_table_schema
+    assert pq.read_metadata(converter.local_path).num_rows == expectation.count_rows() + remote_records_height
 
 
 @pytest.mark.parametrize(

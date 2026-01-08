@@ -67,7 +67,7 @@ class GlidesRecord(dy.Schema):
     id = dy.String()
     type = dy.String()
     time = dy.Datetime(  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
-        min=datetime(2024, 1, 1), max=datetime(2039, 12, 31)  # within Python's serializable range
+        min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="ms"  # within Python's serializable range
     )
     source = dy.String()
     specversion = dy.String()
