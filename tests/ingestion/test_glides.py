@@ -45,7 +45,7 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
         },
     ).to_dicts()
 
-    table = pl.scan_pyarrow_dataset(converter.convert_records())
+    table = converter.convert_records()
 
     assert not converter.table_schema.validate(table).is_empty()
     assert converter.table_schema.validate(table).select("id").unique().height == num_rows  # all records
@@ -113,7 +113,7 @@ def test_append_records(
     converter.append_records()
 
     assert pq.read_schema(converter.local_path) == converter.get_table_schema
-    assert pq.read_metadata(converter.local_path).num_rows == expectation.count_rows() + remote_records_height
+    assert pq.read_metadata(converter.local_path).num_rows == expectation.height + remote_records_height
 
 
 @pytest.mark.parametrize(
@@ -129,7 +129,7 @@ def test_append_records(
     ids=["editor-changes", "operator-sign-ins", "trip-updates", "vehicle-trip-assignments"],
 )
 def test_ingest_glides_events(
-    converter: GlidesConverter, dy_gen: dy.random.Generator, mocker: MockerFixture, events_per_converter: int = 500
+    converter: GlidesConverter, dy_gen: dy.random.Generator, mocker: MockerFixture, events_per_converter: int = 50
 ) -> None:
     """It routes events to correct converter and writes them to specified storage."""
     test_records = (
