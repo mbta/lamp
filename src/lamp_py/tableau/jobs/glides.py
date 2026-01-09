@@ -128,7 +128,7 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
                 # pl.col("data.tripUpdates.endTime").str.to_time("%H:%M:%S", strict=False),
             )
 
-            writer.write_table(polars_df.to_arrow())
+            writer.write_table(polars_df.select(job.output_processed_schema.names).to_arrow())
 
 
 def create_operator_signed_in_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
@@ -166,7 +166,7 @@ def create_operator_signed_in_glides_parquet(job: HyperJob, num_files: Optional[
                 pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
             )
 
-            writer.write_table(polars_df.to_arrow())
+            writer.write_table(polars_df.select(job.output_processed_schema.names).to_arrow())
 
 
 class HyperGlidesTripUpdates(HyperJob):

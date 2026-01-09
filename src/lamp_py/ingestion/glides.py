@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Type
 import os
-from datetime import datetime, UTC
+from datetime import datetime
 import tempfile
 from queue import Queue
 
@@ -8,10 +8,7 @@ from abc import ABC, abstractmethod
 import dataframely as dy
 import polars as pl
 import pyarrow
-import pyarrow.dataset as pd
 import pyarrow.parquet as pq
-import pyarrow.compute as pc
-from dateutil.relativedelta import relativedelta
 
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
@@ -23,6 +20,8 @@ from lamp_py.runtime_utils.remote_files import (
     S3_SPRINGBOARD,
 )
 
+RFC3339_DATE_REGEX = r"^20(?:([1-3][0-9]-[0-1][0-9]-[0-3][0-9]))"  # up to 2039-19-39
+RFC3339_DATETIME_REGEX = RFC3339_DATE_REGEX + r"[T ]([0-2][0-9]:[0-5][0-9]:[0-5][0-9](?:\.\d+)?)(Z|[\+-]\d{2}:\d{2})?$"
 GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be greater than 24 hours
 
 user = dy.Struct(
@@ -40,13 +39,13 @@ metadata = dy.Struct(
         "location": location,
         "author": user,
         "inputType": dy.String(),
-        "inputTimestamp": dy.Datetime(nullable=True, time_zone=UTC),
+        "inputTimestamp": dy.String(nullable=True, regex=RFC3339_DATETIME_REGEX),  # coercable to datetime
     }
 )
 
 trip_key = dy.Struct(
     {
-        "serviceDate": dy.Date(),
+        "serviceDate": dy.String(regex=RFC3339_DATE_REGEX),
         "tripId": dy.String(),
         "startLocation": location,
         "endLocation": location,
@@ -64,7 +63,9 @@ class GlidesRecord(dy.Schema):
 
     id = dy.String()
     type = dy.String()
-    time = dy.Datetime(time_unit="ms")  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
+    time = dy.Datetime(  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
+        min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="ms"  # within Python's serializable range
+    )
     source = dy.String()
     specversion = dy.String()
     dataschema = dy.String(nullable=True)
@@ -97,7 +98,9 @@ class OperatorSignInsRecord(GlidesRecord):
         {
             "metadata": metadata,
             "operator": dy.Struct({"badgeNumber": dy.String()}),
-            "signedInAt": dy.Datetime(nullable=True, time_zone=UTC),
+            "signedInAt": dy.String(
+                nullable=True, regex=RFC3339_DATETIME_REGEX
+            ),  # a string coercable to a UTC datetime
             "signature": dy.Struct({"type": dy.String(), "version": dy.Int16()}),
         }
     )
@@ -139,7 +142,7 @@ class VehicleTripAssignmentRecord(GlidesRecord):
             "vehicleId": dy.String(),
             "tripKey": dy.Struct(
                 {
-                    "serviceDate": dy.Date(),
+                    "serviceDate": dy.String(regex=RFC3339_DATE_REGEX),
                     "tripId": dy.String(),
                     "scheduled": dy.String(),
                 },
@@ -207,7 +210,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         download_file(object_path=self.remote_path, file_name=self.local_path)
 
     @abstractmethod
-    def convert_records(self) -> pd.Dataset:
+    def convert_records(self) -> dy.DataFrame[GlidesRecord]:
         """Convert incoming records into a flattened table of records"""
 
     def append_records(self) -> None:
@@ -215,49 +218,28 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         process_logger = ProcessLogger(process_name="append_glides_records", type=self.type)
         process_logger.log_start()
 
-        new_dataset = self.convert_records()
+        new_dataset = self.convert_records().lazy()
 
         if os.path.exists(self.local_path):
-            remote_records = pd.dataset(self.local_path, schema=self.get_table_schema)
-            joined_ds = pd.dataset([new_dataset, remote_records])
+            remote_records = self.table_schema.scan_parquet(self.local_path, validation="allow")
+            joined_ds = pl.union([new_dataset, remote_records])
         else:
             joined_ds = new_dataset
 
         process_logger.add_metadata(
-            new_records=new_dataset.count_rows(),
-            total_records=joined_ds.count_rows(),
+            new_records=new_dataset.select("time").count().collect().item(),
+            total_records=joined_ds.select("time").count().collect().item(),
         )
-
-        now = datetime.now()
-        start = datetime(2024, 1, 1)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
 
             new_path = os.path.join(tmp_dir, self.base_filename)
-            row_group_count = 0
-            with pq.ParquetWriter(new_path, schema=self.get_table_schema) as writer:
-                while start < now:
-                    end = start + relativedelta(months=1)
-                    if end < now:
-                        row_group = pl.DataFrame(
-                            joined_ds.filter((pc.field("time") >= start) & (pc.field("time") < end)).to_table()
-                        )
-
-                    else:
-                        row_group = pl.DataFrame(joined_ds.filter((pc.field("time") >= start)).to_table())
-
-                    if not row_group.is_empty():
-                        unique_table = (
-                            row_group.unique(keep="first").sort(by=["time"]).to_arrow().cast(self.get_table_schema)
-                        )
-
-                        row_group_count += 1
-                        writer.write_table(unique_table)
-
-                    start = end
-
-            os.replace(new_path, self.local_path)
-            process_logger.add_metadata(row_group_count=row_group_count)
+            sorted_ds = joined_ds.unique().sort("time")
+            valid = process_logger.log_dataframely_filter_results(*self.table_schema.filter(sorted_ds))
+            if not valid.is_empty():
+                pq.write_table(valid.to_arrow().cast(self.get_table_schema), new_path)
+                os.replace(new_path, self.local_path)
+                process_logger.add_metadata(row_count=pq.read_metadata(self.local_path).num_rows)
 
         process_logger.log_complete()
 
@@ -284,7 +266,7 @@ class EditorChanges(GlidesConverter):
     def unique_key(self) -> str:
         return "changes"
 
-    def convert_records(self) -> pd.Dataset:
+    def convert_records(self) -> dy.DataFrame[GlidesRecord]:
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
 
@@ -292,7 +274,9 @@ class EditorChanges(GlidesConverter):
         editors_table = flatten_table_schema(editors_table)
         editors_table = explode_table_column(editors_table, "data.changes")
         editors_table = flatten_table_schema(editors_table)
-        editors_dataset = pd.dataset(editors_table)
+        editors_dataset = process_logger.log_dataframely_filter_results(
+            *EditorChangesTable.filter(pl.DataFrame(editors_table))
+        )
 
         process_logger.log_complete()
         return editors_dataset
@@ -316,12 +300,14 @@ class OperatorSignIns(GlidesConverter):
     def unique_key(self) -> str:
         return "operator"
 
-    def convert_records(self) -> pd.Dataset:
+    def convert_records(self) -> dy.DataFrame[GlidesRecord]:
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
         osi_table = pyarrow.Table.from_pylist(self.records, schema=self.get_event_schema)
         osi_table = flatten_table_schema(osi_table)
-        osi_dataset = pd.dataset(osi_table)
+        osi_dataset = process_logger.log_dataframely_filter_results(
+            *OperatorSignInsTable.filter(pl.DataFrame(osi_table))
+        )
 
         process_logger.log_complete()
         return osi_dataset
@@ -342,7 +328,7 @@ class TripUpdates(GlidesConverter):
     def unique_key(self) -> str:
         return "tripUpdates"
 
-    def convert_records(self) -> pd.Dataset:
+    def convert_records(self) -> dy.DataFrame[GlidesRecord]:
         def flatten_multitypes(record: Dict) -> Dict:
             """
             For each update in a record, flatten out the objects in "cars",
@@ -368,7 +354,7 @@ class TripUpdates(GlidesConverter):
         tu_table = flatten_table_schema(tu_table)
         tu_table = explode_table_column(tu_table, "data.tripUpdates")
         tu_table = flatten_table_schema(tu_table)
-        tu_dataset = pd.dataset(tu_table)
+        tu_dataset = process_logger.log_dataframely_filter_results(*TripUpdatesTable.filter(pl.DataFrame(tu_table)))
 
         process_logger.log_complete()
         return tu_dataset
@@ -392,13 +378,15 @@ class VehicleTripAssignment(GlidesConverter):
     def unique_key(self) -> str:
         return "tripKey"
 
-    def convert_records(self) -> pd.Dataset:
+    def convert_records(self) -> dy.DataFrame[GlidesRecord]:
         process_logger = ProcessLogger(process_name="convert_records", type=self.type)
         process_logger.log_start()
 
         tu_table = pyarrow.Table.from_pylist(self.records, schema=self.get_event_schema)
         tu_table = flatten_table_schema(tu_table)
-        tu_dataset = pd.dataset(tu_table)
+        tu_dataset = process_logger.log_dataframely_filter_results(
+            *VehicleTripAssignmentTable.filter(pl.DataFrame(tu_table))
+        )
 
         process_logger.log_complete()
         return tu_dataset
