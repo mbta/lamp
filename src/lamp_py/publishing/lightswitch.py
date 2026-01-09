@@ -87,6 +87,24 @@ def build_view(
     return False
 
 
+def create_schemas(
+    connection: duckdb.DuckDBPyConnection,
+    schemas: list[str],
+) -> list[str]:
+    """Create the specified schemas in the local database."""
+    pl = ProcessLogger("create_schemas")
+    pl.log_start()
+    built_schemas = []
+    for schema_name in schemas:
+        try:
+            connection.sql(f"CREATE SCHEMA {schema_name}")
+            built_schemas.append(schema_name)
+        except duckdb.Error as e:
+            pl.log_failure(e)
+    pl.log_complete()
+    return built_schemas
+
+
 def register_read_ymd(
     connection: duckdb.DuckDBPyConnection,
 ) -> None:
@@ -122,6 +140,53 @@ def register_read_ymd(
             )
         """
     )
+
+    pl.log_complete()
+
+
+def register_effective_gtfs_timestamps(
+    connection: duckdb.DuckDBPyConnection,
+    bucket: str = "s3://mbta-ctd-dataplatform-springboard",
+) -> None:
+    """Register a table in DuckDB that shows the effective GTFS Schedule timestamp for each service date."""
+    pl = ProcessLogger("register_effective_gtfs_timestamps")
+    pl.log_start()
+    schema_name = "gtfs_schedule"
+    create_schemas(connection, [schema_name])
+    try:
+        connection.sql(
+            f"""
+            CREATE OR REPLACE TABLE {schema_name}.effective_timestamps AS
+            SELECT
+                service_date,
+                split_part(rating, ' ', 2) as rating_year,
+                split_part(rating, ' ', 1) as rating_season,
+                effective_timestamp
+            FROM
+            (
+                SELECT
+                unnest AS service_date,
+                max(timestamp) as effective_timestamp,
+                max_by(split_part(feed_version, ',', 1), timestamp) as rating
+            FROM
+                read_parquet(
+                    '{bucket}/lamp/FEED_INFO/timestamp=*/*.parquet',
+                    hive_partitioning = True
+                )
+            INNER JOIN
+                unnest(list_transform(generate_series('2019-01-01'::DATE, current_date() + 60, INTERVAL '1 DAY'), LAMBDA x: x :: DATE))
+            ON
+                to_timestamp(timestamp)::DATE < unnest AND
+                unnest BETWEEN strptime(feed_start_date::TEXT, '%Y%m%d')::DATE AND strptime(feed_end_date::TEXT, '%Y%m%d')::DATE
+            GROUP BY
+                unnest
+            ORDER BY
+                service_date
+            )
+            """
+        )
+    except duckdb.Error as e:
+        pl.log_failure(e)
 
     pl.log_complete()
 
@@ -169,6 +234,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
         pl.add_metadata(authenticated=auth)
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
+        register_effective_gtfs_timestamps(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)
