@@ -21,7 +21,7 @@ from lamp_py.runtime_utils.remote_files import (
 )
 
 RFC3339_DATE_REGEX = r"^20(?:([1-3][0-9]-[0-1][0-9]-[0-3][0-9]))"  # up to 2039-19-39
-RFC3339_DATETIME_REGEX = RFC3339_DATE_REGEX + r"T([0-2][0-9]:[0-5][0-9]:[0-5][0-9](?:\.\d+)?)(Z|[\+-]\d{2}:\d{2})?$"
+RFC3339_DATETIME_REGEX = RFC3339_DATE_REGEX + r"[T ]([0-2][0-9]:[0-5][0-9]:[0-5][0-9](?:\.\d+)?)(Z|[\+-]\d{2}:\d{2})?$"
 GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be greater than 24 hours
 
 user = dy.Struct(
@@ -221,7 +221,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         new_dataset = self.convert_records().lazy()
 
         if os.path.exists(self.local_path):
-            remote_records = self.table_schema.scan_parquet(self.local_path)
+            remote_records = self.table_schema.scan_parquet(self.local_path, validation="allow")
             joined_ds = pl.union([new_dataset, remote_records])
         else:
             joined_ds = new_dataset
