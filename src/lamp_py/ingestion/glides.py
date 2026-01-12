@@ -68,6 +68,7 @@ class GlidesRecord(dy.Schema):
     )
     source = dy.String()
     specversion = dy.String()
+    dataschema = dy.String(nullable=True)
 
 
 class EditorChangesRecord(GlidesRecord):
@@ -217,17 +218,17 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         process_logger = ProcessLogger(process_name="append_glides_records", type=self.type)
         process_logger.log_start()
 
-        new_dataset = self.convert_records().lazy()
+        new_dataset = self.convert_records()
 
         if os.path.exists(self.local_path):
-            remote_records = self.table_schema.scan_parquet(self.local_path, validation="allow")
-            joined_ds = pl.union([new_dataset, remote_records])
+            remote_records = pl.read_parquet(self.local_path)
+            joined_ds = pl.union([new_dataset, remote_records], how="diagonal_relaxed")
         else:
             joined_ds = new_dataset
 
         process_logger.add_metadata(
-            new_records=new_dataset.select("time").count().collect().item(),
-            total_records=joined_ds.select("time").count().collect().item(),
+            new_records=new_dataset.select("time").height,
+            total_records=joined_ds.select("time").height,
         )
 
         with tempfile.TemporaryDirectory() as tmp_dir:
