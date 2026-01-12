@@ -68,7 +68,6 @@ class GlidesRecord(dy.Schema):
     )
     source = dy.String()
     specversion = dy.String()
-    dataschema = dy.String(nullable=True)
 
 
 class EditorChangesRecord(GlidesRecord):
