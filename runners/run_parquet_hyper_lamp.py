@@ -4,9 +4,8 @@ from typing import List
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent, HyperBusPerformanceAll
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob, days_ago
-from datetime import date
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from datetime import date, timedelta
 
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
@@ -47,18 +46,18 @@ TestHyperBusOperatorMappingAll = HyperBusOperatorMappingAll
 TestHyperBusPerformanceRecent = HyperBusPerformanceRecent
 TestHyperBusPerformanceAll = HyperBusPerformanceAll
 
-
-TestHyperGtfsRtVehiclePositions.start_date = days_ago(1)
-TestHyperGtfsRtTripUpdates.start_date = days_ago(1)
-TestHyperGtfsRtVehiclePositionsHeavyRail.start_date = days_ago(1)
-TestHyperGtfsRtTripUpdatesHeavyRail.start_date = days_ago(1)
-TestHyperGtfsRtVehiclePositionsAllLightRail.start_date = days_ago(1)
-TestHyperDevGreenGtfsRtVehiclePositions.start_date = days_ago(1)
-TestHyperDevGreenGtfsRtTripUpdates.start_date = days_ago(1)
-TestHyperBusOperatorMappingRecent.start_date = days_ago(1)
-TestHyperBusOperatorMappingAll.start_date = days_ago(1)
-# TestHyperRtRailSubway.start_date=days_ago(1)
-# TestHyperRtRailCommuter.start_date=days_ago(1)
+yesterday = date.today() - timedelta(1)
+TestHyperGtfsRtVehiclePositions.start_date = yesterday
+TestHyperGtfsRtTripUpdates.start_date = yesterday
+TestHyperGtfsRtVehiclePositionsHeavyRail.start_date = yesterday
+TestHyperGtfsRtTripUpdatesHeavyRail.start_date = yesterday
+TestHyperGtfsRtVehiclePositionsAllLightRail.start_date = yesterday
+TestHyperDevGreenGtfsRtVehiclePositions.start_date = yesterday
+TestHyperDevGreenGtfsRtTripUpdates.start_date = yesterday
+TestHyperBusOperatorMappingRecent.start_date = yesterday
+TestHyperBusOperatorMappingAll.start_date = yesterday
+# TestHyperRtRailSubway.start_date=yesterday
+# TestHyperRtRailCommuter.start_date=yesterday
 
 TestHyperBus = FilteredHyperJob(
     remote_input_location=bus_events,
