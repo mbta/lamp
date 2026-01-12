@@ -37,7 +37,7 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 from lamp_py.tableau.jobs.bus_performance import bus_schema
 
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob, days_ago
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
@@ -47,7 +47,7 @@ LAMP_API_PROJECT = "LAMP API"
 HyperGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_lightrail_60_day,
-    start_date=days_ago(60),
+    start_date=60,
     processed_schema=convert_gtfs_rt_vehicle_position.LightRailTerminalVehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
@@ -57,7 +57,7 @@ HyperGtfsRtVehiclePositions = FilteredHyperJob(
 HyperGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=springboard_lrtp_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_60_day,
-    start_date=days_ago(60),
+    start_date=60,
     processed_schema=convert_gtfs_rt_trip_updates.LightRailTerminalTripUpdates.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_prod,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
@@ -67,7 +67,7 @@ HyperGtfsRtTripUpdates = FilteredHyperJob(
 HyperGtfsRtVehiclePositionsHeavyRail = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_heavyrail_30_day,
-    start_date=days_ago(30),
+    start_date=30,
     processed_schema=convert_gtfs_rt_vehicle_position.HeavyRailTerminalVehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.heavyrail,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.heavy_rail,
@@ -77,7 +77,7 @@ HyperGtfsRtVehiclePositionsHeavyRail = FilteredHyperJob(
 HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
     remote_input_location=springboard_rt_trip_updates,
     remote_output_location=tableau_rt_trip_updates_heavyrail_30_day,
-    start_date=days_ago(30),
+    start_date=30,
     processed_schema=convert_gtfs_rt_trip_updates.HeavyRailTerminalTripUpdates.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.heavyrail,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.heavy_rail,
@@ -87,7 +87,7 @@ HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
 HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_all_light_rail_7_day,
-    start_date=days_ago(7),
+    start_date=7,
     processed_schema=convert_gtfs_rt_vehicle_position.VehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.apply_gtfs_rt_vehicle_positions_timezone_conversions,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
@@ -97,7 +97,7 @@ HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
 HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
     remote_input_location=springboard_devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
-    start_date=days_ago(60),
+    start_date=60,
     processed_schema=convert_gtfs_rt_vehicle_position.LightRailTerminalVehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.lrtp,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.light_rail,
@@ -107,7 +107,7 @@ HyperDevGreenGtfsRtVehiclePositions = FilteredHyperJob(
 HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
     remote_input_location=springboard_devgreen_lrtp_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_60_day,
-    start_date=days_ago(60),
+    start_date=60,
     processed_schema=convert_gtfs_rt_trip_updates.LightRailTerminalTripUpdates.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_trip_updates.lrtp_devgreen,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.light_rail,
@@ -117,7 +117,7 @@ HyperDevGreenGtfsRtTripUpdates = FilteredHyperJob(
 HyperBusOperatorMappingRecent = FilteredHyperJob(
     remote_input_location=bus_operator_mapping,
     remote_output_location=tableau_bus_operator_mapping_recent,
-    start_date=days_ago(7),
+    start_date=7,
     processed_schema=TMDailyWorkPiece.to_pyarrow_schema(),
     dataframe_filter=None,
     parquet_filter=None,
@@ -128,7 +128,7 @@ HyperBusOperatorMappingRecent = FilteredHyperJob(
 HyperBusOperatorMappingAll = FilteredHyperJob(
     remote_input_location=bus_operator_mapping,
     remote_output_location=tableau_bus_operator_mapping_all,
-    start_date=days_ago(60),
+    start_date=60,
     processed_schema=TMDailyWorkPiece.to_pyarrow_schema(),
     dataframe_filter=None,
     parquet_filter=None,
