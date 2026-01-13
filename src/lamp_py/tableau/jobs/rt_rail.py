@@ -314,7 +314,7 @@ class HyperRtCommuterRail(HyperRtRail):
         route_type_operand: RouteType,
         **hyper_job_args: Any,
     ) -> None:
-        HyperJob.__init__(
+        HyperRtRail.__init__(
             self,
             **hyper_job_args,
         )
