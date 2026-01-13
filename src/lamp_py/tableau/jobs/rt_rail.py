@@ -316,6 +316,8 @@ class HyperRtCommuterRail(HyperRtRail):
     ) -> None:
         HyperRtRail.__init__(
             self,
+            route_type_operator,
+            route_type_operand,
             **hyper_job_args,
         )
 
