@@ -396,7 +396,7 @@ class HyperRtCommuterRail(HyperRtRail):
              ON 
                prev_ve.stop_id = prev_ss.stop_id
                AND vt.static_version_key = prev_ss.static_version_key
-             LEFT_JOIN
+             LEFT JOIN
                static_stop_times sst
              ON 
                prev_ve.stop_id = sst.stop_id
