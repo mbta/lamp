@@ -1,5 +1,5 @@
 from typing import Callable
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -16,11 +16,6 @@ from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
 
 
-def days_ago(num_days: int) -> date:
-    """helper function to get a date() object set to num_days ago"""
-    return (datetime.now() - timedelta(days=num_days)).date()
-
-
 # pylint: disable=R0917,R0902,R0913
 # pylint too many local variables (more than 15)
 class FilteredHyperJob(HyperJob):
@@ -32,13 +27,14 @@ class FilteredHyperJob(HyperJob):
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
-        start_date: date | None = days_ago(7),  # default this the past week of data
-        end_date: date | None = datetime.now().date(),
+        start_date: date | int | None = None,
+        end_date: date | None = None,
         partition_template: str = "year={yy}/month={mm}/day={dd}/",
         parquet_preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
         parquet_filter: pc.Expression | None = None,
         dataframe_filter: Callable[[pl.DataFrame], pl.DataFrame] | None = None,
     ) -> None:
+        """Validate start_date and end_date and assign properties if so."""
         HyperJob.__init__(
             self,
             hyper_file_name=remote_output_location.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
@@ -46,6 +42,12 @@ class FilteredHyperJob(HyperJob):
             lamp_version=remote_output_location.version,
             project_name=tableau_project_name,
         )
+        if end_date is not None:
+            assert isinstance(start_date, date)
+        elif isinstance(start_date, int):
+            end_date = date.today()
+            start_date = end_date - timedelta(days=start_date)
+
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
         self.processed_schema = processed_schema  # expected output schema passed in
@@ -125,7 +127,7 @@ class FilteredHyperJob(HyperJob):
         with pq.ParquetWriter(self.local_parquet_path, schema=self.output_processed_schema) as writer:
             for batch in ds.to_batches(
                 batch_size=500_000,
-                columns=ds.schema.names,
+                columns=[col for col in ds.schema.names if col != "lamp_record_hash"],
                 filter=self.parquet_filter,
                 batch_readahead=1,
                 fragment_readahead=0,

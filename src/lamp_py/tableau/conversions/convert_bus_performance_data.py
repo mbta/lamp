@@ -1,5 +1,4 @@
 import polars as pl
-from pyarrow import Table
 import pyarrow
 
 
@@ -35,7 +34,7 @@ def convert_bus_recent_to_tableau_compatible_schema(
     return pyarrow.schema(auto_schema)
 
 
-def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
+def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
     """
@@ -66,4 +65,4 @@ def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> Table:
 
     polars_df = polars_df.with_columns(pl.col("service_date"))
 
-    return polars_df.to_arrow()
+    return polars_df

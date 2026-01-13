@@ -98,46 +98,7 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
         )
         return polars_df
 
-    def temporary_lrtp_assign_new_trip_ids(polars_df: pl.DataFrame, threshold_sec: int = 60 * 15) -> pl.DataFrame:
-        """
-        Function to apply temporary trip ids to trips that have the same trip_id assigned for improbable stop durations at a single station
-
-        THIS IS NOT PERMANENT - THIS SHOULD BE REMOVED WHEN THE TRIP_IDS ARE PROPERLY POPULATED UPSTREAM
-
-        """
-        polars_df = (
-            polars_df.sort("feed_timestamp")
-            .with_columns(
-                pl.col("feed_timestamp").diff().alias("mdiff").over("vehicle.trip.trip_id", "vehicle.trip.start_date")
-            )
-            .with_columns(
-                pl.when(pl.col("mdiff") < threshold_sec)
-                .then(0)
-                .otherwise(1)
-                .fill_null(0)
-                .cum_sum()
-                .cast(pl.String)
-                .alias("new_id")
-                .over("vehicle.trip.trip_id", "vehicle.trip.start_date")
-            )
-            .with_columns(
-                pl.when(pl.col("new_id").ne("1"))
-                .then(
-                    pl.concat_str(
-                        [pl.col("vehicle.trip.trip_id"), pl.lit("_LAMP"), pl.col("new_id")], ignore_nulls=True
-                    )
-                )
-                .alias("vehicle.trip.trip_id1")
-            )
-            .with_columns(pl.coalesce("vehicle.trip.trip_id1", "vehicle.trip.trip_id").alias("vehicle.trip.trip_id"))
-            .drop("vehicle.trip.trip_id1")
-        )
-        return polars_df
-
     polars_df = lrtp_restrict_vp_to_only_terminal_stop_ids(polars_df)
-    # after we have filtered to only terminal stop_ids, then check that the trip_id vs timestamps make sense, and
-    # assign new trip IDs if it doesn't
-    polars_df = temporary_lrtp_assign_new_trip_ids(polars_df)
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     valid = LightRailTerminalVehiclePositions.validate(polars_df)
 
