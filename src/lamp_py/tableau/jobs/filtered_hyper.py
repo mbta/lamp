@@ -34,7 +34,7 @@ class FilteredHyperJob(HyperJob):
         parquet_filter: pc.Expression | None = None,
         dataframe_filter: Callable[[pl.DataFrame], pl.DataFrame] | None = None,
     ) -> None:
-        """Validate start_date and end_date and assign properties if so."""
+        """Validate start_date and end_date and assign properties if valid."""
         HyperJob.__init__(
             self,
             hyper_file_name=remote_output_location.prefix.rsplit("/")[-1].replace(".parquet", ".hyper"),
@@ -42,11 +42,6 @@ class FilteredHyperJob(HyperJob):
             lamp_version=remote_output_location.version,
             project_name=tableau_project_name,
         )
-        if end_date is not None:
-            assert isinstance(start_date, date)
-        elif isinstance(start_date, int):
-            end_date = date.today()
-            start_date = end_date - timedelta(days=start_date)
 
         self.remote_input_location = remote_input_location
         self.remote_output_location = remote_output_location
@@ -54,6 +49,7 @@ class FilteredHyperJob(HyperJob):
         self.partition_template = partition_template
 
         if start_date is not None and end_date is not None:
+            assert isinstance(start_date, date)
             assert start_date <= end_date
 
         self.start_date = start_date
@@ -87,6 +83,10 @@ class FilteredHyperJob(HyperJob):
         -------
         True if parquet created, False otherwise
         """
+        if isinstance(self.start_date, int):
+            self.end_date = date.today()
+            self.start_date = self.end_date - timedelta(days=self.start_date)
+
         if self.start_date is not None and self.end_date is not None:
             # limitation of filtered hyper only does whole days.
             # update to allow start/end set by hour, to get the entire
