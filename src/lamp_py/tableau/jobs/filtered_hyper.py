@@ -1,5 +1,5 @@
 from typing import Callable
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -83,8 +83,11 @@ class FilteredHyperJob(HyperJob):
         -------
         True if parquet created, False otherwise
         """
+        process_logger = ProcessLogger("filtered_hyper_create_parquet")
         if isinstance(self.start_date, int):
-            self.end_date = date.today()
+            end_datetime = datetime.now()
+            process_logger.add_metadata(now=end_datetime)
+            self.end_date = end_datetime.date()
             self.start_date = self.end_date - timedelta(days=self.start_date)
 
         if self.start_date is not None and self.end_date is not None:
@@ -112,9 +115,7 @@ class FilteredHyperJob(HyperJob):
             format="parquet",
             filesystem=S3FileSystem(),
         )
-        process_logger = ProcessLogger(
-            "filtered_hyper_create_parquet", start_date=self.start_date, end_date=self.end_date
-        )
+        process_logger.add_metadata(start_date=self.start_date, end_date=self.end_date)
         process_logger.log_start()
         if len(ds_paths) == 0:
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
