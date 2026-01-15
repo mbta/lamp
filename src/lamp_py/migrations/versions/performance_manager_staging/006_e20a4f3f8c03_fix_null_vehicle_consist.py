@@ -29,7 +29,7 @@ def upgrade() -> None:
     clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20240305;"
     op.execute(clear_trips)
 
-    update_md_query = """
+    update_md_query = r"""
         UPDATE
             metadata_log 
         SET rail_pm_processed = false

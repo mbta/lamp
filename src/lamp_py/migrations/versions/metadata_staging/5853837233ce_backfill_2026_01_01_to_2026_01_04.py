@@ -1,22 +1,17 @@
 """Backfill 2026-01-01 to 2026-01-04
 
-Revision ID: ab642034866f
-Revises: 26db393ea854
-Create Date: 2026-01-15 14:08:44.338406
+Revision ID: 5853837233ce
+Revises: a08c5fd37dbd
+Create Date: 2026-01-15 15:57:38.243775
 
-Backfill missing performance data from 2026-01-01 to 2026-01-04.
-
-* upgrade   -> Set all flags to unprocessed in metadata log from 2025-01-01 to 2026-01-04 in vehicle_events and vehicle_trips.
-               This *should* result in automatic updates to vehicle_events and trip_updates
-* downgrade -> nothing
 """
 
 from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = "ab642034866f"
-down_revision = "26db393ea854"
+revision = "5853837233ce"
+down_revision = "a08c5fd37dbd"
 branch_labels = None
 depends_on = None
 
