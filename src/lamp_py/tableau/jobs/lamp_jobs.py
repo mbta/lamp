@@ -183,5 +183,5 @@ HyperRtRailCommuter = HyperRtCommuterRail(
     route_type_operand=RouteType.COMMUTER_RAIL,
     hyper_file_name="LAMP_COMMUTER_RAIL_RT_fields.hyper",
     remote_parquet_path=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.parquet"),
-    lamp_version="1.1.0",
+    lamp_version="1.1.1",
 )
