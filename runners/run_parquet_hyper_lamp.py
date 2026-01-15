@@ -5,7 +5,7 @@ from typing import List
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent, HyperBusPerformanceAll
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from datetime import date, timedelta
+from datetime import date
 
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
@@ -46,18 +46,18 @@ TestHyperBusOperatorMappingAll = HyperBusOperatorMappingAll
 TestHyperBusPerformanceRecent = HyperBusPerformanceRecent
 TestHyperBusPerformanceAll = HyperBusPerformanceAll
 
-yesterday = date.today() - timedelta(1)
-TestHyperGtfsRtVehiclePositions.start_date = yesterday
-TestHyperGtfsRtTripUpdates.start_date = yesterday
-TestHyperGtfsRtVehiclePositionsHeavyRail.start_date = yesterday
-TestHyperGtfsRtTripUpdatesHeavyRail.start_date = yesterday
-TestHyperGtfsRtVehiclePositionsAllLightRail.start_date = yesterday
-TestHyperDevGreenGtfsRtVehiclePositions.start_date = yesterday
-TestHyperDevGreenGtfsRtTripUpdates.start_date = yesterday
-TestHyperBusOperatorMappingRecent.start_date = yesterday
-TestHyperBusOperatorMappingAll.start_date = yesterday
-# TestHyperRtRailSubway.start_date=yesterday
-# TestHyperRtRailCommuter.start_date=yesterday
+yesterday = 1
+TestHyperGtfsRtVehiclePositions.num_days_ago = yesterday
+TestHyperGtfsRtTripUpdates.num_days_ago = yesterday
+TestHyperGtfsRtVehiclePositionsHeavyRail.num_days_ago = yesterday
+TestHyperGtfsRtTripUpdatesHeavyRail.num_days_ago = yesterday
+TestHyperGtfsRtVehiclePositionsAllLightRail.num_days_ago = yesterday
+TestHyperDevGreenGtfsRtVehiclePositions.num_days_ago = yesterday
+TestHyperDevGreenGtfsRtTripUpdates.num_days_ago = yesterday
+TestHyperBusOperatorMappingRecent.num_days_ago = yesterday
+TestHyperBusOperatorMappingAll.num_days_ago = yesterday
+# TestHyperRtRailSubway.num_days_ago=yesterday
+# TestHyperRtRailCommuter.num_days_ago=yesterday
 
 TestHyperBus = FilteredHyperJob(
     remote_input_location=bus_events,
@@ -78,16 +78,16 @@ def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
 
     hyper_jobs: List[HyperJob] = [
-        TestHyperGtfsRtVehiclePositions,
-        TestHyperGtfsRtTripUpdates,
-        TestHyperGtfsRtVehiclePositionsHeavyRail,
-        TestHyperGtfsRtTripUpdatesHeavyRail,
-        TestHyperGtfsRtVehiclePositionsAllLightRail,
+        # TestHyperGtfsRtVehiclePositions,
+        # TestHyperGtfsRtTripUpdates,
+        # TestHyperGtfsRtVehiclePositionsHeavyRail,
+        # TestHyperGtfsRtTripUpdatesHeavyRail,
+        # TestHyperGtfsRtVehiclePositionsAllLightRail,
         TestHyperDevGreenGtfsRtVehiclePositions,
-        TestHyperDevGreenGtfsRtTripUpdates,
-        TestHyperBusOperatorMappingRecent,
-        TestHyperBusOperatorMappingAll,
-        TestHyperBus,
+        # TestHyperDevGreenGtfsRtTripUpdates,
+        # TestHyperBusOperatorMappingRecent,
+        # TestHyperBusOperatorMappingAll,
+        # TestHyperBus,
         # TestHyperRtRailSubway,
         # TestHyperRtRailCommuter,
     ]

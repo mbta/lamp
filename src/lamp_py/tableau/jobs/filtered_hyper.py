@@ -1,5 +1,5 @@
 from typing import Callable
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import pyarrow
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
@@ -27,7 +27,8 @@ class FilteredHyperJob(HyperJob):
         remote_output_location: S3Location,
         processed_schema: pyarrow.schema,
         tableau_project_name: str,
-        start_date: date | int | None = None,
+        num_days_ago: int | None = None,
+        start_date: date | None = None,
         end_date: date | None = None,
         partition_template: str = "year={yy}/month={mm}/day={dd}/",
         parquet_preprocess: Callable[[pyarrow.Table], pyarrow.Table] | None = None,
@@ -49,11 +50,12 @@ class FilteredHyperJob(HyperJob):
         self.partition_template = partition_template
 
         if start_date is not None and end_date is not None:
-            assert isinstance(start_date, date)
+            assert num_days_ago is None  # only set num_days_ago or start_date and end_date
             assert start_date <= end_date
 
         self.start_date = start_date
         self.end_date = end_date
+        self.num_days_ago = num_days_ago
 
         self.parquet_preprocess = parquet_preprocess  # level 1 | complex preprocess
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
@@ -67,11 +69,11 @@ class FilteredHyperJob(HyperJob):
         self.update_parquet(None)
 
     def update_parquet(self, _: DatabaseManager | None) -> bool:
-        return self.create_tableau_parquet(partition_template=self.partition_template)
+        return self.create_tableau_parquet(partition_template=self.partition_template, num_days_ago=self.num_days_ago)
 
     # pylint: disable=R0914, R0912
     # pylint too many local variables (more than 15)
-    def create_tableau_parquet(self, partition_template: str) -> bool:
+    def create_tableau_parquet(self, partition_template: str, num_days_ago: int | None) -> bool:
         """
         Join files into single parquet file for upload to Tableau. apply filter and conversions as necessary
 
@@ -84,11 +86,6 @@ class FilteredHyperJob(HyperJob):
         True if parquet created, False otherwise
         """
         process_logger = ProcessLogger("filtered_hyper_create_parquet")
-        if isinstance(self.start_date, int):
-            end_datetime = datetime.now()
-            process_logger.add_metadata(now=end_datetime)
-            self.end_date = end_datetime.date()
-            self.start_date = self.end_date - timedelta(days=self.start_date)
 
         if self.start_date is not None and self.end_date is not None:
             # limitation of filtered hyper only does whole days.
@@ -103,6 +100,18 @@ class FilteredHyperJob(HyperJob):
                 end_date=self.end_date,
                 start_date=self.start_date,
             )
+            process_logger.add_metadata(start_date=self.start_date, end_date=self.end_date)
+        elif isinstance(num_days_ago, int):
+            end_date = date.today()
+            start_date = end_date - timedelta(days=num_days_ago)
+            s3_uris = file_list_from_s3_date_range(
+                bucket_name=self.remote_input_location.bucket,
+                file_prefix=self.remote_input_location.prefix,
+                path_template=partition_template,
+                end_date=end_date,
+                start_date=start_date,
+            )
+            process_logger.add_metadata(start_date=start_date, end_date=end_date)
         else:
             s3_uris = file_list_from_s3(
                 bucket_name=self.remote_input_location.bucket,
@@ -115,7 +124,6 @@ class FilteredHyperJob(HyperJob):
             format="parquet",
             filesystem=S3FileSystem(),
         )
-        process_logger.add_metadata(start_date=self.start_date, end_date=self.end_date)
         process_logger.log_start()
         if len(ds_paths) == 0:
             process_logger.add_metadata(n_paths_zero=len(ds_paths))
