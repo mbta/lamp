@@ -123,7 +123,7 @@ def build_view(
     return False
 
 
-def create_schemas(
+def create_schemas_if_not_exists(
     connection: duckdb.DuckDBPyConnection,
     schemas: list[str],
 ) -> list[str]:
@@ -133,10 +133,10 @@ def create_schemas(
     built_schemas = []
     for schema_name in schemas:
         try:
-            connection.sql(f"CREATE SCHEMA {schema_name}")
+            connection.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
             built_schemas.append(schema_name)
         except duckdb.Error as e:
-            pl.log_warning(e)
+            pl.log_failure(e)
     pl.log_complete()
     return built_schemas
 
@@ -188,7 +188,7 @@ def register_effective_gtfs_timestamps(
     pl = ProcessLogger("register_effective_gtfs_timestamps")
     pl.log_start()
     schema_name = "gtfs_schedule"
-    create_schemas(connection, [schema_name])
+    create_schemas_if_not_exists(connection, [schema_name])
     try:
         connection.sql(
             f"""
@@ -228,15 +228,73 @@ def register_effective_gtfs_timestamps(
         return False
 
 
+def register_gtfs_service_id_table(
+    connection: duckdb.DuckDBPyConnection,
+    s3_prefix: str = "s3://mbta-ctd-dataplatform-springboard/lamp",
+) -> bool:
+    """Register a view in DuckDB where each row represents a service_id active on a service date."""
+    pl = ProcessLogger("register_gtfs_service_id_table")
+    pl.log_start()
+    schema_name = "gtfs_schedule"
+    create_schemas_if_not_exists(connection, [schema_name])
+    try:
+        connection.sql(
+            f"""
+            CREATE OR REPLACE TABLE {schema_name}.service_ids AS
+            SELECT service_date, service_id, effective_timestamp
+            FROM gtfs_schedule.effective_timestamps
+            INNER JOIN (
+            UNPIVOT read_parquet(
+                '{s3_prefix}/CALENDAR/timestamp=*/*.parquet',
+                hive_partitioning = True
+                )
+            ON monday, tuesday, wednesday, thursday, friday, saturday, sunday
+            INTO
+                NAME dayofweek
+                VALUE enabled
+            ) c
+            ON
+                effective_timestamp = c.timestamp
+                AND service_date BETWEEN strptime(start_date::text, '%Y%m%d')::date AND strptime(end_date::text, '%Y%m%d')::date
+                AND enabled = 1
+                AND lower(strftime(service_date, '%A')) = dayofweek
+            ANTI JOIN read_parquet(
+                '{s3_prefix}/CALENDAR_DATES/timestamp=*/*.parquet',
+                hive_partitioning = True
+                ) removed
+            ON
+                effective_timestamp = removed.timestamp
+                AND service_date = strptime(date::text, '%Y%m%d')::date
+                AND removed.exception_type = 2
+            UNION
+            SELECT service_date, service_id, effective_timestamp
+            FROM gtfs_schedule.effective_timestamps
+            INNER JOIN read_parquet(
+                '{s3_prefix}/CALENDAR_DATES/timestamp=*/*.parquet',
+                hive_partitioning = True
+                ) added
+            ON
+                effective_timestamp = added.timestamp
+                AND service_date = strptime(date::text, '%Y%m%d')::date
+                AND added.exception_type = 1
+            """
+        )
+        pl.log_complete()
+        return True
+    except duckdb.Error as e:
+        pl.log_failure(e)
+        return False
+
+
 def register_gtfs_schedule_view(
     connection: duckdb.DuckDBPyConnection,
     s3_prefix: str = "s3://mbta-ctd-dataplatform-springboard/lamp",
 ) -> bool:
     """Register a view in DuckDB where each row represents a stop in a trip on a service date."""
-    pl = ProcessLogger("register_effective_gtfs_timestamps")
+    pl = ProcessLogger("register_gtfs_schedule_view")
     pl.log_start()
     schema_name = "gtfs_schedule"
-    create_schemas(connection, [schema_name])
+    create_schemas_if_not_exists(connection, [schema_name])
     try:
         connection.sql(
             f"""
@@ -252,30 +310,22 @@ def register_gtfs_schedule_view(
                 s.stop_name,
                 service_date + st.departure_time::INTERVAL as departure_dt
             FROM
-                gtfs_schedule.effective_timestamps
-            INNER JOIN
-                read_parquet(
-                    '{s3_prefix}/CALENDAR_DATES/timestamp=*/*.parquet',
-                    hive_partitioning = True
-                ) c
-            ON
-                effective_timestamp = c.timestamp
-                AND service_date = strptime(date::text, '%Y%m%d')::date
+               {schema_name}.service_ids d
             INNER JOIN
                 read_parquet(
                     '{s3_prefix}/TRIPS/timestamp=*/*.parquet',
                     hive_partitioning = True
                 ) t
             ON
-                effective_timestamp = t.timestamp
-                AND c.service_id = t.service_id
+                d.effective_timestamp = t.timestamp
+                AND d.service_id = t.service_id
             INNER JOIN
                 read_parquet(
                     '{s3_prefix}/STOP_TIMES/timestamp=*/*.parquet',
                     hive_partitioning = True
                 ) st
             ON
-                effective_timestamp = st.timestamp
+                d.effective_timestamp = st.timestamp
                 AND t.trip_id = st.trip_id
             INNER JOIN
                 read_parquet(
@@ -283,7 +333,7 @@ def register_gtfs_schedule_view(
                     hive_partitioning = True
                 ) s
             ON
-                effective_timestamp = s.timestamp
+                d.effective_timestamp = s.timestamp
                 AND st.stop_id = s.stop_id
             ORDER BY service_date, route_id, t.trip_id, departure_dt
             """
@@ -304,7 +354,9 @@ def add_views_to_local_schema(
     """Add views of remote Parquet files to duckdb schema."""
     built_views: List[str] = []
     for item in views:
-        view_name = (schema + ".") if schema else "" + os.path.splitext(os.path.basename(item.prefix))[0]
+        view_name = os.path.splitext(os.path.basename(item.prefix))[0]
+        if schema is not None:
+            view_name = schema + "." + view_name
         result = build_view(connection, view_name, item, partition_strategy)
         if result:
             built_views.append(view_name)
@@ -337,11 +389,12 @@ def pipeline(  # pylint: disable=dangerous-default-value
     with duckdb.connect(local_location) as con:
         auth = authenticate(con)
         pl.add_metadata(authenticated=auth)
-        create_schemas(con, [v[0] for v in views])
+        create_schemas_if_not_exists(con, [v[0] for v in views])
         for v in views:
             add_views_to_local_schema(con, v[1], v[2], v[0])
         register_read_ymd(con)
         register_effective_gtfs_timestamps(con)
+        register_gtfs_service_id_table(con)
         register_gtfs_schedule_view(con)
 
     if remote_location:

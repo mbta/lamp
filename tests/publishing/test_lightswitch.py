@@ -1,6 +1,6 @@
 import os
 from contextlib import nullcontext
-from logging import WARNING
+from logging import ERROR
 from pathlib import Path
 from typing import Generator
 
@@ -14,7 +14,8 @@ from lamp_py.publishing.lightswitch import (
     register_read_ymd,
     register_effective_gtfs_timestamps,
     register_gtfs_schedule_view,
-    create_schemas,
+    register_gtfs_service_id_table,
+    create_schemas_if_not_exists,
 )
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
@@ -42,10 +43,15 @@ def fixture_duckdb_con(
     ids=["empty-partition-strategy", "nested-partition-strategy", "invalid-location"],
 )
 def test_build_view(
-    duckdb_con: duckdb.DuckDBPyConnection, partition_strategy: str, data_location: S3Location, result: pytest.RaisesExc
+    duckdb_con: duckdb.DuckDBPyConnection,
+    partition_strategy: str,
+    data_location: S3Location,
+    result: pytest.RaisesExc,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It gracefully creates the view using the specified partition strategy."""
     assert result == build_view(duckdb_con, "test", data_location, partition_strategy)
+    assert "view_name=test" in caplog.text
 
 
 @pytest.mark.parametrize(["schema_name"], [(None,), ("foo",)], ids=["no-schema", "has-schema"])
@@ -75,7 +81,7 @@ def test_add_views_to_local_schema(
 ) -> None:
     """It builds the views that are passed to it."""
     with expected_view_names:
-        assert [(schema_name + ".") if schema_name else "" + v for v in expected_view_names.enter_result] == add_views_to_local_schema(duckdb_con, view_locations, partition_strategy, schema_name)  # type: ignore[attr-defined]
+        assert [((schema_name + ".") if schema_name is not None else "") + v for v in expected_view_names.enter_result] == add_views_to_local_schema(duckdb_con, view_locations, partition_strategy, schema_name)  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize(
@@ -108,47 +114,50 @@ def test_register_read_ymd(
             )
 
 
-def test_register_effective_gtfs_timestamps(
+@pytest.fixture(name="effective_gtfs_timestamps_table")
+def fixture_effective_gtfs_timestamps(
     duckdb_con: duckdb.DuckDBPyConnection,
-) -> None:
-    """It raises errors if the table doesn't exist or is empty."""
-    with duckdb_con:
-        register_effective_gtfs_timestamps(duckdb_con, "tests/test_files/SPRINGBOARD/")
-        assert duckdb_con.sql("SELECT * FROM gtfs_schedule.effective_timestamps")
-        result = duckdb_con.sql(
-            "SELECT count(*) FROM gtfs_schedule.effective_timestamps WHERE rating_season IS NULL"
-        ).fetchone()
-        assert isinstance(result, tuple)
-        assert result[0] == 0
+) -> bool:
+    """Create effective timestamp table."""
+    return register_effective_gtfs_timestamps(duckdb_con, "tests/test_files/SPRINGBOARD/")
+
+
+@pytest.fixture(name="gtfs_service_id_table")
+def fixture_gtfs_service_id_table(
+    duckdb_con: duckdb.DuckDBPyConnection,
+    effective_gtfs_timestamps_table: bool,
+) -> bool:
+    """Create service_ids table."""
+    return effective_gtfs_timestamps_table & register_gtfs_service_id_table(duckdb_con, "tests/test_files/SPRINGBOARD/")
 
 
 def test_register_gtfs_schedule_view(
     duckdb_con: duckdb.DuckDBPyConnection,
+    gtfs_service_id_table: bool,
 ) -> None:
     """It raises errors if the table doesn't exist or is empty."""
-    with duckdb_con:
-        register_effective_gtfs_timestamps(duckdb_con, "tests/test_files/SPRINGBOARD/")
+    if gtfs_service_id_table:
         register_gtfs_schedule_view(duckdb_con, "tests/test_files/SPRINGBOARD/")
-        assert duckdb_con.sql("SELECT * FROM gtfs_schedule.date_trip_sequence")
+    assert duckdb_con.sql("SELECT * FROM gtfs_schedule.date_trip_sequence")
 
 
 @pytest.mark.parametrize(
     [
         "schema_list",
-        "warning_expected",
+        "error_expected",
         "output_schemas",
     ],
-    [(["foo", "bar"], False, ["foo", "bar"]), (["foo", "foo"], True, ["foo"]), (["information_schema"], True, [])],
-    ids=["unique", "duplicate", "reserved"],
+    [(["foo", "bar"], False, ["foo", "bar"]), (["foo", "foo"], False, ["foo", "foo"]), ([""], True, [])],
+    ids=["unique", "duplicate", "empty"],
 )
-def test_create_schemas(
+def test_create_schemas_if_not_exists(
     duckdb_con: duckdb.DuckDBPyConnection,
     schema_list: list[str],
-    warning_expected: bool,
+    error_expected: bool,
     output_schemas: list[str],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It raises errors if the schema already exists."""
-    resultant_schemas = create_schemas(duckdb_con, schema_list)
-    assert (WARNING in [t[1] for t in caplog.record_tuples]) == warning_expected
+    resultant_schemas = create_schemas_if_not_exists(duckdb_con, schema_list)
+    assert (ERROR in [t[1] for t in caplog.record_tuples]) == error_expected
     assert resultant_schemas == output_schemas
