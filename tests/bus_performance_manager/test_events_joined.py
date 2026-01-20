@@ -70,8 +70,12 @@ def test_dy_final_stop_has_arrival_dt(
 
 @pytest.mark.parametrize(
     ["passes", "tm_stop_sequence"],
-    [(pytest.raises(ValidationError, match="monotonic_tm_stop_sequence"), [1, 2, 1]), (nullcontext(True), [1, 2, 3])],
-    ids=["decreasing", "increasing"],
+    [
+        (pytest.raises(ValidationError, match="monotonic_tm_stop_sequence"), [1, 2, 1]),
+        (nullcontext(True), [1, 2, 3]),
+        (nullcontext(True), [None, None, None]),
+    ],
+    ids=["decreasing", "increasing", "null"],
 )
 def test_dy_monotonic_tm_stop_sequence(
     dy_gen: Generator, passes: pytest.RaisesExc, tm_stop_sequence: list[int]
