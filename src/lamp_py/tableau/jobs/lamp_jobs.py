@@ -30,6 +30,8 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_rail_subway,
 )
 
+from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
+from lamp_py.tableau.jobs.rt_rail import HyperRtCommuterRail, HyperRtRail
 
 from lamp_py.runtime_utils.remote_files import (
     bus_events,
@@ -37,8 +39,6 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 from lamp_py.tableau.jobs.bus_performance import bus_schema
 
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.tableau.jobs.rt_rail import HyperRtRail
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehiclePositions
 
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
@@ -178,10 +178,10 @@ HyperRtRailSubway = HyperRtRail(
 )
 
 # commuter rail - Enum types == 2 == COMMUTER_RAIL
-HyperRtRailCommuter = HyperRtRail(
+HyperRtRailCommuter = HyperRtCommuterRail(
     route_type_operator="=",
     route_type_operand=RouteType.COMMUTER_RAIL,
     hyper_file_name="LAMP_COMMUTER_RAIL_RT_fields.hyper",
     remote_parquet_path=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.parquet"),
-    lamp_version="1.1.0",
+    lamp_version="1.1.1",
 )
