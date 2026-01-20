@@ -42,6 +42,18 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
         ).then(pl.col("gtfs_arrival_dt").is_not_null())
 
     @dy.rule()
+    def monotonic_tm_stop_sequence(cls) -> pl.Expr:
+        """Remove records with tm_stop_sequences that are less than the previous record."""
+        return pl.col("tm_stop_sequence").ge(
+            pl.col("tm_stop_sequence")
+            .shift(1)
+            .over(
+                partition_by=["trip_id", "vehicle_label", "route_id"],
+                order_by="stop_sequence",
+            )
+        )
+
+    @dy.rule()
     def _no_ol_trip_ids(cls) -> pl.Expr:
         return ~pl.col("trip_id").str.contains("OL")
 

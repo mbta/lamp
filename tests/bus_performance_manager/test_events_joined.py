@@ -66,3 +66,30 @@ def test_dy_final_stop_has_arrival_dt(
 
     with num_rows:
         assert BusEvents.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ["passes", "tm_stop_sequence"],
+    [(pytest.raises(ValidationError, match="monotonic_tm_stop_sequence"), [1, 2, 1]), (nullcontext(True), [1, 2, 3])],
+    ids=["decreasing", "increasing"],
+)
+def test_dy_monotonic_tm_stop_sequence(
+    dy_gen: Generator, passes: pytest.RaisesExc, tm_stop_sequence: list[int]
+) -> None:
+    """It returns false if tm_stop_sequence decreases over the stop_sequence."""
+    df = BusEvents.sample(
+        num_rows=3,
+        generator=dy_gen,
+        overrides={
+            "trip_id": ["1", "1", "1"],
+            "vehicle_label": "y1",
+            "route_id": "a",
+            "service_date": date(2025, 1, 1),
+        },
+    ).with_columns(
+        stop_sequence=pl.Series(values=[1, 2, 3]),
+        tm_stop_sequence=pl.Series(values=tm_stop_sequence),
+    )
+
+    with passes:
+        BusEvents.validate(df, cast=True)
