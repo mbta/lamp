@@ -1,9 +1,9 @@
-from typing import Type, Callable
+from typing import Type
 
 import dataframely as dy
 import pytest
 
-from lamp_py.utils.dataframely import with_alias, with_nullable, unnest_columns
+from lamp_py.utils.dataframely import with_alias, with_nullable, unnest_columns, has_metadata
 
 
 # new name
@@ -150,3 +150,21 @@ def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str
         k: v for k, v in NewColumns.columns().items() if isinstance(v, (dy.Struct, dy.List))
     }
     assert ExpectedOutput.matches(NewColumns)
+
+
+@pytest.mark.parametrize(
+    ["column", "key", "expected_result"],
+    [
+        (dy.String(metadata={"key1": "value1", "key2": "value2"}), "key1", True),
+        (dy.String(metadata={"key1": "value1", "key2": "value2"}), "key3", False),
+        (dy.Int16(), "any_key", False),
+    ],
+    ids=[
+        "metadata-key-present",
+        "metadata-key-absent",
+        "no-metadata",
+    ],
+)
+def test_has_metadata(column: dy.Column, key: str, expected_result: bool) -> None:
+    """It correctly determines the presence of metadata keys."""
+    assert has_metadata(column, key) == expected_result

@@ -17,7 +17,7 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_glides_all_trips_updated,
 )
 from lamp_py.tableau.hyper import HyperJob
-from lamp_py.utils.dataframely import with_nullable
+from lamp_py.utils.dataframely import has_metadata, with_nullable
 
 GLIDES_TABLEAU_PROJECT = "Glides"
 
@@ -25,7 +25,11 @@ TripUpdatesTableau: Type[dy.Schema] = type(
     "TripUpdatesTableau",
     (dy.Schema,),
     {
-        **{k: with_nullable(v, True) for k, v in TripUpdatesTable.columns().items()},
+        **{
+            k: with_nullable(v, True)
+            for k, v in TripUpdatesTable.columns().items()
+            if not has_metadata(v, "reader_roles")
+        },
         **{
             "data.metadata.inputTimestamp": dy.Datetime(nullable=True, time_unit="ms"),
             "data.tripUpdates.previousTripKey.serviceDate": dy.Date(nullable=True),
@@ -38,7 +42,11 @@ OperatorSignInsTableau: Type[dy.Schema] = type(
     "OperatorSignInsTableau",
     (dy.Schema,),
     {
-        **{k: with_nullable(v, True) for k, v in OperatorSignInsTable.columns().items()},
+        **{
+            k: with_nullable(v, True)
+            for k, v in OperatorSignInsTable.columns().items()
+            if not has_metadata(v, "reader_roles")
+        },
         **{
             "data.metadata.inputTimestamp": dy.Datetime(nullable=True, time_unit="ms"),
             "data.signedInAt": dy.Datetime(nullable=True, time_unit="ms"),

@@ -34,3 +34,11 @@ def unnest_columns(columns: dict[str, dy.Column]) -> dict[str, dy.Column]:
         else:
             new_schema.update({name: col})
     return new_schema
+
+
+def has_metadata(column: dy.Column, key: str) -> bool:
+    """Check if a column has specific metadata key."""
+    if column.metadata is None:
+        return False
+
+    return key in column.metadata.keys()

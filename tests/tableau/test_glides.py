@@ -11,6 +11,7 @@ from pytest_mock import MockerFixture
 from lamp_py.ingestion.glides import GlidesRecord, OperatorSignInsTable, TripUpdatesTable
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns, HyperGlidesTripUpdates
+from lamp_py.utils.dataframely import has_metadata
 
 
 @pytest.mark.parametrize(
@@ -55,7 +56,10 @@ def test_glides_hyper_job(
     test_path = tmp_path.joinpath("test.parquet")
     monkeypatch.setattr(job, "local_parquet_path", test_path)
 
+    pii_columns = [k for k, v in schema.columns().items() if has_metadata(v, "reader_roles")]
+
     with raises:
         job.create_parquet(None)
 
         assert pl.read_parquet(test_path).height == num_records
+        assert all(col not in pl.read_parquet_schema(test_path).keys() for col in pii_columns)
