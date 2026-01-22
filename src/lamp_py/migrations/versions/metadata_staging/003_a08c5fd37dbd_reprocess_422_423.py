@@ -45,7 +45,7 @@ def upgrade() -> None:
     #     )
     #     ORDER BY created_on;
 
-    update_md_query = """
+    update_md_query = r"""
             UPDATE
                 metadata_log
             SET
