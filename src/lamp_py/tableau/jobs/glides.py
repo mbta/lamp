@@ -1,92 +1,49 @@
-from typing import Optional
+from typing import Optional, Type
 
+import dataframely as dy
+import polars as pl
 import pyarrow
-import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 from pyarrow.fs import S3FileSystem
 
-import polars as pl
-
-from lamp_py.tableau.hyper import HyperJob
+from lamp_py.aws.s3 import file_list_from_s3
+from lamp_py.ingestion.glides import OperatorSignInsTable, TripUpdatesTable
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.remote_files import (
-    glides_trips_updated,
     glides_operator_signed_in,
-    tableau_glides_all_trips_updated,
+    glides_trips_updated,
     tableau_glides_all_operator_signed_in,
+    tableau_glides_all_trips_updated,
 )
-from lamp_py.aws.s3 import file_list_from_s3
+from lamp_py.tableau.hyper import HyperJob
+from lamp_py.utils.dataframely import with_nullable
 
 GLIDES_TABLEAU_PROJECT = "Glides"
 
-glides_trips_updated_schema = pyarrow.schema(
-    [
-        ("data.metadata.location.gtfsId", pyarrow.large_string()),
-        ("data.metadata.location.todsId", pyarrow.large_string()),
-        ("data.metadata.author.emailAddress", pyarrow.large_string()),
-        ("data.metadata.author.badgeNumber", pyarrow.large_string()),
-        ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.timestamp("ms")),  # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
-        ("id", pyarrow.large_string()),
-        ("type", pyarrow.large_string()),
-        ("time", pyarrow.timestamp("ms")),  # yyyy-mm-ddT hh:mm:ssZ timestamp (UTC) -> Datetime (EST)
-        ("source", pyarrow.large_string()),
-        ("specversion", pyarrow.large_string()),
-        ("dataschema", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.serviceDate", pyarrow.date32()),  # YYYY-MM-DD str -> date
-        ("data.tripUpdates.previousTripKey.tripId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startLocation.gtfsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.endLocation.gtfsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.startTime", pyarrow.large_string()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.previousTripKey.endTime", pyarrow.large_string()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.previousTripKey.revenue", pyarrow.large_string()),
-        ("data.tripUpdates.previousTripKey.glidesId", pyarrow.large_string()),
-        ("data.tripUpdates.type", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.serviceDate", pyarrow.date32()),  # YYYY-MM-DD str -> date
-        ("data.tripUpdates.tripKey.tripId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startLocation.gtfsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.endLocation.gtfsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.startTime", pyarrow.large_string()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.tripKey.endTime", pyarrow.large_string()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.tripKey.revenue", pyarrow.large_string()),
-        ("data.tripUpdates.tripKey.glidesId", pyarrow.large_string()),
-        ("data.tripUpdates.comment", pyarrow.large_string()),
-        ("data.tripUpdates.startLocation.gtfsId", pyarrow.large_string()),
-        ("data.tripUpdates.startLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.endLocation.gtfsId", pyarrow.large_string()),
-        ("data.tripUpdates.endLocation.todsId", pyarrow.large_string()),
-        ("data.tripUpdates.startTime", pyarrow.large_string()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.endTime", pyarrow.large_string()),  # HH:MM:SS str -> time
-        ("data.tripUpdates.cars", pyarrow.large_string()),
-        ("data.tripUpdates.revenue", pyarrow.large_string()),
-        ("data.tripUpdates.dropped", pyarrow.large_string()),
-        ("data.tripUpdates.scheduled", pyarrow.large_string()),
-    ]
+TripUpdatesTableau: Type[dy.Schema] = type(
+    "TripUpdatesTableau",
+    (dy.Schema,),
+    {
+        **{k: with_nullable(v, True) for k, v in TripUpdatesTable.columns().items()},
+        **{
+            "data.metadata.inputTimestamp": dy.Datetime(nullable=True, time_unit="ms"),
+            "data.tripUpdates.previousTripKey.serviceDate": dy.Date(nullable=True),
+            "data.tripUpdates.tripKey.serviceDate": dy.Date(nullable=True),
+        },
+    },
 )
 
-glides_operator_signed_in_schema = pyarrow.schema(
-    [
-        ("data.metadata.location.gtfsId", pyarrow.large_string()),
-        ("data.metadata.location.todsId", pyarrow.large_string()),
-        ("data.metadata.author.emailAddress", pyarrow.large_string()),
-        ("data.metadata.author.badgeNumber", pyarrow.large_string()),
-        ("data.metadata.inputType", pyarrow.large_string()),
-        ("data.metadata.inputTimestamp", pyarrow.timestamp("ms")),  # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
-        ("data.operator.badgeNumber", pyarrow.large_string()),
-        ("data.signedInAt", pyarrow.timestamp("ms")),  # yyyy-mm-ddT hh:mm:ssZ str (UTC) -> Datetime (EST)
-        ("data.signature.type", pyarrow.large_string()),
-        ("data.signature.version", pyarrow.int16()),
-        ("id", pyarrow.large_string()),
-        ("type", pyarrow.large_string()),
-        ("time", pyarrow.timestamp("ms")),  # yyyy-mm-ddT hh:mm:ssZ timestamp (UTC) -> Datetime (EST)
-        ("source", pyarrow.large_string()),
-        ("specversion", pyarrow.large_string()),
-        ("dataschema", pyarrow.large_string()),
-    ]
+OperatorSignInsTableau: Type[dy.Schema] = type(
+    "OperatorSignInsTableau",
+    (dy.Schema,),
+    {
+        **{k: with_nullable(v, True) for k, v in OperatorSignInsTable.columns().items()},
+        **{
+            "data.metadata.inputTimestamp": dy.Datetime(nullable=True, time_unit="ms"),
+            "data.signedInAt": dy.Datetime(nullable=True, time_unit="ms"),
+        },
+    },
 )
 
 
@@ -183,13 +140,12 @@ class HyperGlidesTripUpdates(HyperJob):
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
-        return glides_trips_updated_schema
+        return TripUpdatesTableau.to_pyarrow_schema()
 
     def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
     def update_parquet(self, _: DatabaseManager | None) -> bool:
-
         create_trips_updated_glides_parquet(self, None)
         return True
 
@@ -208,12 +164,11 @@ class HyperGlidesOperatorSignIns(HyperJob):
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
-        return glides_operator_signed_in_schema
+        return OperatorSignInsTableau.to_pyarrow_schema()
 
     def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
 
     def update_parquet(self, _: DatabaseManager | None) -> bool:
-
         create_operator_signed_in_glides_parquet(self, None)
         return True
