@@ -1,4 +1,4 @@
-func_insert_feed_info = """
+func_insert_feed_info = r"""
         CREATE OR REPLACE FUNCTION insert_feed_info() RETURNS TRIGGER AS $$ 
         BEGIN 
             IF NEW.feed_version ~ '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}' THEN
