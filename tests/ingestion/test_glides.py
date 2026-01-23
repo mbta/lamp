@@ -3,22 +3,23 @@ from os import remove
 from pathlib import Path
 from queue import Queue
 from random import sample
-from pytest_mock import MockerFixture
 
 import dataframely as dy
-import pytest
 import polars as pl
 import pyarrow.parquet as pq
+import pytest
+from pytest_mock import MockerFixture
 
+from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.glides import (
-    GlidesConverter,
     EditorChanges,
+    GlidesConverter,
     OperatorSignIns,
     TripUpdates,
     VehicleTripAssignment,
     ingest_glides_events,
 )
-from lamp_py.aws.kinesis import KinesisReader
+from lamp_py.utils.dataframely import has_metadata
 
 
 @pytest.mark.parametrize(
@@ -112,8 +113,11 @@ def test_append_records(
 
     converter.append_records()
 
+    pii_columns = [k for k, v in converter.table_schema.columns().items() if has_metadata(v, "reader_roles")]
+
     assert pq.read_schema(converter.local_path) == converter.get_table_schema
     assert pq.read_metadata(converter.local_path).num_rows == expectation.height + remote_records_height
+    assert any(col in pq.read_schema(converter.local_path).names for col in pii_columns) is False
 
 
 @pytest.mark.parametrize(
