@@ -42,31 +42,25 @@ def main(args: argparse.Namespace) -> None:
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.time, time.sleep)
 
-    # flag set to regenerate recent data once per reboot - don't need to run through regen logic after
-    # it's set the first time.
-    backfill_recent_once = True
-
     # function to call each time on the event loop, rescheduling the loop at the
     # end of each iteration
-    def iteration(do_recent_backfill: bool) -> None:
+    def iteration() -> None:
         """function to invoke on a scheduled routine"""
         check_for_sigterm()
         process_logger = ProcessLogger("event_loop")
         process_logger.log_start()
         try:
             write_bus_metrics()
-            if do_recent_backfill:
-                regenerate_bus_metrics_recent(num_days=bus_performance.BUS_ALL_NDAYS)  # just for backfill
-                backfill_recent_once = False
+            regenerate_bus_metrics_recent(num_days=bus_performance.BUS_ALL_NDAYS)  # just for backfill
             start_bus_parquet_updates()
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            scheduler.enter(int(args.interval), 1, iteration, argument=(backfill_recent_once,))  # pylint: disable=E0606
+            scheduler.enter(int(args.interval), 1, iteration)
 
     # schedule the initial loop and start the scheduler
-    scheduler.enter(0, 1, iteration, argument=(backfill_recent_once,))
+    scheduler.enter(0, 1, iteration)
     scheduler.run()
     main_process_logger.log_complete()
 
