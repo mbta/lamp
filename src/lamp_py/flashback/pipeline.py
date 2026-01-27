@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 import dataframely as dy
 import polars as pl
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientError
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
@@ -104,10 +104,14 @@ async def get_vehicle_positions(
     process_logger = ProcessLogger("get_vehicle_positions", url=url)
     process_logger.log_start()
     async with ClientSession() as session:
-        async with session.get(url) as response:
-            data = await response.read()
-
-    # TODO : handle fetch errors
+        try:
+            async with session.get(url) as response:
+                response.raise_for_status()
+                data = await response.read()
+        except ClientError as e:
+            process_logger.log_error(f"Fetching VehiclePositions returned: {e}")
+            asyncio.sleep(5)
+            return await get_vehicle_positions(url)
 
     vehicle_positions = pl.scan_ndjson(data)
 
@@ -233,7 +237,7 @@ async def flashback(
 
         existing_events = stop_events
 
-        structure_stop_events(stop_events).write_ndjson(stop_events_location.s3_uri)
+        await asyncio.to_thread(lambda: structure_stop_events(stop_events).write_ndjson(stop_events_location.s3_uri))
 
         process_logger.log_complete()
 
