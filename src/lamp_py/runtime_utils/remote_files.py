@@ -262,3 +262,9 @@ compressed_gtfs = GTFSArchive(
     bucket=S3_PUBLIC,
     prefix=os.path.join(LAMP, "gtfs_archive"),
 )
+
+stop_events = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=f"{LAMP}/ad_hoc/stop_events.json",
+    version="0.1.0",
+)
