@@ -18,6 +18,7 @@ hyper_update = 'lamp_py.tableau.pipeline:start_hyper_updates'
 transit_master_ingestion = 'lamp_py.ingestion_tm.pipeline:start'
 ad_hoc = 'lamp_py.ad_hoc.pipeline:start'
 lightswitch = 'lamp_py.publishing.lightswitch:pipeline'
+stop_events = 'lamp_py.flashback.pipeline:pipeline'
 
 [tool.poetry.dependencies]
 python = "^3.12"
