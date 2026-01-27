@@ -107,6 +107,8 @@ async def get_vehicle_positions(
         async with session.get(url) as response:
             data = await response.read()
 
+    # TODO : handle fetch errors
+
     vehicle_positions = pl.scan_ndjson(data)
 
     process_logger.log_complete()
@@ -217,25 +219,30 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
     return existing_events
 
 
-async def pipeline(max_record_age: timedelta = timedelta(hours=2)) -> None:
+async def flashback(
+    existing_events: dy.DataFrame[StopEventsTable], max_record_age: timedelta = timedelta(hours=2)
+) -> None:
     """Fetch, process, and store stop events."""
-    process_logger = ProcessLogger("main")
-    process_logger.log_start()
-
-    existing_events = get_remote_events()
-
+    existing_events = existing_events
     while True:
+        process_logger = ProcessLogger("flashback")
+        process_logger.log_start()
         new_records = await get_vehicle_positions()
 
         stop_events = update_records(existing_events, unnest_vehicle_positions(new_records), max_record_age)
 
         existing_events = stop_events
 
-        await asyncio.sleep(5)  # wait before fetching new data
-
         structure_stop_events(stop_events).write_ndjson(stop_events_location.s3_uri)
 
+        process_logger.log_complete()
 
-def start() -> None:
+        await asyncio.sleep(5)  # wait before fetching new data
+
+
+def pipeline() -> None:
     """Entry point for flashback stop events pipeline."""
-    asyncio.run(pipeline())
+    process_logger = ProcessLogger("main")
+    process_logger.log_start()
+
+    asyncio.run(flashback(get_remote_events()))

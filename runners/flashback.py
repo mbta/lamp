@@ -1,4 +1,4 @@
 import asyncio
-from lamp_py.flashback.pipeline import pipeline
+from lamp_py.flashback.pipeline import main
 
-asyncio.run(pipeline())
+main()
