@@ -1,10 +1,10 @@
+import asyncio
 from datetime import datetime, timedelta
-from time import sleep
-from urllib.request import urlopen
 from zoneinfo import ZoneInfo
 
 import dataframely as dy
 import polars as pl
+from aiohttp import ClientSession
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
@@ -61,15 +61,11 @@ class StopEventsJSON(dy.Schema):
     )
 
 
-def get_vehicle_positions(url: str = "https://cdn.mbta.com/realtime/VehiclePositions_enhanced.json") -> pl.DataFrame:
-    """Fetch the latest VehiclePositions data from the MBTA."""
-    process_logger = ProcessLogger("get_vehicle_positions", url=url)
-    process_logger.log_start()
-    with urlopen(url) as response:
-        data = response.read()
-    vehicle_positions = (
-        pl.read_ndjson(data)
-        .select("entity")
+def unnest_vehicle_positions(df: pl.LazyFrame) -> dy.DataFrame[StopEventsTable]:
+    """Unnest VehiclePositions data into flat table."""
+    process_logger = ProcessLogger("unnest_vehicle_positions")
+    events = StopEventsTable.cast(
+        df.select("entity")
         .explode("entity")
         .unnest("entity")
         .unnest("vehicle")
@@ -94,11 +90,28 @@ def get_vehicle_positions(url: str = "https://cdn.mbta.com/realtime/VehiclePosit
         )
     )
 
-    valid = process_logger.log_dataframely_filter_results(*StopEventsTable.filter(vehicle_positions, cast=True))
+    valid = process_logger.log_dataframely_filter_results(*StopEventsTable.filter(events, cast=True))
 
     process_logger.log_complete()
 
     return valid
+
+
+async def get_vehicle_positions(
+    url: str = "https://cdn.mbta.com/realtime/VehiclePositions_enhanced.json",
+) -> pl.LazyFrame:
+    """Fetch the latest VehiclePositions data."""
+    process_logger = ProcessLogger("get_vehicle_positions", url=url)
+    process_logger.log_start()
+    async with ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.read()
+
+    vehicle_positions = pl.scan_ndjson(data)
+
+    process_logger.log_complete()
+
+    return vehicle_positions
 
 
 def update_records(
@@ -176,13 +189,13 @@ def structure_stop_events(df: dy.DataFrame[StopEventsTable]) -> dy.DataFrame[Sto
     return valid
 
 
-def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[StopEventsJSON]:
+def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[StopEventsTable]:
     """Fetch existing stop events from S3."""
     process_logger = ProcessLogger("get_remote_events")
     process_logger.log_start()
     try:
         remote_events = process_logger.log_dataframely_filter_results(
-            *StopEventsJSON.filter(pl.read_ndjson(location.s3_uri), cast=True)
+            *StopEventsJSON.filter(pl.scan_ndjson(location.s3_uri), cast=True)
         )
 
         existing_events = StopEventsTable.cast(
@@ -204,7 +217,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
     return existing_events
 
 
-def pipeline(max_record_age: timedelta = timedelta(hours=2)) -> None:
+async def pipeline(max_record_age: timedelta = timedelta(hours=2)) -> None:
     """Fetch, process, and store stop events."""
     process_logger = ProcessLogger("main")
     process_logger.log_start()
@@ -212,10 +225,17 @@ def pipeline(max_record_age: timedelta = timedelta(hours=2)) -> None:
     existing_events = get_remote_events()
 
     while True:
-        stop_events = update_records(existing_events, get_vehicle_positions(), max_record_age)
+        new_records = await get_vehicle_positions()
+
+        stop_events = update_records(existing_events, unnest_vehicle_positions(new_records), max_record_age)
 
         existing_events = stop_events
 
+        await asyncio.sleep(5)  # wait before fetching new data
+
         structure_stop_events(stop_events).write_ndjson(stop_events_location.s3_uri)
 
-        sleep(5)
+
+def start() -> None:
+    """Entry point for flashback stop events pipeline."""
+    asyncio.run(pipeline())
