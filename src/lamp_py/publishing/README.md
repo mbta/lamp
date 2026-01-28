@@ -2,6 +2,8 @@
 
 
 - [Configuration](#configuration)
+  - [Prerequisites](#prerequisites)
+  - [Attaching the catalog](#attaching-the-catalog)
 - [Querying](#querying)
 
 LAMP’s metastore (data catalog?) provides users the experience of
@@ -28,14 +30,24 @@ LIMIT 10
 
 ## Configuration
 
-First, pick a DuckDB interface. As a default, stick with the included
-[DuckDB UI](https://duckdb.org/docs/stable/core_extensions/ui) for a
-minimal notebook. Other options are abundant but a few stand out:
+### Prerequisites
 
-- [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview.html)
-  for maximum extensibility
-- [DuckDB shell](https://shell.duckdb.org/) for a browser-based
-  experience
+First, choose an interface for DuckDB. If this is your first time using
+DuckDB, stick with the built-in UI:
+
+1.  Install DuckDB using
+    [Homebrew](https://formulae.brew.sh/formula/duckdb#default) (for
+    macOS) or [winget](https://winstall.app/apps/DuckDB.cli) (for
+    PowerShell)
+2.  Execute `export ui_disable_server_certificate_verification=1` (for
+    macOS) or `$env:ui_disable_server_certificate_verification=1` (in
+    PowerShell). This tells your computer to trust DuckDB’s UI.
+3.  Restart your terminal
+4.  Execute `duckdb -ui`; `http://localhost:4213/` should open with a
+    notebook interface
+
+Some other DuckDB interfaces that stand out:
+
 - [marimo](https://marimo.io/) for a shiny notebook experience
 - [DBeaver](https://dbeaver.io/) if you want the feel of an old SQL
   editor
@@ -44,27 +56,29 @@ minimal notebook. Other options are abundant but a few stand out:
 [Quarto](https://quarto.org/), which provides options for different
 outputs like websites, presentations, and PDFs.)
 
-To access the s3 buckets that hold LAMP data:
+Then, [create an AWS access
+key](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-key-self-managed.html#Using_CreateAccessKey)
+(against Amazon’s advice). If you can install `awscli` using
+[Homebrew](https://formulae.brew.sh/formula/awscli#default) or
+[winget](https://winstall.app/apps/Amazon.AWSCLI), [persist your access
+key using
+it](https://docs.aws.amazon.com/cli/v1/reference/configure/#examples);
+if you can’t install it, you’ll need to enter your access key each time
+you open DuckDB.
 
-1.  Configure DuckDB to use your AWS credentials, which it supports
-    natively thorugh the `aws` extension.
+### Attaching the catalog
+
+To access the s3 buckets that hold LAMP data, open a DuckDB session and
+perform the following steps:
+
+1.  Install the `aws` extension.
 
 ``` sql
 INSTALL aws;
 ```
 
-2.  If you don’t have AWS credentials, [create an access
-    key](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-key-self-managed.html#Using_CreateAccessKey)
-    (against Amazon’s advice).
-3.  Connect DuckDB to those credentials either [using
-    `awscli`](https://docs.aws.amazon.com/cli/v1/reference/configure/#examples)
-    (recommended if you can install `awscli`) or by [setting environment
-    variables](https://duckdb.org/docs/stable/core_extensions/httpfs/s3api_legacy_authentication#legacy-authentication-scheme).
-    Our region is `us-east-1`. [DuckDB’s
-    docs](https://duckdb.org/docs/stable/core_extensions/aws.html) spell
-    out even more authentication options but these are the easiest.
-4.  Since DuckDB doesn’t automatically load credentials, **run these
-    next lines each time you start a DuckDB session**.
+2.  **Load your AWS credentials each time you start a DuckDB session**.
+    If you’ve persisted them with `awscli`, run
 
 ``` sql
 LOAD aws;
@@ -80,7 +94,19 @@ CREATE OR REPLACE SECRET secret (
 
 1 records
 
-5.  Attach the Lightswitch data catalog. This is a DuckDB database that
+If you haven’t, insert your credentials in this command:
+
+``` sql
+LOAD aws;
+CREATE SECRET (
+    TYPE s3,
+    KEY_ID [ID],
+    SECRET [Secret],
+    REGION 'us-east-1'
+);
+```
+
+3.  Attach the Lightswitch data catalog. This is a DuckDB database that
     only holds views of LAMP Parquet URIs. For instance, the view for
     `RT_VEHICLE_POSITIONS` contains logic that lists the URLs for each
     `RT_VEHICLE_POSITIONS` file in LAMP’s springboard bucket.
