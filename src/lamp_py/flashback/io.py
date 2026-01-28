@@ -19,6 +19,8 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
             *StopEventsJSON.filter(pl.scan_ndjson(location.s3_uri), cast=True)
         )
 
+        # TODO : read in vehicle_positions parquet when available
+
         existing_events = StopEventsTable.cast(
             pl.concat(
                 [
@@ -40,6 +42,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
 
 async def get_vehicle_positions(
     url: str = "https://cdn.mbta.com/realtime/VehiclePositions_enhanced.json",
+    sleep_interval: int = 5,
 ) -> pl.LazyFrame:
     """Fetch the latest VehiclePositions data."""
     process_logger = ProcessLogger("get_vehicle_positions", url=url)
@@ -51,7 +54,7 @@ async def get_vehicle_positions(
                 data = await response.read()
         except ClientError as e:
             process_logger.log_error(f"Fetching VehiclePositions returned: {e}")
-            asyncio.sleep(5)
+            asyncio.sleep(sleep_interval)
             return await get_vehicle_positions(url)
 
     vehicle_positions = pl.scan_ndjson(data)

@@ -27,6 +27,7 @@ async def flashback(
 
         existing_events = stop_events
 
+        # TODO : gzip and factor out to function
         await asyncio.to_thread(lambda: structure_stop_events(stop_events).write_ndjson(stop_events_location.s3_uri))
 
         process_logger.log_complete()
