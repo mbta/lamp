@@ -68,6 +68,7 @@ dataframely = "^2.4.0"
 duckdb = "^1.4"
 ruff = "^0.14.11"
 pytest-mock = "^3.15.1"
+ty = "^0.0.14"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -172,4 +173,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.pep8-naming]
-classmethod-decorators = ["dataframely.rule"] 
+classmethod-decorators = ["dataframely.rule"]

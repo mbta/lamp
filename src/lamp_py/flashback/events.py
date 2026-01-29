@@ -1,3 +1,4 @@
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -10,15 +11,15 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 class StopEventsTable(dy.Schema):
     """Flat events data, with additional information for determining stop departures."""
 
-    id = dy.String(primary_key=True)
+    id = dy.String(primary_key=True) # trip-route-vehicle
     timestamp = dy.Int64()
-    start_date = dy.String()
+    start_date = dy.String(nullable = True)
     trip_id = dy.String()
-    direction_id = dy.Int8(min=0, max=1)
+    direction_id = dy.Int8(min=0, max=1, nullable = True)
     route_id = dy.String()
-    start_time = dy.String()
-    revenue = dy.Bool()
-    stop_id = dy.String()
+    start_time = dy.String(nullable = True)
+    revenue = dy.Bool(nullable = True)
+    stop_id = dy.String(nullable = True)
     current_stop_sequence = dy.Int16(primary_key=True)
     arrived = dy.Int64(nullable=True)
     departed = dy.Int64(nullable=True)
@@ -52,27 +53,33 @@ class StopEventsJSON(dy.Schema):
     )
 
 
-def unnest_vehicle_positions(df: pl.LazyFrame) -> dy.DataFrame[StopEventsTable]:
+def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositions]) -> dy.DataFrame[StopEventsTable]:
     """Unnest VehiclePositions data into flat table."""
-    process_logger = ProcessLogger("unnest_vehicle_positions")
-    events = StopEventsTable.cast(
-        df.select("entity")
+    process_logger = ProcessLogger("unnest_vehicle_positions", input_rows=vp.height)
+    process_logger.log_start()
+    events = (
+        vp.select("entity")
         .explode("entity")
         .unnest("entity")
         .unnest("vehicle")
         .unnest("trip")
-        .filter(pl.col("current_stop_sequence").is_not_null())
+        .filter(
+            pl.col("current_stop_sequence").is_not_null(),
+            pl.col("trip_id").is_not_null(),
+            pl.col("timestamp").is_not_null(),
+            pl.col("route_id").is_not_null(),
+        )
         .select(
-            pl.concat_str(pl.col("trip_id"), pl.lit("-"), pl.col("id")).alias("id"),
+            pl.concat_str(pl.col("trip_id"), pl.col("route_id"), pl.col("id"), separator = "-").alias("id"),
             "timestamp",
             "start_date",
             "trip_id",
-            pl.col("direction_id"),
+            "direction_id",
             "route_id",
             "start_time",
             "revenue",
             "stop_id",
-            pl.col("current_stop_sequence"),
+            "current_stop_sequence",
             pl.when(pl.col("current_status").eq("STOPPED_AT")).then(pl.col("timestamp")).alias("arrived"),
             pl.lit(None).alias("departed"),  # for schema adherence
             pl.when(pl.col("current_status").eq("STOPPED_AT"))

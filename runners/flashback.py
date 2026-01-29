@@ -1,4 +1,3 @@
-import asyncio
-from lamp_py.flashback.pipeline import main
+from lamp_py.flashback.pipeline import pipeline
 
-main()
+pipeline()

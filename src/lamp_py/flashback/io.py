@@ -4,6 +4,7 @@ import dataframely as dy
 import polars as pl
 from aiohttp import ClientError, ClientSession
 
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from lamp_py.flashback.events import StopEventsJSON, StopEventsTable
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import S3Location
@@ -43,7 +44,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
 async def get_vehicle_positions(
     url: str = "https://cdn.mbta.com/realtime/VehiclePositions_enhanced.json",
     sleep_interval: int = 5,
-) -> pl.LazyFrame:
+) -> dy.DataFrame[VehiclePositions]:
     """Fetch the latest VehiclePositions data."""
     process_logger = ProcessLogger("get_vehicle_positions", url=url)
     process_logger.log_start()
@@ -53,12 +54,14 @@ async def get_vehicle_positions(
                 response.raise_for_status()
                 data = await response.read()
         except ClientError as e:
-            process_logger.log_error(f"Fetching VehiclePositions returned: {e}")
+            process_logger.log_failure(e)
             asyncio.sleep(sleep_interval)
             return await get_vehicle_positions(url)
 
-    vehicle_positions = pl.scan_ndjson(data)
+    vehicle_positions = pl.read_ndjson(data, schema = VehiclePositions.to_polars_schema())
+
+    valid = process_logger.log_dataframely_filter_results(*VehiclePositions.filter(vehicle_positions))
 
     process_logger.log_complete()
 
-    return vehicle_positions
+    return valid
