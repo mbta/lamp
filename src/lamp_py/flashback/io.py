@@ -1,8 +1,7 @@
-import asyncio
-
 import dataframely as dy
 import polars as pl
 from aiohttp import ClientError, ClientSession
+from time import sleep
 
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from lamp_py.flashback.events import StopEventsJSON, StopEventsTable
@@ -17,7 +16,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
     process_logger.log_start()
     try:
         remote_events = process_logger.log_dataframely_filter_results(
-            *StopEventsJSON.filter(pl.scan_ndjson(location.s3_uri), cast=True)
+            *StopEventsJSON.filter(pl.scan_parquet(location.s3_uri), cast=True)
         )
 
         # TODO : read in vehicle_positions parquet when available
@@ -26,7 +25,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
             pl.concat(
                 [
                     StopEventsTable.create_empty(),
-                    remote_events.unnest("trip").explode("stop_events").unnest("stop_events"),
+                    remote_events.explode("stop_events").unnest("stop_events"),
                 ],
                 how="diagonal",
             )
@@ -43,7 +42,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
 
 async def get_vehicle_positions(
     url: str = "https://cdn.mbta.com/realtime/VehiclePositions_enhanced.json",
-    sleep_interval: int = 5,
+    sleep_interval: int = 3,
 ) -> dy.DataFrame[VehiclePositions]:
     """Fetch the latest VehiclePositions data."""
     process_logger = ProcessLogger("get_vehicle_positions", url=url)
@@ -55,7 +54,7 @@ async def get_vehicle_positions(
                 data = await response.read()
         except ClientError as e:
             process_logger.log_failure(e)
-            asyncio.sleep(sleep_interval)
+            sleep(sleep_interval)
             return await get_vehicle_positions(url)
 
     vehicle_positions = pl.read_ndjson(data, schema = VehiclePositions.to_polars_schema())
@@ -65,3 +64,10 @@ async def get_vehicle_positions(
     process_logger.log_complete()
 
     return valid
+
+def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location = stop_events_location) -> None:
+    """Write stop events to specified location."""
+    process_logger = ProcessLogger("write_stop_events", s3_uri=location.s3_uri)
+    process_logger.log_start()
+    stop_events.write_parquet(location.s3_uri, compression_level = 9, retries = 5, use_pyarrow=True)
+    process_logger.log_complete()
