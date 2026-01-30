@@ -7,10 +7,9 @@ import dataframely as dy
 
 from lamp_py.aws.ecs import handle_ecs_sigterm
 from lamp_py.flashback.events import StopEventsTable, structure_stop_events, unnest_vehicle_positions, update_records
-from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
+from lamp_py.flashback.io import get_remote_events, get_vehicle_positions, write_stop_events
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import stop_events as stop_events_location
 
 
 async def flashback(
@@ -27,12 +26,11 @@ async def flashback(
 
         existing_events = stop_events
 
-        # TODO : gzip and factor out to function
-        await asyncio.to_thread(lambda: structure_stop_events(stop_events).write_ndjson(stop_events_location.s3_uri))
+        await asyncio.to_thread(lambda: write_stop_events(structure_stop_events(stop_events)))
 
         process_logger.log_complete()
 
-        await asyncio.sleep(5)  # wait before fetching new data
+        await asyncio.sleep(3)  # wait before fetching new data
 
 
 def pipeline() -> None:

@@ -18,7 +18,7 @@ hyper_update = 'lamp_py.tableau.pipeline:start_hyper_updates'
 transit_master_ingestion = 'lamp_py.ingestion_tm.pipeline:start'
 ad_hoc = 'lamp_py.ad_hoc.pipeline:start'
 lightswitch = 'lamp_py.publishing.lightswitch:pipeline'
-stop_events = 'lamp_py.flashback.pipeline:pipeline'
+flashback = 'lamp_py.flashback.pipeline:pipeline'
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -69,6 +69,7 @@ duckdb = "^1.4"
 ruff = "^0.14.11"
 pytest-mock = "^3.15.1"
 ty = "^0.0.14"
+pytest-asyncio = "^1.3.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
