@@ -16,6 +16,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     "Bus events enriched with derived operational metrics."
+
     gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     previous_stop_id = dy.String(nullable=True)
     stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -100,7 +101,7 @@ def run_bus_performance_pipeline(
     tm_schedule = generate_tm_schedule(service_date)
 
     # full join results in _1, _2, all TM, all GTFS
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule.tm_schedule, **debug_flags)
+    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule, **debug_flags)
 
     # _1, _2, -OL1, -OL2
     gtfs_df = generate_gtfs_rt_events(service_date, gtfs_files)
@@ -140,8 +141,14 @@ def calculate_derived_bus_performance_metrics(
     enriched_bus_df = (
         bus_df.with_columns(
             pl.when(
-                pl.col("point_type").eq(pl.lit("start")).any().over(partition_by=["trip_id", "vehicle_id"])
-                & pl.col("point_type").eq(pl.lit("end")).any().over(partition_by=["trip_id", "vehicle_id"])
+                pl.col("point_type")
+                .eq(pl.lit("start"))
+                .any()
+                .over(partition_by=["trip_id", "tm_pullout_id", "vehicle_id"])
+                & pl.col("point_type")
+                .eq(pl.lit("end"))
+                .any()
+                .over(partition_by=["trip_id", "tm_pullout_id", "vehicle_id"])
             )
             .then(pl.lit(True))
             .otherwise(pl.lit(False))
@@ -162,7 +169,7 @@ def calculate_derived_bus_performance_metrics(
             pl.col("stop_id")
             .shift(1)
             .over(
-                ["vehicle_label", "trip_id"],
+                ["vehicle_label", "trip_id", "tm_pullout_id"],
                 order_by="stop_sequence",
             )
             .alias("previous_stop_id"),
@@ -184,7 +191,7 @@ def calculate_derived_bus_performance_metrics(
                         .fill_null(strategy="forward")
                         .shift()
                         .over(
-                            partition_by=["service_date", "trip_id", "vehicle_label"],
+                            partition_by=["tm_pullout_id", "trip_id", "vehicle_label"],
                             order_by="stop_sequence",
                         ),
                     )
@@ -207,7 +214,7 @@ def calculate_derived_bus_performance_metrics(
                 - pl.coalesce("stop_departure_dt", "stop_arrival_dt")
                 .fill_null(strategy="forward")
                 .shift()
-                .over(partition_by=["service_date", "trip_id", "vehicle_label"], order_by="stop_sequence")
+                .over(partition_by=["tm_pullout_id", "trip_id", "vehicle_label"], order_by="stop_sequence")
             )
             .dt.total_seconds()
             .alias("travel_time_seconds"),

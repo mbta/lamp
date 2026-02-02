@@ -1,5 +1,5 @@
 from contextlib import nullcontext
-from datetime import datetime
+from datetime import datetime, date
 
 import pytest
 import dataframely as dy
@@ -18,16 +18,20 @@ class TestCombinedSchedule(CombinedBusSchedule):
     def consecutive_null_stop_sequences_ordered_correctly(cls) -> pl.Expr:
         """Order smaller gtfs_stop_sequences before larger gtfs_stop_sequences."""
         return pl.col("gtfs_stop_sequence").gt(
-            pl.col("gtfs_stop_sequence").shift().over(partition_by="trip_id", order_by="stop_sequence")
+            pl.col("gtfs_stop_sequence")
+            .shift()
+            .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence")
         )
 
     @dy.rule()
     def first_stop_sequence_has_gtfs_record(cls) -> pl.Expr:
         """Order the non-null GTFS record first."""
-        return (
-            pl.col("gtfs_stop_sequence").is_null().all().over("trip_id")  # either the trip has no GTFS records at all
-            | pl.col("stop_sequence").gt(1)  # the stop sequence is greater than 1
-            | pl.col("gtfs_stop_sequence").is_not_null()  # or the gtfs_stop_sequence is not null
+        return (  # either
+            (
+                pl.col("gtfs_stop_sequence").eq(1) & pl.col("stop_sequence").eq(1)
+            )  # gtfs stop sequence 1 is the first record
+            | pl.col("gtfs_stop_sequence").is_null()  # or the gtfs_stop_sequence is null
+            | pl.col("gtfs_stop_sequence").gt(1)  # or the gtfs_stop_sequence is greater than 1
         )
 
 
@@ -53,6 +57,9 @@ def test_dy_first_stop_sequence_has_gtfs_record(
     """It filters out records with non-null TM records before non-null GTFS records at the first stop_sequence."""
     df = CombinedBusSchedule.sample(3, generator=dy_gen).with_columns(
         trip_id=pl.lit("1"),
+        service_date=pl.datetime(2025, 1, 1),
+        route_id=pl.lit("a"),
+        tm_pullout_id=pl.lit("x"),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         tm_stop_sequence=pl.Series(values=tm_stop_sequence),
         gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),
@@ -94,6 +101,9 @@ def test_dy_consecutive_null_stop_sequences_ordered_correctly(
     """It filters rows that are out of order."""
     df = CombinedBusSchedule.sample(4, generator=dy_gen).with_columns(
         trip_id=pl.lit("1"),
+        route_id=pl.lit("a"),
+        tm_pullout_id=pl.lit("x"),
+        service_date=pl.datetime(2025, 1, 1),
         gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),  # out of order
         tm_stop_sequence=pl.Series(values=tm_stop_sequence),
         stop_sequence=pl.Series(values=range(1, 5)),
@@ -157,10 +167,14 @@ def test_correct_sequencing(
 ) -> None:
     """Given out-of-order GTFS stops, it returns correctly ordered sequences."""
     trip_id = pl.lit("1")
+    service_date = pl.datetime(2025, 1, 1)
+    route_id = pl.lit("a")
 
     gtfs = GTFSBusSchedule.cast(
         GTFSBusSchedule.sample(len(gtfs_stop_id), generator=dy_gen).with_columns(
             trip_id=trip_id,
+            service_date=service_date,
+            route_id=route_id,
             stop_id=pl.Series(values=gtfs_stop_id),
             gtfs_stop_sequence=pl.Series(values=gtfs_stop_sequence),
             plan_stop_departure_dt=pl.Series(values=gtfs_plan_stop_departure_dt),
@@ -170,9 +184,12 @@ def test_correct_sequencing(
     tm_schedule = TransitMasterSchedule.cast(
         TransitMasterSchedule.sample(3, generator=dy_gen).with_columns(
             tm_stop_sequence=pl.Series(values=[1, 2, 3]),
-            plan_stop_departure_dt=pl.Series(
+            service_date=service_date,
+            route_id=route_id,
+            tm_stop_departure_dt=pl.Series(
                 values=[datetime(2025, 1, 1, 1), datetime(2025, 1, 1, 2), datetime(2025, 1, 1, 3)]
             ),
+            PULLOUT_ID=pl.lit("0"),
             stop_id=pl.Series(
                 values=[
                     "a",
@@ -181,7 +198,6 @@ def test_correct_sequencing(
                 ]
             ),
             trip_id=trip_id,
-            trip_overload_id=pl.lit(0),
         )
     )
 
@@ -198,20 +214,24 @@ def test_correct_sequencing(
     ],
     [
         ([datetime(2025, 1, 1, 1, 0), datetime(2025, 1, 1, 2, 0), datetime(2025, 1, 1, 3, 0)], nullcontext()),
-        ([datetime(2025, 1, 1, 1, 30), datetime(2025, 1, 1, 2, 30), datetime(2025, 1, 1, 3, 30)], nullcontext()),
+        (
+            [datetime(2025, 1, 1, 1, 30), datetime(2025, 1, 1, 2, 30), datetime(2025, 1, 1, 3, 30)],
+            pytest.raises(AssertionError),
+        ),
     ],
     ids=[
-        "1-match",
+        "1-many-match",
         "0-matches",
     ],
 )
 def test_drop_overloads(
     dy_gen: dy.random.Generator, gtfs_plan_stop_departure_dt: list[datetime], raises: pytest.RaisesExc
 ) -> None:
-    """It only returns one TM trip per trip_id."""
+    """It requires that TM trip IDs match a GTFS id."""
     trip_id = pl.lit("1")
     stop_id = ["a", "b", "c"]
     stop_sequence = [1, 2, 3]
+    service_date = pl.lit(date(2025, 1, 1))
 
     gtfs = GTFSBusSchedule.cast(
         GTFSBusSchedule.sample(len(stop_id), generator=dy_gen).with_columns(
@@ -219,13 +239,14 @@ def test_drop_overloads(
             stop_id=pl.Series(values=stop_id),
             gtfs_stop_sequence=pl.Series(values=stop_sequence),
             plan_stop_departure_dt=pl.Series(values=gtfs_plan_stop_departure_dt),
+            service_date=service_date,
         )
     )
 
     tm_schedule = TransitMasterSchedule.cast(
         TransitMasterSchedule.sample(9, generator=dy_gen).with_columns(
             tm_stop_sequence=pl.Series(values=stop_sequence * 3),
-            plan_stop_departure_dt=pl.Series(
+            tm_stop_departure_dt=pl.Series(
                 values=[
                     datetime(2025, 1, 1, 0, 59),
                     datetime(2025, 1, 1, 1, 59),
@@ -240,7 +261,8 @@ def test_drop_overloads(
             ),
             stop_id=pl.Series(values=stop_id * 3),
             trip_id=trip_id,
-            trip_overload_id=pl.Series(values=[1, 1, 1, 2, 2, 2, 3, 3, 3]),
+            PULLOUT_ID=pl.Series(values=[1, 1, 1, 2, 2, 2, 3, 3, 3]),
+            service_date=service_date,
         )
     )
 

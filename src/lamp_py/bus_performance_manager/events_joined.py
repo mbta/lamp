@@ -12,6 +12,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
+
     trip_id = dy.String(primary_key=True)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
@@ -48,7 +49,7 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
             pl.col("tm_stop_sequence")
             .shift(1)
             .over(
-                partition_by=["trip_id", "vehicle_label", "route_id"],
+                partition_by=["trip_id", "vehicle_label", "route_id", "tm_pullout_id"],
                 order_by="stop_sequence",
             )
         )
@@ -68,6 +69,7 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
 
 class BusPerformanceManager(dy.Collection):
     "Relationships between BusPM datasets."
+
     tm: dy.LazyFrame[TransitMasterEvents]
     bus: dy.LazyFrame[BusEvents]
     gtfs: dy.LazyFrame[GTFSEvents]
@@ -132,47 +134,59 @@ def join_rt_to_schedule(
         pl.col("trip_id").alias("trip_id_gtfs"),
         remove_overload_and_rare_variant_suffix(pl.col("trip_id")),
     )
-    schedule_vehicles = schedule.join(
-        pl.concat(
-            [tm.select("trip_id", "vehicle_label", "stop_id"), gtfs.select("trip_id", "vehicle_label", "stop_id")]
-        ).unique(),
-        how="left",
-        on=["trip_id", "stop_id"],
-        coalesce=True,
-    )
 
-    schedule_gtfs = (
-        schedule_vehicles.sort(by="gtfs_stop_sequence")
-        .join_asof(
-            gtfs.sort(by="gtfs_stop_sequence"),
-            on="gtfs_stop_sequence",
-            by=["trip_id", "stop_id", "vehicle_label"],
-            strategy="nearest",
-            coalesce=True,
-            suffix="_right_gtfs",
-        )
-        .drop(
-            "route_id_right_gtfs",
-            "direction_id_right_gtfs",
-        )
-    )
-
-    # join gtfs and tm datasets using "asof" strategy for stop_sequence columns
-    # asof strategy finds nearest value match between "asof" columns if exact match is not found
-    # will perform regular left join on "by" columns
-    schedule_gtfs_tm = (
-        schedule_gtfs.sort(by="tm_stop_sequence")
-        .join_asof(
-            tm.sort(by="tm_stop_sequence"),
-            on="tm_stop_sequence",
-            by=["trip_id", "stop_id", "vehicle_label"],
-            strategy="nearest",
-            coalesce=True,
-            suffix="_right_tm",
+    trip_vehicle_match = (
+        schedule.select("trip_id", "tm_pullout_id", "vehicle_label")
+        .unique()
+        .join(
+            gtfs.select("trip_id", "vehicle_label").unique(), on=["trip_id"], how="full", coalesce=True, suffix="_gtfs"
         )
         .with_columns(
-            pl.coalesce("vehicle_label", pl.lit("____")).alias("vehicle_label"),
-            pl.col("stop_sequence").max().over(partition_by=["trip_id", "vehicle_label"]).alias("stop_count"),
+            vehicle_match=pl.col("vehicle_label")
+            .ne_missing(pl.col("vehicle_label_gtfs"))
+            .rank("min")
+            .over(partition_by=["trip_id", "vehicle_label_gtfs"])
+        )
+        .filter(
+            pl.col("vehicle_match").eq(1),
+            pl.coalesce("vehicle_label", "vehicle_label_gtfs").eq(pl.col("vehicle_label_gtfs")),
+        )
+    )
+
+    events = (
+        schedule.join(
+            tm.drop("stop_id", "route_id"),
+            on=["trip_id", "tm_pullout_id", "tm_stop_sequence", "vehicle_label"],
+            how="left",
+            coalesce=True,
+        )
+        .join(
+            trip_vehicle_match,
+            on=["trip_id", "tm_pullout_id", "vehicle_label"],
+            nulls_equal=True,
+            how="full",
+            coalesce=True,
+        )
+        .join(
+            gtfs,
+            left_on=[
+                "service_date",
+                "gtfs_stop_sequence",
+                "trip_id",
+                "vehicle_label_gtfs",
+            ],
+            right_on=[
+                "service_date",
+                "gtfs_stop_sequence",
+                "trip_id",
+                "vehicle_label",
+            ],
+            how="left",
+            suffix="_gtfs",
+        )
+        .with_columns(vehicle_label=pl.coalesce("vehicle_label", "vehicle_label_gtfs", pl.lit("____")))
+        .with_columns(
+            pl.col("stop_sequence").max().over(partition_by=["trip_id", "tm_pullout_id"]).alias("stop_count"),
             pl.coalesce(
                 pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
                 pl.when(pl.col("point_type").eq(pl.lit("end"))).then(  # and it's the last stop on the route
@@ -187,10 +201,9 @@ def join_rt_to_schedule(
             right_on=["tm_trip_id", "tm_vehicle_label"],
             how="left",
         )
-        .select(BusEvents.column_names())
     )
 
-    valid = process_logger.log_dataframely_filter_results(*BusEvents.filter(schedule_gtfs_tm))
+    valid = process_logger.log_dataframely_filter_results(*BusEvents.filter(events, cast=True))
 
     process_logger.log_complete()
 

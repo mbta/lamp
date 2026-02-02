@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import date
 import os
 
@@ -20,6 +19,7 @@ from lamp_py.runtime_utils.remote_files import (
 class TransitMasterSchedule(BusBaseSchema):
     """TransitMaster scheduled events."""
 
+    vehicle_label = dy.String(nullable=True)
     pattern_id = dy.Int64(nullable=True)
     tm_stop_sequence = dy.Int64(primary_key=True)
     timepoint_id = dy.Int64(nullable=True)
@@ -28,24 +28,13 @@ class TransitMasterSchedule(BusBaseSchema):
     tm_planned_sequence_end = dy.Int64(nullable=True)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     service_date = dy.Date(nullable=True)
-    plan_stop_departure_dt = dy.Datetime(primary_key=True, time_zone=None)
+    tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
     timepoint_order = dy.UInt32(nullable=True)
-    trip_overload_id = dy.Int8(nullable=True)
     STOP_CROSSING_ID = dy.Int64(nullable=False)
+    PULLOUT_ID = dy.Int64(primary_key=True)
 
 
-# pylint: disable=R0902
-@dataclass(frozen=True)
-class TransitMasterTables:
-    """
-    Class holding collection of TM schedule inputs and the resultant tm_schedule for joining with GTFS
-    """
-
-    tm_vehicles: pl.LazyFrame
-    tm_schedule: dy.DataFrame[TransitMasterSchedule]
-
-
-def generate_tm_schedule(service_date: date) -> TransitMasterTables:
+def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedule]:
     """
 
     non service tiemepoints
@@ -119,7 +108,7 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
     )
 
     stop_crossings = (
-        pl.scan_parquet(os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime("%Y%m%d")}.parquet"))
+        pl.scan_parquet(os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime('%Y%m%d')}.parquet"))
         .filter(
             pl.col("ROUTE_ID").is_not_null(),
             pl.col("GEO_NODE_ID").is_not_null(),
@@ -130,6 +119,7 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left")
         .join(tm_time_points, on="TIME_POINT_ID", how="left")
         .join(tm_routes, on="ROUTE_ID", how="left")
+        .join(tm_vehicles, on="VEHICLE_ID", how="left")
         .with_columns(
             (
                 pl.col("CALENDAR_ID").cast(pl.String).str.to_date("1%Y%m%d").alias("service_date"),
@@ -143,32 +133,22 @@ def generate_tm_schedule(service_date: date) -> TransitMasterTables:
                 (
                     pl.col("CALENDAR_ID").cast(pl.String).str.to_datetime("1%Y%m%d", time_unit="us")
                     + pl.duration(seconds=pl.col("SCHEDULED_TIME"))
-                ).alias("plan_stop_departure_dt"),
+                ).alias("tm_stop_departure_dt"),
                 pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
                 pl.col("ROUTE_ABBR").str.strip_chars_start(pl.lit("0")).alias("route_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").max().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_end"),
                 pl.col("PATTERN_GEO_NODE_SEQ").min().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_start"),
+                pl.col("PROPERTY_TAG")
+                .forward_fill()
+                .backward_fill()
+                .over(["PULLOUT_ID", "TRIP_SERIAL_NUMBER"], order_by="PATTERN_GEO_NODE_SEQ")
+                .cast(pl.String)
+                .alias("vehicle_label"),
             )
-        )
-        .sort("VEHICLE_ID", nulls_last=True)
-        .unique(
-            subset=TransitMasterSchedule.primary_key(),
-            keep="first",  # if there are duplicate records for the same plan_stop_departure_dt, keep the record with the non-null vehicle ID so that we can join to that in events_tm
-            maintain_order=True,
-        )
-        .with_columns(  # overloaded trips need to be distinguished
-            pl.col("tm_stop_sequence")
-            .rank()
-            .over(["trip_id", "tm_stop_sequence"], order_by="plan_stop_departure_dt")
-            .cast(pl.Int8)
-            .alias("trip_overload_id")
         )
         .select(TransitMasterSchedule.column_names())
     )
 
     tm_schedule = logger.log_dataframely_filter_results(*TransitMasterSchedule.filter(stop_crossings))
 
-    return TransitMasterTables(
-        tm_vehicles=tm_vehicles,
-        tm_schedule=tm_schedule,
-    )
+    return tm_schedule
