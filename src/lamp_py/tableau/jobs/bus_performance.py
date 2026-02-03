@@ -39,7 +39,6 @@ bus_schema = pyarrow.schema(
         ("checkpoint_id", pyarrow.large_string()),
         ("gtfs_stop_sequence", pyarrow.int64()),
         ("stop_sequence", pyarrow.uint32()),
-        ("vehicle_id", pyarrow.large_string()),
         ("vehicle_label", pyarrow.large_string()),
         ("gtfs_first_in_transit_dt", pyarrow.timestamp("us")),
         ("gtfs_last_in_transit_dt", pyarrow.timestamp("us")),

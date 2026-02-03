@@ -61,31 +61,42 @@ def join_tm_schedule_to_gtfs_schedule(
         )
     )
 
+    gtfs_cleaned = gtfs.with_columns(
+        gtfs_trip_suffix=pl.col("trip_id").str.extract(r"-OL(\d?)|_(\d)$"),
+        trip_id=remove_rare_variant_route_suffix(pl.col("trip_id")),
+    )
+
     # gtfs_schedule: contains _1, _2. Does not contain -OL
     # tm_schedule: does not contain _1, _2. Does not contain -OL
     schedule = (
         pl.concat(
             [
-                gtfs.with_columns(
-                    gtfs_trip_suffix=pl.col("trip_id").str.extract(r"-OL(\d?)|_(\d)$"),
-                    trip_id=remove_rare_variant_route_suffix(pl.col("trip_id")),
-                )
-                .join(tm_schedule, on="trip_id", how="semi")  # remove gtfs trips that arent in tm
+                gtfs_cleaned.join(tm_schedule, on="trip_id", how="semi")  # remove gtfs trips that arent in tm
                 .join(
                     tm_schedule_departure_dts,
                     on=["trip_id", "stop_id", "plan_stop_departure_dt"],
-                    how="inner",
+                    how="left",
                     coalesce=True,
                 )
                 .join(
-                    tm_schedule.drop("route_id"),
+                    tm_schedule,
                     on=["service_date", "trip_id", "PULLOUT_ID", "stop_id", "tm_stop_sequence"],
-                    how="right",
+                    how="full",
                     coalesce=True,
+                    suffix="_tm",
                 ),
-                gtfs.join(tm_schedule, on="trip_id", how="anti"),  # add back in gtfs-only trips
+                gtfs_cleaned.join(tm_schedule, on="trip_id", how="anti"),  # add back in gtfs-only trips
             ],
             how="diagonal",
+        )
+        .with_columns(
+            pl.coalesce("tm_stop_departure_dt", "plan_stop_departure_dt").alias("plan_stop_departure_dt"),
+            pl.coalesce("route_id", "route_id_tm").alias("route_id"),
+            pl.col("PULLOUT_ID")
+            .fill_null(strategy="forward")
+            .fill_null(strategy="backward")
+            .over("trip_id")
+            .alias("PULLOUT_ID"),
         )
         # this operation fills in the nulls for trip-level columns after the join
         # the stop-level values do not make sense to fill in
@@ -130,7 +141,6 @@ def join_tm_schedule_to_gtfs_schedule(
             .then(pl.lit("GTFS"))
             .otherwise(pl.lit("JOIN"))
             .alias("schedule_joined"),
-            pl.coalesce("tm_stop_departure_dt", "plan_stop_departure_dt").alias("plan_stop_departure_dt"),
         )
         .with_columns(
             pl.col("plan_stop_departure_dt")

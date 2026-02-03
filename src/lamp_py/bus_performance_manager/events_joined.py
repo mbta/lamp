@@ -22,7 +22,6 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     start_dt = dy.Datetime(nullable=True)
     direction_id = dy.Int8(nullable=True)
     direction = dy.String(nullable=True)
-    vehicle_id = dy.String(nullable=True)
     gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -169,18 +168,8 @@ def join_rt_to_schedule(
         )
         .join(
             gtfs,
-            left_on=[
-                "service_date",
-                "gtfs_stop_sequence",
-                "trip_id",
-                "vehicle_label_gtfs",
-            ],
-            right_on=[
-                "service_date",
-                "gtfs_stop_sequence",
-                "trip_id",
-                "vehicle_label",
-            ],
+            left_on=["service_date", "gtfs_stop_sequence", "trip_id", "vehicle_label_gtfs", "route_id"],
+            right_on=["service_date", "gtfs_stop_sequence", "trip_id", "vehicle_label", "route_id"],
             how="left",
             suffix="_gtfs",
         )

@@ -214,28 +214,25 @@ def test_correct_sequencing(
     ],
     [
         ([datetime(2025, 1, 1, 1, 0), datetime(2025, 1, 1, 2, 0), datetime(2025, 1, 1, 3, 0)], nullcontext()),
-        (
-            [datetime(2025, 1, 1, 1, 30), datetime(2025, 1, 1, 2, 30), datetime(2025, 1, 1, 3, 30)],
-            pytest.raises(AssertionError),
-        ),
     ],
     ids=[
         "1-many-match",
-        "0-matches",
     ],
 )
 def test_drop_overloads(
     dy_gen: dy.random.Generator, gtfs_plan_stop_departure_dt: list[datetime], raises: pytest.RaisesExc
 ) -> None:
-    """It requires that TM trip IDs match a GTFS id."""
+    """It doesn't duplicate records when there are multiple variants of the same trip_id."""
     trip_id = pl.lit("1")
     stop_id = ["a", "b", "c"]
     stop_sequence = [1, 2, 3]
     service_date = pl.lit(date(2025, 1, 1))
+    route_id = pl.lit("1")
 
     gtfs = GTFSBusSchedule.cast(
         GTFSBusSchedule.sample(len(stop_id), generator=dy_gen).with_columns(
             trip_id=trip_id,
+            route_id=route_id,
             stop_id=pl.Series(values=stop_id),
             gtfs_stop_sequence=pl.Series(values=stop_sequence),
             plan_stop_departure_dt=pl.Series(values=gtfs_plan_stop_departure_dt),
@@ -261,6 +258,7 @@ def test_drop_overloads(
             ),
             stop_id=pl.Series(values=stop_id * 3),
             trip_id=trip_id,
+            route_id=route_id,
             PULLOUT_ID=pl.Series(values=[1, 1, 1, 2, 2, 2, 3, 3, 3]),
             service_date=service_date,
         )
