@@ -70,15 +70,16 @@ REGENERATE = False
 service_date = datetime.date(year=2025, month=6, day=26)
 
 if REGENERATE:
-    gtfs_schedule = bus_gtfs_schedule_events_for_date(service_date)
-    tm_schedule = generate_tm_schedule(service_date)
-    combined_schedule = join_tm_schedule_to_gtfs_schedule(gtfs_schedule, tm_schedule.tm_schedule)
+    gtfs_schedule_table = bus_gtfs_schedule_events_for_date(service_date)
+    tm_schedule_table = generate_tm_schedule(service_date)
+    combined_schedule = pl.DataFrame(join_tm_schedule_to_gtfs_schedule(gtfs_schedule_table, tm_schedule_table))
 
+    gtfs_schedule = pl.DataFrame(gtfs_schedule_table)
     gtfs_schedule.write_parquet(f"gtfs_schedule__service_date_{str(service_date)}.parquet")
-    tm_schedule = tm_schedule.filter(
+    tm_schedule = tm_schedule_table.filter(
         pl.col("TRIP_SERIAL_NUMBER").cast(pl.String).is_in(gtfs_schedule["plan_trip_id"].unique().implode())
     )
-    tm_schedule = tm_schedule.write_parquet(f"tm_schedule__service_date_{str(service_date)}.parquet")
+    tm_schedule.write_parquet(f"tm_schedule__service_date_{str(service_date)}.parquet")
     combined_schedule.write_parquet(f"combined_schedule__service_date_{str(service_date)}.parquet")
 
 else:
@@ -186,7 +187,6 @@ err_dfs = []
 skipped_gtfs_trips = set()
 combined_schedule = combined_schedule.with_columns(pl.lit([]).alias("error_reason"))
 for idx, trip_df in combined_schedule.group_by("trip_id"):
-
     # how to track this long term? feels wrong here...
     if trip_df["route_id"].drop_nulls().unique().item() == "47":
         continue
