@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from contextlib import nullcontext
 from logging import WARNING
 from pathlib import Path
@@ -6,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import dataframely as dy
 import polars as pl
 import pytest
+from polars.testing import assert_frame_equal
 
 from lamp_py.flashback.events import StopEventsJSON
 from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
@@ -14,8 +16,9 @@ from tests.test_resources import LocalS3Location
 
 
 @pytest.fixture
-def mock_vp_response(tmp_path: Path):
+def mock_vp_response(tmp_path: Path) -> Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]]:
     """Create mocked vehicle positions HTTP responses from dataframe."""
+
     def _create(vp: dy.DataFrame[VehiclePositions]) -> tuple[AsyncMock, bytes]:
         json_file = tmp_path.joinpath("test.json")
         vp.write_ndjson(json_file)
@@ -40,7 +43,7 @@ def test_get_remote_events(
     raise_network_error: bool,
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
-):
+) -> None:
     """It gracefully handles incomplete or missing remote data and networking problems."""
     test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
 
@@ -70,13 +73,13 @@ def test_get_remote_events(
 )
 def test_invalid_remote_events_schema(
     dy_gen: dy.random.Generator,
-    overrides: dict,
+    overrides: dict[str, pl.Expr],
     expected_valid_records: int,
     raise_warning: bool,
     raises_error: pytest.RaisesExc,
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
-):
+) -> None:
     """It gracefully handles incomplete or missing remote data."""
     test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
 
@@ -108,7 +111,7 @@ async def test_get_vehicle_positions(
     mock_sleep: AsyncMock,
     mock_get: AsyncMock,
     dy_gen: dy.random.Generator,
-    mock_vp_response,
+    mock_vp_response: Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]],
     num_failures: int,
     max_retries: int,
     caplog: pytest.LogCaptureFixture,
@@ -143,7 +146,12 @@ async def test_get_vehicle_positions(
 @pytest.mark.parametrize(
     ["overrides", "expected_rows", "raises_error", "has_invalid_records"],
     [
-        ({"entity": pl.col("entity").list.eval(pl.element().struct.with_fields(id=pl.lit("a")))}, 0, nullcontext(), True),
+        (
+            {"entity": pl.col("entity").list.eval(pl.element().struct.with_fields(id=pl.lit("a")))},
+            0,
+            nullcontext(),
+            True,
+        ),
         ({"entity": pl.col("entity")}, 1, nullcontext(), False),  # no change
         (
             {"entity": pl.col("entity").list.eval(pl.element().struct.rename_fields(["id", "trip"]))},
@@ -165,7 +173,7 @@ async def test_get_vehicle_positions(
 async def test_invalid_vehicle_positions_schema(
     mock_get: AsyncMock,
     dy_gen: dy.random.Generator,
-    mock_vp_response,
+    mock_vp_response: Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]],
     overrides: dict[str, pl.Expr],
     expected_rows: int,
     raises_error: pytest.RaisesExc,
@@ -174,7 +182,7 @@ async def test_invalid_vehicle_positions_schema(
 ) -> None:
     """It filters out events that don't comply with the schema."""
     vp = VehiclePositions.sample(generator=dy_gen).with_columns(**overrides)
-    mock_response, _ = mock_vp_response(vp)
+    mock_response, _ = mock_vp_response(vp)  # ty: ignore[invalid-argument-type] b/c we want to test an incorrect dataframe
     mock_get.return_value.__aenter__.return_value = mock_response
 
     with raises_error:
@@ -184,8 +192,32 @@ async def test_invalid_vehicle_positions_schema(
         assert has_invalid_records == (WARNING in [record[1] for record in caplog.record_tuples])
 
 
-# use a generator to raise multiple SSL/HTTP exceptions < retry limit --> success
-# path doesn't exist --> raise error
-# s3 auth error --> raise error
-def test_write_stop_events():
-    """It gracefully handles failures writing to S3."""
+@pytest.mark.parametrize(
+    "should_fail",
+    [False, True],
+    ids=["success", "write-failure"],
+)
+def test_write_stop_events(
+    dy_gen: dy.random.Generator,
+    tmp_path: Path,
+    should_fail: bool,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """It writes stop events to S3 and handles write failures."""
+    from lamp_py.flashback.io import write_stop_events
+
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
+    stop_events = StopEventsJSON.sample(2, generator=dy_gen)
+
+    if should_fail:
+        # Simulate persistent write failure
+        with patch("polars.DataFrame.write_parquet", side_effect=OSError("S3 write error")):
+            with pytest.raises(OSError):
+                write_stop_events(stop_events, test_location)
+    else:
+        write_stop_events(stop_events, test_location)
+
+        # Verify file was written successfully
+        assert Path(test_location.s3_uri).exists()
+        written_df = pl.read_parquet(test_location.s3_uri)
+        assert_frame_equal(written_df, stop_events)

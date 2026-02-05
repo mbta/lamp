@@ -71,7 +71,7 @@ async def get_vehicle_positions(
 
     return valid
 
-def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location = stop_events_location) -> None:
+def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location | LocalS3Location = stop_events_location) -> None:
     """Write stop events to specified location."""
     process_logger = ProcessLogger("write_stop_events", s3_uri=location.s3_uri)
     process_logger.log_start()
