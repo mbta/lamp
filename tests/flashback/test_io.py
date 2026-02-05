@@ -7,17 +7,49 @@ import dataframely as dy
 import polars as pl
 import pytest
 
-from lamp_py.flashback.io import get_vehicle_positions
+from lamp_py.flashback.events import StopEventsJSON
+from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
+from tests.test_resources import LocalS3Location
 
 
 # no file --> log error, function ultimately returns empty df
-# wrong schema --> log error, function ultimately returns error
-# compatible schema --> log nothing, function ultimately returns df
-# some records invalid --> log warning, function ultimately returns df with valid records
 # non-200 response --> log error, function ultimately returns empty df
 def test_get_remote_events():
     """It gracefully handles incomplete or missing remote data."""
+
+
+@pytest.mark.parametrize(
+    ["overrides", "expected_valid_records", "raise_warning", "raises_error"],
+    [
+        ({"id": pl.lit("1")}, 0, True, nullcontext()),
+        ({"id": pl.col("id")}, 3, False, nullcontext()),
+        ({"id": pl.Series(values=["1", "1", "2"])}, 1, True, nullcontext()),
+        pytest.param({"id": pl.col("id").implode()}, 0, False, pytest.raises(pl.exceptions.PolarsError)),
+    ],
+    ids=["all-invalid", "all-valid", "1-valid", "wrong-schema"],
+)
+def test_invalid_remote_events_schema(
+    dy_gen: dy.random.Generator,
+    overrides: dict,
+    expected_valid_records: int,
+    raise_warning: bool,
+    raises_error: pytest.RaisesExc,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+):
+    """It gracefully handles incomplete or missing remote data."""
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
+
+    StopEventsJSON.sample(
+        3,
+        generator=dy_gen,
+    ).with_columns(**overrides).write_parquet(test_location.s3_uri)
+    with raises_error:
+        df = get_remote_events(test_location)
+
+        assert df.height >= expected_valid_records
+        assert raise_warning == (WARNING in [record[1] for record in caplog.record_tuples])
 
 
 # non-200 response --> all records valid, error logged, function ultimately returns

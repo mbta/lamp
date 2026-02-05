@@ -1,3 +1,4 @@
+from tests.test_resources import LocalS3Location
 import dataframely as dy
 import polars as pl
 from aiohttp import ClientError, ClientSession
@@ -10,7 +11,7 @@ from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.runtime_utils.remote_files import stop_events as stop_events_location
 
 
-def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[StopEventsTable]:
+def get_remote_events(location: S3Location | LocalS3Location = stop_events_location) -> dy.DataFrame[StopEventsTable]:
     """Fetch existing stop events from S3."""
     process_logger = ProcessLogger("get_remote_events")
     process_logger.log_start()
@@ -19,7 +20,7 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
             *StopEventsJSON.filter(pl.scan_parquet(location.s3_uri), cast=True)
         )
 
-        # TODO : read in vehicle_positions parquet when available
+        # TODO : read in vehicle_positions parquet when available?
 
         existing_events = StopEventsTable.cast(
             pl.concat(
