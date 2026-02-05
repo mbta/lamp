@@ -13,6 +13,25 @@ from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from tests.test_resources import LocalS3Location
 
 
+@pytest.fixture
+def mock_vp_response(tmp_path: Path):
+    """Create mocked vehicle positions HTTP responses from dataframe."""
+    def _create(vp: dy.DataFrame[VehiclePositions]) -> tuple[AsyncMock, bytes]:
+        json_file = tmp_path.joinpath("test.json")
+        vp.write_ndjson(json_file)
+
+        with open(json_file, "rb") as f:
+            data = f.read()
+
+        mock_response = AsyncMock()
+        mock_response.read = AsyncMock(return_value=data)
+        mock_response.raise_for_status = lambda: None
+
+        return mock_response, data
+
+    return _create
+
+
 @pytest.mark.parametrize("file_exists", [False, True], ids=["no-file", "with-file"])
 @pytest.mark.parametrize("raise_network_error", [False, True], ids=["no-error", "network-error"])
 def test_get_remote_events(
@@ -72,10 +91,44 @@ def test_invalid_remote_events_schema(
         assert raise_warning == (WARNING in [record[1] for record in caplog.record_tuples])
 
 
-# non-200 response --> all records valid, error logged, function ultimately returns
-# n failures --> all records valid, error logged, function ultimately raises error
-def test_get_vehicle_positions() -> None:
+@pytest.mark.parametrize("num_failures", [1, 2], ids=["single-retry", "multiple-retries"])
+@pytest.mark.asyncio
+@patch("aiohttp.ClientSession.get")
+@patch("lamp_py.flashback.io.sleep")
+async def test_get_vehicle_positions(
+    mock_sleep: AsyncMock,
+    mock_get: AsyncMock,
+    dy_gen: dy.random.Generator,
+    mock_vp_response,
+    num_failures: int,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """It gracefully handles (successive) non-200 responses."""
+    from aiohttp import ClientError
+
+    vp = VehiclePositions.sample(generator=dy_gen)
+    success_response, _ = mock_vp_response(vp)
+
+    # Create mock responses for failures followed by success
+    def mock_raise_for_status_error():
+        raise ClientError("Non-200 response")
+
+    error_responses = []
+    for _ in range(num_failures):
+        error_response = AsyncMock()
+        error_response.raise_for_status = mock_raise_for_status_error
+        error_responses.append(error_response)
+
+    mock_get.return_value.__aenter__.side_effect = error_responses + [success_response]
+
+    df = await get_vehicle_positions()
+
+    assert df.height == 1
+    assert mock_sleep.call_count == num_failures
+    # Check that failures were logged (status=failed appears in log message)
+    assert "ClientError" in caplog.text
+    failure_logs = [record for record in caplog.record_tuples if "status=failed" in record[2]]
+    assert len(failure_logs) == num_failures
 
 
 @pytest.mark.parametrize(
@@ -88,7 +141,7 @@ def test_get_vehicle_positions() -> None:
             0,
             nullcontext(),
             True,
-        ),  # remove vehicle field
+        ),  # remove vehicle field - row exists but with empty entity list (valid data)
         (
             {"entity": pl.col("entity").list.eval(pl.element().struct.with_fields(vehicle=pl.lit(1)))},
             0,
@@ -103,24 +156,16 @@ def test_get_vehicle_positions() -> None:
 async def test_invalid_vehicle_positions_schema(
     mock_get: AsyncMock,
     dy_gen: dy.random.Generator,
+    mock_vp_response,
     overrides: dict[str, pl.Expr],
     expected_rows: int,
     raises_error: pytest.RaisesExc,
     has_invalid_records: bool,
     caplog: pytest.LogCaptureFixture,
-    tmp_path: Path,
 ) -> None:
     """It filters out events that don't comply with the schema."""
     vp = VehiclePositions.sample(generator=dy_gen).with_columns(**overrides)
-    json_file = tmp_path.joinpath("test.json")
-    vp.write_ndjson(json_file)
-
-    with open(json_file, "rb") as f:
-        data = f.read()
-
-    mock_response = AsyncMock()
-    mock_response.read = AsyncMock(return_value=data)
-    mock_response.raise_for_status = lambda: None  # Non-async method
+    mock_response, _ = mock_vp_response(vp)
     mock_get.return_value.__aenter__.return_value = mock_response
 
     with raises_error:
