@@ -1,4 +1,3 @@
-from tests.test_resources import LocalS3Location
 import dataframely as dy
 import polars as pl
 from aiohttp import ClientError, ClientSession
@@ -11,7 +10,7 @@ from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.runtime_utils.remote_files import stop_events as stop_events_location
 
 
-def get_remote_events(location: S3Location | LocalS3Location = stop_events_location) -> dy.DataFrame[StopEventsTable]:
+def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[StopEventsTable]:
     """Fetch existing stop events from S3."""
     process_logger = ProcessLogger("get_remote_events")
     process_logger.log_start()
@@ -71,7 +70,7 @@ async def get_vehicle_positions(
 
     return valid
 
-def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location | LocalS3Location = stop_events_location) -> None:
+def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location = stop_events_location) -> None:
     """Write stop events to specified location."""
     process_logger = ProcessLogger("write_stop_events", s3_uri=location.s3_uri)
     process_logger.log_start()

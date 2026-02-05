@@ -7,6 +7,7 @@ from pyarrow import csv, parquet
 from lamp_py.runtime_utils.remote_files import (
     S3_SPRINGBOARD,
     S3_INCOMING,
+    S3Location
 )
 
 test_files_dir = os.path.join(os.path.dirname(__file__), "test_files")
@@ -45,7 +46,7 @@ springboard_dir = os.path.join(test_files_dir, S3_SPRINGBOARD)
 
 
 @dataclass
-class LocalS3Location:
+class LocalS3Location(S3Location):
     """replace an s3 location wrapper class so it can be used in testing"""
 
     bucket: str
