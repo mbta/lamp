@@ -13,10 +13,10 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 async def flashback(
-    existing_events: dy.DataFrame[StopEventsTable], max_record_age: timedelta = timedelta(hours=2)
+    remote_events: dy.DataFrame[StopEventsTable], max_record_age: timedelta = timedelta(hours=2)
 ) -> None:
     """Fetch, process, and store stop events."""
-    existing_events = existing_events
+    existing_events = remote_events
     while True:
         process_logger = ProcessLogger("flashback")
         process_logger.log_start()

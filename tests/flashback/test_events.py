@@ -317,9 +317,11 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
     assert duration < 1.0
 
 
-def test_structure_stop_events(dy_gen: dy.random.Generator, caplog: pytest.LogCaptureFixture) -> None:
+def test_structure_stop_events(dy_gen: dy.random.Generator) -> None:
     """It correctly chooses the most recent timestamp and the first trip in the id."""
-    events_df = StopEventsTable.sample(num_rows=2, generator=dy_gen, overrides={"id": "foo", "timestamp": [1, 2], "route_id": ["red", "blue"]})
+    events_df = StopEventsTable.sample(
+        num_rows=2, generator=dy_gen, overrides={"id": "foo", "timestamp": [1, 2], "route_id": ["red", "blue"]}
+    )
     events_json = structure_stop_events(events_df)
     assert events_json.row(0)[1] == 2
     assert events_df.select("start_date", "trip_id", "direction_id", "route_id", "start_time", "revenue").row(

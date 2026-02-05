@@ -4,11 +4,7 @@ from dataclasses import dataclass
 import pyarrow
 from pyarrow import csv, parquet
 
-from lamp_py.runtime_utils.remote_files import (
-    S3_SPRINGBOARD,
-    S3_INCOMING,
-    S3Location
-)
+from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD, S3_INCOMING, S3Location
 
 test_files_dir = os.path.join(os.path.dirname(__file__), "test_files")
 

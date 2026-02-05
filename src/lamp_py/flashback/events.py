@@ -1,10 +1,10 @@
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import dataframely as dy
 import polars as pl
 
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -105,7 +105,9 @@ def update_records(
     combined = (
         existing_records.filter(  # remove old records
             datetime.now(tz=ZoneInfo("America/New_York"))
-            - pl.from_epoch("timestamp").dt.replace_time_zone("America/New_York", ambiguous = "latest", non_existent = "null")
+            - pl.from_epoch("timestamp").dt.replace_time_zone(
+                "America/New_York", ambiguous="latest", non_existent="null"
+            )
             < max_record_age
         )
         .join(new_records, on=["id", "current_stop_sequence"], how="full", coalesce=True)
@@ -135,8 +137,7 @@ def update_records(
                 pl.when(  # if departure is updated, then also update timestamp
                     pl.col("current_stop_sequence").max().over("id").gt(pl.col("current_stop_sequence")),
                     pl.col("departed").is_null(),
-                )
-                .then(pl.col("timestamp_right").max().over("id")),
+                ).then(pl.col("timestamp_right").max().over("id")),
                 "timestamp",
                 "timestamp_right",
             ).alias("timestamp"),

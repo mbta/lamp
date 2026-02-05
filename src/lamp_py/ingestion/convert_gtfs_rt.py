@@ -60,6 +60,7 @@ from lamp_py.runtime_utils.remote_files import (
 )
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
 
+
 class VehiclePositions(dy.Schema):
     """Structured VehiclePositions message."""
 
@@ -102,8 +103,9 @@ class VehiclePositions(dy.Schema):
                         "occupancy_percentage": dy.UInt32(nullable=True),
                         "current_status": dy.String(nullable=True),
                     }
-                )
-            }, alias = "vehicle"
+                ),
+            },
+            alias="vehicle",
         ),
         nullable=False,
     )

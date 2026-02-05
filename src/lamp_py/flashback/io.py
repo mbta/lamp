@@ -1,10 +1,11 @@
+from time import sleep
+
 import dataframely as dy
 import polars as pl
 from aiohttp import ClientError, ClientSession
-from time import sleep
 
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from lamp_py.flashback.events import StopEventsJSON, StopEventsTable
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.runtime_utils.remote_files import stop_events as stop_events_location
@@ -62,7 +63,7 @@ async def get_vehicle_positions(
                     raise ClientError(f"Maximum retries ({max_retries}) exceeded") from e
                 sleep(sleep_interval)
 
-    vehicle_positions = pl.read_ndjson(data, schema = VehiclePositions.to_polars_schema())
+    vehicle_positions = pl.read_ndjson(data, schema=VehiclePositions.to_polars_schema())
 
     valid = process_logger.log_dataframely_filter_results(*VehiclePositions.filter(vehicle_positions))
 
@@ -70,9 +71,10 @@ async def get_vehicle_positions(
 
     return valid
 
+
 def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location = stop_events_location) -> None:
     """Write stop events to specified location."""
     process_logger = ProcessLogger("write_stop_events", s3_uri=location.s3_uri)
     process_logger.log_start()
-    stop_events.write_parquet(location.s3_uri, compression_level = 9, retries = 5, use_pyarrow=True)
+    stop_events.write_parquet(location.s3_uri, compression_level=9, retries=5, use_pyarrow=True)
     process_logger.log_complete()

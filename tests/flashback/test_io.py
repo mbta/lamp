@@ -1,3 +1,4 @@
+# pylint: disable=too-many-positional-arguments,too-many-arguments
 from collections.abc import Callable
 from contextlib import nullcontext
 from logging import WARNING
@@ -7,16 +8,17 @@ from unittest.mock import AsyncMock, patch
 import dataframely as dy
 import polars as pl
 import pytest
+from aiohttp import ClientError
 from polars.testing import assert_frame_equal
 
 from lamp_py.flashback.events import StopEventsJSON
-from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
+from lamp_py.flashback.io import get_remote_events, get_vehicle_positions, write_stop_events
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from tests.test_resources import LocalS3Location
 
 
-@pytest.fixture
-def mock_vp_response(tmp_path: Path) -> Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]]:
+@pytest.fixture(name="mock_vp_response")
+def fixture_mock_vp_response(tmp_path: Path) -> Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]]:
     """Create mocked vehicle positions HTTP responses from dataframe."""
 
     def _create(vp: dy.DataFrame[VehiclePositions]) -> tuple[AsyncMock, bytes]:
@@ -86,7 +88,9 @@ def test_invalid_remote_events_schema(
     StopEventsJSON.sample(
         3,
         generator=dy_gen,
-    ).with_columns(**overrides).write_parquet(test_location.s3_uri)
+    ).with_columns(
+        **overrides
+    ).write_parquet(test_location.s3_uri)
     with raises_error:
         df = get_remote_events(test_location)
 
@@ -117,8 +121,6 @@ async def test_get_vehicle_positions(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It gracefully handles (successive) non-200 responses."""
-    from aiohttp import ClientError
-
     vp = VehiclePositions.sample(generator=dy_gen)
     success_response, _ = mock_vp_response(vp)
 
@@ -182,7 +184,7 @@ async def test_invalid_vehicle_positions_schema(
 ) -> None:
     """It filters out events that don't comply with the schema."""
     vp = VehiclePositions.sample(generator=dy_gen).with_columns(**overrides)
-    mock_response, _ = mock_vp_response(vp)  # ty: ignore[invalid-argument-type] b/c we want to test an incorrect dataframe
+    mock_response, _ = mock_vp_response(vp)  # type: ignore[arg-type]
     mock_get.return_value.__aenter__.return_value = mock_response
 
     with raises_error:
@@ -201,11 +203,8 @@ def test_write_stop_events(
     dy_gen: dy.random.Generator,
     tmp_path: Path,
     should_fail: bool,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It writes stop events to S3 and handles write failures."""
-    from lamp_py.flashback.io import write_stop_events
-
     test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
     stop_events = StopEventsJSON.sample(2, generator=dy_gen)
 
