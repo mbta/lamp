@@ -1,8 +1,10 @@
 from typing import Dict, List, Optional, Type
 import os
+import gzip
 from datetime import datetime
 import tempfile
 from queue import Queue
+from json import dump
 
 from abc import ABC, abstractmethod
 import dataframely as dy
@@ -16,8 +18,9 @@ from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
 from lamp_py.utils.dataframely import unnest_columns, with_nullable
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
-    LAMP,
-    S3_SPRINGBOARD,
+    glides_records,
+    glides_directory,
+    S3Location,
 )
 
 RFC3339_DATE_REGEX = r"^20(?:([1-3][0-9]-[0-1][0-9]-[0-3][0-9]))"  # up to 2039-19-39
@@ -179,7 +182,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         self.base_filename = base_filename
         self.type = self.base_filename.replace(".parquet", "")
         self.local_path = os.path.join(self.tmp_dir, self.base_filename)
-        self.remote_path = f"s3://{S3_SPRINGBOARD}/{LAMP}/GLIDES/{base_filename}"
+        self.remote_path = f"{glides_directory.s3_uri}/{base_filename}"
         self.record_schema = record_schema
         self.table_schema = table_schema
 
@@ -203,7 +206,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         """Key in record['data'] that is unique to this event type"""
 
     def download_remote(self) -> None:
-        """download the remote parquet path for appending"""
+        """Download the remote parquet path for appending"""
         if os.path.exists(self.local_path):
             os.remove(self.local_path)
 
@@ -392,12 +395,53 @@ class VehicleTripAssignment(GlidesConverter):
         return tu_dataset
 
 
+def archive_glides_records(records: list[dict], upload_directory: S3Location, stream_name: str) -> bool:
+    """
+    Archive raw Glides records to S3 as a gzipped JSON file.
+
+    Args:
+        records: List of raw Glides record dictionaries
+        upload_directory: S3 location to upload the archive file
+        stream_name: Stream name to include in filename
+
+    Returns:
+        True if archiving succeeded, False otherwise
+    """
+    if not records:
+        return True
+
+    process_logger = ProcessLogger("archive_glides_records")
+    process_logger.log_start()
+
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        archive_file_name = f"{stream_name}_{timestamp}.json.gz"
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".json.gz", delete=True) as tmp_file:
+            with gzip.open(tmp_file, "wt", encoding="utf-8") as gf:
+                dump(records, gf)
+
+            # Flush to ensure data is written before upload
+            tmp_file.flush()
+
+            upload_file(
+                tmp_file.name,
+                os.path.join(upload_directory.s3_uri, archive_file_name),
+            )
+
+        process_logger.add_metadata(record_count=len(records), file_name=archive_file_name)
+        process_logger.log_complete()
+        return True
+
+    except (OSError, IOError) as e:
+        process_logger.log_failure(e)
+        return False
+
+
 def ingest_glides_events(
     kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]], upload: bool = False
 ) -> None:
-    """
-    ingest glides records from the kinesis stream and add them to parquet files
-    """
+    """Ingest glides records from the kinesis stream and add them to parquet files."""
     process_logger = ProcessLogger(process_name="ingest_glides_events")
     process_logger.log_start()
 
@@ -409,7 +453,11 @@ def ingest_glides_events(
             VehicleTripAssignment(),
         ]
 
-        for record in kinesis_reader.get_records():
+        records = kinesis_reader.get_records()
+
+        archive_glides_records(records, glides_records, kinesis_reader.stream_name)
+
+        for record in records:
             try:
                 # format this so it can be used to partition parquet files
                 record["time"] = datetime.fromisoformat(record["time"].replace("Z", "+00:00"))

@@ -149,6 +149,7 @@ bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle
 bus_operator_mapping = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0")
 
 # Kinesis stream glides events
+glides_directory = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES"), version="1.0")
 glides_trips_updated = S3Location(
     bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/trip_updates.parquet"), version="1.0"
 )
@@ -262,3 +263,6 @@ compressed_gtfs = GTFSArchive(
     bucket=S3_PUBLIC,
     prefix=os.path.join(LAMP, "gtfs_archive"),
 )
+
+# archived glides records before ingestion
+glides_records = S3Location(S3_ARCHIVE, os.path.join(LAMP, "glides"))
