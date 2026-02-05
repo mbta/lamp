@@ -367,8 +367,8 @@ class HyperRtCommuterRail(HyperRtRail):
                , ve.dwell_time_seconds
                , ve.headway_trunk_seconds
                , ve.headway_branch_seconds
-               , sst.arrival_time as scheduled_arrival_time
-               , sst.departure_time as scheduled_departure_time
+               , vt.service_date::text::timestamp + make_interval(secs => sst.arrival_time) as scheduled_arrival_time
+               , vt.service_date::text::timestamp + make_interval(secs => sst.departure_time) as scheduled_departure_time
                , sst.schedule_travel_time_seconds as scheduled_travel_time
                , sst.schedule_headway_branch_seconds as scheduled_headway_branch
                , sst.schedule_headway_trunk_seconds as scheduled_headway_trunk
@@ -399,7 +399,8 @@ class HyperRtCommuterRail(HyperRtRail):
              LEFT JOIN
                static_stop_times sst
              ON 
-               prev_ve.stop_id = sst.stop_id
+               ve.stop_sequence = sst.stop_sequence
+               AND vt.trip_id = sst.trip_id
                AND vt.static_version_key = sst.static_version_key
              LEFT JOIN 
                static_routes sr

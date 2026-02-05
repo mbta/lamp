@@ -30,6 +30,7 @@ bus_schema = pyarrow.schema(
         ("service_date", pyarrow.date32()),  # change to date type
         ("route_id", pyarrow.large_string()),
         ("trip_id", pyarrow.large_string()),
+        ("tm_pullout_id", pyarrow.large_string()),
         ("start_time", pyarrow.int64()),
         ("start_dt", pyarrow.timestamp("us")),
         ("stop_count", pyarrow.uint32()),
@@ -38,7 +39,6 @@ bus_schema = pyarrow.schema(
         ("checkpoint_id", pyarrow.large_string()),
         ("gtfs_stop_sequence", pyarrow.int64()),
         ("stop_sequence", pyarrow.uint32()),
-        ("vehicle_id", pyarrow.large_string()),
         ("vehicle_label", pyarrow.large_string()),
         ("gtfs_first_in_transit_dt", pyarrow.timestamp("us")),
         ("gtfs_last_in_transit_dt", pyarrow.timestamp("us")),

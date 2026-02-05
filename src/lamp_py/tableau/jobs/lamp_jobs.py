@@ -141,7 +141,7 @@ HyperBusFall2025 = FilteredHyperJob(
     remote_output_location=S3Location(
         bucket=S3_ARCHIVE,
         prefix=os.path.join(LAMP, "bus_rating_datasets", "year=2025", "Fall2025_BusMetrics.parquet"),
-        version="1.0",
+        version="1.0.1",
     ),
     start_date=date(2025, 8, 24),
     end_date=date(2025, 12, 13),

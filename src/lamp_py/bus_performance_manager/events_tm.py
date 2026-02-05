@@ -6,7 +6,7 @@ import dataframely as dy
 import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
-from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterTables
+from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
 from lamp_py.runtime_utils.remote_files import (
     tm_trip_file,
     tm_vehicle_file,
@@ -20,16 +20,19 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class TransitMasterEvents(BusBaseSchema):
     "Scheduled and actual stops in TransitMaster."
+
     tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_actual_arrival_time_sam = dy.Int64(nullable=True)
     tm_actual_departure_time_sam = dy.Int64(nullable=True)
-    vehicle_label = dy.String(nullable=False, primary_key=True)
+    vehicle_label = dy.String(nullable=True)
     tm_stop_sequence = dy.Int64(primary_key=True)
+    tm_pullout_id = dy.String(primary_key=True)
 
 
 class TMDailyWorkPiece(dy.Schema):
     "Daily Work Piece /operator record from TM, Additional public bus operator ID"
+
     service_date = dy.Date(nullable=True)
     tm_block_id = dy.String(nullable=True)
     tm_run_id = dy.String(nullable=True)
@@ -43,7 +46,7 @@ class TMDailyWorkPiece(dy.Schema):
 
 def generate_tm_events(
     tm_files: List[str],
-    tm_scheduled: TransitMasterTables,
+    tm_schedule: dy.DataFrame[TransitMasterSchedule],
 ) -> dy.DataFrame[TransitMasterEvents]:
     """
     Build out events from transit master stop crossing data after joining it
@@ -73,15 +76,8 @@ def generate_tm_events(
             & pl.col("VEHICLE_ID").is_not_null()
             & ((pl.col("ACT_ARRIVAL_TIME").is_not_null()) | (pl.col("ACT_DEPARTURE_TIME").is_not_null()))
         )
-        .join(
-            tm_scheduled.tm_vehicles,
-            on="VEHICLE_ID",
-            how="left",
-            coalesce=True,
-        )
-        .join(tm_scheduled.tm_schedule.lazy(), on="STOP_CROSSING_ID", how="inner")
+        .join(tm_schedule.lazy(), on="STOP_CROSSING_ID", how="inner")
         .with_columns(
-            pl.col("PROPERTY_TAG").cast(pl.String).alias("vehicle_label"),
             (
                 (pl.col("service_date").cast(pl.Datetime) + pl.duration(seconds="ACT_ARRIVAL_TIME"))
                 .dt.replace_time_zone("America/New_York", ambiguous="earliest")
@@ -96,12 +92,11 @@ def generate_tm_events(
             ),
             pl.col("ACT_ARRIVAL_TIME").cast(pl.Int64).alias("tm_actual_arrival_time_sam"),
             pl.col("ACT_DEPARTURE_TIME").cast(pl.Int64).alias("tm_actual_departure_time_sam"),
+            pl.col("PULLOUT_ID").cast(pl.String).alias("tm_pullout_id"),
         )
-        .select(TransitMasterEvents.column_names())
-        .collect()
     )
 
-    valid = logger.log_dataframely_filter_results(*TransitMasterEvents.filter(tm_stop_crossings))
+    valid = logger.log_dataframely_filter_results(*TransitMasterEvents.filter(tm_stop_crossings, cast=True))
 
     logger.log_complete()
 
