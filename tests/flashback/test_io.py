@@ -91,7 +91,16 @@ def test_invalid_remote_events_schema(
         assert raise_warning == (WARNING in [record[1] for record in caplog.record_tuples])
 
 
-@pytest.mark.parametrize("num_failures", [1, 2], ids=["single-retry", "multiple-retries"])
+@pytest.mark.parametrize(
+    ["num_failures", "max_retries"],
+    [
+        (1, 10),
+        (2, 10),
+        (30, 10),
+        (5, 3),  # Test with lower max_retries
+    ],
+    ids=["1-retry", "2-retries", "too-many-retries", "custom-max-retries"],
+)
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession.get")
 @patch("lamp_py.flashback.io.sleep")
@@ -101,6 +110,7 @@ async def test_get_vehicle_positions(
     dy_gen: dy.random.Generator,
     mock_vp_response,
     num_failures: int,
+    max_retries: int,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It gracefully handles (successive) non-200 responses."""
@@ -109,26 +119,25 @@ async def test_get_vehicle_positions(
     vp = VehiclePositions.sample(generator=dy_gen)
     success_response, _ = mock_vp_response(vp)
 
-    # Create mock responses for failures followed by success
-    def mock_raise_for_status_error():
-        raise ClientError("Non-200 response")
+    # Create mock error response
+    error_response = AsyncMock()
+    error_response.raise_for_status = lambda: (_ for _ in ()).throw(ClientError("Non-200 response"))
 
-    error_responses = []
-    for _ in range(num_failures):
-        error_response = AsyncMock()
-        error_response.raise_for_status = mock_raise_for_status_error
-        error_responses.append(error_response)
+    mock_get.return_value.__aenter__.side_effect = [error_response] * num_failures + [success_response]
 
-    mock_get.return_value.__aenter__.side_effect = error_responses + [success_response]
+    # If too many retries, expect ClientError
+    if num_failures >= max_retries:
+        with pytest.raises(ClientError):
+            await get_vehicle_positions(max_retries=max_retries)
+    else:
+        df = await get_vehicle_positions(max_retries=max_retries)
 
-    df = await get_vehicle_positions()
-
-    assert df.height == 1
-    assert mock_sleep.call_count == num_failures
-    # Check that failures were logged (status=failed appears in log message)
-    assert "ClientError" in caplog.text
-    failure_logs = [record for record in caplog.record_tuples if "status=failed" in record[2]]
-    assert len(failure_logs) == num_failures
+        assert df.height == 1
+        assert mock_sleep.call_count == num_failures
+        # Check that failures were logged (status=failed appears in log message)
+        assert "ClientError" in caplog.text
+        failure_logs = [record for record in caplog.record_tuples if "status=failed" in record[2]]
+        assert len(failure_logs) == num_failures
 
 
 @pytest.mark.parametrize(

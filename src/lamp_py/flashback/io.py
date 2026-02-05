@@ -44,19 +44,24 @@ def get_remote_events(location: S3Location | LocalS3Location = stop_events_locat
 async def get_vehicle_positions(
     url: str = "https://cdn.mbta.com/realtime/VehiclePositions_enhanced.json",
     sleep_interval: int = 3,
+    max_retries: int = 10,
 ) -> dy.DataFrame[VehiclePositions]:
     """Fetch the latest VehiclePositions data."""
     process_logger = ProcessLogger("get_vehicle_positions", url=url)
     process_logger.log_start()
+
     async with ClientSession() as session:
-        try:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                data = await response.read()
-        except ClientError as e:
-            process_logger.log_failure(e)
-            sleep(sleep_interval)
-            return await get_vehicle_positions(url)
+        for attempt in range(max_retries + 1):
+            try:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.read()
+                    break
+            except ClientError as e:
+                process_logger.log_failure(e)
+                if attempt == max_retries:
+                    raise ClientError(f"Maximum retries ({max_retries}) exceeded") from e
+                sleep(sleep_interval)
 
     vehicle_positions = pl.read_ndjson(data, schema = VehiclePositions.to_polars_schema())
 
