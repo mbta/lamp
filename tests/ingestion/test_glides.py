@@ -1,4 +1,7 @@
+import gzip
+import shutil
 from datetime import datetime
+from json import load
 from os import remove
 from pathlib import Path
 from queue import Queue
@@ -16,9 +19,11 @@ from lamp_py.ingestion.glides import (
     OperatorSignIns,
     TripUpdates,
     VehicleTripAssignment,
+    archive_glides_records,
     ingest_glides_events,
 )
 from lamp_py.aws.kinesis import KinesisReader
+from tests.test_resources import LocalS3Location
 
 
 @pytest.mark.parametrize(
@@ -149,6 +154,7 @@ def test_ingest_glides_events(
     )
 
     kinesis_reader = mocker.Mock(KinesisReader)
+    kinesis_reader.stream_name = "test-stream"
     kinesis_reader.get_records.return_value = sample(test_records, len(test_records))
 
     mock_upload = mocker.Mock(return_value=True)
@@ -158,3 +164,44 @@ def test_ingest_glides_events(
     assert Path(converter.local_path).exists()
     remove(converter.local_path)  # can't figure out how to patch the tmp_dir inside ingest_glides_events :/
     mock_upload.assert_any_call(file_name=converter.local_path, object_path=converter.remote_path)
+
+
+@pytest.mark.parametrize(
+    ("upload_error", "expected_result"),
+    [
+        (None, True),
+        (OSError("S3 upload failed"), False),
+    ],
+    ids=["success", "failure"],
+)
+def test_archive_glides_records(
+    tmp_path: Path,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    upload_error: OSError | None,
+    expected_result: bool,
+) -> None:
+    """It archives records to S3 and logs failures."""
+    test_location = LocalS3Location(tmp_path.as_posix(), "archives")
+    records = [{"time": "2024-01-01T12:00:00Z", "data": {"editorsChanged": {"editors": []}}}]
+    saved_file = Path(test_location.s3_uri).joinpath("archive.json.gz")
+    saved_file.parent.mkdir()
+
+    def mock_upload(file_name: str, object_path: str) -> None:
+        _ = object_path
+        shutil.copy2(file_name, saved_file)
+        if upload_error:
+            raise upload_error
+
+    mocker.patch("lamp_py.ingestion.glides.upload_file", side_effect=mock_upload)
+
+    result = archive_glides_records(records, test_location, "test-stream")  # type: ignore[arg-type]
+
+    assert result is expected_result
+
+    if expected_result:
+        with gzip.open(saved_file, "rt", encoding="utf-8") as f:
+            assert load(f) == records
+    else:
+        assert "status=failed" in caplog.text
+        assert "S3 upload failed" in caplog.text
