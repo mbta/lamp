@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import dataframely as dy
 import polars as pl
@@ -94,6 +94,7 @@ from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
                         },
                         "position": {},
                         "vehicle": {},
+                        "stop_id": "123",
                         "current_stop_sequence": 5,
                         "timestamp": 1700000000,
                     },
@@ -281,7 +282,7 @@ def test_update_records(
     """It quickly and correctly updates records."""
     existing_records = StopEventsTable.sample(generator=dy_gen, overrides=existing_record_overrides)
     new_records = StopEventsTable.sample(generator=dy_gen, overrides=new_record_overrides)
-    updated = update_records(existing_records, new_records)
+    updated = update_records(existing_records, new_records, timedelta(hours=2))
     updated_set = set(
         tuple(i.values())
         for i in updated.select("id", "current_stop_sequence", "timestamp", "arrived", "departed").to_struct().to_list()
@@ -312,7 +313,7 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
     )
 
     start = time.time()
-    _ = update_records(existing_records, new_records)
+    _ = update_records(existing_records, new_records, timedelta(hours=2))
     duration = time.time() - start
     assert duration < 1.0
 

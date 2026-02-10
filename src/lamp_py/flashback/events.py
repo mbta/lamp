@@ -19,7 +19,7 @@ class StopEventsTable(dy.Schema):
     route_id = dy.String()
     start_time = dy.String(nullable=True)
     revenue = dy.Bool(nullable=True)
-    stop_id = dy.String(nullable=True)
+    stop_id = dy.String(nullable=False)
     current_stop_sequence = dy.Int16(primary_key=True)
     arrived = dy.Int64(nullable=True)
     departed = dy.Int64(nullable=True)
@@ -94,7 +94,7 @@ def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositions]) -> dy.DataFrame
 def update_records(
     existing_records: dy.DataFrame[StopEventsTable],
     new_records: dy.DataFrame[StopEventsTable],
-    max_record_age: timedelta = timedelta(hours=2),
+    max_record_age: timedelta,
 ) -> dy.DataFrame[StopEventsTable]:
     """Return a DataFrame of recent stops using VehiclePositions."""
     process_logger = ProcessLogger(
