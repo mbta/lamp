@@ -91,7 +91,7 @@ def check_stop_crossings(stop_crossings_filepath: str) -> None:
 
     # run the generate tm events function on our input files
     bus_events = generate_tm_events(
-        tm_files=[stop_crossings_filepath], tm_scheduled=generate_tm_schedule(service_date_tmp.date())
+        tm_files=[stop_crossings_filepath], tm_schedule=generate_tm_schedule(service_date_tmp.date())
     )
 
     # ensure data has been extracted from the filepath
