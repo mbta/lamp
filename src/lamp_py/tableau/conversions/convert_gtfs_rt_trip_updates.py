@@ -96,6 +96,19 @@ def lrtp_prod(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalTripUpda
     return valid
 
 
+def restrict_tu_to_only_terminal_stop_ids(polars_df: pl.DataFrame, allowed_stop_ids: list) -> pl.DataFrame:
+    """Filter to relevant stops and predictions."""
+    polars_df = polars_df.filter(
+        pl.col("trip_update.stop_time_update.departure.time").is_not_null(),
+        pl.col("trip_update.stop_time_update.stop_id").is_in(allowed_stop_ids),
+        pl.col("trip_update.trip.revenue"),
+        pl.col("trip_update.trip.schedule_relationship").ne("CANCELED"),
+        pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
+        pl.col("trip_update.stop_time_update.departure.uncertainty").gt(0),  # remove early departure predictions
+    )
+    return polars_df
+
+
 def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalTripUpdates]:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
@@ -115,16 +128,35 @@ def lrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[LightRailTerminalT
 
     trip_updates = apply_timezone_conversions(trip_updates)
     # filter down to only terminals - original data
-    trip_updates = trip_updates.filter(
-        pl.col("trip_update.stop_time_update.departure.time").is_not_null(),
-        pl.col("trip_update.stop_time_update.stop_id").is_in(LightRailFilter.terminal_stop_ids),
-        pl.col("trip_update.trip.revenue"),
-        pl.col("trip_update.trip.schedule_relationship").ne("CANCELED"),
-        pl.col("trip_update.stop_time_update.schedule_relationship").ne("SKIPPED"),
-        pl.col("trip_update.stop_time_update.departure.uncertainty").gt(0),  # remove early departure predictions
-    )
+    trip_updates = restrict_tu_to_only_terminal_stop_ids(trip_updates, LightRailFilter.terminal_stop_ids)
     trip_updates = append_prediction_valid_duration(trip_updates)
     valid = LightRailTerminalTripUpdates.validate(trip_updates)
+
+    return valid
+
+
+def hrtp_devgreen(trip_updates: pl.DataFrame) -> dy.DataFrame[HeavyRailTerminalTripUpdates]:
+    """
+    Function to apply final conversions to lamp data before outputting for tableau consumption
+    This is intended for more complicated transformations than is feasible to perform in pyarrow
+
+    Parameters
+    ----------
+    polars_df : Dataframe filtered down to light rail trip updates
+
+    Returns
+    -------
+    pl.Dataframe : filtered down to departures at terminals
+                   add feed_timestamp.first_prediction and feed_timestamp.last_prediction columns
+                   to signify a validity duration of a prediction
+
+    """
+
+    trip_updates = apply_timezone_conversions(trip_updates)
+    # filter down to only terminals - original data
+    trip_updates = restrict_tu_to_only_terminal_stop_ids(trip_updates, HeavyRailFilter.terminal_stop_ids)
+    trip_updates = append_prediction_valid_duration(trip_updates)
+    valid = HeavyRailTerminalTripUpdates.validate(trip_updates)
 
     return valid
 

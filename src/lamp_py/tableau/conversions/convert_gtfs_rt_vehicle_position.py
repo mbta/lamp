@@ -76,6 +76,22 @@ class HeavyRailTerminalVehiclePositions(VehiclePositions):
     )
 
 
+def restrict_vp_to_only_terminal_stop_ids(polars_df: pl.DataFrame, allowed_stop_ids: list) -> pl.DataFrame:
+    """
+    Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
+    """
+
+    #    pylint: disable=singleton-comparison
+    polars_df = polars_df.filter(
+        pl.col("vehicle.timestamp").is_not_null(),
+        pl.col("vehicle.stop_id").is_in(allowed_stop_ids),
+        pl.col("vehicle.trip.revenue"),
+        pl.col("vehicle.trip.trip_id").is_not_null(),
+        pl.col("feed_timestamp").is_not_null(),
+    )
+    return polars_df
+
+
 def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositions]:
     """
     Function to apply final conversions to lamp data before outputting for tableau consumption
@@ -83,22 +99,9 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
     process_logger = ProcessLogger("lrtp")
     process_logger.log_start()
 
-    def lrtp_restrict_vp_to_only_terminal_stop_ids(polars_df: pl.DataFrame) -> pl.DataFrame:
-        """
-        Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
-        """
-
-        #    pylint: disable=singleton-comparison
-        polars_df = polars_df.filter(
-            pl.col("vehicle.timestamp").is_not_null(),
-            pl.col("vehicle.stop_id").is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
-            pl.col("vehicle.trip.revenue"),
-            pl.col("vehicle.trip.trip_id").is_not_null(),
-            pl.col("feed_timestamp").is_not_null(),
-        )
-        return polars_df
-
-    polars_df = lrtp_restrict_vp_to_only_terminal_stop_ids(polars_df)
+    polars_df = restrict_vp_to_only_terminal_stop_ids(
+        polars_df, FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list
+    )
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     valid = LightRailTerminalVehiclePositions.validate(polars_df)
 
