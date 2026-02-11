@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 import itertools
 from typing import Optional
 from unittest.mock import patch
@@ -35,7 +35,14 @@ def test_hardcoded_terminal_prediction_names() -> None:
 
     # check that all stops in Filter lists exist
     service_date = datetime.now()
-    stops = pl.read_parquet(f"https://performancedata.mbta.com/lamp/gtfs_archive/{service_date.year}/stops.parquet")
+    stops = pl.read_parquet(
+        f"https://performancedata.mbta.com/lamp/gtfs_archive/{service_date.year}/stops.parquet"
+    ).filter(
+        pl.lit(date.today()).is_between(
+            pl.col("gtfs_active_date").cast(pl.String).str.to_date("%Y%m%d"),
+            pl.col("gtfs_end_date").cast(pl.String).str.to_date("%Y%m%d"),
+        )
+    )
 
     for place_name in HeavyRailFilter._terminal_stop_place_names:
         gtfs_stops = list_station_child_stops_from_gtfs(stops, place_name, heavy_rail_filter)
