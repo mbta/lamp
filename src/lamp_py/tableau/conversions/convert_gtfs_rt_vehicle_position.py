@@ -78,7 +78,7 @@ class HeavyRailTerminalVehiclePositions(VehiclePositions):
 
 def restrict_vp_to_only_terminal_stop_ids(polars_df: pl.DataFrame, allowed_stop_ids: list) -> pl.DataFrame:
     """
-    Function to apply lrtp filters conversions to lamp data before outputting for tableau consumption
+    Function to apply lrtp|hrtp filters conversions to lamp data before outputting for tableau consumption
     """
 
     #    pylint: disable=singleton-comparison
