@@ -218,12 +218,24 @@ tableau_rt_vehicle_positions_all_light_rail_7_day = S3Location(
 )
 
 # DEVGREEN
+
+## Heavy Rail
+tableau_devgreen_rt_vehicle_positions_heavyrail_60_day = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_VehiclePositions_HR_60_day.parquet"),
+)
+tableau_devgreen_rt_trip_updates_heavyrail_60_day = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_HR_60_day.parquet"),
+)
+
+## Light Rail
 tableau_devgreen_rt_vehicle_positions_lightrail_60_day = S3Location(
     bucket=S3_ARCHIVE,
     prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_VehiclePositions_LR_60_day.parquet"),
     version="1.1.0",
 )
-# light rail output file - to be converted to .hyper
+
 tableau_devgreen_rt_trip_updates_lightrail_60_day = S3Location(
     bucket=S3_ARCHIVE,
     prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_LR_60_day.parquet"),
