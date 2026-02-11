@@ -223,12 +223,10 @@ tableau_rt_vehicle_positions_all_light_rail_7_day = S3Location(
 tableau_devgreen_rt_vehicle_positions_heavyrail_60_day = S3Location(
     bucket=S3_ARCHIVE,
     prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_VehiclePositions_HR_60_day.parquet"),
-    version="0.1.0",
 )
 tableau_devgreen_rt_trip_updates_heavyrail_60_day = S3Location(
     bucket=S3_ARCHIVE,
     prefix=os.path.join(TABLEAU, "devgreen-gtfs-rt", "LAMP_DEVGREEN_RT_TripUpdates_HR_60_day.parquet"),
-    version="0.1.0",
 )
 
 ## Light Rail
