@@ -37,6 +37,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy-flashback:
+        description: Should flashback be deployed?
+        required: false
+        default: false
+        type: boolean
       deploy-lightswitch:
         description: Should a new Lightswitch catalog be deployed?
         required: false
@@ -137,6 +142,16 @@ jobs:
           ecs-cluster: lamp
           ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
           ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
+          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
+      - name: Deploy Flashback service
+        id: deploy-flashback
+        if: ${{ inputs.deploy-flashback && inputs.environment != 'dev' }}
+        uses: mbta/actions/deploy-scheduled-ecs@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          ecs-cluster: lamp
+          ecs-service: lamp-flashback-${{ inputs.environment }}
+          ecs-task-definition: lamp-flashback-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - name: Deploy Lightswitch catalog
         id: deploy-lightswitch
