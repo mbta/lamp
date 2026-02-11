@@ -145,7 +145,7 @@ jobs:
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
       - name: Deploy Flashback service
         id: deploy-flashback
-        if: ${{ inputs.deploy-flashback && inputs.environment != 'dev' }}
+        if: ${{ inputs.deploy-flashback }}
         uses: mbta/actions/deploy-scheduled-ecs@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
