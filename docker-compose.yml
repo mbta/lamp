@@ -58,6 +58,15 @@ services:
       - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
     command: ["poetry", "run", "lightswitch"]
 
+  flashback:
+    container_name: flashback
+    env_file: .env
+    build: .
+    working_dir: /lamp
+    volumes:
+      - ~/.aws:/root/.aws:ro  # map credentials to be used by boto3, read-only
+    command: ["poetry", "run", "flashback"]
+
   seed_metadata:
     container_name: seed_metadata
     env_file: .env
