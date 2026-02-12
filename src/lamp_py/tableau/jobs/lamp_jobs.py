@@ -14,6 +14,7 @@ from lamp_py.runtime_utils.remote_files import (
     springboard_rt_vehicle_positions,
     springboard_devgreen_rt_vehicle_positions,
     springboard_rt_trip_updates,  # main feed, all lines, unique records
+    springboard_devgreen_rt_trip_updates,
     springboard_devgreen_lrtp_trip_updates,  # dev green feed, green line only, all records
     springboard_lrtp_trip_updates,  # main feed, green line only, all records
     bus_operator_mapping,
@@ -127,7 +128,7 @@ HyperDevGreenGtfsRtHeavyRailVehiclePositions = FilteredHyperJob(
 )
 
 HyperDevGreenGtfsRtHeavyRailTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_devgreen_lrtp_trip_updates,
+    remote_input_location=springboard_devgreen_rt_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_heavyrail_60_day,
     num_days_ago=60,
     processed_schema=convert_gtfs_rt_trip_updates.HeavyRailTerminalTripUpdates.to_pyarrow_schema(),
