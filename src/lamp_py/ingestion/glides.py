@@ -10,16 +10,15 @@ from abc import ABC, abstractmethod
 import dataframely as dy
 import polars as pl
 import pyarrow
-import pyarrow.parquet as pq
 
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
-from lamp_py.utils.dataframely import unnest_columns, with_nullable
+from lamp_py.utils.dataframely import unnest_columns, with_nullable, extract_pii_columns, drop_pii_columns
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     glides_records,
-    glides_directory,
+    springboard_glides,
     S3Location,
 )
 
@@ -29,7 +28,7 @@ GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be grea
 
 user = dy.Struct(
     {
-        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
+        "emailAddress": dy.String(metadata={"pii_roles": ["GlidesUserEmail"]}),
         "badgeNumber": dy.String(nullable=True),
     },
     nullable=True,
@@ -177,18 +176,32 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
     Abstract Base Class for Archiving Glides Events
     """
 
+    tmp_dir = "/tmp"
+
     def __init__(self, base_filename: str, record_schema: Type[GlidesRecord], table_schema: Type[GlidesRecord]) -> None:
-        self.tmp_dir = "/tmp"
         self.base_filename = base_filename
         self.type = self.base_filename.replace(".parquet", "")
-        self.local_path = os.path.join(self.tmp_dir, self.base_filename)
-        self.remote_path = f"{glides_directory.s3_uri}/{base_filename}"
         self.record_schema = record_schema
         self.table_schema = table_schema
 
         self.records: List[Dict] = []
 
         self.download_remote()
+
+    @property
+    def local_path(self) -> str:
+        """Get path to downloaded records."""
+        return os.path.join(self.tmp_dir, self.base_filename)
+
+    @property
+    def general_directory(self) -> str:
+        """Get local path to general-access data."""
+        return os.path.join(self.tmp_dir, springboard_glides.s3_uri.replace("s3://", ""))
+
+    @property
+    def restricted_directory(self) -> str:
+        """Get local path to restricted-access data."""
+        return os.path.join(self.tmp_dir, springboard_glides.restricted_s3_uri("GlidesUserEmail").replace("s3://", ""))
 
     @property
     def get_event_schema(self) -> pyarrow.schema:
@@ -201,6 +214,11 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         return self.table_schema.to_pyarrow_schema()
 
     @property
+    def get_pii_column_names(self) -> list[str]:
+        """Return list of columns containing PII."""
+        return [col.name for col in extract_pii_columns(self.table_schema)]
+
+    @property
     @abstractmethod
     def unique_key(self) -> str:
         """Key in record['data'] that is unique to this event type"""
@@ -210,7 +228,16 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         if os.path.exists(self.local_path):
             os.remove(self.local_path)
 
-        download_file(object_path=self.remote_path, file_name=self.local_path)
+        if self.get_pii_column_names:
+            download_file(
+                object_path=os.path.join(os.path.relpath(self.restricted_directory, self.tmp_dir), self.base_filename),
+                file_name=self.local_path,
+            )
+        else:
+            download_file(
+                object_path=os.path.join(os.path.relpath(self.general_directory, self.tmp_dir), self.base_filename),
+                file_name=self.local_path,
+            )
 
     @abstractmethod
     def convert_records(self) -> dy.DataFrame[GlidesRecord]:
@@ -230,25 +257,33 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
             joined_ds = new_dataset
 
         process_logger.add_metadata(
-            new_records=new_dataset.select("time").height,
-            total_records=joined_ds.select("time").height,
+            new_records=new_dataset.height,
+            total_records=joined_ds.height,
         )
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        sorted_ds = joined_ds.unique().sort("time")
+        valid = process_logger.log_dataframely_filter_results(*self.table_schema.filter(sorted_ds))
+        if not valid.is_empty():
+            if self.get_pii_column_names:
+                role_dir = os.path.join(self.tmp_dir, self.restricted_directory)
+                os.makedirs(role_dir, exist_ok=True)
+                valid.write_parquet(os.path.join(role_dir, self.base_filename))
 
-            new_path = os.path.join(tmp_dir, self.base_filename)
-            sorted_ds = joined_ds.unique().sort("time")
-            valid = process_logger.log_dataframely_filter_results(*self.table_schema.filter(sorted_ds))
-            if not valid.is_empty():
-                pq.write_table(valid.to_arrow().cast(self.get_table_schema), new_path)
-                os.replace(new_path, self.local_path)
-                process_logger.add_metadata(row_count=pq.read_metadata(self.local_path).num_rows)
+            general_dir = os.path.join(self.tmp_dir, self.general_directory)
+            os.makedirs(general_dir, exist_ok=True)
+            drop_pii_columns(valid, self.table_schema).write_parquet(os.path.join(general_dir, self.base_filename))
 
         process_logger.log_complete()
 
     def upload_records(self) -> None:
-        """Upload local parquet file to remote storage."""
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
+        """Upload local parquet files to remote storage."""
+        for dirpath, _, filenames in os.walk(self.tmp_dir):
+            for f in filenames:
+                upload_file(
+                    file_name=os.path.join(dirpath, f),
+                    object_path=os.path.join("s3://", os.path.relpath(dirpath, self.tmp_dir), f),
+                )
+                os.remove(os.path.join(dirpath, f))
 
 
 class EditorChanges(GlidesConverter):
@@ -477,7 +512,7 @@ def ingest_glides_events(
             converter.append_records()
             if upload:
                 converter.upload_records()
-            metadata_queue.put(converter.remote_path)
+            metadata_queue.put(os.path.join(converter.general_directory, converter.base_filename))
 
     except Exception as e:
         process_logger.log_failure(e)

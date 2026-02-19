@@ -11,6 +11,7 @@ S3_ERROR: str = os.environ.get("ERROR_BUCKET", "unset_ERROR")
 
 # prefix constants
 LAMP = "lamp"
+LAMP_RESTRICTED = "lamp-restricted"
 TM = os.path.join(LAMP, "TM")
 TABLEAU = os.path.join(LAMP, "tableau")
 
@@ -31,6 +32,10 @@ class S3Location:
     def s3_uri(self) -> str:
         """generate the full s3 uri for the location"""
         return f"s3://{self.bucket}/{self.prefix}"
+
+    def restricted_s3_uri(self, role: str) -> str:
+        """Return the restricted version of this dataset."""
+        return self.s3_uri.replace(LAMP, os.path.join(LAMP_RESTRICTED, role))
 
 
 # files ingested from delta
@@ -149,7 +154,7 @@ bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle
 bus_operator_mapping = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0")
 
 # Kinesis stream glides events
-glides_directory = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES"), version="1.0")
+springboard_glides = S3Location(bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES"), version="1.0")
 glides_trips_updated = S3Location(
     bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/trip_updates.parquet"), version="1.0"
 )

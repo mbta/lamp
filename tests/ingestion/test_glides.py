@@ -1,8 +1,8 @@
+# pylint: disable=too-many-positional-arguments,too-many-arguments
 import gzip
 import shutil
 from datetime import datetime
 from json import load
-from os import remove
 from pathlib import Path
 from queue import Queue
 from random import sample
@@ -23,7 +23,8 @@ from lamp_py.ingestion.glides import (
     archive_glides_records,
     ingest_glides_events,
 )
-from lamp_py.utils.dataframely import has_metadata
+from lamp_py.runtime_utils.remote_files import S3Location, springboard_glides
+from lamp_py.utils.dataframely import extract_pii_columns
 from tests.test_resources import LocalS3Location
 
 
@@ -87,7 +88,7 @@ def test_append_records(
     column_transformations: dict[str, pl.Expr],
     num_rows: int = 5,
 ) -> None:
-    """It writes all records locally using the table schema."""
+    """It writes PII records to the correct location."""
     converter.records = converter.record_schema.sample(
         num_rows=num_rows,
         generator=dy_gen,
@@ -98,7 +99,7 @@ def test_append_records(
         },
     ).to_dicts()
 
-    converter.local_path = tmp_path.joinpath(converter.base_filename).as_posix()
+    converter.tmp_dir = tmp_path.as_posix()
 
     expectation = converter.convert_records()
 
@@ -118,11 +119,29 @@ def test_append_records(
 
     converter.append_records()
 
-    pii_columns = [k for k, v in converter.table_schema.columns().items() if has_metadata(v, "reader_roles")]
+    pii_columns = [col.name for col in extract_pii_columns(converter.table_schema)]
 
-    assert pq.read_schema(converter.local_path) == converter.get_table_schema
-    assert pq.read_metadata(converter.local_path).num_rows == expectation.height + remote_records_height
-    assert any(col in pq.read_schema(converter.local_path).names for col in pii_columns) is False
+    if pii_columns:
+        assert (
+            pq.read_schema(Path(converter.restricted_directory).joinpath(converter.base_filename).as_posix()).names
+            == converter.get_table_schema.names
+        )
+        assert (
+            pq.read_metadata(Path(converter.restricted_directory).joinpath(converter.base_filename).as_posix()).num_rows
+            == expectation.height + remote_records_height
+        )
+
+    assert (
+        any(
+            col in pq.read_schema(Path(converter.general_directory).joinpath(converter.base_filename).as_posix()).names
+            for col in pii_columns
+        )
+        is False
+    )
+    assert (
+        pq.read_metadata(Path(converter.general_directory).joinpath(converter.base_filename).as_posix()).num_rows
+        == expectation.height + remote_records_height
+    )
 
 
 @pytest.mark.parametrize(
@@ -138,7 +157,12 @@ def test_append_records(
     ids=["editor-changes", "operator-sign-ins", "trip-updates", "vehicle-trip-assignments"],
 )
 def test_ingest_glides_events(
-    converter: GlidesConverter, dy_gen: dy.random.Generator, mocker: MockerFixture, events_per_converter: int = 50
+    converter: GlidesConverter,
+    dy_gen: dy.random.Generator,
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    events_per_converter: int = 50,
 ) -> None:
     """It routes events to correct converter and writes them to specified storage."""
     test_records = (
@@ -164,10 +188,20 @@ def test_ingest_glides_events(
     mock_upload = mocker.Mock(return_value=True)
     mocker.patch("lamp_py.ingestion.glides.upload_file", mock_upload)
 
+    monkeypatch.setattr(GlidesConverter, "tmp_dir", tmp_path.as_posix())
+
     ingest_glides_events(kinesis_reader, Queue(), upload=True)
-    assert Path(converter.local_path).exists()
-    remove(converter.local_path)  # can't figure out how to patch the tmp_dir inside ingest_glides_events :/
-    mock_upload.assert_any_call(file_name=converter.local_path, object_path=converter.remote_path)
+    mock_upload.assert_any_call(
+        file_name=Path(converter.tmp_dir).joinpath(converter.general_directory, converter.base_filename).as_posix(),
+        object_path=springboard_glides.s3_uri + "/" + converter.base_filename,
+    )
+    if converter.get_pii_column_names:
+        mock_upload.assert_any_call(
+            file_name=Path(converter.tmp_dir)
+            .joinpath(converter.restricted_directory, converter.base_filename)
+            .as_posix(),
+            object_path=springboard_glides.restricted_s3_uri("GlidesUserEmail") + "/" + converter.base_filename,
+        )
 
 
 @pytest.mark.parametrize(
@@ -186,12 +220,11 @@ def test_archive_glides_records(
     expected_result: bool,
 ) -> None:
     """It archives records to S3 and logs failures."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "archives")
+    test_location = LocalS3Location(tmp_path.as_posix(), "archives.json.gz")
     records = [{"time": "2024-01-01T12:00:00Z", "data": {"editorsChanged": {"editors": []}}}]
-    saved_file = tmp_path / "archive.json.gz"
 
-    def mock_upload(file_name: str) -> None:
-        shutil.copy2(file_name, saved_file)
+    def mock_upload(file_name: str, _: S3Location) -> None:
+        shutil.copy2(file_name, test_location.s3_uri)
         if upload_error:
             raise upload_error
 
@@ -202,7 +235,7 @@ def test_archive_glides_records(
     assert result is expected_result
 
     if expected_result:
-        with gzip.open(saved_file, "rt", encoding="utf-8") as f:
+        with gzip.open(test_location.s3_uri, "rt", encoding="utf-8") as f:
             assert load(f) == records
     else:
         assert "status=failed" in caplog.text

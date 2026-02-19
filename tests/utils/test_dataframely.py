@@ -1,9 +1,19 @@
+from contextlib import nullcontext
 from typing import Type
 
 import dataframely as dy
+import pyarrow as pa
 import pytest
+from polars.testing import assert_frame_equal
 
-from lamp_py.utils.dataframely import with_alias, with_nullable, unnest_columns, has_metadata
+from lamp_py.utils.dataframely import (
+    drop_pii_columns,
+    extract_pii_columns,
+    has_metadata,
+    unnest_columns,
+    with_alias,
+    with_nullable,
+)
 
 
 # new name
@@ -84,29 +94,35 @@ def test_with_nullable(dtype: Type[dy.Column], input_nullability: bool, desired_
         (
             {"col1": dy.Struct({"not_real_alias": dy.String(alias="real_alias"), "inner_col2": dy.Int16()})},
             {
-                "real_alias": dy.String(),
+                "col1.real_alias": dy.String(),
                 "col1.inner_col2": dy.Int16(),
-            },  # this is an example of the unexpected behehavior when using both aliases and names
+            },
         ),
         (
             {
-                "col1": dy.Struct(
+                "data": dy.Struct(
                     {
-                        "another_struct": dy.Struct(
+                        "metadata": dy.Struct(
                             {
-                                "another_struct": dy.Struct(
-                                    {"yet_another_struct": dy.Struct({"str": dy.String()}, alias="different_alias")}
-                                )
-                            }
+                                "author": dy.Struct({"emailAddress": dy.String()}),
+                            },
+                        ),
+                        "changes": dy.List(
+                            dy.Struct(
+                                {
+                                    "editor": dy.Struct({"emailAddress": dy.String()}),
+                                }
+                            )
                         ),
                         "col2": dy.Binary(alias="binary_col"),
                     }
                 )
             },
             {
-                "col1.another_struct.another_struct.different_alias.str": dy.String(),
-                "binary_col": dy.Binary(),
-            },  # this is an example of the unexpected behehavior when using both aliases and names
+                "data.metadata.author.emailAddress": dy.String(),
+                "data.changes.editor.emailAddress": dy.String(),
+                "data.binary_col": dy.Binary(),
+            },
         ),
         (
             {"col1": dy.List(dy.Struct({"field1": dy.List(dy.String(), alias="list"), "field2": dy.Bool()}))},
@@ -141,6 +157,7 @@ def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str
     columns.update(col2=dy.Int16())
     expected_output.update(col2=dy.Int16())
 
+    _ = unnest_columns(columns)  # test side effects on columns by performing operation twice
     new_columns = unnest_columns(columns)
 
     ExpectedOutput: Type[dy.Schema] = type("ExpectedOutput", (dy.Schema,), expected_output)
@@ -160,11 +177,76 @@ def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str
         (dy.Int16(), "any_key", False),
     ],
     ids=[
-        "metadata-key-present",
-        "metadata-key-absent",
-        "no-metadata",
+        "dataframely-metadata-key-present",
+        "dataframely-metadata-key-absent",
+        "dataframely-no-metadata",
     ],
 )
-def test_has_metadata(column: dy.Column, key: str, expected_result: bool) -> None:
+def test_has_metadata(column: dy.Column | pa.Field, key: str, expected_result: bool) -> None:
     """It correctly determines the presence of metadata keys."""
     assert has_metadata(column, key) == expected_result
+
+
+@pytest.mark.parametrize(
+    "schema_type",
+    [
+        "dataframely",
+    ],
+)
+@pytest.mark.parametrize("has_pii", [False, True], ids=["no-pii", "has-pii"])
+def test_extract_pii_columns(schema_type: str, has_pii: bool) -> None:
+    """It handles multiple input schema types and the presence or absence of PII."""
+    if has_pii:
+        metadata = {
+            "pii_roles": [
+                "foo",
+            ]
+        }
+    else:
+        metadata = {}
+
+    if schema_type == "dataframely":
+        schema: Type[dy.Schema] = type("TestSchema", (dy.Schema,), {"col1": dy.String(metadata=metadata)})
+
+    cols = extract_pii_columns(schema)
+
+    assert bool(cols) == has_pii
+
+
+@pytest.mark.parametrize(
+    [
+        "columns",
+        "raises",
+    ],
+    [
+        ({"col1": dy.String()}, nullcontext()),
+        (
+            {"col1": dy.String(primary_key=True, metadata={"pii_roles": ["foo"]})},
+            pytest.raises(AssertionError, match="Splitting would remove"),
+        ),
+        ({"col1": dy.String(primary_key=True), "col2": dy.Int8(metadata={"pii_roles": ["foo"]})}, nullcontext()),
+        (
+            {
+                "col1": dy.String(primary_key=True),
+                "col2": dy.String(primary_key=True),
+                "col3": dy.Int8(metadata={"pii_roles": ["foo"]}),
+                "col4": dy.Int8(metadata={"pii_roles": ["bar"]}),
+            },
+            nullcontext(),
+        ),
+    ],
+    ids=["no-pii", "pii-in-keys", "1-pii-col", "multiple-pii-cols"],
+)
+def test_drop_pii_columns(columns: dict[str, dy.Column], raises: pytest.RaisesExc, dy_gen: dy.random.Generator) -> None:
+    """It leaves no columns marked as PII."""
+    schema: Type[dy.Schema] = type("TestSchema", (dy.Schema,), columns)
+
+    df = schema.sample(generator=dy_gen)
+
+    with raises:
+        non_sensitive_df = drop_pii_columns(df, schema)
+
+        assert set(df.columns).difference(set(non_sensitive_df.columns)) == set(
+            col.name for col in extract_pii_columns(schema)
+        )
+        assert_frame_equal(df.drop(col.name for col in extract_pii_columns(schema)), non_sensitive_df)
