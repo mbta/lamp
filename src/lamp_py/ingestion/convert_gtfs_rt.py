@@ -22,6 +22,7 @@ from typing import (
     Tuple,
 )
 
+import dataframely as dy
 import polars as pl
 import pyarrow
 from pyarrow import fs
@@ -58,6 +59,56 @@ from lamp_py.runtime_utils.remote_files import (
     S3_ARCHIVE,
 )
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
+
+
+class VehiclePositions(dy.Schema):
+    """Structured VehiclePositions message."""
+
+    entity = dy.List(
+        inner=dy.Struct(
+            {
+                "id": dy.String(primary_key=True),
+                "vehicle": dy.Struct(
+                    inner={
+                        "trip": dy.Struct(
+                            inner={
+                                "trip_id": dy.String(nullable=True),
+                                "route_id": dy.String(nullable=True),
+                                "direction_id": dy.Int8(min=0, max=1, nullable=True),
+                                "start_time": dy.String(nullable=True),
+                                "start_date": dy.String(nullable=True),
+                                "revenue": dy.Bool(nullable=True),
+                                "last_trip": dy.Bool(nullable=True),
+                                "schedule_relationship": dy.String(nullable=True),
+                            }
+                        ),
+                        "vehicle": dy.Struct(
+                            inner={
+                                "id": dy.String(nullable=True),
+                                "label": dy.String(nullable=True),
+                            }
+                        ),
+                        "position": dy.Struct(
+                            inner={
+                                "bearing": dy.UInt16(nullable=True),
+                                "latitude": dy.Float64(nullable=True),
+                                "longitude": dy.Float64(nullable=True),
+                                "speed": dy.Float64(nullable=True),
+                            }
+                        ),
+                        "current_stop_sequence": dy.Int16(nullable=True),
+                        "stop_id": dy.String(nullable=True),
+                        "timestamp": dy.Int64(nullable=True),
+                        "occupancy_status": dy.String(nullable=True),
+                        "occupancy_percentage": dy.UInt32(nullable=True),
+                        "current_status": dy.String(nullable=True),
+                    }
+                ),
+            },
+            alias="vehicle",
+        ),
+        nullable=False,
+    )
 
 
 @dataclass
