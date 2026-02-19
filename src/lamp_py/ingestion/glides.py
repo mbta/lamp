@@ -40,7 +40,7 @@ metadata = dy.Struct(
     {
         "location": location,
         "author": user,
-        "inputType": dy.String(),
+        "inputType": dy.String(nullable=True),
         "inputTimestamp": dy.String(nullable=True, regex=RFC3339_DATETIME_REGEX),  # coercable to datetime
     }
 )
@@ -268,10 +268,12 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
                 role_dir = os.path.join(self.tmp_dir, self.restricted_directory)
                 os.makedirs(role_dir, exist_ok=True)
                 valid.write_parquet(os.path.join(role_dir, self.base_filename))
+                process_logger.add_metadata(pii_data_path=os.path.join(role_dir, self.base_filename))
 
             general_dir = os.path.join(self.tmp_dir, self.general_directory)
             os.makedirs(general_dir, exist_ok=True)
             drop_pii_columns(valid, self.table_schema).write_parquet(os.path.join(general_dir, self.base_filename))
+            process_logger.add_metadata(general_data_path=os.path.join(general_dir, self.base_filename))
 
         process_logger.log_complete()
 
