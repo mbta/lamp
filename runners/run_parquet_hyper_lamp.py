@@ -24,8 +24,10 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     HyperGtfsRtVehiclePositionsHeavyRail,
     HyperGtfsRtTripUpdatesHeavyRail,
     HyperGtfsRtVehiclePositionsAllLightRail,
-    HyperDevGreenGtfsRtVehiclePositions,
-    HyperDevGreenGtfsRtTripUpdates,
+    HyperDevGreenGtfsRtLightRailVehiclePositions,
+    HyperDevGreenGtfsRtLightRailTripUpdates,
+    HyperDevGreenGtfsRtHeavyRailVehiclePositions,
+    HyperDevGreenGtfsRtHeavyRailTripUpdates,
     HyperBusOperatorMappingRecent,
     HyperBusOperatorMappingAll,
     # HyperRtRailSubway,
@@ -37,8 +39,10 @@ TestHyperGtfsRtTripUpdates = HyperGtfsRtTripUpdates
 TestHyperGtfsRtVehiclePositionsHeavyRail = HyperGtfsRtVehiclePositionsHeavyRail
 TestHyperGtfsRtTripUpdatesHeavyRail = HyperGtfsRtTripUpdatesHeavyRail
 TestHyperGtfsRtVehiclePositionsAllLightRail = HyperGtfsRtVehiclePositionsAllLightRail
-TestHyperDevGreenGtfsRtVehiclePositions = HyperDevGreenGtfsRtVehiclePositions
-TestHyperDevGreenGtfsRtTripUpdates = HyperDevGreenGtfsRtTripUpdates
+TestHyperDevGreenGtfsRtLightRailVehiclePositions = HyperDevGreenGtfsRtLightRailVehiclePositions
+TestHyperDevGreenGtfsRtLightRailTripUpdates = HyperDevGreenGtfsRtLightRailTripUpdates
+TestHyperDevGreenGtfsRtHeavyRailVehiclePositions = HyperDevGreenGtfsRtHeavyRailVehiclePositions
+TestHyperDevGreenGtfsRtHeavyRailTripUpdates = HyperDevGreenGtfsRtHeavyRailTripUpdates
 TestHyperBusOperatorMappingRecent = HyperBusOperatorMappingRecent
 TestHyperBusOperatorMappingAll = HyperBusOperatorMappingAll
 # TestHyperRtRailSubway = HyperRtRailSubway
@@ -52,8 +56,10 @@ TestHyperGtfsRtTripUpdates.num_days_ago = yesterday
 TestHyperGtfsRtVehiclePositionsHeavyRail.num_days_ago = yesterday
 TestHyperGtfsRtTripUpdatesHeavyRail.num_days_ago = yesterday
 TestHyperGtfsRtVehiclePositionsAllLightRail.num_days_ago = yesterday
-TestHyperDevGreenGtfsRtVehiclePositions.num_days_ago = yesterday
-TestHyperDevGreenGtfsRtTripUpdates.num_days_ago = yesterday
+TestHyperDevGreenGtfsRtLightRailVehiclePositions.num_days_ago = yesterday
+TestHyperDevGreenGtfsRtLightRailTripUpdates.num_days_ago = yesterday
+TestHyperDevGreenGtfsRtHeavyRailVehiclePositions.num_days_ago = yesterday
+TestHyperDevGreenGtfsRtHeavyRailTripUpdates.num_days_ago = yesterday
 TestHyperBusOperatorMappingRecent.num_days_ago = yesterday
 TestHyperBusOperatorMappingAll.num_days_ago = yesterday
 # TestHyperRtRailSubway.num_days_ago=yesterday
@@ -83,8 +89,10 @@ def start_hyper() -> None:
         # TestHyperGtfsRtVehiclePositionsHeavyRail,
         # TestHyperGtfsRtTripUpdatesHeavyRail,
         # TestHyperGtfsRtVehiclePositionsAllLightRail,
-        TestHyperDevGreenGtfsRtVehiclePositions,
-        # TestHyperDevGreenGtfsRtTripUpdates,
+        TestHyperDevGreenGtfsRtLightRailVehiclePositions,
+        # TestHyperDevGreenGtfsRtLightRailTripUpdates,
+        # TestHyperDevGreenGtfsRtHeavyRailVehiclePositions,
+        # TestHyperDevGreenGtfsRtHeavyRailTripUpdates,
         # TestHyperBusOperatorMappingRecent,
         # TestHyperBusOperatorMappingAll,
         # TestHyperBus,

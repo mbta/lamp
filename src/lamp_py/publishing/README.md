@@ -63,7 +63,8 @@ key](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-key-self-managed.ht
 [winget](https://winstall.app/apps/Amazon.AWSCLI), [persist your access
 key using
 it](https://docs.aws.amazon.com/cli/v1/reference/configure/#examples);
-if you can’t install it, you’ll need to enter your access key each time
+if you can’t install it (for example, if you do not have Administrator 
+access on Windows), you’ll need to enter your access key each time
 you open DuckDB.
 
 ### Attaching the catalog
@@ -78,7 +79,7 @@ INSTALL aws;
 ```
 
 2.  **Load your AWS credentials each time you start a DuckDB session**.
-    If you’ve persisted them with `awscli`, run
+    _Only if you’ve successfully installed `awscli` and persisted your credentials,_ run
 
 ``` sql
 LOAD aws;
@@ -94,7 +95,7 @@ CREATE OR REPLACE SECRET secret (
 
 1 records
 
-If you haven’t, insert your credentials in this command:
+_If you haven’t installed `awscli`,_ insert your credentials in this command:
 
 ``` sql
 LOAD aws;
@@ -124,6 +125,11 @@ Get familiar with what’s available by listing the database’s views:
 ``` sql
 SHOW TABLES FROM lamp
 ```
+
+Note: to reference any of these tables, you must insert `lamp.` at the
+start of the database name. Avoid using any other versions shown in 
+the SHOW TABLES results that may start with other prefixes like 
+~~alerts.~~, ~~bus.~~, etc.
 
 | name                           |
 |:-------------------------------|
