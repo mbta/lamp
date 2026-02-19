@@ -41,7 +41,7 @@ def pipeline() -> None:
     signal(SIGTERM, handle_ecs_sigterm)
 
     # configure the environment
-    environ["SERVICE_NAME"] = "ingestion"
+    environ["SERVICE_NAME"] = "flashback_event_service"
 
     validate_environment(
         required_variables=[
