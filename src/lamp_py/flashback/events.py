@@ -4,9 +4,25 @@ from zoneinfo import ZoneInfo
 import dataframely as dy
 import polars as pl
 
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions, VehiclePositionsApiFormat
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
+
+
+class StopEventsWithStatus(dy.Schema):
+    """Flat events data, with additional information for determining stop departures."""
+
+    id = dy.String(primary_key=True)  # trip-route-vehicle
+    timestamp = dy.Int64()
+    start_date = dy.String(nullable=True)
+    trip_id = dy.String()
+    direction_id = dy.Int8(min=0, max=1, nullable=True)
+    route_id = dy.String()
+    start_time = dy.String(nullable=True)
+    revenue = dy.Bool(nullable=True)
+    stop_id = dy.String(nullable=False)
+    current_stop_sequence = dy.Int16(primary_key=True)
+    current_status = dy.String(nullable=True)
 
 class StopEventsTable(dy.Schema):
     """Flat events data, with additional information for determining stop departures."""
@@ -90,6 +106,56 @@ def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositions]) -> dy.DataFrame
 
     return valid
 
+def unnest_vehicle_positions_new(vp: dy.DataFrame[VehiclePositionsApiFormat]) -> dy.DataFrame[StopEventsTable]:
+    """Unnest VehiclePositions data into flat table."""
+    process_logger = ProcessLogger("unnest_vehicle_positions", input_rows=vp.height)
+    process_logger.log_start()
+    vehicle_positions = (
+        vp.select("entity")
+        .explode("entity")
+        .unnest("entity")
+        .unnest("vehicle")
+        .unnest("trip")
+    )
+    process_logger.log_complete()
+
+    return vehicle_positions
+
+def vehicle_position_to_events(vp: pl.DataFrame) -> dy.DataFrame[StopEventsWithStatus]:
+    """
+    Convert VehiclePositions data into StopEventsTable format,
+    extracting stop events based on current status and stop sequence.
+    """
+    process_logger = ProcessLogger("unnest_vehicle_positions", input_rows=vp.height)
+    process_logger.log_start()
+    events = (
+        vp.filter(
+            pl.col("current_stop_sequence").is_not_null(),
+            pl.col("trip_id").is_not_null(),
+            pl.col("timestamp").is_not_null(),
+            pl.col("route_id").is_not_null(),
+        )
+        .select(
+            pl.concat_str(pl.col("trip_id"), pl.col("route_id"), pl.col("id"), separator="-").alias("id"),
+            "timestamp",
+            "start_date",
+            "trip_id",
+            "direction_id",
+            "route_id",
+            "start_time",
+            "revenue",
+            "stop_id",
+            "current_stop_sequence",
+            "current_status",
+        )
+    )
+
+    valid = process_logger.log_dataframely_filter_results(*StopEventsWithStatus.filter(events, cast=True))
+
+    process_logger.log_complete()
+
+    return valid
+
 
 def update_records(
     existing_records: dy.DataFrame[StopEventsTable],
@@ -145,7 +211,8 @@ def update_records(
                 "latest_stopped_timestamp"
             ),  # use value from new record
         )
-        .filter(pl.col("arrived").is_not_null() | pl.col("departed").is_not_null())  # keep only stops with events
+        .filter(pl.col("arrived").is_not_null() | pl.col("departed").is_not_null())  # keep only stops with events 
+        # maybe join schedule in to see when arrived is valid. 
     )
 
     valid = process_logger.log_dataframely_filter_results(*StopEventsTable.filter(combined, cast=True))
