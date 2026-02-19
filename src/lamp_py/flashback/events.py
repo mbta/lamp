@@ -150,8 +150,6 @@ def update_records(
 
     valid = process_logger.log_dataframely_filter_results(*StopEventsTable.filter(combined, cast=True))
 
-    # TODO : mark last stop sequence as arived if max timestamp is incoming at terminus
-
     process_logger.add_metadata(new_records=new_records.height, updated_records=combined.height)
 
     process_logger.log_complete()
