@@ -1,6 +1,5 @@
 import os
 from contextlib import nullcontext
-from logging import ERROR
 from pathlib import Path
 from typing import Generator
 
@@ -12,10 +11,9 @@ from lamp_py.publishing.lightswitch import (
     build_view,
     add_views_to_local_schema,
     register_read_ymd,
-    register_effective_gtfs_timestamps,
-    register_gtfs_schedule_view,
+    register_read_schedule,
     register_gtfs_service_id_table,
-    create_schemas_if_not_exists,
+    authenticate,
 )
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
@@ -54,7 +52,6 @@ def test_build_view(
     assert "view_name=test" in caplog.text
 
 
-@pytest.mark.parametrize(["schema_name"], [(None,), ("foo",)], ids=["no-schema", "has-schema"])
 @pytest.mark.parametrize(
     ["view_locations", "partition_strategy", "expected_view_names"],
     [
@@ -76,12 +73,11 @@ def test_add_views_to_local_schema(
     duckdb_con: duckdb.DuckDBPyConnection,
     view_locations: list[S3Location],
     partition_strategy: str,
-    schema_name: str | None,
     expected_view_names: pytest.RaisesExc,
 ) -> None:
     """It builds the views that are passed to it."""
     with expected_view_names:
-        assert [((schema_name + ".") if schema_name is not None else "") + v for v in expected_view_names.enter_result] == add_views_to_local_schema(duckdb_con, view_locations, partition_strategy, schema_name)  # type: ignore[attr-defined]
+        assert [v for v in expected_view_names.enter_result] == add_views_to_local_schema(duckdb_con, view_locations, partition_strategy)  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize(
@@ -114,50 +110,25 @@ def test_register_read_ymd(
             )
 
 
-@pytest.fixture(name="effective_gtfs_timestamps_table")
-def fixture_effective_gtfs_timestamps(
-    duckdb_con: duckdb.DuckDBPyConnection,
-) -> bool:
-    """Create effective timestamp table."""
-    return register_effective_gtfs_timestamps(duckdb_con, "tests/test_files/SPRINGBOARD/")
-
-
 @pytest.fixture(name="gtfs_service_id_table")
 def fixture_gtfs_service_id_table(
     duckdb_con: duckdb.DuckDBPyConnection,
-    effective_gtfs_timestamps_table: bool,
 ) -> bool:
     """Create service_ids table."""
-    return effective_gtfs_timestamps_table & register_gtfs_service_id_table(duckdb_con, "tests/test_files/SPRINGBOARD/")
+    _ = authenticate(duckdb_con)
+    return register_gtfs_service_id_table(duckdb_con)
 
 
-def test_register_gtfs_schedule_view(
+# @pytest.mark.skip(reason = "Fixture takes too long and requires AWS creds.")
+def test_register_read_schedule(
     duckdb_con: duckdb.DuckDBPyConnection,
     gtfs_service_id_table: bool,
 ) -> None:
     """It raises errors if the table doesn't exist or is empty."""
-    if gtfs_service_id_table:
-        register_gtfs_schedule_view(duckdb_con, "tests/test_files/SPRINGBOARD/")
-    assert duckdb_con.sql("SELECT * FROM gtfs_schedule.date_trip_sequence")
-
-
-@pytest.mark.parametrize(
-    [
-        "schema_list",
-        "error_expected",
-        "output_schemas",
-    ],
-    [(["foo", "bar"], False, ["foo", "bar"]), (["foo", "foo"], False, ["foo", "foo"]), ([""], True, [])],
-    ids=["unique", "duplicate", "empty"],
-)
-def test_create_schemas_if_not_exists(
-    duckdb_con: duckdb.DuckDBPyConnection,
-    schema_list: list[str],
-    error_expected: bool,
-    output_schemas: list[str],
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """It raises errors if the schema already exists."""
-    resultant_schemas = create_schemas_if_not_exists(duckdb_con, schema_list)
-    assert (ERROR in [t[1] for t in caplog.record_tuples]) == error_expected
-    assert resultant_schemas == output_schemas
+    with duckdb_con:
+        assert gtfs_service_id_table
+        duckdb_con.sql("CREATE SCHEMA lamp")
+        duckdb_con.sql("CREATE TABLE lamp.service_ids AS SELECT * FROM service_ids")
+        register_read_schedule(duckdb_con)
+        assert duckdb_con.sql("SELECT * FROM read_schedule(make_date(2025, 1, 1))")
+        assert duckdb_con.sql("SELECT * FROM read_schedule(make_date(2026, 1, 1), make_date(2026, 1, 2))")
