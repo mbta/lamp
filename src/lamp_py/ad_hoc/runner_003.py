@@ -21,9 +21,10 @@ def runner(delete: bool = True) -> None:
     s3 = get_s3_client()
 
     for file in lrtp_file_list:
-        new_key = file.replace("LRTP", "TP")
-        s3.copy({"Bucket": S3_SPRINGBOARD, "Key": file}, S3_SPRINGBOARD, new_key)
-        ad_hoc_logger.add_metadata(original_key=file, new_key=new_key)
+        existing_key = file.replace(f"s3://{S3_SPRINGBOARD}/", "")
+        new_key = existing_key.replace("LRTP", "TP")
+        s3.copy({"Bucket": S3_SPRINGBOARD, "Key": existing_key}, S3_SPRINGBOARD, new_key)
+        ad_hoc_logger.add_metadata(original_key=existing_key, new_key=new_key)
 
     # move all file before deleting originals
     if delete:
