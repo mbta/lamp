@@ -5,7 +5,7 @@ from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
 
 
 def runner(delete: bool = True) -> None:
-    """Rename springboard datasets with LRTP to TP."""
+    """Rename springboard datasets with LRTP to TERMINAL_PREDICTIONS."""
     ad_hoc_logger = ProcessLogger(process_name="ad_hoc_runner")
     ad_hoc_logger.log_start()
 
@@ -26,7 +26,7 @@ def runner(delete: bool = True) -> None:
         if datetime.now(timezone.utc) - file["last_modified"] > timedelta(
             hours=6
         ):  # skip anything modified today to avoid overwriting unfinished files
-            new_key = existing_key.replace("LRTP", "TP")
+            new_key = existing_key.replace("LRTP", "TERMINAL_PREDICTIONS")
             s3.copy({"Bucket": S3_SPRINGBOARD, "Key": existing_key}, S3_SPRINGBOARD, new_key)
             ad_hoc_logger.add_metadata(original_key=existing_key, new_key=new_key)
         else:
