@@ -462,7 +462,10 @@ class GtfsRtConverter(Converter):
                         filter=(
                             (pc.field(self.detail.partition_column) == part)
                             & (pc.field("feed_timestamp") < unique_ts_min)
-                            & (FilterBankRtTripUpdates.ParquetFilter.light_rail | FilterBankRtTripUpdates.ParquetFilter.heavy_rail)
+                            & (
+                                FilterBankRtTripUpdates.ParquetFilter.light_rail
+                                | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
+                            )
                         )
                     )
                     rail_full_set_writer.write_table(lr_write_table)
@@ -473,7 +476,10 @@ class GtfsRtConverter(Converter):
                                 filter=(
                                     (pc.field(self.detail.partition_column) == part)
                                     & (pc.field("feed_timestamp") >= unique_ts_min)
-                                    & (FilterBankRtTripUpdates.ParquetFilter.light_rail | FilterBankRtTripUpdates.ParquetFilter.heavy_rail)
+                                    & (
+                                        FilterBankRtTripUpdates.ParquetFilter.light_rail
+                                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
+                                    )
                                 )
                             )
                         )
