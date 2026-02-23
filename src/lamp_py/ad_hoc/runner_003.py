@@ -3,7 +3,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
 
 
-def runner() -> None:
+def runner(delete: bool = True) -> None:
     """Rename springboard datasets with LRTP to TP."""
     ad_hoc_logger = ProcessLogger(process_name="ad_hoc_runner")
     ad_hoc_logger.log_start()
@@ -26,7 +26,7 @@ def runner() -> None:
         ad_hoc_logger.add_metadata(original_key=file, new_key=new_key)
 
     # move all file before deleting originals
-
-    for file in lrtp_file_list:
-        s3.delete_object(Bucket=S3_SPRINGBOARD, Key=file)
-        ad_hoc_logger.add_metadata(deleted_key=file)
+    if delete:
+        for file in lrtp_file_list:
+            s3.delete_object(Bucket=S3_SPRINGBOARD, Key=file)
+            ad_hoc_logger.add_metadata(deleted_key=file)
