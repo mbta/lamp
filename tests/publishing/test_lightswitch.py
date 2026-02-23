@@ -119,7 +119,7 @@ def fixture_gtfs_service_id_table(
     return register_gtfs_service_id_table(duckdb_con)
 
 
-@pytest.mark.skip(reason = "Fixture takes too long and requires AWS creds.")
+# @pytest.mark.skip(reason = "Fixture takes too long and requires AWS creds.")
 def test_register_read_schedule(
     duckdb_con: duckdb.DuckDBPyConnection,
     gtfs_service_id_table: bool,
