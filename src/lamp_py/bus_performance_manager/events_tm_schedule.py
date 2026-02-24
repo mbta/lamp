@@ -112,7 +112,13 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
     waivers = (
         pl.scan_parquet(tm_daily_sched_adherence_waiver_file.s3_uri)
         .filter(pl.col("MISSED_ALLOWED_FLAG").eq(pl.lit(1)))
-        .select("WAIVER_ID", pl.col("REMARK").alias("waiver_remark"))
+        .select(
+            "WAIVER_ID",
+            pl.coalesce(
+                pl.col("REMARK").str.extract(r"^([A-Z]+ - [\w\s]+):").alias("waiver_remark"),
+                pl.lit("Unrecognized Code"),
+            ).alias("waiver_remark"),
+        )  # remove freetext entries to avoid exposing operator IDs
     )
 
     stop_crossings = (
