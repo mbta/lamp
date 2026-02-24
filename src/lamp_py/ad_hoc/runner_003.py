@@ -6,7 +6,7 @@ from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
 
 def runner(delete: bool = True) -> None:
     """Rename springboard datasets with LRTP to TERMINAL_PREDICTIONS."""
-    ad_hoc_logger = ProcessLogger(process_name="ad_hoc_runner")
+    ad_hoc_logger = ProcessLogger(process_name="ad_hoc_runner", delete=str(delete))
     ad_hoc_logger.log_start()
 
     lrtp_file_list = file_list_from_s3_with_details(
