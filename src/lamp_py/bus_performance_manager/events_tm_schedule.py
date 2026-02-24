@@ -1,5 +1,5 @@
-from datetime import date
 import os
+from datetime import date
 
 import dataframely as dy
 import polars as pl
@@ -7,12 +7,13 @@ import polars as pl
 from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
+    tm_daily_sched_adherence_waiver_file,
     tm_geo_node_file,
     tm_route_file,
+    tm_stop_crossing,
+    tm_time_point_file,
     tm_trip_file,
     tm_vehicle_file,
-    tm_time_point_file,
-    tm_stop_crossing,
 )
 
 
@@ -30,6 +31,7 @@ class TransitMasterSchedule(BusBaseSchema):
     service_date = dy.Date(nullable=True)
     tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
     timepoint_order = dy.UInt32(nullable=True)
+    waiver_remark = dy.String(nullable=True)
     STOP_CROSSING_ID = dy.Int64(nullable=False)
     PULLOUT_ID = dy.Int64(primary_key=True)
 
@@ -37,7 +39,7 @@ class TransitMasterSchedule(BusBaseSchema):
 def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedule]:
     """
 
-    non service tiemepoints
+    Non service tiemepoints
     vs all timepoints that havent joined
     where avl is bad
     there are places where gtfs is bad at getting stop records
@@ -107,6 +109,12 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
         "TIME_PT_NAME",
     )
 
+    waivers = (
+        pl.scan_parquet(tm_daily_sched_adherence_waiver_file.s3_uri)
+        .filter(pl.col("MISSED_ALLOWED_FLAG").eq(pl.lit(1)))
+        .select("WAIVER_ID", pl.col("REMARK").alias("waiver_remark"))
+    )
+
     stop_crossings = (
         pl.scan_parquet(os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime('%Y%m%d')}.parquet"))
         .filter(
@@ -115,6 +123,7 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
             pl.col("TRIP_ID").is_not_null(),
             # by allowing null `VEHICLE_ID`, we get all scheduled and actual trips for the day
         )
+        .join(waivers, on="WAIVER_ID", how="left")
         .join(tm_trips, on="TRIP_ID", how="left")
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left")
         .join(tm_time_points, on="TIME_POINT_ID", how="left")
