@@ -123,7 +123,7 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
 
 
 def aggregate_duration_with_new_records(
-    existing_records: dy.DataFrame[VehicleEvents],
+    existing_records: dy.DataFrame[VehicleStopEvents],
     new_records: dy.DataFrame[VehicleEvents],
 ) -> dy.DataFrame[VehicleEvents]:
     """
@@ -189,7 +189,7 @@ def filter_stop_events(
     and rename the status start and end periods to stop event schema format
     """
 
-    return (
+    filtered = (
         compressed_events.filter(
             (pl.col("current_status") == "STOPPED_AT")
             & (pl.col("status_start_timestamp").is_not_null() | pl.col("status_end_timestamp").is_not_null())
@@ -206,6 +206,9 @@ def filter_stop_events(
         .rename({"status_start_timestamp": "arrived", "status_end_timestamp": "departed"})
     )
 
+    valid = ProcessLogger("filter_stop_events").log_dataframely_filter_results(*VehicleStopEvents.filter(filtered, cast=True))
+
+    return valid
 
 def structure_stop_events(df: dy.DataFrame[VehicleStopEvents]) -> dy.DataFrame[StopEventsJSON]:
     """Structure flat table into StopEvents records."""

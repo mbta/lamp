@@ -195,3 +195,73 @@ def test_filter_stop_events(
     filtered = filter_stop_events(events, max_record_age)
 
     assert (filtered.height == 1) == should_pass
+
+
+def test_aggregate_duration_with_new_records_incrementing_and_static():
+    # id1: current_stop_sequence increments, current_status changes
+    # id2: current_stop_sequence static, current_status changes
+    events = [
+        # id1: stop_sequence increments, status changes
+        {
+            "id": "id1",
+            "current_stop_sequence": 1,
+            "current_status": "STOPPED_AT",
+            "timestamp": 100,
+        },
+        {
+            "id": "id1",
+            "current_stop_sequence": 2,
+            "current_status": "IN_TRANSIT_TO",
+            "timestamp": 110,
+        },
+        {
+            "id": "id1",
+            "current_stop_sequence": 2,
+            "current_status": "STOPPED_AT",
+            "timestamp": 115,
+        },
+        {
+            "id": "id1",
+            "current_stop_sequence": 2,
+            "current_status": "STOPPED_AT",
+            "timestamp": 120,
+        },
+        {
+            "id": "id1",
+            "current_stop_sequence": 2,
+            "current_status": "STOPPED_AT",
+            "timestamp": 130,
+        },
+        {
+            "id": "id1",
+            "current_stop_sequence": 3,
+            "current_status": "STOPPED_AT",
+            "timestamp": 140,
+        },
+        {
+            "id": "id2",
+            "current_stop_sequence": 1,
+            "current_status": "STOPPED_AT",
+            "timestamp": 200,
+        },
+        {
+            "id": "id2",
+            "current_stop_sequence": 1,
+            "current_status": "STOPPED_AT",
+            "timestamp": 210,
+        },
+        {
+            "id": "id2",
+            "current_stop_sequence": 1,
+            "current_status": "STOPPED_AT",
+            "timestamp": 220,
+        },
+    ]
+    df = pl.DataFrame(events)
+    # Split into existing and new for demonstration (first 3 as existing, last 3 as new)
+    existing_df = df.slice(0, 3)
+    new_df = df.slice(3, 3)
+    result = aggregate_duration_with_new_records(existing_df, new_df)
+    # Check that all events are present and grouped as expected
+    assert set(result["id"]) == {"id1", "id2"}
+    assert result.height >= 4  # At least one per unique (id, stop_sequence, status)
