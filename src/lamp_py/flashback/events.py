@@ -93,29 +93,33 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
     """
     process_logger = ProcessLogger("vehicle_position_to_archive_events", input_rows=vp.height)
     process_logger.log_start()
-    events = vp.filter(
-        pl.col("current_stop_sequence").is_not_null(),
-        pl.col("trip_id").is_not_null(),
-        pl.col("timestamp").is_not_null(),
-        pl.col("route_id").is_not_null(),
-        pl.col("start_date").is_not_null(),
-    ).select(
-        pl.concat_str(pl.col("start_date"), pl.col("trip_id"), pl.col("route_id"), pl.col("id"), separator="-").alias(
-            "id"
-        ),
-        "timestamp",
-        "start_date",
-        "trip_id",
-        "direction_id",
-        "route_id",
-        "start_time",
-        "revenue",
-        "stop_id",
-        "current_stop_sequence",
-        "current_status",
-    ).with_columns(
-        pl.lit(None).cast(pl.Int64).alias("status_start_timestamp"),
-        pl.lit(None).cast(pl.Int64).alias("status_end_timestamp"),
+    events = (
+        vp.filter(
+            pl.col("current_stop_sequence").is_not_null(),
+            pl.col("trip_id").is_not_null(),
+            pl.col("timestamp").is_not_null(),
+            pl.col("route_id").is_not_null(),
+            pl.col("start_date").is_not_null(),
+        )
+        .select(
+            pl.concat_str(
+                pl.col("start_date"), pl.col("trip_id"), pl.col("route_id"), pl.col("id"), separator="-"
+            ).alias("id"),
+            "timestamp",
+            "start_date",
+            "trip_id",
+            "direction_id",
+            "route_id",
+            "start_time",
+            "revenue",
+            "stop_id",
+            "current_stop_sequence",
+            "current_status",
+        )
+        .with_columns(
+            pl.lit(None).cast(pl.Int64).alias("status_start_timestamp"),
+            pl.lit(None).cast(pl.Int64).alias("status_end_timestamp"),
+        )
     )
 
     valid = process_logger.log_dataframely_filter_results(*VehicleEvents.filter(events, cast=True))
@@ -209,9 +213,12 @@ def filter_stop_events(
         .rename({"status_start_timestamp": "arrived", "status_end_timestamp": "departed"})
     )
 
-    valid = ProcessLogger("filter_stop_events").log_dataframely_filter_results(*VehicleStopEvents.filter(filtered, cast=True))
+    valid = ProcessLogger("filter_stop_events").log_dataframely_filter_results(
+        *VehicleStopEvents.filter(filtered, cast=True)
+    )
 
     return valid
+
 
 def structure_stop_events(df: dy.DataFrame[VehicleStopEvents]) -> dy.DataFrame[StopEventsJSON]:
     """Structure flat table into StopEvents records."""
