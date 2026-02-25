@@ -26,7 +26,6 @@ async def flashback(
 ) -> None:
     """Fetch, process, and store stop events."""
     all_events = remote_events
-    existing_events = remote_events
 
     while True:
         process_logger = ProcessLogger("flashback")
