@@ -24,8 +24,6 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
             *StopEventsJSON.filter(pl.scan_parquet(location.s3_uri), cast=True)
         )
 
-        # TODO : read in vehicle_positions parquet when available?
-
         existing_events = VehicleStopEvents.cast(
             pl.concat(
                 [

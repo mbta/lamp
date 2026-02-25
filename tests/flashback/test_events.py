@@ -5,8 +5,15 @@ import dataframely as dy
 import polars as pl
 import pytest
 
-from lamp_py.flashback.events import VehicleStopEvents, structure_stop_events, unnest_vehicle_positions, update_records
+from lamp_py.flashback.events import (
+    VehicleEvents,
+    VehicleStopEvents,
+    aggregate_duration_with_new_records,
+    structure_stop_events,
+    unnest_vehicle_positions,
+)
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
+from lamp_py.flashback.events import filter_stop_events
 
 
 @pytest.mark.parametrize(
@@ -135,17 +142,15 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
                 "id": "foo",
                 "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
                 "current_stop_sequence": [2, 3],
-                "latest_stopped_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "arrived": [2_000_000_000, 2_000_000_000 + 1],
-                "departed": [2_000_000_000, None],
+                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
+                "status_end_timestamp": [2_000_000_000, None],
             },
             {
                 "id": "foo",
                 "timestamp": 2_000_000_000 + 2,
                 "current_stop_sequence": 3,
-                "latest_stopped_timestamp": 2_000_000_000 + 1,
-                "arrived": 2_000_000_000 + 1,
-                "departed": None,
+                "status_start_timestamp": 2_000_000_000 + 1,
+                "status_end_timestamp": None,
             },
             {
                 ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
@@ -157,17 +162,15 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
                 "id": "foo",
                 "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
                 "current_stop_sequence": [2, 3],
-                "latest_stopped_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "arrived": [2_000_000_000, 2_000_000_000 + 1],
-                "departed": [2_000_000_000, None],
+                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
+                "status_end_timestamp": [2_000_000_000, None],
             },
             {
                 "id": "foo",
                 "timestamp": 2_000_000_000 + 3,
                 "current_stop_sequence": 3,
-                "latest_stopped_timestamp": 2_000_000_000 + 2,
-                "arrived": 2_000_000_000 + 2,
-                "departed": None,
+                "status_start_timestamp": 2_000_000_000 + 2,
+                "status_end_timestamp": None,
             },
             {
                 ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
@@ -179,17 +182,15 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
                 "id": "foo",
                 "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
                 "current_stop_sequence": [2, 3],
-                "latest_stopped_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "arrived": [2_000_000_000, 2_000_000_000 + 1],
-                "departed": [2_000_000_000, None],
+                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
+                "status_end_timestamp": [2_000_000_000, None],
             },
             {
                 "id": "foo",
                 "timestamp": 2_000_000_000 + 3,
                 "current_stop_sequence": 4,
-                "latest_stopped_timestamp": 2_000_000_000 + 2,
-                "arrived": 2_000_000_000 + 2,
-                "departed": None,
+                "status_start_timestamp": 2_000_000_000 + 2,
+                "status_end_timestamp": None,
             },
             {
                 ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
@@ -202,17 +203,15 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
                 "id": "foo",
                 "timestamp": [1_000_000_000 + 1, 1_000_000_000 + 2],  # SOMETIME IN THE PAST
                 "current_stop_sequence": [2, 3],
-                "latest_stopped_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "arrived": [2_000_000_000, 2_000_000_000 + 1],
-                "departed": [2_000_000_000, None],
+                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
+                "status_end_timestamp": [2_000_000_000, None],
             },
             {
                 "id": "foo",
                 "timestamp": 2_000_000_000 + 3,
                 "current_stop_sequence": 4,
-                "latest_stopped_timestamp": 2_000_000_000 + 2,
-                "arrived": 2_000_000_000 + 2,
-                "departed": None,
+                "status_start_timestamp": 2_000_000_000 + 2,
+                "status_end_timestamp": 2_000_000_000 + 2,
             },
             {
                 ("foo", 4, 2_000_000_000 + 3, 2_000_000_000 + 2, None),
@@ -223,17 +222,15 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
                 "id": "foo",
                 "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
                 "current_stop_sequence": [2, 3],
-                "latest_stopped_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "arrived": [2_000_000_000, 2_000_000_000 + 1],
-                "departed": [2_000_000_000, None],
+                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
+                "status_end_timestamp": [2_000_000_000, None],
             },
             {
                 "id": "foo",
                 "timestamp": 2_000_000_000 + 3,
                 "current_stop_sequence": 50,
-                "latest_stopped_timestamp": 2_000_000_000 + 2,
-                "arrived": 2_000_000_000 + 2,
-                "departed": None,
+                "status_start_timestamp": 2_000_000_000 + 2,
+                "status_end_timestamp": 2_000_000_000 + 2,
             },
             {
                 ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
@@ -246,17 +243,15 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
                 "id": "foo",
                 "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
                 "current_stop_sequence": [2, 3],
-                "latest_stopped_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "arrived": [None, None],
-                "departed": [None, None],
+                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
+                "status_end_timestamp": [None, None],
             },
             {
                 "id": "foo",
                 "timestamp": 2_000_000_000 + 3,
                 "current_stop_sequence": 3,
-                "latest_stopped_timestamp": 2_000_000_000 + 2,
-                "arrived": 2_000_000_000 + 2,
-                "departed": None,
+                "status_start_timestamp": 2_000_000_000 + 2,
+                "status_end_timestamp": None,
             },
             {
                 ("foo", 2, 2_000_000_000 + 3, None, 2_000_000_000),
@@ -280,12 +275,12 @@ def test_update_records(
     expected_events: set[tuple[str, int, int, int | None, int | None]],
 ) -> None:
     """It quickly and correctly updates records."""
-    existing_records = VehicleStopEvents.sample(generator=dy_gen, overrides=existing_record_overrides)
-    new_records = VehicleStopEvents.sample(generator=dy_gen, overrides=new_record_overrides)
-    updated = update_records(existing_records, new_records, timedelta(hours=2))
+    existing_records = VehicleEvents.sample(generator=dy_gen, overrides=existing_record_overrides)
+    new_records = VehicleEvents.sample(generator=dy_gen, overrides=new_record_overrides)
+    updated = aggregate_duration_with_new_records(existing_records, new_records)
     updated_set = set(
         tuple(i.values())
-        for i in updated.select("id", "current_stop_sequence", "timestamp", "arrived", "departed").to_struct().to_list()
+        for i in updated.select("id", "current_stop_sequence", "timestamp", "status_start_timestamp", "status_end_timestamp").to_struct().to_list()
     )
 
     assert updated_set == expected_events
@@ -293,7 +288,7 @@ def test_update_records(
 
 def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int = 1_000_000) -> None:
     """It can handle 1,000,000 existing and new records in under a second."""
-    existing_records = VehicleStopEvents.sample(
+    existing_records = VehicleEvents.sample(
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
@@ -302,7 +297,7 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
             )
         },
     )
-    new_records = VehicleStopEvents.sample(
+    new_records = VehicleEvents.sample(
         num_rows=num_rows // 10,
         generator=dy_gen,
         overrides={
@@ -313,7 +308,7 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
     )
 
     start = time.time()
-    _ = update_records(existing_records, new_records, timedelta(hours=2))
+    _ = aggregate_duration_with_new_records(existing_records, new_records)
     duration = time.time() - start
     assert duration < 1.0
 
@@ -328,3 +323,55 @@ def test_structure_stop_events(dy_gen: dy.random.Generator) -> None:
     assert events_df.select("start_date", "trip_id", "direction_id", "route_id", "start_time", "revenue").row(
         0
     ) == events_json.select("start_date", "trip_id", "direction_id", "route_id", "start_time", "revenue").row(0)
+
+
+@pytest.mark.parametrize(
+    [
+        "current_status",
+        "status_start_timestamp",
+        "status_end_timestamp",
+        "timestamp",
+        "should_pass",
+    ],
+    [
+        ("STOPPED_AT", 2_000_000_000, 2_000_000_000 + 1, int(time.time()), True),
+        ("IN_TRANSIT_TO", 2_000_000_000, 2_000_000_000 + 1, int(time.time()), False),
+        ("STOPPED_AT", None, None, int(time.time()), False),
+        ("STOPPED_AT", 2_000_000_000, None, int(time.time()), True),
+        ("STOPPED_AT", None, 2_000_000_000 + 1, int(time.time()), True),
+        ("STOPPED_AT", 2_000_000_000, 2_000_000_000 + 1, int(time.time() - 86400 * 8), False),
+    ],
+    ids=[
+        "valid-stopped-at-event",
+        "wrong-status",
+        "null-timestamps",
+        "null-start-only",
+        "null-end-only",
+        "old-record-outside-max-age",
+    ],
+)
+def test_filter_stop_events(
+    dy_gen: dy.random.Generator,
+    current_status: str,
+    status_start_timestamp: int | None,
+    status_end_timestamp: int | None,
+    timestamp: int,
+    should_pass: bool,
+) -> None:
+    """It correctly filters stop events by status, timestamps, and age."""
+
+    events = VehicleEvents.sample(
+        num_rows=1,
+        generator=dy_gen,
+        overrides={
+            "current_status": current_status,
+            "status_start_timestamp": status_start_timestamp,
+            "status_end_timestamp": status_end_timestamp,
+            "timestamp": timestamp,
+        },
+    )
+
+    max_record_age = timedelta(days=7)
+    filtered = filter_stop_events(events, max_record_age)
+
+    assert (filtered.height == 1) == should_pass

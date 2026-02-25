@@ -41,8 +41,8 @@ class VehicleStopEvents(dy.Schema):
     current_stop_sequence = VehicleEvents.current_stop_sequence
     # remove current status
     # renamed status start and stop to arrival and departure for stop events schema
-    arrival = VehicleEvents.status_start_timestamp
-    departure = VehicleEvents.status_end_timestamp
+    arrived = VehicleEvents.status_start_timestamp
+    departed = VehicleEvents.status_end_timestamp
 
 
 class StopEventsJSON(dy.Schema):
@@ -61,8 +61,8 @@ class StopEventsJSON(dy.Schema):
             inner={
                 "stop_id": VehicleStopEvents.stop_id,
                 "current_stop_sequence": VehicleStopEvents.current_stop_sequence,
-                "arrived": VehicleStopEvents.arrival,
-                "departed": VehicleStopEvents.departure,
+                "arrived": VehicleStopEvents.arrived,
+                "departed": VehicleStopEvents.departed,
             }
         )
     )
@@ -86,7 +86,7 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
     trip IDs, timestamps, and route IDs. Generates a composite ID from start_date,
     trip_id, route_id, and vehicle id, then selects relevant columns for event archival.
 
-    Start_date is required to have a unique identifier across days, as all other identifiers are reusable. 
+    Start_date is required to have a unique identifier across days, as all other identifiers are reusable.
     """
     process_logger = ProcessLogger("vehicle_position_to_archive_events", input_rows=vp.height)
     process_logger.log_start()

@@ -12,7 +12,7 @@ from aiohttp import ClientError
 from polars.testing import assert_frame_equal
 
 from lamp_py.flashback.events import StopEventsJSON
-from lamp_py.flashback.io import get_remote_events, get_vehicle_positions_old, write_dataframe
+from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
 from tests.test_resources import LocalS3Location
 
@@ -135,9 +135,9 @@ async def test_get_vehicle_positions(
     # If too many retries, expect ClientError
     if num_failures >= max_retries:
         with pytest.raises(ClientError):
-            await get_vehicle_positions_old(max_retries=max_retries)
+            await get_vehicle_positions(max_retries=max_retries)
     else:
-        df = await get_vehicle_positions_old(max_retries=max_retries)
+        df = await get_vehicle_positions(max_retries=max_retries)
 
         assert df.height == 1
         assert mock_sleep.call_count == num_failures
@@ -190,35 +190,7 @@ async def test_invalid_vehicle_positions_schema(
     mock_get.return_value.__aenter__.return_value = mock_response
 
     with raises_error:
-        df = await get_vehicle_positions_old()
+        df = await get_vehicle_positions()
 
         assert df.height == expected_rows
         assert has_invalid_records == (WARNING in [record[1] for record in caplog.record_tuples])
-
-
-@pytest.mark.parametrize(
-    "should_fail",
-    [False, True],
-    ids=["success", "write-failure"],
-)
-def test_write_stop_events(
-    dy_gen: dy.random.Generator,
-    tmp_path: Path,
-    should_fail: bool,
-) -> None:
-    """It writes stop events to S3 and handles write failures."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
-    stop_events = StopEventsJSON.sample(2, generator=dy_gen)
-
-    if should_fail:
-        # Simulate persistent write failure
-        with patch("polars.DataFrame.write_parquet", side_effect=OSError("S3 write error")):
-            with pytest.raises(OSError):
-                write_dataframe(stop_events, test_location)
-    else:
-        write_dataframe(stop_events, test_location)
-
-        # Verify file was written successfully
-        assert Path(test_location.s3_uri).exists()
-        written_df = pl.read_parquet(test_location.s3_uri)
-        assert_frame_equal(written_df, stop_events)
