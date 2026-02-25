@@ -34,18 +34,23 @@ async def flashback(
         # vehicle positions flattened, entire message
         new_records = await get_vehicle_positions()
 
-        # vehicle positions validated and filtered down to columns of interest
+        # vehicle positions validated and filtered down to columns of interest - i.e. removed lat/lon, occupancy
+         # i.e. vehicle reporting STOPPED_AT at time timestamp
         new_events = vehicle_position_to_archive_events(new_records)
 
         # consolidate records with same stop status and sequence - generate start/stop time for each status type
+        # single record for each event type, with new fields indicating duration of the event. 
+        # i.e. vehicle STOPPED_AT for status_start_timestamp to status_end_timestamp. 
         compressed_events = aggregate_duration_with_new_records(all_events, new_events)
 
         # generate flashback events for from stop records
+        # for flashback, only care about STOPPED_AT events - filter on those, and prepare structure for json export
         compressed_stop_events = filter_stop_events(compressed_events, max_record_age)
 
         output_path = local_override or stop_events_location.s3_uri
         process_logger.add_metadata(write_path=output_path)
 
+        # convert to agreed upon json structure, and export
         await asyncio.to_thread(lambda: structure_stop_events(compressed_stop_events).write_parquet(output_path))
 
         process_logger.log_complete()
