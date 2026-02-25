@@ -12,16 +12,18 @@ from aiohttp import ClientError
 from polars.testing import assert_frame_equal
 
 from lamp_py.flashback.events import StopEventsJSON
-from lamp_py.flashback.io import get_remote_events, get_vehicle_positions, write_stop_events
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
+from lamp_py.flashback.io import get_remote_events, get_vehicle_positions_old, write_dataframe
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
 from tests.test_resources import LocalS3Location
 
 
 @pytest.fixture(name="mock_vp_response")
-def fixture_mock_vp_response(tmp_path: Path) -> Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]]:
+def fixture_mock_vp_response(
+    tmp_path: Path,
+) -> Callable[[dy.DataFrame[VehiclePositionsApiFormat]], tuple[AsyncMock, bytes]]:
     """Create mocked vehicle positions HTTP responses from dataframe."""
 
-    def _create(vp: dy.DataFrame[VehiclePositions]) -> tuple[AsyncMock, bytes]:
+    def _create(vp: dy.DataFrame[VehiclePositionsApiFormat]) -> tuple[AsyncMock, bytes]:
         json_file = tmp_path.joinpath("test.json")
         vp.write_ndjson(json_file)
 
@@ -115,13 +117,13 @@ async def test_get_vehicle_positions(
     mock_sleep: AsyncMock,
     mock_get: AsyncMock,
     dy_gen: dy.random.Generator,
-    mock_vp_response: Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]],
+    mock_vp_response: Callable[[dy.DataFrame[VehiclePositionsApiFormat]], tuple[AsyncMock, bytes]],
     num_failures: int,
     max_retries: int,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It gracefully handles (successive) non-200 responses."""
-    vp = VehiclePositions.sample(generator=dy_gen)
+    vp = VehiclePositionsApiFormat.sample(generator=dy_gen)
     success_response, _ = mock_vp_response(vp)
 
     # Create mock error response
@@ -133,9 +135,9 @@ async def test_get_vehicle_positions(
     # If too many retries, expect ClientError
     if num_failures >= max_retries:
         with pytest.raises(ClientError):
-            await get_vehicle_positions(max_retries=max_retries)
+            await get_vehicle_positions_old(max_retries=max_retries)
     else:
-        df = await get_vehicle_positions(max_retries=max_retries)
+        df = await get_vehicle_positions_old(max_retries=max_retries)
 
         assert df.height == 1
         assert mock_sleep.call_count == num_failures
@@ -175,7 +177,7 @@ async def test_get_vehicle_positions(
 async def test_invalid_vehicle_positions_schema(
     mock_get: AsyncMock,
     dy_gen: dy.random.Generator,
-    mock_vp_response: Callable[[dy.DataFrame[VehiclePositions]], tuple[AsyncMock, bytes]],
+    mock_vp_response: Callable[[dy.DataFrame[VehiclePositionsApiFormat]], tuple[AsyncMock, bytes]],
     overrides: dict[str, pl.Expr],
     expected_rows: int,
     raises_error: pytest.RaisesExc,
@@ -183,12 +185,12 @@ async def test_invalid_vehicle_positions_schema(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It filters out events that don't comply with the schema."""
-    vp = VehiclePositions.sample(generator=dy_gen).with_columns(**overrides)
+    vp = VehiclePositionsApiFormat.sample(generator=dy_gen).with_columns(**overrides)
     mock_response, _ = mock_vp_response(vp)  # type: ignore[arg-type]
     mock_get.return_value.__aenter__.return_value = mock_response
 
     with raises_error:
-        df = await get_vehicle_positions()
+        df = await get_vehicle_positions_old()
 
         assert df.height == expected_rows
         assert has_invalid_records == (WARNING in [record[1] for record in caplog.record_tuples])
@@ -212,9 +214,9 @@ def test_write_stop_events(
         # Simulate persistent write failure
         with patch("polars.DataFrame.write_parquet", side_effect=OSError("S3 write error")):
             with pytest.raises(OSError):
-                write_stop_events(stop_events, test_location)
+                write_dataframe(stop_events, test_location)
     else:
-        write_stop_events(stop_events, test_location)
+        write_dataframe(stop_events, test_location)
 
         # Verify file was written successfully
         assert Path(test_location.s3_uri).exists()

@@ -6,7 +6,7 @@ import polars as pl
 import pytest
 
 from lamp_py.flashback.events import StopEventsTable, structure_stop_events, unnest_vehicle_positions, update_records
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
 
 
 @pytest.mark.parametrize(
@@ -116,8 +116,8 @@ from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 )
 def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> None:
     """It gracefully handles missing and complete data alike."""
-    vp = VehiclePositions.validate(
-        pl.DataFrame([pl.Series(name="entity", values=[entity], dtype=VehiclePositions.entity.dtype)])
+    vp = VehiclePositionsApiFormat.validate(
+        pl.DataFrame([pl.Series(name="entity", values=[entity], dtype=VehiclePositionsApiFormat.entity.dtype)])
     )
     df = unnest_vehicle_positions(vp)
     assert df.height == valid_records
