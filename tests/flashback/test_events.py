@@ -5,7 +5,7 @@ import dataframely as dy
 import polars as pl
 import pytest
 
-from lamp_py.flashback.events import StopEventsTable, structure_stop_events, unnest_vehicle_positions, update_records
+from lamp_py.flashback.events import VehicleStopEvents, structure_stop_events, unnest_vehicle_positions, update_records
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
 
 
@@ -280,8 +280,8 @@ def test_update_records(
     expected_events: set[tuple[str, int, int, int | None, int | None]],
 ) -> None:
     """It quickly and correctly updates records."""
-    existing_records = StopEventsTable.sample(generator=dy_gen, overrides=existing_record_overrides)
-    new_records = StopEventsTable.sample(generator=dy_gen, overrides=new_record_overrides)
+    existing_records = VehicleStopEvents.sample(generator=dy_gen, overrides=existing_record_overrides)
+    new_records = VehicleStopEvents.sample(generator=dy_gen, overrides=new_record_overrides)
     updated = update_records(existing_records, new_records, timedelta(hours=2))
     updated_set = set(
         tuple(i.values())
@@ -293,7 +293,7 @@ def test_update_records(
 
 def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int = 1_000_000) -> None:
     """It can handle 1,000,000 existing and new records in under a second."""
-    existing_records = StopEventsTable.sample(
+    existing_records = VehicleStopEvents.sample(
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
@@ -302,7 +302,7 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
             )
         },
     )
-    new_records = StopEventsTable.sample(
+    new_records = VehicleStopEvents.sample(
         num_rows=num_rows // 10,
         generator=dy_gen,
         overrides={
@@ -320,7 +320,7 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
 
 def test_structure_stop_events(dy_gen: dy.random.Generator) -> None:
     """It correctly chooses the most recent timestamp and the first trip in the id."""
-    events_df = StopEventsTable.sample(
+    events_df = VehicleStopEvents.sample(
         num_rows=2, generator=dy_gen, overrides={"id": "foo", "timestamp": [1, 2], "route_id": ["red", "blue"]}
     )
     events_json = structure_stop_events(events_df)
