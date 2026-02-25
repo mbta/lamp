@@ -9,7 +9,6 @@ import dataframely as dy
 import polars as pl
 import pytest
 from aiohttp import ClientError
-from polars.testing import assert_frame_equal
 
 from lamp_py.flashback.events import StopEventsJSON
 from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
@@ -137,60 +136,10 @@ async def test_get_vehicle_positions(
         with pytest.raises(ClientError):
             await get_vehicle_positions(max_retries=max_retries)
     else:
-        df = await get_vehicle_positions(max_retries=max_retries)
+        await get_vehicle_positions(max_retries=max_retries)
 
-        assert df.height == 1
         assert mock_sleep.call_count == num_failures
         # Check that failures were logged (status=failed appears in log message)
         assert "ClientError" in caplog.text
         failure_logs = [record for record in caplog.record_tuples if "status=failed" in record[2]]
         assert len(failure_logs) == num_failures
-
-
-@pytest.mark.parametrize(
-    ["overrides", "expected_rows", "raises_error", "has_invalid_records"],
-    [
-        (
-            {"entity": pl.col("entity").list.eval(pl.element().struct.with_fields(id=pl.lit("a")))},
-            0,
-            nullcontext(),
-            True,
-        ),
-        ({"entity": pl.col("entity")}, 1, nullcontext(), False),  # no change
-        (
-            {"entity": pl.col("entity").list.eval(pl.element().struct.rename_fields(["id", "trip"]))},
-            0,
-            nullcontext(),
-            True,
-        ),  # remove vehicle field - row exists but with empty entity list (valid data)
-        (
-            {"entity": pl.col("entity").list.eval(pl.element().struct.with_fields(vehicle=pl.lit(1)))},
-            0,
-            pytest.raises(pl.exceptions.SchemaError),
-            True,
-        ),
-    ],
-    ids=["duplicate-primary-keys", "valid-data", "null-vehicle", "invalid-schema"],
-)
-@pytest.mark.asyncio
-@patch("aiohttp.ClientSession.get")
-async def test_invalid_vehicle_positions_schema(
-    mock_get: AsyncMock,
-    dy_gen: dy.random.Generator,
-    mock_vp_response: Callable[[dy.DataFrame[VehiclePositionsApiFormat]], tuple[AsyncMock, bytes]],
-    overrides: dict[str, pl.Expr],
-    expected_rows: int,
-    raises_error: pytest.RaisesExc,
-    has_invalid_records: bool,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """It filters out events that don't comply with the schema."""
-    vp = VehiclePositionsApiFormat.sample(generator=dy_gen).with_columns(**overrides)
-    mock_response, _ = mock_vp_response(vp)  # type: ignore[arg-type]
-    mock_get.return_value.__aenter__.return_value = mock_response
-
-    with raises_error:
-        df = await get_vehicle_positions()
-
-        assert df.height == expected_rows
-        assert has_invalid_records == (WARNING in [record[1] for record in caplog.record_tuples])

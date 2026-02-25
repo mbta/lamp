@@ -73,9 +73,12 @@ def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositionsApiFormat]) -> dy.
     process_logger = ProcessLogger("unnest_vehicle_positions", input_rows=vp.height)
     process_logger.log_start()
     vehicle_positions = vp.select("entity").explode("entity").unnest("entity").unnest("vehicle").unnest("trip")
+
+    valid = process_logger.log_dataframely_filter_results(*VehiclePositions.filter(vehicle_positions, cast=True))
+
     process_logger.log_complete()
 
-    return vehicle_positions
+    return valid
 
 
 def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy.DataFrame[VehicleEvents]:

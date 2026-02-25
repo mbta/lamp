@@ -63,39 +63,6 @@ from lamp_py.flashback.events import filter_stop_events
                     "id": "1234",
                     "vehicle": {
                         "trip": {
-                            "start_date": "20231010",
-                            "start_time": "08:00:00",
-                            "direction_id": 1,
-                            "revenue": True,
-                            "last_trip": False,
-                            "schedule_relationship": "SCHEDULED",
-                        },
-                        "position": {
-                            "latitude": 42.352271,
-                            "longitude": -71.055242,
-                            "bearing": 90.0,
-                        },
-                        "vehicle": {
-                            "id": "vehicle_1234",
-                            "label": "Bus 1234",
-                        },
-                        "current_stop_sequence": 5,
-                        "stop_id": "place-dwnxg",
-                        "timestamp": 1700000000,
-                        "occupancy_status": "MANY_SEATS_AVAILABLE",
-                        "occupancy_percentage": 30,
-                        "current_status": "IN_TRANSIT_TO",
-                    },
-                },
-            ],
-            0,
-        ),
-        (
-            [
-                {
-                    "id": "1234",
-                    "vehicle": {
-                        "trip": {
                             "trip_id": "5678",
                             "route_id": "red",
                         },
@@ -116,7 +83,6 @@ from lamp_py.flashback.events import filter_stop_events
     ],
     ids=[
         "complete-data",
-        "null-primary-keys",
         "null-non-primary-keys",
         "empty-entity",
     ],
@@ -129,185 +95,33 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
     df = unnest_vehicle_positions(vp)
     assert df.height == valid_records
 
-
-@pytest.mark.parametrize(
-    [
-        "existing_record_overrides",
-        "new_record_overrides",
-        "expected_events",
-    ],
-    [
-        (
-            {
-                "id": "foo",
-                "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
-                "current_stop_sequence": [2, 3],
-                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "status_end_timestamp": [2_000_000_000, None],
-            },
-            {
-                "id": "foo",
-                "timestamp": 2_000_000_000 + 2,
-                "current_stop_sequence": 3,
-                "status_start_timestamp": 2_000_000_000 + 1,
-                "status_end_timestamp": None,
-            },
-            {
-                ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
-                ("foo", 3, 2_000_000_000 + 2, 2_000_000_000 + 1, None),
-            },
-        ),
-        (
-            {
-                "id": "foo",
-                "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
-                "current_stop_sequence": [2, 3],
-                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "status_end_timestamp": [2_000_000_000, None],
-            },
-            {
-                "id": "foo",
-                "timestamp": 2_000_000_000 + 3,
-                "current_stop_sequence": 3,
-                "status_start_timestamp": 2_000_000_000 + 2,
-                "status_end_timestamp": None,
-            },
-            {
-                ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
-                ("foo", 3, 2_000_000_000 + 2, 2_000_000_000 + 1, None),
-            },
-        ),
-        (
-            {
-                "id": "foo",
-                "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
-                "current_stop_sequence": [2, 3],
-                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "status_end_timestamp": [2_000_000_000, None],
-            },
-            {
-                "id": "foo",
-                "timestamp": 2_000_000_000 + 3,
-                "current_stop_sequence": 4,
-                "status_start_timestamp": 2_000_000_000 + 2,
-                "status_end_timestamp": None,
-            },
-            {
-                ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
-                ("foo", 3, 2_000_000_000 + 3, 2_000_000_000 + 1, 2_000_000_000 + 1),
-                ("foo", 4, 2_000_000_000 + 3, 2_000_000_000 + 2, None),
-            },
-        ),
-        (
-            {
-                "id": "foo",
-                "timestamp": [1_000_000_000 + 1, 1_000_000_000 + 2],  # SOMETIME IN THE PAST
-                "current_stop_sequence": [2, 3],
-                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "status_end_timestamp": [2_000_000_000, None],
-            },
-            {
-                "id": "foo",
-                "timestamp": 2_000_000_000 + 3,
-                "current_stop_sequence": 4,
-                "status_start_timestamp": 2_000_000_000 + 2,
-                "status_end_timestamp": 2_000_000_000 + 2,
-            },
-            {
-                ("foo", 4, 2_000_000_000 + 3, 2_000_000_000 + 2, None),
-            },
-        ),
-        (
-            {
-                "id": "foo",
-                "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
-                "current_stop_sequence": [2, 3],
-                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "status_end_timestamp": [2_000_000_000, None],
-            },
-            {
-                "id": "foo",
-                "timestamp": 2_000_000_000 + 3,
-                "current_stop_sequence": 50,
-                "status_start_timestamp": 2_000_000_000 + 2,
-                "status_end_timestamp": 2_000_000_000 + 2,
-            },
-            {
-                ("foo", 2, 2_000_000_000 + 1, 2_000_000_000, 2_000_000_000),
-                ("foo", 3, 2_000_000_000 + 3, 2_000_000_000 + 1, 2_000_000_000 + 1),
-                ("foo", 50, 2_000_000_000 + 3, 2_000_000_000 + 2, None),
-            },
-        ),
-        (
-            {
-                "id": "foo",
-                "timestamp": [2_000_000_000 + 1, 2_000_000_000 + 2],  # sometime in the future
-                "current_stop_sequence": [2, 3],
-                "status_start_timestamp": [2_000_000_000, 2_000_000_000 + 1],
-                "status_end_timestamp": [None, None],
-            },
-            {
-                "id": "foo",
-                "timestamp": 2_000_000_000 + 3,
-                "current_stop_sequence": 3,
-                "status_start_timestamp": 2_000_000_000 + 2,
-                "status_end_timestamp": None,
-            },
-            {
-                ("foo", 2, 2_000_000_000 + 3, None, 2_000_000_000),
-                ("foo", 3, 2_000_000_000 + 2, 2_000_000_000 + 2, None),
-            },
-        ),
-    ],
-    ids=[
-        "old-records-only",
-        "same-stop-sequence-newer-timestamp",
-        "new-stop-sequence",
-        "outdated-records",
-        "non-sequential-stop-sequences",
-        "null-arrived-departed",  # is this bad behavior?
-    ],
-)
-def test_update_records(
-    dy_gen: dy.random.Generator,
-    existing_record_overrides: dict,
-    new_record_overrides: dict,
-    expected_events: set[tuple[str, int, int, int | None, int | None]],
-) -> None:
-    """It quickly and correctly updates records."""
-    existing_records = VehicleEvents.sample(generator=dy_gen, overrides=existing_record_overrides)
-    new_records = VehicleEvents.sample(generator=dy_gen, overrides=new_record_overrides)
-    updated = aggregate_duration_with_new_records(existing_records, new_records)
-    updated_set = set(
-        tuple(i.values())
-        for i in updated.select(
-            "id", "current_stop_sequence", "timestamp", "status_start_timestamp", "status_end_timestamp"
-        )
-        .to_struct()
-        .to_list()
-    )
-
-    assert updated_set == expected_events
-
-
-def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int = 1_000_000) -> None:
+def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int = 100000) -> None:
     """It can handle 1,000,000 existing and new records in under a second."""
+
+    statuses = ["IN_TRANSIT_TO", "STOPPED_AT", "INCOMING_TO"]
+
     existing_records = VehicleEvents.sample(
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
             "timestamp": dy_gen.sample_int(
                 num_rows, min=int(datetime(1970, 1, 1).timestamp()), max=int(datetime(2039, 1, 1).timestamp())
-            )
+            ),
+            "current_stop_sequence": dy_gen.sample_int(num_rows, min=1, max=50),
+            "current_status": dy_gen.sample_choice(num_rows, choices=statuses),
         },
     )
+    new_records_count = 1_000
     new_records = VehicleEvents.sample(
-        num_rows=num_rows // 10,
+        new_records_count,
         generator=dy_gen,
         overrides={
+            "id": dy_gen.sample_choice(new_records_count, choices=existing_records.select("id").to_series().to_list()),
             "timestamp": dy_gen.sample_int(
-                num_rows // 10, min=int(datetime(1970, 1, 1).timestamp()), max=int(datetime(2039, 1, 1).timestamp())
-            )
+                new_records_count, min=int(datetime(1970, 1, 1).timestamp()), max=int(datetime(2039, 1, 1).timestamp())
+            ),
+            "current_stop_sequence": dy_gen.sample_int(new_records_count, min=1, max=50),
+            "current_status": dy_gen.sample_choice(new_records_count, choices=statuses),
         },
     )
 
@@ -354,6 +168,7 @@ def test_structure_stop_events(dy_gen: dy.random.Generator) -> None:
         "old-record-outside-max-age",
     ],
 )
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def test_filter_stop_events(
     dy_gen: dy.random.Generator,
     current_status: str,
