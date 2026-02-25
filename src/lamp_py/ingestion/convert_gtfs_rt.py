@@ -63,6 +63,7 @@ from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
 
 class VehiclePositionsApiFormat(dy.Schema):
     """Api Format of VehiclePositions message."""
+
     entity = dy.List(
         inner=dy.Struct(
             {
@@ -109,8 +110,10 @@ class VehiclePositionsApiFormat(dy.Schema):
         nullable=False,
     )
 
+
 class VehiclePositions(dy.Schema):
     """Api Format of VehiclePositions message."""
+
     entity = dy.List(
         inner=dy.Struct(
             {
