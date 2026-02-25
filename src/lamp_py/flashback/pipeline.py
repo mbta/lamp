@@ -35,12 +35,12 @@ async def flashback(
         new_records = await get_vehicle_positions()
 
         # vehicle positions validated and filtered down to columns of interest - i.e. removed lat/lon, occupancy
-         # i.e. vehicle reporting STOPPED_AT at time timestamp
+        # i.e. vehicle reporting STOPPED_AT at time timestamp
         new_events = vehicle_position_to_archive_events(new_records)
 
         # consolidate records with same stop status and sequence - generate start/stop time for each status type
-        # single record for each event type, with new fields indicating duration of the event. 
-        # i.e. vehicle STOPPED_AT for status_start_timestamp to status_end_timestamp. 
+        # single record for each event type, with new fields indicating duration of the event.
+        # i.e. vehicle STOPPED_AT for status_start_timestamp to status_end_timestamp.
         compressed_events = aggregate_duration_with_new_records(all_events, new_events)
 
         # generate flashback events for from stop records
