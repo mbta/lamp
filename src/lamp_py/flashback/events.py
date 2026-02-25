@@ -86,14 +86,7 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
     trip IDs, timestamps, and route IDs. Generates a composite ID from start_date,
     trip_id, route_id, and vehicle id, then selects relevant columns for event archival.
 
-    Args:
-        vp: A DataFrame containing VehiclePositions data with required columns:
-            current_stop_sequence, trip_id, timestamp, route_id, start_date, id,
-            direction_id, start_time, revenue, stop_id, and current_status.
-
-    Returns:
-        A DataFrame[VehicleEvents] containing filtered vehicle position data with
-        a composite ID and selected columns for downstream event processing.
+    Start_date is required to have a unique identifier across days, as all other identifiers are reusable. 
     """
     process_logger = ProcessLogger("vehicle_position_to_archive_events", input_rows=vp.height)
     process_logger.log_start()
@@ -119,7 +112,11 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
         "current_status",
     )
 
-    return events
+    valid = process_logger.log_dataframely_filter_results(*VehicleEvents.filter(events, cast=True))
+
+    process_logger.log_complete()
+
+    return valid
 
 
 def aggregate_duration_with_new_records(
