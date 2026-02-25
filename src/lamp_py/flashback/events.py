@@ -113,6 +113,9 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
         "stop_id",
         "current_stop_sequence",
         "current_status",
+    ).with_columns(
+        pl.lit(None).cast(pl.Int64).alias("status_start_timestamp"),
+        pl.lit(None).cast(pl.Int64).alias("status_end_timestamp"),
     )
 
     valid = process_logger.log_dataframely_filter_results(*VehicleEvents.filter(events, cast=True))
