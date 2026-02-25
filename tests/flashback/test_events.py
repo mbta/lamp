@@ -95,6 +95,7 @@ def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> Non
     df = unnest_vehicle_positions(vp)
     assert df.height == valid_records
 
+
 def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int = 100000) -> None:
     """It can handle 1,000,000 existing and new records in under a second."""
 
