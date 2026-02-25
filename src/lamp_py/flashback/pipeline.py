@@ -4,15 +4,14 @@ from os import environ
 from signal import SIGTERM, signal
 
 import dataframely as dy
-import polars as pl
 
 from lamp_py.aws.ecs import handle_ecs_sigterm
 from lamp_py.flashback.events import (
-    StopEventsTable,
+    VehicleStopEvents,
     filter_stop_events,
     structure_stop_events,
     aggregate_duration_with_new_records,
-    vehicle_position_to_raw_events,
+    vehicle_position_to_archive_events,
 )
 from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
 from lamp_py.runtime_utils.env_validation import validate_environment
@@ -21,7 +20,7 @@ from lamp_py.runtime_utils.remote_files import stop_events as stop_events_locati
 
 
 async def flashback(
-    remote_events: dy.DataFrame[StopEventsTable],
+    remote_events: dy.DataFrame[VehicleStopEvents],
     max_record_age: timedelta = timedelta(hours=2),
     local_override: str | None = None,
 ) -> None:
@@ -36,9 +35,8 @@ async def flashback(
         # vehicle positions flattened, entire message
         new_records = await get_vehicle_positions()
 
-        # new processing
         # vehicle positions validated and filtered down to columns of interest
-        new_events = vehicle_position_to_raw_events(new_records)
+        new_events = vehicle_position_to_archive_events(new_records)
 
         # consolidate records with same stop status and sequence - generate start/stop time for each status type
         compressed_events = aggregate_duration_with_new_records(all_events, new_events)
@@ -51,25 +49,12 @@ async def flashback(
 
         await asyncio.to_thread(lambda: structure_stop_events(compressed_stop_events).write_parquet(output_path))
 
-        # old processing
-
-        # stop_events = update_records(existing_events, new_records, max_record_age)
-
-        # existing_events = stop_events
-
-        # await asyncio.to_thread(lambda: structure_stop_events(stop_events).write_json, "old.json")
-
-        # # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # timestamp = "2_hr_test"
-        # all_events.write_parquet(f"/tmp/stop_events_hh_{timestamp}.parquet")
-        # all_events.write_parquet(f"/tmp/all_events_hh_{timestamp}.parquet")
-
         process_logger.log_complete()
 
         await asyncio.sleep(3)  # wait before fetching new data
 
 
-def pipeline() -> None:
+def pipeline(local_override: str | None = None) -> None:
     """Entry point for flashback stop events pipeline."""
     process_logger = ProcessLogger("main")
     process_logger.log_start()
@@ -85,4 +70,4 @@ def pipeline() -> None:
         ],
     )
 
-    asyncio.run(flashback(get_remote_events(), local_override="local_stop_events.parquet"))
+    asyncio.run(flashback(get_remote_events(), local_override=local_override))
