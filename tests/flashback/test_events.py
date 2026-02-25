@@ -280,7 +280,11 @@ def test_update_records(
     updated = aggregate_duration_with_new_records(existing_records, new_records)
     updated_set = set(
         tuple(i.values())
-        for i in updated.select("id", "current_stop_sequence", "timestamp", "status_start_timestamp", "status_end_timestamp").to_struct().to_list()
+        for i in updated.select(
+            "id", "current_stop_sequence", "timestamp", "status_start_timestamp", "status_end_timestamp"
+        )
+        .to_struct()
+        .to_list()
     )
 
     assert updated_set == expected_events
