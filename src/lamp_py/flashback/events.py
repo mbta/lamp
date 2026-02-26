@@ -8,20 +8,10 @@ from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions, VehiclePositions
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class VehicleEvents(dy.Schema):
+class VehicleEvents(VehiclePositions):
     """Vehicle Position raw events to be de-duplicated into actual events"""
 
-    id = dy.String(primary_key=True)  # start_date-trip-route-vehicle
-    timestamp = dy.Int64()
-    start_date = dy.String(nullable=False)
-    trip_id = dy.String()
-    direction_id = dy.Int8(min=0, max=1, nullable=True)
-    route_id = dy.String()
-    start_time = dy.String(nullable=True)
-    revenue = dy.Bool(nullable=True)
-    stop_id = dy.String(nullable=False)
-    current_stop_sequence = dy.Int16(primary_key=True)
-    current_status = dy.String(nullable=True)
+    event_id = dy.String(primary_key=True)  # start_date-trip-route-vehicle
     status_start_timestamp = dy.Int64(nullable=True)
     status_end_timestamp = dy.Int64(nullable=True)
 
@@ -72,7 +62,19 @@ def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositionsApiFormat]) -> dy.
     """Unnest VehiclePositions data into flat table."""
     process_logger = ProcessLogger("unnest_vehicle_positions", input_rows=vp.height)
     process_logger.log_start()
-    vehicle_positions = vp.select("entity").explode("entity").unnest("entity").unnest("vehicle").unnest("trip")
+
+    # it is what it is. note: the struct "vehicle" appears twice.
+    # the first is a catch all, the 2nd is vehicle_id and vehicle_label.
+    vehicle_positions = (
+        vp.select("entity")
+        .explode("entity")
+        .unnest("entity")
+        .unnest("vehicle")
+        .unnest("trip")
+        .rename({"id": "entity_id"})
+        .unnest("vehicle")
+        .unnest("position")
+    )
 
     valid = process_logger.log_dataframely_filter_results(*VehiclePositions.filter(vehicle_positions, cast=True))
 
@@ -93,33 +95,18 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
     """
     process_logger = ProcessLogger("vehicle_position_to_archive_events", input_rows=vp.height)
     process_logger.log_start()
-    events = (
-        vp.filter(
-            pl.col("current_stop_sequence").is_not_null(),
-            pl.col("trip_id").is_not_null(),
-            pl.col("timestamp").is_not_null(),
-            pl.col("route_id").is_not_null(),
-            pl.col("start_date").is_not_null(),
-        )
-        .select(
-            pl.concat_str(
-                pl.col("start_date"), pl.col("trip_id"), pl.col("route_id"), pl.col("id"), separator="-"
-            ).alias("id"),
-            "timestamp",
-            "start_date",
-            "trip_id",
-            "direction_id",
-            "route_id",
-            "start_time",
-            "revenue",
-            "stop_id",
-            "current_stop_sequence",
-            "current_status",
-        )
-        .with_columns(
-            pl.lit(None).cast(pl.Int64).alias("status_start_timestamp"),
-            pl.lit(None).cast(pl.Int64).alias("status_end_timestamp"),
-        )
+    events = vp.filter(
+        pl.col("current_stop_sequence").is_not_null(),
+        pl.col("trip_id").is_not_null(),
+        pl.col("timestamp").is_not_null(),
+        pl.col("route_id").is_not_null(),
+        pl.col("start_date").is_not_null(),
+    ).with_columns(
+        pl.concat_str(pl.col("start_date"), pl.col("trip_id"), pl.col("route_id"), pl.col("id"), separator="-").alias(
+            "event_id"
+        ),
+        pl.lit(None).cast(pl.Int64).alias("status_start_timestamp"),
+        pl.lit(None).cast(pl.Int64).alias("status_end_timestamp"),
     )
 
     valid = process_logger.log_dataframely_filter_results(*VehicleEvents.filter(events, cast=True))
@@ -130,7 +117,7 @@ def vehicle_position_to_archive_events(vp: dy.DataFrame[VehiclePositions]) -> dy
 
 
 def aggregate_duration_with_new_records(
-    existing_records: dy.DataFrame[VehicleStopEvents],
+    existing_records: dy.DataFrame[VehicleEvents],
     new_records: dy.DataFrame[VehicleEvents],
 ) -> dy.DataFrame[VehicleEvents]:
     """
