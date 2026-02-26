@@ -12,7 +12,7 @@ from aiohttp import ClientError
 
 from lamp_py.flashback.events import StopEventsJSON
 from lamp_py.flashback.io import get_remote_stop_events, get_vehicle_positions
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions, VehiclePositionsApiFormat
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
 from tests.test_resources import LocalS3Location
 
 
