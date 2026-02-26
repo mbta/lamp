@@ -85,6 +85,7 @@ async def get_vehicle_positions(
                     data = await response.read()
                     break
             except ClientError as e:
+                process_logger.log_warning(e)
                 if attempt == max_retries:
                     process_logger.log_failure(e)
                     raise ClientError(f"Maximum retries ({max_retries}) exceeded") from e
