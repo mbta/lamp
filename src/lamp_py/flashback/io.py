@@ -6,18 +6,43 @@ from aiohttp import ClientError, ClientSession
 
 from lamp_py.flashback.events import (
     StopEventsJSON,
+    VehicleEvents,
     VehicleStopEvents,
     unnest_vehicle_positions,
 )
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions, VehiclePositionsApiFormat
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import S3Location
-from lamp_py.runtime_utils.remote_files import stop_events as stop_events_location
+from lamp_py.runtime_utils.remote_files import S3Location, vehicle_position_all_events, stop_events
 
 
-def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[VehicleStopEvents]:
+def get_remote_all_events(location: S3Location = vehicle_position_all_events) -> dy.DataFrame[VehicleEvents]:
+    """Fetch existing events from S3."""
+    process_logger = ProcessLogger("get_remote_all_events")
+    process_logger.log_start()
+    try:
+        remote_events = process_logger.log_dataframely_filter_results(
+            *VehicleEvents.filter(pl.scan_parquet(location.s3_uri), cast=True)
+        )
+
+        existing_events = VehicleEvents.cast(
+            pl.concat(
+                [VehicleEvents.create_empty(), remote_events],
+                how="diagonal",
+            )
+        )
+
+    except OSError as e:
+        process_logger.log_warning(e)
+        existing_events = VehicleEvents.create_empty()
+
+    process_logger.log_complete()
+
+    return existing_events
+
+
+def get_remote_stop_events(location: S3Location = stop_events) -> dy.DataFrame[VehicleStopEvents]:
     """Fetch existing stop events from S3."""
-    process_logger = ProcessLogger("get_remote_events")
+    process_logger = ProcessLogger("get_remote_stop_events")
     process_logger.log_start()
     try:
         remote_events = process_logger.log_dataframely_filter_results(
@@ -60,10 +85,14 @@ async def get_vehicle_positions(
                     data = await response.read()
                     break
             except ClientError as e:
-                process_logger.log_failure(e)
                 if attempt == max_retries:
+                    process_logger.log_failure(e)
                     raise ClientError(f"Maximum retries ({max_retries}) exceeded") from e
                 sleep(sleep_interval)
+
+            except Exception as e:
+                process_logger.log_failure(e)
+                raise
 
     vehicle_positions = pl.read_ndjson(data, schema=VehiclePositionsApiFormat.to_polars_schema())
     valid = process_logger.log_dataframely_filter_results(*VehiclePositionsApiFormat.filter(vehicle_positions))
