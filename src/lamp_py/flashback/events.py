@@ -19,7 +19,7 @@ class VehicleEvents(VehiclePositions):
 class VehicleStopEvents(dy.Schema):
     """Vehicle Position raw events to be de-duplicated into actual events"""
 
-    id = dy.String(primary_key=True)  # start_date-trip-route-vehicle
+    event_id = dy.String(primary_key=True)  # start_date-trip-route-vehicle
     timestamp = dy.Int64()
     start_date = dy.String(nullable=False)
     trip_id = VehicleEvents.trip_id
@@ -28,7 +28,7 @@ class VehicleStopEvents(dy.Schema):
     start_time = VehicleEvents.start_time
     revenue = VehicleEvents.revenue
     stop_id = VehicleEvents.stop_id
-    current_stop_sequence = VehicleEvents.current_stop_sequence
+    current_stop_sequence = dy.Int16(primary_key=True)
     # remove current status
     # renamed status start and stop to arrival and departure for stop events schema
     arrived = VehicleEvents.status_start_timestamp
@@ -38,7 +38,7 @@ class VehicleStopEvents(dy.Schema):
 class StopEventsJSON(dy.Schema):
     """Pre-serialized stop events for trips."""
 
-    id = dy.String(primary_key=True)
+    event_id = dy.String(primary_key=True)
     timestamp = dy.Int64()
     start_date = VehicleStopEvents.start_date
     trip_id = VehicleStopEvents.trip_id
@@ -73,6 +73,8 @@ def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositionsApiFormat]) -> dy.
         .unnest("trip")
         .rename({"id": "entity_id"})
         .unnest("vehicle")
+        .rename({"id": "vehicle_id", "label": "vehicle_label"})
+        .rename({"entity_id": "id"})
         .unnest("position")
     )
 
@@ -197,7 +199,7 @@ def filter_stop_events(
             )  # remove records that are older than max_record_age - flashback usecase only requires max_record_age history
         )
         .drop("current_status")
-        .sort("id", "current_stop_sequence")
+        .sort("event_id", "current_stop_sequence")
         .rename({"status_start_timestamp": "arrived", "status_end_timestamp": "departed"})
     )
 
@@ -211,7 +213,7 @@ def filter_stop_events(
 def structure_stop_events(df: dy.DataFrame[VehicleStopEvents]) -> dy.DataFrame[StopEventsJSON]:
     """Structure flat table into StopEvents records."""
     process_logger = ProcessLogger("structure_stop_events", input_rows=df.height)
-    stop_events = df.group_by("id").agg(
+    stop_events = df.group_by("event_id").agg(
         pl.max("timestamp").alias("timestamp"),
         pl.selectors.by_name("start_date", "trip_id", "direction_id", "route_id", "start_time", "revenue").first(),
         pl.struct("stop_id", "current_stop_sequence", "arrived", "departed").alias("stop_events"),

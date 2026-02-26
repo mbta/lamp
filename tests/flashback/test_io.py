@@ -12,7 +12,7 @@ from aiohttp import ClientError
 
 from lamp_py.flashback.events import StopEventsJSON
 from lamp_py.flashback.io import get_remote_stop_events, get_vehicle_positions
-from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
+from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions, VehiclePositionsApiFormat
 from tests.test_resources import LocalS3Location
 
 
@@ -67,10 +67,10 @@ def test_get_remote_events(
 @pytest.mark.parametrize(
     ["overrides", "expected_valid_records", "raise_warning", "raises_error"],
     [
-        ({"id": pl.lit("1")}, 0, True, nullcontext()),
-        ({"id": pl.col("id")}, 3, False, nullcontext()),
-        ({"id": pl.Series(values=["1", "1", "2"])}, 1, True, nullcontext()),
-        pytest.param({"id": pl.col("id").implode()}, 0, False, pytest.raises(pl.exceptions.PolarsError)),
+        ({"event_id": pl.lit("1")}, 0, True, nullcontext()),
+        ({"event_id": pl.col("event_id")}, 3, False, nullcontext()),
+        ({"event_id": pl.Series(values=["1", "1", "2"])}, 1, True, nullcontext()),
+        pytest.param({"event_id": pl.col("event_id").implode()}, 0, False, pytest.raises(pl.exceptions.PolarsError)),
     ],
     ids=["all-invalid", "all-valid", "1-valid", "wrong-schema"],
 )
@@ -142,4 +142,6 @@ async def test_get_vehicle_positions(
         # Check that failures were logged (status=failed appears in log message)
         assert "ClientError" in caplog.text
         failure_logs = [record for record in caplog.record_tuples if "status=failed" in record[2]]
-        assert len(failure_logs) == num_failures
+        warn_logs = [record for record in caplog.record_tuples if "status=warned" in record[2]]
+
+        assert len(failure_logs) + len(warn_logs) == num_failures

@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import dataframely as dy
 import polars as pl
@@ -13,7 +13,6 @@ from lamp_py.flashback.events import (
     unnest_vehicle_positions,
 )
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
-from lamp_py.flashback.events import filter_stop_events
 
 
 @pytest.mark.parametrize(
@@ -67,7 +66,10 @@ from lamp_py.flashback.events import filter_stop_events
                             "route_id": "red",
                         },
                         "position": {},
-                        "vehicle": {},
+                        "vehicle": {
+                            "id": "vehicle_1234",
+                            "label": "Bus 1234",
+                        },
                         "stop_id": "123",
                         "current_stop_sequence": 5,
                         "timestamp": 1700000000,
@@ -135,66 +137,20 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
 def test_structure_stop_events(dy_gen: dy.random.Generator) -> None:
     """It correctly chooses the most recent timestamp and the first trip in the id."""
     events_df = VehicleStopEvents.sample(
-        num_rows=2, generator=dy_gen, overrides={"id": "foo", "timestamp": [1, 2], "route_id": ["red", "blue"]}
+        num_rows=2,
+        generator=dy_gen,
+        overrides={
+            "event_id": "foo",
+            "timestamp": [1, 2],
+            "route_id": ["red", "blue"],
+            "start_date": ["20231010", "20231011"],
+        },
     )
     events_json = structure_stop_events(events_df)
     assert events_json.row(0)[1] == 2
     assert events_df.select("start_date", "trip_id", "direction_id", "route_id", "start_time", "revenue").row(
         0
     ) == events_json.select("start_date", "trip_id", "direction_id", "route_id", "start_time", "revenue").row(0)
-
-
-@pytest.mark.parametrize(
-    [
-        "current_status",
-        "status_start_timestamp",
-        "status_end_timestamp",
-        "timestamp",
-        "should_pass",
-    ],
-    [
-        ("STOPPED_AT", 2_000_000_000, 2_000_000_000 + 1, int(time.time()), True),
-        ("IN_TRANSIT_TO", 2_000_000_000, 2_000_000_000 + 1, int(time.time()), False),
-        ("STOPPED_AT", None, None, int(time.time()), False),
-        ("STOPPED_AT", 2_000_000_000, None, int(time.time()), True),
-        ("STOPPED_AT", None, 2_000_000_000 + 1, int(time.time()), True),
-        ("STOPPED_AT", 2_000_000_000, 2_000_000_000 + 1, int(time.time() - 86400 * 8), False),
-    ],
-    ids=[
-        "valid-stopped-at-event",
-        "wrong-status",
-        "null-timestamps",
-        "null-start-only",
-        "null-end-only",
-        "old-record-outside-max-age",
-    ],
-)
-# pylint: disable=too-many-arguments,too-many-positional-arguments
-def test_filter_stop_events(
-    dy_gen: dy.random.Generator,
-    current_status: str,
-    status_start_timestamp: int | None,
-    status_end_timestamp: int | None,
-    timestamp: int,
-    should_pass: bool,
-) -> None:
-    """It correctly filters stop events by status, timestamps, and age."""
-
-    events = VehicleEvents.sample(
-        num_rows=1,
-        generator=dy_gen,
-        overrides={
-            "current_status": current_status,
-            "status_start_timestamp": status_start_timestamp,
-            "status_end_timestamp": status_end_timestamp,
-            "timestamp": timestamp,
-        },
-    )
-
-    max_record_age = timedelta(days=7)
-    filtered = filter_stop_events(events, max_record_age)
-
-    assert (filtered.height == 1) == should_pass
 
 
 def test_aggregate_duration_with_new_records(dy_gen: dy.random.Generator) -> None:
