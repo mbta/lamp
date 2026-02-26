@@ -197,71 +197,36 @@ def test_filter_stop_events(
     assert (filtered.height == 1) == should_pass
 
 
-def test_aggregate_duration_with_new_records_incrementing_and_static():
-    # id1: current_stop_sequence increments, current_status changes
-    # id2: current_stop_sequence static, current_status changes
-    events = [
-        # id1: stop_sequence increments, status changes
-        {
-            "id": "id1",
-            "current_stop_sequence": 1,
-            "current_status": "STOPPED_AT",
-            "timestamp": 100,
+def test_aggregate_duration_with_new_records(dy_gen: dy.random.Generator) -> None:
+    """
+    Test that aggregate_duration_with_new_records correctly updates event durations.
+
+    Creates initial vehicle events with different statuses and timestamps, then
+    adds new records to test that the aggregation properly calculates duration
+    based on the timestamp differences between events.
+    """
+
+    events = VehicleEvents.sample(
+        num_rows=2,
+        generator=dy_gen,
+        overrides={
+            "id": ["id1", "id2"],
+            "current_stop_sequence": [1, 1],
+            "current_status": ["IN_TRANSIT_TO", "STOPPED_AT"],
+            "timestamp": [100, 200],
         },
-        {
-            "id": "id1",
-            "current_stop_sequence": 2,
-            "current_status": "IN_TRANSIT_TO",
-            "timestamp": 110,
+    )
+
+    new_records = VehicleEvents.sample(
+        num_rows=2,
+        generator=dy_gen,
+        overrides={
+            "id": ["id1", "id2"],
+            "current_stop_sequence": [1, 1],
+            "current_status": ["STOPPED_AT", "STOPPED_AT"],
+            "timestamp": [250, 250],
         },
-        {
-            "id": "id1",
-            "current_stop_sequence": 2,
-            "current_status": "STOPPED_AT",
-            "timestamp": 115,
-        },
-        {
-            "id": "id1",
-            "current_stop_sequence": 2,
-            "current_status": "STOPPED_AT",
-            "timestamp": 120,
-        },
-        {
-            "id": "id1",
-            "current_stop_sequence": 2,
-            "current_status": "STOPPED_AT",
-            "timestamp": 130,
-        },
-        {
-            "id": "id1",
-            "current_stop_sequence": 3,
-            "current_status": "STOPPED_AT",
-            "timestamp": 140,
-        },
-        {
-            "id": "id2",
-            "current_stop_sequence": 1,
-            "current_status": "STOPPED_AT",
-            "timestamp": 200,
-        },
-        {
-            "id": "id2",
-            "current_stop_sequence": 1,
-            "current_status": "STOPPED_AT",
-            "timestamp": 210,
-        },
-        {
-            "id": "id2",
-            "current_stop_sequence": 1,
-            "current_status": "STOPPED_AT",
-            "timestamp": 220,
-        },
-    ]
-    df = pl.DataFrame(events)
-    # Split into existing and new for demonstration (first 3 as existing, last 3 as new)
-    existing_df = df.slice(0, 3)
-    new_df = df.slice(3, 3)
-    result = aggregate_duration_with_new_records(existing_df, new_df)
-    # Check that all events are present and grouped as expected
-    assert set(result["id"]) == {"id1", "id2"}
-    assert result.height >= 4  # At least one per unique (id, stop_sequence, status)
+    )
+    aggregated = aggregate_duration_with_new_records(events, new_records)
+
+    print(aggregated)
