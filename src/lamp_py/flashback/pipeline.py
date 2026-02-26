@@ -79,6 +79,7 @@ async def flashback(
 
         await asyncio.sleep(3)  # wait before fetching new data
 
+
 def pipeline(local_override_path: str | None = None) -> None:
     """Entry point for flashback stop events pipeline."""
     process_logger = ProcessLogger("main")
