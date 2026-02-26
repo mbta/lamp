@@ -11,7 +11,7 @@ import pytest
 from aiohttp import ClientError
 
 from lamp_py.flashback.events import StopEventsJSON
-from lamp_py.flashback.io import get_remote_events, get_vehicle_positions
+from lamp_py.flashback.io import get_remote_stop_events, get_vehicle_positions
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositionsApiFormat
 from tests.test_resources import LocalS3Location
 
@@ -56,9 +56,9 @@ def test_get_remote_events(
     if raise_network_error:
         # Simulate networking problems by patching scan_parquet to raise OSError
         with patch("polars.scan_parquet", side_effect=OSError("Network error")):
-            df = get_remote_events(test_location)
+            df = get_remote_stop_events(test_location)
     else:
-        df = get_remote_events(test_location)
+        df = get_remote_stop_events(test_location)
 
     assert (file_exists and not raise_network_error) == (df.height > 0)
     assert (not file_exists or raise_network_error) == (WARNING in [record[1] for record in caplog.record_tuples])
@@ -93,7 +93,7 @@ def test_invalid_remote_events_schema(
         **overrides
     ).write_parquet(test_location.s3_uri)
     with raises_error:
-        df = get_remote_events(test_location)
+        df = get_remote_stop_events(test_location)
 
         assert df.height >= expected_valid_records
         assert raise_warning == (WARNING in [record[1] for record in caplog.record_tuples])
