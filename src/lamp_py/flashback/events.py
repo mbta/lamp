@@ -145,26 +145,27 @@ def aggregate_duration_with_new_records(
         existing_records=existing_records.height,
     )
     process_logger.log_start()
-    all_events = pl.concat([existing_records, new_records], how="diagonal")
 
+    # grab only the records that are still getting updates
+    existing_merge_records = existing_records.filter(pl.col("event_id").is_in(new_records["event_id"].unique()))
+    all_events = pl.concat([existing_merge_records, new_records], how="diagonal")
+
+    # for all records at a current stop sequence and status, calculate the start and end times of that status
     combined = (
         all_events.sort(by="timestamp")
-        .group_by("id", "current_stop_sequence", "current_status")
+        .group_by("event_id", "current_stop_sequence", "current_status")
         .agg(
             [
                 pl.first("timestamp").alias("status_start_timestamp"),
                 pl.when(pl.first("timestamp").ne(pl.last("timestamp"))).then(
                     pl.last("timestamp").alias("status_end_timestamp")
                 ),
+                pl.all().exclude("status_start_timestamp", "status_end_timestamp").last(),
+                # keep the rest of the columns of the most recent one.
             ]
         )
-    ).join(
-        all_events.select(
-            ["id", "direction_id", "revenue", "route_id", "start_date", "start_time", "stop_id", "timestamp", "trip_id"]
-        ),
-        on="id",
-        how="left",
     )
+
     valid = process_logger.log_dataframely_filter_results(*VehicleEvents.filter(combined, cast=True))
 
     process_logger.add_metadata(new_records=new_records.height, updated_records=combined.height)
