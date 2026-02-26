@@ -149,10 +149,12 @@ class ProcessLogger:
         duration = time.monotonic() - self.start_time
         self.default_data["status"] = "warned"
         self.default_data["duration"] = f"{duration:.2f}"
+        self.default_data["error_type"] = type(exception).__name__
 
         for tb in traceback.format_exception_only(exception):
             for line in tb.strip("\n").split("\n"):
                 logging.warning(f"uuid={self.default_data["uuid"]}, {line.strip('\n')}")
+        logging.warning(self._get_log_string())
 
     def log_dataframely_filter_results(
         self, valid: dy.DataFrame, invalid: dy.FailureInfo, log_level: Optional[int] = logging.WARNING
