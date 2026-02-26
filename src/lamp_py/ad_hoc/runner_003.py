@@ -21,6 +21,7 @@ def runner(delete: bool = True) -> None:
 
     s3 = get_s3_client()
 
+    too_recent_files = []
     for file in lrtp_file_list:
         existing_key = file["s3_obj_path"].replace(f"s3://{S3_SPRINGBOARD}/", "")
         if datetime.now(timezone.utc) - file["last_modified"] > timedelta(
@@ -30,7 +31,10 @@ def runner(delete: bool = True) -> None:
             s3.copy({"Bucket": S3_SPRINGBOARD, "Key": existing_key}, S3_SPRINGBOARD, new_key)
             ad_hoc_logger.add_metadata(original_key=existing_key, new_key=new_key)
         else:
-            ad_hoc_logger.add_metadata(skipped_key=existing_key, reason="File is not old enough to move")
+            too_recent_files.append(existing_key)
+
+    if too_recent_files:
+        ad_hoc_logger.add_metadata(skipped_files=",".join(too_recent_files))
 
     # move all file before deleting originals
     if delete:
