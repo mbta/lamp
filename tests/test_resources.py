@@ -73,3 +73,7 @@ tm_trip_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_TRIP.par
 tm_vehicle_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_VEHICLE.parquet")
 tm_pattern_geo_node_xref_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_PATTERN_GEO_NODE_XREF.parquet")
 tm_time_point_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_TIME_POINT.parquet")
+tm_daily_sched_adherence_waiver_file = LocalS3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix="TM/DAILY_SCHED_ADHERE_WAIVER.parquet",
+)

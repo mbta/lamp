@@ -87,6 +87,7 @@ bus_schema = pyarrow.schema(
         ("is_full_trip", pyarrow.bool_()),
         ("point_type", pyarrow.large_string()),
         ("public_operator_id", pyarrow.int64()),
+        ("waiver_remark", pyarrow.large_string()),
     ]
 )
 
