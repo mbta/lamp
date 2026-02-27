@@ -31,7 +31,7 @@ class TransitMasterSchedule(BusBaseSchema):
     service_date = dy.Date(nullable=True)
     tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
     timepoint_order = dy.UInt32(nullable=True)
-    waiver_remark = dy.String(nullable=True, regex=r"^([[:alpha:]]+|Unrecognized Code)$")
+    waiver_remark = dy.String(nullable=True, regex=r"^([[:alpha:]]{1,5}|Unrecognized Code)$")
     STOP_CROSSING_ID = dy.Int64(nullable=False)
     PULLOUT_ID = dy.Int64(primary_key=True)
 
@@ -115,7 +115,7 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
         .select(
             "WAIVER_ID",
             pl.coalesce(
-                pl.col("REMARK").str.extract(r"^([[:alpha:]]+)( )?[-:]").alias("waiver_remark"),
+                pl.col("REMARK").str.extract(r"^([[:alpha:]]{1,5})\b[ -:]*").alias("waiver_remark"),
                 pl.lit("Unrecognized Code"),
             ).alias("waiver_remark"),
         )  # remove freetext entries to avoid exposing operator IDs
