@@ -275,8 +275,20 @@ compressed_gtfs = GTFSArchive(
     prefix=os.path.join(LAMP, "gtfs_archive"),
 )
 
+vehicle_position_all_events = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=f"{LAMP}/stop_events/vehicle_position_all_events_v0.parquet",
+    version="0.1.0",
+)
+
 stop_events = S3Location(
     bucket=S3_ARCHIVE,
-    prefix=f"{LAMP}/stop_events/stop_events_v0.parquet",
+    prefix=f"{LAMP}/stop_events/stop_events_v1.parquet",
+    version="0.1.0",
+)
+
+stop_events_json = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=f"{LAMP}/stop_events/stop_events_v1.json",
     version="0.1.0",
 )
