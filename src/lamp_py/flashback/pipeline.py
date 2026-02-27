@@ -27,10 +27,6 @@ async def flashback(
     """Fetch, process, and store stop events."""
     all_events = remote_events
 
-    # vehicle_events - how to handle in transit events? filter out same timestamp, or aggregate somehow?
-    # average speed?
-
-    # do i want to keep everything? hmm..
 
     while True:
         process_logger = ProcessLogger("flashback")
