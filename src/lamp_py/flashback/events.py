@@ -127,7 +127,7 @@ def aggregate_duration_with_new_records(
 
     Merges existing and new stop event records, groups them by vehicle ID and stop
     sequence, and calculates the timestamp when each status began and ended. Returns
-    only records that pass StopEventsWithStatus validation.
+    only records that pass VehicleEvents validation.
 
     Args:
         existing_records: DataFrame of previously processed stop events with status information.
