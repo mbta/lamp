@@ -57,17 +57,17 @@ springboard_devgreen_rt_trip_updates = S3Location(
 ########################################################
 
 ########################################################
-# LRTP extracts - only light rail, but contains all records
+# TP extracts - only light & heavy rail, but contains all records
 # Not uniqued/filtered down.
 
-springboard_devgreen_lrtp_trip_updates = S3Location(
+springboard_devgreen_tp_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
-    prefix=os.path.join(LAMP, "DEV_GREEN_LRTP_TRIP_UPDATES"),
+    prefix=os.path.join(LAMP, "DEV_GREEN_TERMINAL_PREDICTIONS_TRIP_UPDATES"),
 )
 
-springboard_lrtp_trip_updates = S3Location(
+springboard_tp_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
-    prefix=os.path.join(LAMP, "LRTP_TRIP_UPDATES"),
+    prefix=os.path.join(LAMP, "TERMINAL_PREDICTIONS_TRIP_UPDATES"),
 )
 ########################################################
 

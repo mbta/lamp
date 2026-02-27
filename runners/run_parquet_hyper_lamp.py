@@ -19,51 +19,55 @@ from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_a
 
 from lamp_py.tableau.jobs.lamp_jobs import (
     LAMP_API_PROJECT,
-    HyperGtfsRtVehiclePositions,
-    HyperGtfsRtTripUpdates,
-    HyperGtfsRtVehiclePositionsHeavyRail,
-    HyperGtfsRtTripUpdatesHeavyRail,
-    HyperGtfsRtVehiclePositionsAllLightRail,
-    HyperDevGreenGtfsRtLightRailVehiclePositions,
-    HyperDevGreenGtfsRtLightRailTripUpdates,
-    HyperDevGreenGtfsRtHeavyRailVehiclePositions,
-    HyperDevGreenGtfsRtHeavyRailTripUpdates,
-    HyperBusOperatorMappingRecent,
-    HyperBusOperatorMappingAll,
-    # HyperRtRailSubway,
-    # HyperRtRailCommuter,
+    Prod_VehiclePositions_LightRailTerminals_60Day,
+    Prod_TripUpdates_LightRailTerminals_60Day,
+    Prod_VehiclePositions_HeavyRailTerminals_30Day,
+    Prod_TripUpdates_HeavyRailTerminals_30Day,
+    Prod_VehiclePositions_LightRail_7Day,
+    DevGreen_VehiclePositions_LightRailTerminals_60Day,
+    DevGreen_TripUpdates_LightRailTerminals_60Day,
+    DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
+    DevGreen_TripUpdates_HeavyRailTerminals_60Day,
+    Prod_BusOperatorMapping_Recent,
+    Prod_BusOperatorMapping_LongTerm,
+    Prod_BusMetrics_Fall2025Rating,
+    Prod_BusOperatorMapping_Fall2025Rating,
+    Prod_RailMetrics_Subway_LongTerm,
+    Prod_RailMetrics_CommuterRail_LongTerm,
 )
 
-TestHyperGtfsRtVehiclePositions = HyperGtfsRtVehiclePositions
-TestHyperGtfsRtTripUpdates = HyperGtfsRtTripUpdates
-TestHyperGtfsRtVehiclePositionsHeavyRail = HyperGtfsRtVehiclePositionsHeavyRail
-TestHyperGtfsRtTripUpdatesHeavyRail = HyperGtfsRtTripUpdatesHeavyRail
-TestHyperGtfsRtVehiclePositionsAllLightRail = HyperGtfsRtVehiclePositionsAllLightRail
-TestHyperDevGreenGtfsRtLightRailVehiclePositions = HyperDevGreenGtfsRtLightRailVehiclePositions
-TestHyperDevGreenGtfsRtLightRailTripUpdates = HyperDevGreenGtfsRtLightRailTripUpdates
-TestHyperDevGreenGtfsRtHeavyRailVehiclePositions = HyperDevGreenGtfsRtHeavyRailVehiclePositions
-TestHyperDevGreenGtfsRtHeavyRailTripUpdates = HyperDevGreenGtfsRtHeavyRailTripUpdates
-TestHyperBusOperatorMappingRecent = HyperBusOperatorMappingRecent
-TestHyperBusOperatorMappingAll = HyperBusOperatorMappingAll
-# TestHyperRtRailSubway = HyperRtRailSubway
-# TestHyperRtRailCommuter = HyperRtRailCommuter
+TestProd_VehiclePositions_LightRailTerminals_60Day = Prod_VehiclePositions_LightRailTerminals_60Day
+TestProd_TripUpdates_LightRailTerminals_60Day = Prod_TripUpdates_LightRailTerminals_60Day
+TestProd_VehiclePositions_HeavyRailTerminals_30Day = Prod_VehiclePositions_HeavyRailTerminals_30Day
+TestProd_TripUpdates_HeavyRailTerminals_30Day = Prod_TripUpdates_HeavyRailTerminals_30Day
+TestProd_VehiclePositions_LightRail_7Day = Prod_VehiclePositions_LightRail_7Day
+TestDevGreen_VehiclePositions_LightRailTerminals_60Day = DevGreen_VehiclePositions_LightRailTerminals_60Day
+TestDevGreen_TripUpdates_LightRailTerminals_60Day = DevGreen_TripUpdates_LightRailTerminals_60Day
+TestDevGreen_VehiclePositions_HeavyRailTerminals_60Day = DevGreen_VehiclePositions_HeavyRailTerminals_60Day
+TestDevGreen_TripUpdates_HeavyRailTerminals_60Day = DevGreen_TripUpdates_HeavyRailTerminals_60Day
+TestProd_BusOperatorMapping_Recent = Prod_BusOperatorMapping_Recent
+TestProd_BusOperatorMapping_LongTerm = Prod_BusOperatorMapping_LongTerm
+TestProd_BusMetrics_Fall2025Rating = Prod_BusMetrics_Fall2025Rating
+TestProd_BusOperatorMapping_Fall2025Rating = Prod_BusOperatorMapping_Fall2025Rating
+TestProd_RailMetrics_Subway_LongTerm = Prod_RailMetrics_Subway_LongTerm
+TestProd_RailMetrics_CommuterRail_LongTerm = Prod_RailMetrics_CommuterRail_LongTerm
 TestHyperBusPerformanceRecent = HyperBusPerformanceRecent
 TestHyperBusPerformanceAll = HyperBusPerformanceAll
 
 yesterday = 1
-TestHyperGtfsRtVehiclePositions.num_days_ago = yesterday
-TestHyperGtfsRtTripUpdates.num_days_ago = yesterday
-TestHyperGtfsRtVehiclePositionsHeavyRail.num_days_ago = yesterday
-TestHyperGtfsRtTripUpdatesHeavyRail.num_days_ago = yesterday
-TestHyperGtfsRtVehiclePositionsAllLightRail.num_days_ago = yesterday
-TestHyperDevGreenGtfsRtLightRailVehiclePositions.num_days_ago = yesterday
-TestHyperDevGreenGtfsRtLightRailTripUpdates.num_days_ago = yesterday
-TestHyperDevGreenGtfsRtHeavyRailVehiclePositions.num_days_ago = yesterday
-TestHyperDevGreenGtfsRtHeavyRailTripUpdates.num_days_ago = yesterday
-TestHyperBusOperatorMappingRecent.num_days_ago = yesterday
-TestHyperBusOperatorMappingAll.num_days_ago = yesterday
-# TestHyperRtRailSubway.num_days_ago=yesterday
-# TestHyperRtRailCommuter.num_days_ago=yesterday
+TestProd_VehiclePositions_LightRailTerminals_60Day.num_days_ago = yesterday
+TestProd_TripUpdates_LightRailTerminals_60Day.num_days_ago = yesterday
+TestProd_VehiclePositions_HeavyRailTerminals_30Day.num_days_ago = yesterday
+TestProd_TripUpdates_HeavyRailTerminals_30Day.num_days_ago = yesterday
+TestProd_VehiclePositions_LightRail_7Day.num_days_ago = yesterday
+TestDevGreen_VehiclePositions_LightRailTerminals_60Day.num_days_ago = yesterday
+TestDevGreen_TripUpdates_LightRailTerminals_60Day.num_days_ago = yesterday
+TestDevGreen_VehiclePositions_HeavyRailTerminals_60Day.num_days_ago = yesterday
+TestDevGreen_TripUpdates_HeavyRailTerminals_60Day.num_days_ago = yesterday
+TestProd_BusOperatorMapping_Recent.num_days_ago = yesterday
+TestProd_BusOperatorMapping_LongTerm.num_days_ago = yesterday
+TestProd_BusMetrics_Fall2025Rating.num_days_ago = yesterday
+TestProd_BusOperatorMapping_Fall2025Rating.num_days_ago = yesterday
 
 TestHyperBus = FilteredHyperJob(
     remote_input_location=bus_events,
@@ -84,20 +88,24 @@ def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
 
     hyper_jobs: List[HyperJob] = [
-        # TestHyperGtfsRtVehiclePositions,
-        # TestHyperGtfsRtTripUpdates,
-        # TestHyperGtfsRtVehiclePositionsHeavyRail,
-        # TestHyperGtfsRtTripUpdatesHeavyRail,
-        # TestHyperGtfsRtVehiclePositionsAllLightRail,
-        TestHyperDevGreenGtfsRtLightRailVehiclePositions,
-        # TestHyperDevGreenGtfsRtLightRailTripUpdates,
-        # TestHyperDevGreenGtfsRtHeavyRailVehiclePositions,
-        # TestHyperDevGreenGtfsRtHeavyRailTripUpdates,
-        # TestHyperBusOperatorMappingRecent,
-        # TestHyperBusOperatorMappingAll,
+        # TestProd_VehiclePositions_LightRailTerminals_60Day,
+        TestProd_TripUpdates_LightRailTerminals_60Day,
+        # TestProd_VehiclePositions_HeavyRailTerminals_30Day,
+        # TestProd_TripUpdates_HeavyRailTerminals_30Day,
+        # TestProd_VehiclePositions_LightRail_7Day,
+        # TestDevGreen_VehiclePositions_LightRailTerminals_60Day,
+        # TestDevGreen_TripUpdates_LightRailTerminals_60Day,
+        # TestDevGreen_VehiclePositions_HeavyRailTerminals_60Day,
+        # TestDevGreen_TripUpdates_HeavyRailTerminals_60Day,
+        # TestProd_BusOperatorMapping_Recent,
+        # TestProd_BusOperatorMapping_LongTerm,
         # TestHyperBus,
-        # TestHyperRtRailSubway,
-        # TestHyperRtRailCommuter,
+        # TestProd_RailMetrics_Subway_LongTerm,
+        # TestProd_RailMetrics_CommuterRail_LongTerm,
+        # TestHyperBusPerformanceRecent(),
+        # TestHyperBusPerformanceAll(),
+        # TestProd_BusMetrics_Fall2025Rating,
+        # TestProd_BusOperatorMapping_Fall2025Rating,
     ]
 
     local_parquet = True
