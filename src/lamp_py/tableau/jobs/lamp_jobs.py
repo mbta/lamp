@@ -197,7 +197,7 @@ HyperRtRailSubway = HyperRtRail(
     route_type_operand=RouteType.COMMUTER_RAIL,
     hyper_file_name="LAMP_ALL_RT_fields.hyper",
     remote_parquet_path=os.path.join(tableau_rail_subway.s3_uri, "LAMP_ALL_RT_fields.parquet"),
-    lamp_version="1.2.3",
+    lamp_version="1.2.4",
 )
 
 # commuter rail - Enum types == 2 == COMMUTER_RAIL
