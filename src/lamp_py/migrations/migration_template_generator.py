@@ -80,10 +80,14 @@ def downgrade() -> None:
 if __name__ == "__main__":
     import uuid
 
-    short_desc = "reprocess_422_423"
+    short_desc = input("Enter a short description for the migration: ").strip()
     uuid_new = uuid.uuid4().hex[-12:]
 
-    versions_dir = "{LAMP}/src/lamp_py/migrations/versions"
+    import pathlib
+
+    # Get the directory containing the current script file
+    BASE_DIR = pathlib.Path(__file__).resolve().parent
+    versions_dir = BASE_DIR / "versions"
 
     # List directories in the versions directory
     if os.path.exists(versions_dir):
@@ -96,7 +100,7 @@ if __name__ == "__main__":
 
     print(options)
     for o in options:
-        latest_migration = sorted([d for d in os.listdir(os.path.join(versions_dir, o)) if not d.startswith("sql")])[-1]
+        latest_migration = sorted([d for d in os.listdir(os.path.join(versions_dir, o)) if not d.startswith("sql") and d.endswith(".py")])[-1]
         parts = os.path.basename(latest_migration).split("_")
         breakpoint()
         increment_migration_count = str(int(parts[0]) + 1).zfill(3)
