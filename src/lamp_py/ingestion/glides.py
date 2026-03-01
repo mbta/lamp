@@ -76,7 +76,7 @@ class EditorChangesRecord(GlidesRecord):
 
     data = dy.Struct(
         {
-            "metadata": with_nullable(metadata, True),
+            "metadata": metadata,
             "changes": dy.List(
                 dy.Struct(
                     {
