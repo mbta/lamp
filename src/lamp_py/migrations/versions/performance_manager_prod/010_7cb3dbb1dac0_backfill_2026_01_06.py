@@ -1,16 +1,14 @@
-"""regen-rail-perf-20260101-to-20260104
+"""backfill_2026_01_06
 
-    Revision ID: f138635d1338
-    Revises: 5e3066f113ff
-    Create Date: 2026-02-28 11:31:59.737856
+    Revision ID: 7cb3dbb1dac0
+    Revises: f138635d1338
+    Create Date: 2026-03-01 09:05:04.036779
 
-    Details: regen-rail-perf-20260101-to-20260104 - 
-    This will clean up missing data from RDS performance issues/outage from 1/1 to 1/4
-    Rerunning 1/1 - 1/5 just in case. 
-    * upgrade -> Delete all records from 1/1 to 1/5 in vehicle events and vehicle_trips
-              -> Set all flags to "unprocessed" in metadata log from 1/1 to 1/5
-    * downgrade -> Nothing
-"""
+    Details: Query of metadata table revealed that 1/6 also failed processing, so generating that again
+
+    * upgrade -> same as previous migration but for 1/6
+    * downgrade -> None
+    """
 
 import logging
 import os
@@ -28,8 +26,8 @@ from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 
 # revision identifiers, used by Alembic.
-revision = "f138635d1338"
-down_revision = "5e3066f113ff"
+revision = "7cb3dbb1dac0"
+down_revision = "f138635d1338"
 branch_labels = None  # tbd
 depends_on = None  # tbd
 
@@ -38,16 +36,16 @@ def upgrade() -> None:
 
     # SELECT FROM vehicle_events WHERE service_date >= 20250404 AND service_date <= 20250423;"
 
-    clear_events = "DELETE FROM vehicle_events WHERE service_date >= 20260101 AND service_date <= 20260105;"
+    clear_events = "DELETE FROM vehicle_events WHERE service_date = 20260106;"
     op.execute(clear_events)
 
-    clear_trips = "DELETE FROM vehicle_trips WHERE service_date >= 20260101 AND service_date <= 20260105;"
+    clear_trips = "DELETE FROM vehicle_trips WHERE service_date = 20260106;"
     op.execute(clear_trips)
 
     # Query to Check
     # SELECT created_on, rail_pm_processed, rail_pm_process_fail
     # FROM public.metadata_log
-    # WHERE created_on > '2026-01-01' and created_on < '2026-01-05 23:59:59'
+    # WHERE created_on > '2026-01-06' and created_on < '2026-01-06 23:59:59'
     # AND (path LIKE '%/RT_TRIP_UPDATES/%' or path LIKE '%/RT_VEHICLE_POSITIONS/%')
     # ORDER BY created_on;
 
@@ -59,8 +57,8 @@ def upgrade() -> None:
             rail_pm_process_fail = false
             , rail_pm_processed = false
         WHERE
-            created_on > '2026-01-01 00:00:00'
-            and created_on < '2026-01-05 23:59:59'
+            created_on > '2026-01-06 00:00:00'
+            and created_on < '2026-01-06 23:59:59'
             and (
                 path LIKE '%/RT_TRIP_UPDATES/%'
                 or path LIKE '%/RT_VEHICLE_POSITIONS/%'

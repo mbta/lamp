@@ -100,7 +100,9 @@ if __name__ == "__main__":
 
     print(options)
     for o in options:
-        latest_migration = sorted([d for d in os.listdir(os.path.join(versions_dir, o)) if not d.startswith("sql") and d.endswith(".py")])[-1]
+        latest_migration = sorted(
+            [d for d in os.listdir(os.path.join(versions_dir, o)) if not d.startswith("sql") and d.endswith(".py")]
+        )[-1]
         parts = os.path.basename(latest_migration).split("_")
         breakpoint()
         increment_migration_count = str(int(parts[0]) + 1).zfill(3)
