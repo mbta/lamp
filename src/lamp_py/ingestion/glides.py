@@ -148,7 +148,7 @@ class VehicleTripAssignmentRecord(GlidesRecord):
                 },
                 nullable=True,
             ),
-            "revenue": dy.Bool(),
+            "revenue": dy.String(regex="(non)?revenue"),
         }
     )
 
