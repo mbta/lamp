@@ -15,6 +15,7 @@ from lamp_py.runtime_utils.remote_files import (
 )
 from lamp_py.tableau.jobs.bus_performance import bus_schema
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
+import copy
 
 
 from lamp_py.tableau.jobs.lamp_jobs import (
@@ -36,23 +37,23 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     Prod_RailMetrics_CommuterRail_LongTerm,
 )
 
-TestProd_VehiclePositions_LightRailTerminals_60Day = Prod_VehiclePositions_LightRailTerminals_60Day
-TestProd_TripUpdates_LightRailTerminals_60Day = Prod_TripUpdates_LightRailTerminals_60Day
-TestProd_VehiclePositions_HeavyRailTerminals_30Day = Prod_VehiclePositions_HeavyRailTerminals_30Day
-TestProd_TripUpdates_HeavyRailTerminals_30Day = Prod_TripUpdates_HeavyRailTerminals_30Day
-TestProd_VehiclePositions_LightRail_7Day = Prod_VehiclePositions_LightRail_7Day
-TestDevGreen_VehiclePositions_LightRailTerminals_60Day = DevGreen_VehiclePositions_LightRailTerminals_60Day
-TestDevGreen_TripUpdates_LightRailTerminals_60Day = DevGreen_TripUpdates_LightRailTerminals_60Day
-TestDevGreen_VehiclePositions_HeavyRailTerminals_60Day = DevGreen_VehiclePositions_HeavyRailTerminals_60Day
-TestDevGreen_TripUpdates_HeavyRailTerminals_60Day = DevGreen_TripUpdates_HeavyRailTerminals_60Day
-TestProd_BusOperatorMapping_Recent = Prod_BusOperatorMapping_Recent
-TestProd_BusOperatorMapping_LongTerm = Prod_BusOperatorMapping_LongTerm
-TestProd_BusMetrics_Fall2025Rating = Prod_BusMetrics_Fall2025Rating
-TestProd_BusOperatorMapping_Fall2025Rating = Prod_BusOperatorMapping_Fall2025Rating
-TestProd_RailMetrics_Subway_LongTerm = Prod_RailMetrics_Subway_LongTerm
-TestProd_RailMetrics_CommuterRail_LongTerm = Prod_RailMetrics_CommuterRail_LongTerm
-TestHyperBusPerformanceRecent = HyperBusPerformanceRecent
-TestHyperBusPerformanceAll = HyperBusPerformanceAll
+TestProd_VehiclePositions_LightRailTerminals_60Day = copy.deepcopy(Prod_VehiclePositions_LightRailTerminals_60Day)
+TestProd_TripUpdates_LightRailTerminals_60Day = copy.deepcopy(Prod_TripUpdates_LightRailTerminals_60Day)
+TestProd_VehiclePositions_HeavyRailTerminals_30Day = copy.deepcopy(Prod_VehiclePositions_HeavyRailTerminals_30Day)
+TestProd_TripUpdates_HeavyRailTerminals_30Day = copy.deepcopy(Prod_TripUpdates_HeavyRailTerminals_30Day)
+TestProd_VehiclePositions_LightRail_7Day = copy.deepcopy(Prod_VehiclePositions_LightRail_7Day)
+TestDevGreen_VehiclePositions_LightRailTerminals_60Day = copy.deepcopy(DevGreen_VehiclePositions_LightRailTerminals_60Day)
+TestDevGreen_TripUpdates_LightRailTerminals_60Day = copy.deepcopy(DevGreen_TripUpdates_LightRailTerminals_60Day)
+TestDevGreen_VehiclePositions_HeavyRailTerminals_60Day = copy.deepcopy(DevGreen_VehiclePositions_HeavyRailTerminals_60Day)
+TestDevGreen_TripUpdates_HeavyRailTerminals_60Day = copy.deepcopy(DevGreen_TripUpdates_HeavyRailTerminals_60Day)
+TestProd_BusOperatorMapping_Recent = copy.deepcopy(Prod_BusOperatorMapping_Recent)
+TestProd_BusOperatorMapping_LongTerm = copy.deepcopy(Prod_BusOperatorMapping_LongTerm)
+TestProd_BusMetrics_Fall2025Rating = copy.deepcopy(Prod_BusMetrics_Fall2025Rating)
+TestProd_BusOperatorMapping_Fall2025Rating = copy.deepcopy(Prod_BusOperatorMapping_Fall2025Rating)
+TestProd_RailMetrics_Subway_LongTerm = copy.deepcopy(Prod_RailMetrics_Subway_LongTerm)
+TestProd_RailMetrics_CommuterRail_LongTerm = copy.deepcopy(Prod_RailMetrics_CommuterRail_LongTerm)
+TestHyperBusPerformanceRecent = copy.deepcopy(HyperBusPerformanceRecent)
+TestHyperBusPerformanceAll = copy.deepcopy(HyperBusPerformanceAll)
 
 yesterday = 1
 TestProd_VehiclePositions_LightRailTerminals_60Day.num_days_ago = yesterday
@@ -88,8 +89,9 @@ def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
 
     hyper_jobs: List[HyperJob] = [
+        DevGreen_TripUpdates_LightRailTerminals_60Day
         # TestProd_VehiclePositions_LightRailTerminals_60Day,
-        TestProd_TripUpdates_LightRailTerminals_60Day,
+        # TestProd_TripUpdates_LightRailTerminals_60Day,
         # TestProd_VehiclePositions_HeavyRailTerminals_30Day,
         # TestProd_TripUpdates_HeavyRailTerminals_30Day,
         # TestProd_VehiclePositions_LightRail_7Day,
