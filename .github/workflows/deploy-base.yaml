@@ -64,8 +64,10 @@ on:
         required: true
 
 jobs:
-  deploy:
+  deploy-setup:
     runs-on: ubuntu-latest
+    outputs:
+      docker-tag: ${{ steps.build-push.outputs.docker-tag }}
     permissions:
       id-token: write
       contents: read
@@ -93,90 +95,181 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           docker-repo: ${{ secrets.DOCKER_REPO }}
           docker-additional-args: --build-arg VERSION=${{ env.version }}
-      - name: Deploy Ingestion Application
-        id: deploy-ingestion
-        if: ${{ inputs.deploy-ingestion }}
-        uses: mbta/actions/deploy-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-ingestion-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-          allow-zero-desired: true
-      - name: Deploy Rail Performance Manager Application
-        id: deploy-rail-performance-manager
-        if: ${{ inputs.deploy-rail-pm }}
-        uses: mbta/actions/deploy-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-rail-performance-manager-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-          allow-zero-desired: true
-      - name: Deploy Bus Performance Manager Application
-        id: deploy-bus-performance-manager
-        if: ${{ inputs.deploy-bus-pm }}
-        uses: mbta/actions/deploy-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-bus-performance-manager-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-          allow-zero-desired: true
-      - name: Deploy TransitMaster Ingestion Application
-        id: deploy-tm-ingestion
-        if: ${{ inputs.deploy-tm-ingestion && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-tm-ingestion-${{ inputs.environment }}
-          ecs-task-definition: lamp-tm-ingestion-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-      - name: Deploy Tableau Publisher Application
-        id: deploy-tableau-publisher
-        if: ${{ inputs.deploy-tableau-publisher && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
-          ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-      - name: Deploy Flashback service
-        id: deploy-flashback
-        if: ${{ inputs.deploy-flashback }}
-        uses: mbta/actions/deploy-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-flashback-${{ inputs.environment }}
-          ecs-task-definition: lamp-flashback-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-      - name: Deploy Lightswitch catalog
-        id: deploy-lightswitch
-        if: ${{ inputs.deploy-lightswitch }}
-        uses: mbta/actions/deploy-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-lightswitch-${{ inputs.environment }}
-          ecs-task-definition: lamp-lightswitch-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-          allow-zero-desired: true
-      - name: Deploy Ad-Hoc Process
-        id: deploy-ad-hoc
-        if: ${{ inputs.deploy-ad-hoc }}
-        uses: mbta/actions/deploy-ecs@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          ecs-cluster: lamp
-          ecs-service: lamp-ad-hoc-${{ inputs.environment }}
-          ecs-task-definition: lamp-ad-hoc-${{ inputs.environment }}
-          docker-tag: ${{ steps.build-push.outputs.docker-tag }}
-          allow-zero-desired: true
       - uses: mbta/actions/notify-slack-deploy@v2
         if: ${{ !cancelled() }}
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           job-status: ${{ job.status }}
+  deploy-ingestion-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Deploy Ingestion Application
+      id: deploy-ingestion
+      if: ${{ inputs.deploy-ingestion }}
+      uses: mbta/actions/deploy-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-ingestion-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+        allow-zero-desired: true
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
+  deploy-rail-performance-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:  
+    - name: Deploy Rail Performance Manager Application
+      id: deploy-rail-performance-manager
+      if: ${{ inputs.deploy-rail-pm }}
+      uses: mbta/actions/deploy-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-rail-performance-manager-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+        allow-zero-desired: true
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
+  deploy-bus-performance-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Deploy Bus Performance Manager Application
+      id: deploy-bus-performance-manager
+      if: ${{ inputs.deploy-bus-pm }}
+      uses: mbta/actions/deploy-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-bus-performance-manager-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+        allow-zero-desired: true
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
+  deploy-transitmaster-ingestion-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Deploy TransitMaster Ingestion Application
+      id: deploy-tm-ingestion
+      if: ${{ inputs.deploy-tm-ingestion && inputs.environment != 'dev' }}
+      uses: mbta/actions/deploy-scheduled-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-tm-ingestion-${{ inputs.environment }}
+        ecs-task-definition: lamp-tm-ingestion-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+    - name: Deploy Tableau Publisher Application
+      id: deploy-tableau-publisher
+      if: ${{ inputs.deploy-tableau-publisher && inputs.environment != 'dev' }}
+      uses: mbta/actions/deploy-scheduled-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-tableau-publisher-${{ inputs.environment }}
+        ecs-task-definition: lamp-tableau-publisher-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
+  deploy-flashback-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Deploy Flashback service
+      id: deploy-flashback
+      if: ${{ inputs.deploy-flashback }}
+      uses: mbta/actions/deploy-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-flashback-${{ inputs.environment }}
+        ecs-task-definition: lamp-flashback-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
+  deploy-lightswitch-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Deploy Lightswitch catalog
+      id: deploy-lightswitch
+      if: ${{ inputs.deploy-lightswitch }}
+      uses: mbta/actions/deploy-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-lightswitch-${{ inputs.environment }}
+        ecs-task-definition: lamp-lightswitch-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+        allow-zero-desired: true
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
+  deploy-ad-hoc-processing-application:
+    needs: deploy-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Deploy Ad-Hoc Process
+      id: deploy-ad-hoc
+      if: ${{ inputs.deploy-ad-hoc }}
+      uses: mbta/actions/deploy-ecs@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        ecs-cluster: lamp
+        ecs-service: lamp-ad-hoc-${{ inputs.environment }}
+        ecs-task-definition: lamp-ad-hoc-${{ inputs.environment }}
+        docker-tag: ${{ needs.deploy-setup.outputs.docker-tag }}
+        allow-zero-desired: true
+    - uses: mbta/actions/notify-slack-deploy@v2
+      if: ${{ !cancelled() }}
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+        job-status: ${{ job.status }}
