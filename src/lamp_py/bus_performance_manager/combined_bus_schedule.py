@@ -27,6 +27,7 @@ class CombinedBusSchedule(GTFSBusSchedule):
     tm_planned_sequence_start = TransitMasterSchedule.tm_planned_sequence_start
     timepoint_order = TransitMasterSchedule.timepoint_order
     plan_stop_departure_sam = dy.Int64(nullable=False)
+    waiver_remark = TransitMasterSchedule.waiver_remark
 
 
 # pylint: disable=R0801
