@@ -40,7 +40,8 @@ metadata = dy.Struct(
         "author": user,
         "inputType": dy.String(),
         "inputTimestamp": dy.String(nullable=True, regex=RFC3339_DATETIME_REGEX),  # coercable to datetime
-    }
+    }, 
+    nullable=True
 )
 
 trip_key = dy.Struct(
