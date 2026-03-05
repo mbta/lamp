@@ -20,7 +20,7 @@ from lamp_py.aws.s3 import file_list_from_s3_with_details
 from lamp_py.aws.s3 import object_exists
 
 # temporary - ticket in backlog to implement this split as per-rating instead
-BUS_ALL_NDAYS = 165
+BUS_ALL_NDAYS = (datetime.now().date() - datetime(2025, 8, 1).date()).days
 BUS_RECENT_NDAYS = 7
 # this schema and the order of this schema SHOULD match what comes out
 # of the polars version from bus_performance_manager.
