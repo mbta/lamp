@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
-from lamp_py.utils.dataframely import unnest_columns, with_nullable
+from lamp_py.utils.dataframely import unnest_columns
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
