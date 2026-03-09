@@ -409,14 +409,6 @@ class HyperRtCommuterRail(HyperRtRail):
                AND vt.static_version_key = sr.static_version_key
              WHERE 
                sr.route_type {route_type_operator}{str(route_type_operand.value)}
-               AND (
-                   ve.canonical_stop_sequence > 1
-                   OR ve.canonical_stop_sequence IS NULL
-               )
-               AND (
-                   ve.vp_stop_timestamp IS NOT null
-                   OR ve.vp_move_timestamp IS NOT null
-               )
                %s
              ORDER BY 
                ve.service_date, vt.route_id, vt.direction_id, vt.vehicle_id, vt.start_time
