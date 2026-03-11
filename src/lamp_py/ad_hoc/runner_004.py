@@ -14,7 +14,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import S3_ARCHIVE, S3_SPRINGBOARD
 
 
-def runner(reprocess_date: list[date] = [date(2026, 2, 21)]) -> None:
+def runner(reprocess_date: list[date] = [date(2026, 2, 27)]) -> None:
     """
     Get all of the March 3 TripUpdates filepaths in the delta archive, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
