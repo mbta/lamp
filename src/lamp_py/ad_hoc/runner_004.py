@@ -3,13 +3,15 @@
 from datetime import date
 from queue import Queue
 
-from lamp_py.aws.s3 import file_list_from_s3
+import pyarrow
+
+from lamp_py.aws.s3 import delete_object, file_list_from_s3, object_exists
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import (
     ConfigType,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import S3_ARCHIVE
+from lamp_py.runtime_utils.remote_files import S3_ARCHIVE, S3_SPRINGBOARD
 
 
 def runner(reprocess_date: list[date] = [date(2026, 2, 21)]) -> None:
@@ -22,11 +24,10 @@ def runner(reprocess_date: list[date] = [date(2026, 2, 21)]) -> None:
     logger = ProcessLogger(process_name="reingest_files", dates=",".join([str(d) for d in reprocess_date]))
     logger.log_start()
 
-    # list[ConfigType]
-    configs: list[ConfigType] = [
-        ConfigType.RT_TRIP_UPDATES,
-        ConfigType.DEV_GREEN_RT_TRIP_UPDATES,
-    ]
+    configs: dict[ConfigType, list[str]] = {
+        ConfigType.RT_TRIP_UPDATES: ["RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"],
+        ConfigType.DEV_GREEN_RT_TRIP_UPDATES: ["DEV_GREEN_RT_TRIP_UPDATES", "DEV_GREEN_TERMINAL_PREDICTIONS_TRIP_UPDATES"],
+    }
 
     # list all files in the delta archive for the given date(s)
     filepaths: list[str] = []
@@ -36,12 +37,25 @@ def runner(reprocess_date: list[date] = [date(2026, 2, 21)]) -> None:
             file_prefix=d.strftime("lamp/delta/%Y/%m/%d/"),
         )
 
-    for config in configs:
+    for config in configs.keys():
         files_to_process: list[str] = [f for f in filepaths if ConfigType.from_filename(f) == config]
+
+        if len(files_to_process) > 0:
+            for directory in configs[config]:
+                for d in reprocess_date:
+                    object_key = f"{S3_SPRINGBOARD}/lamp/{directory}/{d.strftime('year=%Y/month=%-m/day=%-d/%Y-%m-%d')}T00:00:00.parquet"
+                    if object_exists(object_key):
+                        delete_object(object_key)
+                        print(f"Deleted existing object at {object_key} to prepare for reprocessing")
 
         converter = GtfsRtConverter(config, Queue())
         converter.add_files(files_to_process)
         for table in converter.process_files():
+            if table.num_rows == 0:
+                continue
+
             converter.continuous_pq_update(table)
+            pool = pyarrow.default_memory_pool()
+            pool.release_unused()
 
     logger.log_complete()
