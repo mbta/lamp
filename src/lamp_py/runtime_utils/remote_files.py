@@ -277,6 +277,6 @@ compressed_gtfs = GTFSArchive(
 
 stop_events = S3Location(
     bucket=S3_ARCHIVE,
-    prefix=f"{LAMP}/stop_events/stop_events_v0.parquet",
+    prefix=f"{LAMP}/stop_events/stop_events_v0.json.gz",
     version="0.1.0",
 )
