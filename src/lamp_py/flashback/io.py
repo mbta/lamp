@@ -82,8 +82,10 @@ def write_stop_events(stop_events: dy.DataFrame[StopEvents], location: S3Locatio
     process_logger = ProcessLogger("write_stop_events", s3_uri=location.s3_uri)
     process_logger.log_start()
     (
-        stop_events
-        .sort(["start_time", "route_id", "stop_sequence"]) # for convenience—--and maybe compression?
-        .write_ndjson(location.s3_uri, compression="gzip", compression_level=9)
+        stop_events.sort(
+            ["start_time", "route_id", "stop_sequence"]
+        ).write_ndjson(  # for convenience—--and maybe compression?
+            location.s3_uri, compression="gzip", compression_level=9
+        )
     )
     process_logger.log_complete()
