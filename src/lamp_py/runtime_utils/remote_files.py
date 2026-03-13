@@ -156,6 +156,11 @@ glides_operator_signed_in = S3Location(
     bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/operator_sign_ins.parquet"), version="1.0"
 )
 
+# Light Rail GPS data - only stored until April 2025
+light_rail_gps = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "light_rail_gps"), version="1.0"
+)
+
 public_alerts_file = S3Location(
     bucket=S3_PUBLIC,
     prefix=os.path.join(TABLEAU, "alerts", "LAMP_RT_ALERTS.parquet"),
