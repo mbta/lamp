@@ -16,7 +16,7 @@ from lamp_py.aws.s3 import (
     object_exists,
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP
+from lamp_py.runtime_utils.remote_files import LAMP, light_rail_gps
 
 raw_gps_schema = pl.Schema(
     {
@@ -154,9 +154,7 @@ def write_parquet(dataframe: pl.DataFrame) -> None:
         logger.log_start()
 
         remote_obj = os.path.join(
-            os.environ["PUBLIC_ARCHIVE_BUCKET"],
-            LAMP,
-            "light_rail_gps",
+            light_rail_gps.s3_uri,
             f"year={date.year}",
             f"{date.isoformat()}.parquet",
         )
