@@ -1,7 +1,7 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments
 from collections.abc import Callable
 from contextlib import nullcontext
-from logging import WARNING, ERROR
+from logging import ERROR, WARNING
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -37,30 +37,31 @@ def fixture_mock_vp_response(tmp_path: Path) -> Callable[[dy.DataFrame[VehiclePo
     return _create
 
 
-@pytest.mark.parametrize("file_exists", [False, True], ids=["no-file", "with-file"])
-@pytest.mark.parametrize("raise_network_error", [False, True], ids=["no-error", "network-error"])
+@pytest.mark.parametrize(
+    "error_type", [FileNotFoundError, OSError, dy.exc.SchemaError], ids=["no-file", "network-error", "schema-error"]
+)
 def test_get_remote_events(
     dy_gen: dy.random.Generator,
-    file_exists: bool,
-    raise_network_error: bool,
+    error_type: type[Exception],
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
 ) -> None:
     """It gracefully handles incomplete or missing remote data and networking problems."""
     test_location = LocalS3Location(tmp_path.as_posix(), "test.json")
 
-    if file_exists:
-        StopEvents.sample(2, generator=dy_gen).write_ndjson(test_location.s3_uri)
+    StopEvents.sample(2, generator=dy_gen).write_ndjson(test_location.s3_uri)
 
-    if raise_network_error:
+    if error_type in [OSError, FileNotFoundError]:
         # Simulate networking problems by patching scan_parquet to raise OSError
-        with patch("polars.read_ndjson", side_effect=OSError("Network error")):
+        with patch("polars.read_ndjson", side_effect=error_type):
             df = get_remote_events(test_location)
+        assert WARNING in [record[1] for record in caplog.record_tuples]
     else:
-        df = get_remote_events(test_location)
+        with patch("dataframely.Schema.filter", side_effect=error_type):
+            df = get_remote_events(test_location)
+        assert ERROR in [record[1] for record in caplog.record_tuples]
 
-    assert (file_exists and not raise_network_error) == (df.height > 0)
-    assert (not file_exists or raise_network_error) == (WARNING in [record[1] for record in caplog.record_tuples])
+    assert df.is_empty()
 
 
 @pytest.mark.parametrize(

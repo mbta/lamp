@@ -16,34 +16,23 @@ def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFra
     """Fetch existing stop events from S3."""
     process_logger = ProcessLogger("get_remote_events")
     process_logger.log_start()
-    existing_events = StopEvents.create_empty()
     try:
         remote_events = pl.read_ndjson(location.s3_uri, schema=StopEvents.to_polars_schema())
-    except OSError as e:
-        process_logger.log_warning(e)
-        remote_events = StopEvents.create_empty()
 
-    try:
-        remote_events = process_logger.log_dataframely_filter_results(
+        stop_events = process_logger.log_dataframely_filter_results(
             *StopEvents.filter(remote_events, cast=True), log_level=ERROR
         )
 
-        existing_events = StopEvents.cast(
-            pl.concat(
-                [
-                    existing_events,
-                    remote_events,
-                ],
-                how="vertical",
-            )
-        )
-
-    except dy.exc.SchemaError as e:
-        process_logger.log_failure(e)
+    except (OSError, FileNotFoundError, dy.exc.SchemaError) as e:
+        if isinstance(e, OSError):
+            process_logger.log_warning(e)
+        else:
+            process_logger.log_failure(e)
+        stop_events = StopEvents.create_empty()
 
     process_logger.log_complete()
 
-    return existing_events
+    return stop_events
 
 
 async def get_vehicle_positions(
