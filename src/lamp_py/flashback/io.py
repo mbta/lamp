@@ -1,42 +1,38 @@
+from logging import ERROR
 from time import sleep
 
 import dataframely as dy
 import polars as pl
 from aiohttp import ClientError, ClientSession
 
-from lamp_py.flashback.events import StopEventsJSON, StopEventsTable
+from lamp_py.flashback.events import StopEvents
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import S3Location
 from lamp_py.runtime_utils.remote_files import stop_events as stop_events_location
 
 
-def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[StopEventsTable]:
+def get_remote_events(location: S3Location = stop_events_location) -> dy.DataFrame[StopEvents]:
     """Fetch existing stop events from S3."""
     process_logger = ProcessLogger("get_remote_events")
     process_logger.log_start()
     try:
-        remote_events = process_logger.log_dataframely_filter_results(
-            *StopEventsJSON.filter(pl.scan_parquet(location.s3_uri), cast=True)
+        remote_events = pl.read_ndjson(location.s3_uri, schema=StopEvents.to_polars_schema())
+
+        stop_events = process_logger.log_dataframely_filter_results(
+            *StopEvents.filter(remote_events, cast=True), log_level=ERROR
         )
 
-        existing_events = StopEventsTable.cast(
-            pl.concat(
-                [
-                    StopEventsTable.create_empty(),
-                    remote_events.explode("stop_events").unnest("stop_events"),
-                ],
-                how="diagonal",
-            )
-        )
-
-    except OSError as e:
-        process_logger.log_warning(e)
-        existing_events = StopEventsTable.create_empty()
+    except (OSError, FileNotFoundError, dy.exc.SchemaError) as e:
+        if isinstance(e, OSError):
+            process_logger.log_warning(e)
+        else:
+            process_logger.log_failure(e)
+        stop_events = StopEvents.create_empty()
 
     process_logger.log_complete()
 
-    return existing_events
+    return stop_events
 
 
 async def get_vehicle_positions(
@@ -70,9 +66,15 @@ async def get_vehicle_positions(
     return valid
 
 
-def write_stop_events(stop_events: dy.DataFrame[StopEventsJSON], location: S3Location = stop_events_location) -> None:
+def write_stop_events(stop_events: dy.DataFrame[StopEvents], location: S3Location = stop_events_location) -> None:
     """Write stop events to specified location."""
     process_logger = ProcessLogger("write_stop_events", s3_uri=location.s3_uri)
     process_logger.log_start()
-    stop_events.write_parquet(location.s3_uri, compression_level=9, retries=5, use_pyarrow=True)
+    (
+        stop_events.sort(
+            ["start_time", "route_id", "stop_sequence"]
+        ).write_ndjson(  # for convenience—--and maybe compression?
+            location.s3_uri, compression="gzip", compression_level=9
+        )
+    )
     process_logger.log_complete()
