@@ -209,10 +209,10 @@ the function `lamp.read_ymd`, which accepts start and end dates.
 
 ``` sql
 SELECT *
-FROM lamp.read_ymd(
+FROM lamp.read_ymd( -- [startdate, enddate) - end date is exclusive
     "RT_VEHICLE_POSITIONS", -- case sensitive
     DATE '2025-10-01',
-    DATE '2025-10-10' -- end date is not inclusive
+    DATE '2025-10-10'
 )
 LIMIT 10
 ```
