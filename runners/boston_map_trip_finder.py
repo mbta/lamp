@@ -80,11 +80,13 @@ def _(mo, search_mode, time_picker, time_range):
 
 @app.cell
 def _(map_utils):
-    """Fetch stops from MBTA V3 API."""
+    """Fetch stops from MBTA V3 API - only parent stations."""
     MBTA_V3_STOPS_URL = "https://api-v3.mbta.com/stops"
     try:
-        facilities = map_utils.fetch_stops_v3(MBTA_V3_STOPS_URL)
-        facilities_status = f"Loaded {len(facilities)} stops from MBTA V3 API"
+        all_stops = map_utils.fetch_stops_v3(MBTA_V3_STOPS_URL)
+        # Filter to only parent stations (location_type=1)
+        facilities = [s for s in all_stops if s.get("location_type") == "1"]
+        facilities_status = f"Loaded {len(facilities)} stations (from {len(all_stops)} total stops)"
     except Exception as e:
         facilities = []
         facilities_status = f"Error loading stops: {e}"
@@ -101,12 +103,12 @@ def _(facilities_status, mo):
 @app.cell
 def _(mo):
     """State for selected coordinates."""
-    selected_coords = mo.state({"lat": 42.3601, "lon": -71.0589})
-    return (selected_coords,)
+    get_coords, set_coords = mo.state({"lat": 42.3601, "lon": -71.0589})
+    return get_coords, set_coords
 
 
 @app.cell
-def _(facilities, go, map_utils, mo, selected_coords):
+def _(facilities, get_coords, go, map_utils, mo):
     """Create interactive Boston map with click handling."""
 
     def create_map_figure(stops, selected_lat, selected_lon, nearest_stop=None):
@@ -115,7 +117,7 @@ def _(facilities, go, map_utils, mo, selected_coords):
         # Add stop markers
         if stops:
             stop_data = map_utils.prepare_facility_plotly_data(stops)
-            fig.add_trace(go.Scattermapbox(
+            fig.add_trace(go.Scattermap(
                 lat=stop_data["lat"],
                 lon=stop_data["lon"],
                 text=stop_data["text"],
@@ -127,7 +129,7 @@ def _(facilities, go, map_utils, mo, selected_coords):
             ))
 
         # Add selected point marker
-        fig.add_trace(go.Scattermapbox(
+        fig.add_trace(go.Scattermap(
             lat=[selected_lat],
             lon=[selected_lon],
             mode="markers",
@@ -138,7 +140,7 @@ def _(facilities, go, map_utils, mo, selected_coords):
 
         # Add nearest result marker
         if nearest_stop:
-            fig.add_trace(go.Scattermapbox(
+            fig.add_trace(go.Scattermap(
                 lat=[nearest_stop["lat"]],
                 lon=[nearest_stop["lon"]],
                 mode="markers",
@@ -150,7 +152,7 @@ def _(facilities, go, map_utils, mo, selected_coords):
 
         # Layout
         fig.update_layout(
-            mapbox_style="open-street-map",
+            mapbox_style="carto-positron",
             mapbox_center_lat=selected_lat,
             mapbox_center_lon=selected_lon,
             mapbox_zoom=13,
@@ -161,9 +163,8 @@ def _(facilities, go, map_utils, mo, selected_coords):
         )
         return fig
 
-    breakpoint()
     # Get current selection
-    coords = selected_coords.value
+    coords = get_coords()
     sel_lat, sel_lon = coords["lat"], coords["lon"]
 
     # Find nearest facility
@@ -180,7 +181,7 @@ def _(facilities, go, map_utils, mo, selected_coords):
 
 
 @app.cell
-def _(interactive_map, selected_coords):
+def _(interactive_map, set_coords):
     """Handle map clicks to update selected coordinates."""
     # Check for click data from the plotly figure
     click_data = interactive_map.value
@@ -193,7 +194,7 @@ def _(interactive_map, selected_coords):
                 new_lat = point["lat"]
                 new_lon = point["lon"]
                 # Update state
-                selected_coords.set_value({"lat": new_lat, "lon": new_lon})
+                set_coords({"lat": new_lat, "lon": new_lon})
 
     return
 
