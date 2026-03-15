@@ -237,3 +237,110 @@ class TestFilterFacilitiesByType:
         
         stops = map_utils.filter_facilities_by_type(facilities_with_types, "0")
         assert len(stops) == 1
+
+
+# Sample V3 API response
+SAMPLE_V3_API_RESPONSE = {
+    "data": [
+        {
+            "id": "place-north",
+            "type": "stop",
+            "attributes": {
+                "name": "North Station",
+                "latitude": 42.365577,
+                "longitude": -71.06129,
+                "location_type": 1,
+                "wheelchair_boarding": 1,
+                "description": "North Station - Commuter Rail"
+            }
+        },
+        {
+            "id": "place-sstat",
+            "type": "stop",
+            "attributes": {
+                "name": "South Station",
+                "latitude": 42.352271,
+                "longitude": -71.055242,
+                "location_type": 1,
+                "wheelchair_boarding": 1,
+                "description": "South Station - Commuter Rail"
+            }
+        },
+        {
+            "id": "70061",
+            "type": "stop",
+            "attributes": {
+                "name": "Park Street",
+                "latitude": 42.356395,
+                "longitude": -71.062424,
+                "location_type": 0,
+                "wheelchair_boarding": 1,
+                "description": None
+            }
+        }
+    ]
+}
+
+
+class TestFetchStopsV3:
+    """Tests for MBTA V3 API stop fetching."""
+    
+    @patch('map_utils.requests.get')
+    def test_fetch_stops_v3_success(self, mock_get):
+        """Should parse V3 API response correctly."""
+        mock_response = Mock()
+        mock_response.json.return_value = SAMPLE_V3_API_RESPONSE
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+        
+        stops = map_utils.fetch_stops_v3("https://api-v3.mbta.com/stops")
+        
+        assert len(stops) == 3
+        assert stops[0]["stop_id"] == "place-north"
+        assert stops[0]["stop_name"] == "North Station"
+        assert abs(stops[0]["lat"] - 42.365577) < 0.0001
+        assert abs(stops[0]["lon"] - (-71.06129)) < 0.0001
+    
+    @patch('map_utils.requests.get')
+    def test_fetch_stops_v3_empty(self, mock_get):
+        """Should handle empty API response."""
+        mock_response = Mock()
+        mock_response.json.return_value = {"data": []}
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+        
+        stops = map_utils.fetch_stops_v3("https://api-v3.mbta.com/stops")
+        assert stops == []
+    
+    @patch('map_utils.requests.get')
+    def test_fetch_stops_v3_missing_coords(self, mock_get):
+        """Should skip stops without coordinates."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "stop-no-coords",
+                    "type": "stop",
+                    "attributes": {
+                        "name": "No Coords Stop",
+                        "latitude": None,
+                        "longitude": None
+                    }
+                },
+                {
+                    "id": "stop-with-coords",
+                    "type": "stop",
+                    "attributes": {
+                        "name": "Has Coords",
+                        "latitude": 42.35,
+                        "longitude": -71.06
+                    }
+                }
+            ]
+        }
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+        
+        stops = map_utils.fetch_stops_v3("https://api-v3.mbta.com/stops")
+        assert len(stops) == 1
+        assert stops[0]["stop_id"] == "stop-with-coords"

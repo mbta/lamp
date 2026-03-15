@@ -88,7 +88,7 @@ def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
 
     hyper_jobs: List[HyperJob] = [
-        DevGreen_TripUpdates_LightRailTerminals_60Day
+        # DevGreen_TripUpdates_LightRailTerminals_60Day
         # TestProd_VehiclePositions_LightRailTerminals_60Day,
         # TestProd_TripUpdates_LightRailTerminals_60Day,
         # TestProd_VehiclePositions_HeavyRailTerminals_30Day,
@@ -103,7 +103,7 @@ def start_hyper() -> None:
         # TestHyperBus,
         # TestProd_RailMetrics_Subway_LongTerm,
         # TestProd_RailMetrics_CommuterRail_LongTerm,
-        # TestHyperBusPerformanceRecent(),
+        TestHyperBusPerformanceRecent(),
         # TestHyperBusPerformanceAll(),
         # TestProd_BusMetrics_Fall2025Rating,
         # TestProd_BusOperatorMapping_Fall2025Rating,
@@ -111,7 +111,7 @@ def start_hyper() -> None:
 
     local_parquet = True
     run_pq_remote = False
-    local_hyper = False
+    local_hyper = True
     run_hyper_remote = False
 
     if local_parquet:

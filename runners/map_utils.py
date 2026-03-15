@@ -10,7 +10,50 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 
-# --- GTFS Facility Utilities ---
+# --- MBTA V3 API Utilities ---
+def fetch_stops_v3(api_url: str = "https://api-v3.mbta.com/stops") -> List[Dict]:
+    """
+    Fetch stops from MBTA V3 API.
+    
+    Args:
+        api_url: URL to MBTA V3 stops endpoint
+        
+    Returns:
+        List of stop dicts with stop_id, stop_name, lat, lon
+    """
+    response = requests.get(api_url, timeout=30)
+    response.raise_for_status()
+    
+    data = response.json()
+    stops = []
+    
+    for item in data.get("data", []):
+        try:
+            attrs = item.get("attributes", {})
+            lat = attrs.get("latitude")
+            lon = attrs.get("longitude")
+            
+            # Skip entries without valid coordinates
+            if lat is None or lon is None:
+                continue
+                
+            stops.append({
+                "stop_id": item.get("id", ""),
+                "stop_name": attrs.get("name", ""),
+                "lat": float(lat),
+                "lon": float(lon),
+                "location_type": str(attrs.get("location_type", "")),
+                "parent_station": attrs.get("parent_station", ""),
+                "wheelchair_boarding": attrs.get("wheelchair_boarding", 0),
+                "description": attrs.get("description", "")
+            })
+        except (ValueError, KeyError, TypeError):
+            continue
+    
+    return stops
+
+
+# --- GTFS Facility Utilities (legacy) ---
 def fetch_gtfs_facilities(api_url: str) -> List[Dict]:
     """
     Fetch and parse GTFS stops from MBTA API.
