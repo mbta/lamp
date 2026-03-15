@@ -1,4 +1,4 @@
-Asana Task: <asana_ticket_url>
+Asana Task: ticket
 
 ## What changes does this PR propose?
 
@@ -6,10 +6,10 @@ Describe the changes, details you want to call attention to, and any context you
 
 
 ## How were these changes validated?
-
-1. New tests?
-2. Used a runner?
-3. Doesn't need validation? Maybe it's just documentation.
+- [ ] New tests?
+- [ ] Used a runner?
+- [ ] Doesn't need validation? Maybe it's just documentation.
+- [ ] data regeneration is required?
 
 
 ## What questions should reviewers consider?
