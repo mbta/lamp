@@ -1,7 +1,7 @@
 """
 Boston Map Trip Finder - Marimo Notebook
 Interactive map for finding nearest MBTA facilities or vehicles.
-Double-click on the map to select a location and find the nearest stop.
+Use the sliders to select a location and find the nearest stop.
 """
 
 import marimo
@@ -26,7 +26,7 @@ def _(mo):
     mo.md("""
     # Boston Map Trip Finder
 
-    **Double-click on the map** to select a location and find the nearest MBTA stop.
+    **Use the sliders** to select a location. The map shows your selected point and the nearest MBTA station.
 
     ---
     """)
@@ -102,101 +102,117 @@ def _(facilities_status, mo):
 
 @app.cell
 def _(mo):
-    """State for selected coordinates."""
-    get_coords, set_coords = mo.state({"lat": 42.3601, "lon": -71.0589})
-    return get_coords, set_coords
+    """Latitude slider - Boston area bounds."""
+    # Boston area: roughly 42.2 to 42.5 latitude
+    lat_slider = mo.ui.slider(
+        start=42.20,
+        stop=42.50,
+        step=0.001,
+        value=42.3601,
+        label="Latitude",
+        show_value=True
+    )
+    return (lat_slider,)
 
 
 @app.cell
-def _(facilities, get_coords, go, map_utils, mo):
-    """Create interactive Boston map with click handling."""
+def _(mo):
+    """Longitude slider - Boston area bounds."""
+    # Boston area: roughly -71.2 to -70.9 longitude
+    lon_slider = mo.ui.slider(
+        start=-71.20,
+        stop=-70.90,
+        step=0.001,
+        value=-71.0589,
+        label="Longitude",
+        show_value=True
+    )
+    return (lon_slider,)
 
-    def create_map_figure(stops, selected_lat, selected_lon, nearest_stop=None):
-        fig = go.Figure()
 
-        # Add stop markers
-        if stops:
-            stop_data = map_utils.prepare_facility_plotly_data(stops)
-            fig.add_trace(go.Scattermap(
-                lat=stop_data["lat"],
-                lon=stop_data["lon"],
-                text=stop_data["text"],
-                customdata=stop_data["customdata"],
-                mode="markers",
-                marker=dict(size=6, color="blue", opacity=0.5),
-                name="Stops",
-                hovertemplate="<b>%{text}</b><br>ID: %{customdata}<extra></extra>"
-            ))
+@app.cell
+def _(lat_slider, lon_slider, mo):
+    """Display coordinate controls."""
+    mo.vstack([
+        mo.md("### Select Location"),
+        lat_slider,
+        lon_slider,
+        mo.md(f"**Selected:** ({lat_slider.value:.4f}, {lon_slider.value:.4f})")
+    ])
+    return
 
-        # Add selected point marker
-        fig.add_trace(go.Scattermap(
-            lat=[selected_lat],
-            lon=[selected_lon],
-            mode="markers",
-            marker=dict(size=14, color="red"),
-            name="Selected",
-            hovertemplate="<b>Selected Point</b><br>Lat: %{lat:.4f}<br>Lon: %{lon:.4f}<extra></extra>"
-        ))
 
-        # Add nearest result marker
-        if nearest_stop:
-            fig.add_trace(go.Scattermap(
-                lat=[nearest_stop["lat"]],
-                lon=[nearest_stop["lon"]],
-                mode="markers",
-                marker=dict(size=16, color="green"),
-                name="Nearest",
-                text=[nearest_stop["stop_name"]],
-                hovertemplate="<b>%{text}</b><extra></extra>"
-            ))
-
-        # Layout
-        fig.update_layout(
-            mapbox_style="carto-positron",
-            mapbox_center_lat=selected_lat,
-            mapbox_center_lon=selected_lon,
-            mapbox_zoom=13,
-            margin=dict(l=0, r=0, t=0, b=0),
-            height=500,
-            showlegend=False,
-            clickmode="event"
-        )
-        return fig
-
-    # Get current selection
-    coords = get_coords()
-    sel_lat, sel_lon = coords["lat"], coords["lon"]
-
+@app.cell
+def _(facilities, go, lat_slider, lon_slider, map_utils):
+    """Create Boston map centered on selected point."""
+    
+    sel_lat = lat_slider.value
+    sel_lon = lon_slider.value
+    
     # Find nearest facility
     nearest = map_utils.find_nearest_facility(sel_lat, sel_lon, facilities) if facilities else None
-
-    # Create the map
-    map_figure = create_map_figure(facilities, sel_lat, sel_lon, nearest)
-
-    # Wrap in plotly UI element for click events
-    interactive_map = mo.ui.plotly(map_figure)
-    interactive_map
-
-    return interactive_map, nearest, sel_lat, sel_lon
-
-
-@app.cell
-def _(interactive_map, set_coords):
-    """Handle map clicks to update selected coordinates."""
-    # Check for click data from the plotly figure
-    click_data = interactive_map.value
-
-    if click_data and "points" in click_data:
-        points = click_data["points"]
-        if points and len(points) > 0:
-            point = points[0]
-            if "lat" in point and "lon" in point:
-                new_lat = point["lat"]
-                new_lon = point["lon"]
-                # Update state
-                set_coords({"lat": new_lat, "lon": new_lon})
-
-    return
+    
+    # Create figure
+    fig = go.Figure()
+    
+    # Add station markers
+    if facilities:
+        stop_data = map_utils.prepare_facility_plotly_data(facilities)
+        fig.add_trace(go.Scattermapbox(
+            lat=stop_data["lat"],
+            lon=stop_data["lon"],
+            text=stop_data["text"],
+            customdata=stop_data["customdata"],
+            mode="markers",
+            marker=dict(size=8, color="blue", opacity=0.6),
+            name="Stations",
+            hovertemplate="<b>%{text}</b><br>ID: %{customdata}<extra></extra>"
+        ))
+    
+    # Add selected point (center crosshair)
+    fig.add_trace(go.Scattermapbox(
+        lat=[sel_lat],
+        lon=[sel_lon],
+        mode="markers",
+        marker=dict(size=16, color="red", symbol="circle"),
+        name="Selected",
+        hovertemplate="<b>Selected</b><br>Lat: %{lat:.4f}<br>Lon: %{lon:.4f}<extra></extra>"
+    ))
+    
+    # Add nearest station marker
+    if nearest:
+        fig.add_trace(go.Scattermapbox(
+            lat=[nearest["lat"]],
+            lon=[nearest["lon"]],
+            mode="markers",
+            marker=dict(size=20, color="green"),
+            name="Nearest",
+            text=[nearest["stop_name"]],
+            hovertemplate="<b>%{text}</b><extra></extra>"
+        ))
+    
+    # Layout - centered on selected point, limited to Boston area
+    fig.update_layout(
+        mapbox=dict(
+            style="carto-positron",
+            center=dict(lat=sel_lat, lon=sel_lon),
+            zoom=12,
+            # Bounds limit zooming out past Boston
+            bounds=dict(
+                west=-71.25,
+                east=-70.85,
+                south=42.15,
+                north=42.55
+            )
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=500,
+        showlegend=True,
+        legend=dict(x=0, y=1, bgcolor="rgba(255,255,255,0.8)")
+    )
+    
+    fig
+    return nearest, sel_lat, sel_lon
 
 
 @app.cell
@@ -205,7 +221,7 @@ def _(map_utils, mo, nearest, sel_lat, sel_lon):
     if nearest:
         distance = map_utils.haversine(sel_lat, sel_lon, nearest["lat"], nearest["lon"])
         result_display = mo.vstack([
-            mo.md("### Nearest Stop"),
+            mo.md("### Nearest Station"),
             mo.ui.table(
                 data=[{
                     "Stop ID": nearest["stop_id"],
@@ -214,8 +230,7 @@ def _(map_utils, mo, nearest, sel_lat, sel_lon):
                     "Longitude": f"{nearest['lon']:.5f}",
                     "Distance": f"{distance:.0f} m"
                 }]
-            ),
-            mo.md(f"**Selected Point:** ({sel_lat:.5f}, {sel_lon:.5f})")
+            )
         ])
     else:
         result_display = mo.md("*Loading stops...*")
