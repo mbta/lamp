@@ -24,8 +24,8 @@ HIVE_VIEWS = {
         rf.tm_stop_crossing,
         rf.tm_daily_work_piece,
         rf.tm_daily_logged_message,
-        rf.light_rail_gps,
     ],
+    "/*/*.parquet": [rf.light_rail_gps],
     "": [  # files
         rf.tm_daily_sched_adherence_waiver_file,
         rf.tm_geo_node_file,
