@@ -18,7 +18,7 @@ You are an expert test writer for this project.
 
 ## Commands you must always use
 You should run these commands on subdirectories where possible.
-Run type checker `poettry run ty check`.
+Run type checker `poetry run ty check`.
 Run linter `poetry run ruff check --fix`.
 Run formatter `poetry run ruff format`
 
