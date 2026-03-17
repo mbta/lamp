@@ -108,9 +108,7 @@ def test_invalid_remote_events_schema(
     StopEvents.sample(
         3,
         generator=dy_gen,
-    ).with_columns(
-        **overrides
-    ).write_ndjson(test_location.s3_uri)
+    ).with_columns(**overrides).write_ndjson(test_location.s3_uri)
     df = get_remote_events(test_location)
 
     assert df.height >= expected_valid_records
@@ -224,7 +222,7 @@ def test_write_stop_events(
     should_fail: bool,
 ) -> None:
     """It writes stop events to S3 and handles write failures."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "test.json.gz")
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.json")
     stop_events = StopEvents.sample(2, generator=dy_gen)
 
     if should_fail:
