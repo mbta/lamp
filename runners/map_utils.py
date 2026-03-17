@@ -265,3 +265,180 @@ def prepare_vehicle_plotly_data(vehicles: List[Dict]) -> Dict:
         "text": [v.get("vehicle_id", "") for v in vehicles],
         "customdata": [v.get("trip_id", "") for v in vehicles],
     }
+
+
+# --- LAMP Springboard Vehicle Position Utilities ---
+
+# Rail route IDs (no buses)
+RAIL_ROUTE_IDS = [
+    "Green-B", "Green-C", "Green-D", "Green-E",
+    "Mattapan", "Red", "Blue", "Orange"
+]
+
+# Route colors for visualization
+ROUTE_COLORS = {
+    "Green-B": "#00843D",
+    "Green-C": "#00843D",
+    "Green-D": "#00843D",
+    "Green-E": "#00843D",
+    "Mattapan": "#DA291C",
+    "Red": "#DA291C",
+    "Blue": "#003DA5",
+    "Orange": "#ED8B00",
+}
+
+
+def get_springboard_connection():
+    """
+    Create a DuckDB connection with lamp springboard catalog attached.
+    
+    Returns:
+        DuckDB connection with lamp catalog attached
+    """
+    import duckdb
+    
+    conn = duckdb.connect()
+    
+    # Load AWS extension and use credential chain
+    conn.execute("INSTALL aws; LOAD aws;")
+    conn.execute("""
+        CREATE SECRET (
+            TYPE s3,
+            PROVIDER credential_chain
+        );
+    """)
+    
+    # Attach lamp catalog
+    conn.execute("""
+        ATTACH 's3://mbta-ctd-dataplatform-staging-archive/lamp/catalog.db' AS lamp (READ_ONLY)
+    """)
+    
+    return conn
+
+
+def fetch_vehicle_positions_from_springboard(
+    start_time: datetime,
+    end_time: datetime,
+    route_ids: List[str] = None
+) -> List[Dict]:
+    """
+    Fetch vehicle positions from lamp springboard for a time range.
+    
+    Args:
+        start_time: Start of time range
+        end_time: End of time range  
+        route_ids: List of route IDs to filter (defaults to RAIL_ROUTE_IDS)
+        
+    Returns:
+        List of vehicle position dicts sorted by timestamp
+    """
+    if route_ids is None:
+        route_ids = RAIL_ROUTE_IDS
+    
+    conn = get_springboard_connection()
+    
+    # Get date range for partitions
+    start_date = start_time.date()
+    end_date = end_time.date() + timedelta(days=1)  # read_ymd end is exclusive
+    
+    # Convert timestamps to unix epoch for filtering
+    start_epoch = int(start_time.timestamp())
+    end_epoch = int(end_time.timestamp())
+    
+    # Build route filter
+    route_list = ", ".join([f"'{r}'" for r in route_ids])
+    
+    query = f"""
+        SELECT 
+            "vehicle.vehicle.id" as vehicle_id,
+            "vehicle.vehicle.label" as vehicle_label,
+            "vehicle.trip.trip_id" as trip_id,
+            "vehicle.trip.route_id" as route_id,
+            "vehicle.trip.direction_id" as direction_id,
+            "vehicle.position.latitude" as lat,
+            "vehicle.position.longitude" as lon,
+            "vehicle.position.bearing" as bearing,
+            "vehicle.timestamp" as timestamp,
+            "vehicle.current_status" as current_status,
+            "vehicle.stop_id" as stop_id
+        FROM lamp.read_ymd(
+            'RT_VEHICLE_POSITIONS',
+            DATE '{start_date}',
+            DATE '{end_date}'
+        )
+        WHERE "vehicle.trip.route_id" IN ({route_list})
+        AND "vehicle.timestamp" >= {start_epoch}
+        AND "vehicle.timestamp" <= {end_epoch}
+        AND "vehicle.position.latitude" IS NOT NULL
+        AND "vehicle.position.longitude" IS NOT NULL
+        ORDER BY "vehicle.vehicle.id", "vehicle.timestamp"
+    """
+    
+    result = conn.execute(query).fetchall()
+    columns = ["vehicle_id", "vehicle_label", "trip_id", "route_id", "direction_id",
+               "lat", "lon", "bearing", "timestamp", "current_status", "stop_id"]
+    
+    vehicles = []
+    for row in result:
+        vehicle = dict(zip(columns, row))
+        # Convert timestamp to datetime
+        if vehicle["timestamp"]:
+            vehicle["timestamp_dt"] = datetime.fromtimestamp(vehicle["timestamp"])
+        vehicles.append(vehicle)
+    
+    conn.close()
+    return vehicles
+
+
+def group_vehicle_positions_by_vehicle(positions: List[Dict]) -> Dict[str, List[Dict]]:
+    """
+    Group vehicle positions by vehicle ID.
+    
+    Args:
+        positions: List of vehicle position dicts
+        
+    Returns:
+        Dict mapping vehicle_id to list of positions (sorted by timestamp)
+    """
+    grouped = {}
+    for pos in positions:
+        vid = pos.get("vehicle_id", "unknown")
+        if vid not in grouped:
+            grouped[vid] = []
+        grouped[vid].append(pos)
+    
+    # Sort each vehicle's positions by timestamp
+    for vid in grouped:
+        grouped[vid].sort(key=lambda x: x.get("timestamp", 0))
+    
+    return grouped
+
+
+def calculate_opacity_for_trail(
+    positions: List[Dict],
+    min_opacity: float = 0.1,
+    max_opacity: float = 1.0
+) -> List[float]:
+    """
+    Calculate opacity values for a vehicle trail (older = more faded).
+    
+    Args:
+        positions: List of positions sorted by timestamp (oldest first)
+        min_opacity: Opacity for oldest point
+        max_opacity: Opacity for newest point
+        
+    Returns:
+        List of opacity values corresponding to each position
+    """
+    n = len(positions)
+    if n == 0:
+        return []
+    if n == 1:
+        return [max_opacity]
+    
+    # Linear interpolation from min to max opacity
+    opacities = []
+    for i in range(n):
+        opacity = min_opacity + (max_opacity - min_opacity) * (i / (n - 1))
+        opacities.append(opacity)
+    return opacities

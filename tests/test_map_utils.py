@@ -344,3 +344,110 @@ class TestFetchStopsV3:
         stops = map_utils.fetch_stops_v3("https://api-v3.mbta.com/stops")
         assert len(stops) == 1
         assert stops[0]["stop_id"] == "stop-with-coords"
+
+
+# --- Vehicle Position Utility Tests ---
+
+class TestRailRouteIds:
+    """Tests for rail route ID constants."""
+    
+    def test_rail_route_ids_exist(self):
+        """Should have expected rail route IDs defined."""
+        assert "Red" in map_utils.RAIL_ROUTE_IDS
+        assert "Orange" in map_utils.RAIL_ROUTE_IDS
+        assert "Blue" in map_utils.RAIL_ROUTE_IDS
+        assert "Green-B" in map_utils.RAIL_ROUTE_IDS
+        assert "Green-C" in map_utils.RAIL_ROUTE_IDS
+        assert "Green-D" in map_utils.RAIL_ROUTE_IDS
+        assert "Green-E" in map_utils.RAIL_ROUTE_IDS
+        assert "Mattapan" in map_utils.RAIL_ROUTE_IDS
+    
+    def test_route_colors_defined(self):
+        """Should have colors for all rail routes."""
+        for route in map_utils.RAIL_ROUTE_IDS:
+            assert route in map_utils.ROUTE_COLORS
+
+
+class TestGroupVehiclePositions:
+    """Tests for grouping vehicle positions by vehicle ID."""
+    
+    def test_group_empty_list(self):
+        """Should handle empty list."""
+        result = map_utils.group_vehicle_positions_by_vehicle([])
+        assert result == {}
+    
+    def test_group_single_vehicle(self):
+        """Should group positions for a single vehicle."""
+        positions = [
+            {"vehicle_id": "V1", "lat": 42.35, "lon": -71.06, "timestamp": 1000},
+            {"vehicle_id": "V1", "lat": 42.36, "lon": -71.07, "timestamp": 2000},
+        ]
+        result = map_utils.group_vehicle_positions_by_vehicle(positions)
+        assert "V1" in result
+        assert len(result["V1"]) == 2
+    
+    def test_group_multiple_vehicles(self):
+        """Should group positions for multiple vehicles."""
+        positions = [
+            {"vehicle_id": "V1", "lat": 42.35, "lon": -71.06, "timestamp": 1000},
+            {"vehicle_id": "V2", "lat": 42.36, "lon": -71.07, "timestamp": 1500},
+            {"vehicle_id": "V1", "lat": 42.37, "lon": -71.08, "timestamp": 2000},
+        ]
+        result = map_utils.group_vehicle_positions_by_vehicle(positions)
+        assert "V1" in result
+        assert "V2" in result
+        assert len(result["V1"]) == 2
+        assert len(result["V2"]) == 1
+    
+    def test_group_sorts_by_timestamp(self):
+        """Should sort each vehicle's positions by timestamp."""
+        positions = [
+            {"vehicle_id": "V1", "lat": 42.35, "lon": -71.06, "timestamp": 3000},
+            {"vehicle_id": "V1", "lat": 42.36, "lon": -71.07, "timestamp": 1000},
+            {"vehicle_id": "V1", "lat": 42.37, "lon": -71.08, "timestamp": 2000},
+        ]
+        result = map_utils.group_vehicle_positions_by_vehicle(positions)
+        assert result["V1"][0]["timestamp"] == 1000
+        assert result["V1"][1]["timestamp"] == 2000
+        assert result["V1"][2]["timestamp"] == 3000
+
+
+class TestCalculateOpacityForTrail:
+    """Tests for opacity calculation for vehicle trails."""
+    
+    def test_empty_positions(self):
+        """Should return empty list for empty input."""
+        result = map_utils.calculate_opacity_for_trail([])
+        assert result == []
+    
+    def test_single_position(self):
+        """Should return max opacity for single position."""
+        result = map_utils.calculate_opacity_for_trail([{"lat": 42.35}])
+        assert len(result) == 1
+        assert result[0] == 1.0
+    
+    def test_two_positions(self):
+        """Should interpolate between min and max for two positions."""
+        result = map_utils.calculate_opacity_for_trail([{"lat": 1}, {"lat": 2}])
+        assert len(result) == 2
+        assert result[0] == 0.1  # min
+        assert result[1] == 1.0  # max
+    
+    def test_multiple_positions(self):
+        """Should linearly interpolate opacities."""
+        positions = [{"lat": i} for i in range(5)]
+        result = map_utils.calculate_opacity_for_trail(positions)
+        assert len(result) == 5
+        # First should be min, last should be max
+        assert result[0] == 0.1
+        assert result[-1] == 1.0
+        # Middle values should be in between
+        for i in range(1, len(result) - 1):
+            assert 0.1 < result[i] < 1.0
+    
+    def test_custom_opacity_range(self):
+        """Should respect custom min/max opacity."""
+        positions = [{"lat": i} for i in range(3)]
+        result = map_utils.calculate_opacity_for_trail(positions, min_opacity=0.2, max_opacity=0.8)
+        assert result[0] == 0.2
+        assert result[-1] == 0.8
