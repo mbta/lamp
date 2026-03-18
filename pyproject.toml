@@ -35,8 +35,9 @@ alembic = "^1.18.1"
 types-pytz = "^2024.1.0.20240203"
 pyodbc = "^5.2.0"
 duckdb = "^1.4.2"
-polars = "1.36.1"
 aiohttp = "^3.13.3"
+dataframely = "^2.7"
+polars = "^1.39"
 
 [tool.poetry.group.tableau]
 optional = false

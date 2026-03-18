@@ -1,7 +1,7 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments
 from collections.abc import Callable
 from contextlib import nullcontext
-from logging import WARNING
+from logging import ERROR, WARNING
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -11,7 +11,7 @@ import pytest
 from aiohttp import ClientError
 from polars.testing import assert_frame_equal
 
-from lamp_py.flashback.events import StopEventsJSON
+from lamp_py.flashback.events import StopEvents
 from lamp_py.flashback.io import get_remote_events, get_vehicle_positions, write_stop_events
 from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
 from tests.test_resources import LocalS3Location
@@ -37,39 +37,60 @@ def fixture_mock_vp_response(tmp_path: Path) -> Callable[[dy.DataFrame[VehiclePo
     return _create
 
 
-@pytest.mark.parametrize("file_exists", [False, True], ids=["no-file", "with-file"])
-@pytest.mark.parametrize("raise_network_error", [False, True], ids=["no-error", "network-error"])
+@pytest.mark.parametrize(
+    "error_type", [FileNotFoundError, OSError, dy.exc.SchemaError], ids=["no-file", "network-error", "schema-error"]
+)
 def test_get_remote_events(
     dy_gen: dy.random.Generator,
-    file_exists: bool,
-    raise_network_error: bool,
+    error_type: type[Exception],
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
 ) -> None:
     """It gracefully handles incomplete or missing remote data and networking problems."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.json")
 
-    if file_exists:
-        StopEventsJSON.sample(2, generator=dy_gen).write_parquet(test_location.s3_uri)
+    StopEvents.sample(2, generator=dy_gen).write_ndjson(test_location.s3_uri)
 
-    if raise_network_error:
+    if error_type in [OSError, FileNotFoundError]:
         # Simulate networking problems by patching scan_parquet to raise OSError
-        with patch("polars.scan_parquet", side_effect=OSError("Network error")):
+        with patch("polars.read_ndjson", side_effect=error_type):
             df = get_remote_events(test_location)
+        assert WARNING in [record[1] for record in caplog.record_tuples]
     else:
-        df = get_remote_events(test_location)
+        with patch("dataframely.Schema.filter", side_effect=error_type):
+            df = get_remote_events(test_location)
+        assert ERROR in [record[1] for record in caplog.record_tuples]
 
-    assert (file_exists and not raise_network_error) == (df.height > 0)
-    assert (not file_exists or raise_network_error) == (WARNING in [record[1] for record in caplog.record_tuples])
+    assert df.is_empty()
 
 
 @pytest.mark.parametrize(
-    ["overrides", "expected_valid_records", "raise_warning", "raises_error"],
+    ["overrides", "expected_valid_records", "raises_error"],
     [
-        ({"id": pl.lit("1")}, 0, True, nullcontext()),
-        ({"id": pl.col("id")}, 3, False, nullcontext()),
-        ({"id": pl.Series(values=["1", "1", "2"])}, 1, True, nullcontext()),
-        pytest.param({"id": pl.col("id").implode()}, 0, False, pytest.raises(pl.exceptions.PolarsError)),
+        (
+            {
+                "start_date": pl.lit("20231010"),
+                "trip_id": pl.lit("5678"),
+                "vehicle_id": pl.lit("vehicle_1234"),
+                "route_id": pl.lit("red"),
+                "stop_sequence": pl.lit(2),
+            },
+            0,
+            True,
+        ),
+        ({"id": pl.col("id")}, 3, False),
+        (
+            {
+                "start_date": pl.lit("20231010"),
+                "trip_id": pl.lit("5678"),
+                "vehicle_id": pl.lit("vehicle_1234"),
+                "route_id": pl.lit("red"),
+                "stop_sequence": pl.Series(values=[2, 2, 3]),
+            },
+            1,
+            True,
+        ),
+        ({"id": pl.lit(None)}, 0, True),
     ],
     ids=["all-invalid", "all-valid", "1-valid", "wrong-schema"],
 )
@@ -77,25 +98,23 @@ def test_invalid_remote_events_schema(
     dy_gen: dy.random.Generator,
     overrides: dict[str, pl.Expr],
     expected_valid_records: int,
-    raise_warning: bool,
-    raises_error: pytest.RaisesExc,
+    raises_error: bool,
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
 ) -> None:
     """It gracefully handles incomplete or missing remote data."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.json")
 
-    StopEventsJSON.sample(
+    StopEvents.sample(
         3,
         generator=dy_gen,
     ).with_columns(
         **overrides
-    ).write_parquet(test_location.s3_uri)
-    with raises_error:
-        df = get_remote_events(test_location)
+    ).write_ndjson(test_location.s3_uri)
+    df = get_remote_events(test_location)
 
-        assert df.height >= expected_valid_records
-        assert raise_warning == (WARNING in [record[1] for record in caplog.record_tuples])
+    assert df.height >= expected_valid_records
+    assert raises_error == (ERROR in [record[1] for record in caplog.record_tuples])
 
 
 @pytest.mark.parametrize(
@@ -205,12 +224,12 @@ def test_write_stop_events(
     should_fail: bool,
 ) -> None:
     """It writes stop events to S3 and handles write failures."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "test.parquet")
-    stop_events = StopEventsJSON.sample(2, generator=dy_gen)
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.json")
+    stop_events = StopEvents.sample(2, generator=dy_gen)
 
     if should_fail:
         # Simulate persistent write failure
-        with patch("polars.DataFrame.write_parquet", side_effect=OSError("S3 write error")):
+        with patch("polars.DataFrame.write_ndjson", side_effect=OSError("S3 write error")):
             with pytest.raises(OSError):
                 write_stop_events(stop_events, test_location)
     else:
@@ -218,5 +237,5 @@ def test_write_stop_events(
 
         # Verify file was written successfully
         assert Path(test_location.s3_uri).exists()
-        written_df = pl.read_parquet(test_location.s3_uri)
+        written_df = StopEvents.cast(pl.read_ndjson(test_location.s3_uri))
         assert_frame_equal(written_df, stop_events)
