@@ -238,4 +238,4 @@ def test_write_stop_events(
         # Verify file was written successfully
         assert Path(test_location.s3_uri).exists()
         written_df = StopEvents.cast(pl.read_ndjson(test_location.s3_uri))
-        assert_frame_equal(written_df, stop_events, check_row_order = False)
+        assert_frame_equal(written_df, stop_events, check_row_order=False)
