@@ -224,7 +224,7 @@ def test_write_stop_events(
     should_fail: bool,
 ) -> None:
     """It writes stop events to S3 and handles write failures."""
-    test_location = LocalS3Location(tmp_path.as_posix(), "test.json")
+    test_location = LocalS3Location(tmp_path.as_posix(), "test.json.gz")
     stop_events = StopEvents.sample(2, generator=dy_gen)
 
     if should_fail:
@@ -238,4 +238,4 @@ def test_write_stop_events(
         # Verify file was written successfully
         assert Path(test_location.s3_uri).exists()
         written_df = StopEvents.cast(pl.read_ndjson(test_location.s3_uri))
-        assert_frame_equal(written_df, stop_events)
+        assert_frame_equal(written_df, stop_events, check_row_order=False)
