@@ -47,7 +47,7 @@ class RtAlertsDetail(GTFSRTDetail):
                                             ("route_id", pyarrow.string()),
                                             ("route_type", pyarrow.int32()),
                                             ("direction_id", pyarrow.uint8()),
-                                            ("trip", trip_descriptor),
+                                            ("trip", trip_descriptor.pyarrow_dtype),
                                             ("stop_id", pyarrow.string()),
                                             ("facility_id", pyarrow.string()),
                                             (
@@ -68,9 +68,9 @@ class RtAlertsDetail(GTFSRTDetail):
                                 "effect_detail",
                                 pyarrow.string(),
                             ),  # type does not match spec type of <TranslatedString>
-                            ("url", translated_string),
-                            ("header_text", translated_string),
-                            ("description_text", translated_string),
+                            ("url", translated_string.pyarrow_dtype),
+                            ("header_text", translated_string.pyarrow_dtype),
+                            ("description_text", translated_string.pyarrow_dtype),
                             ("severity_level", pyarrow.string()),
                             (
                                 "severity",
@@ -106,19 +106,19 @@ class RtAlertsDetail(GTFSRTDetail):
                             ),  # MBTA Enhanced field
                             (
                                 "short_header_text",
-                                translated_string,
+                                translated_string.pyarrow_dtype,
                             ),  # not in message Alert struct spec
                             (
                                 "service_effect_text",
-                                translated_string,
+                                translated_string.pyarrow_dtype,
                             ),  # MBTA Enhanced field
                             (
                                 "timeframe_text",
-                                translated_string,
+                                translated_string.pyarrow_dtype,
                             ),  # MBTA Enhanced field
                             (
                                 "recurrence_text",
-                                translated_string,
+                                translated_string.pyarrow_dtype,
                             ),  # MBTA Enhanced field
                         ]
                     ),
