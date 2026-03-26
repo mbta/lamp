@@ -217,7 +217,6 @@ def delta_haystack_search_(
 
     """
 
-
     #### Stage 1: local to local (MANY to many)
 
     # construct and run converter once per day
@@ -235,7 +234,9 @@ def delta_haystack_search_(
     ## Stage 2: local to local (many to 1)
 
     # Define the path to your input Parquet files (can use a glob pattern)
-    converter_output_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+    converter_output_path = (
+        f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+    )
     consolidated_parquet_output_file = f"/tmp/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
 
     # Create a dataset from the input files
@@ -359,7 +360,6 @@ def delta_haystack_search() -> None:
         polars_filter=polars_filter,
     )
 
-
     logger = ProcessLogger("backfiller")
     logger.log_start()
 
@@ -389,10 +389,9 @@ def delta_haystack_search() -> None:
 
 
 def get_all_delta_files_matching(start_dt: datetime | date, end_dt: datetime | date, delta_prefix: str) -> pl.DataFrame:
-
     """
-    glob delta files matching a date range - 
-    
+    glob delta files matching a date range -
+
     start_date and end_date are inclusive, and form the prefix for the s3 path
     in_filter - arbitrary string search within the path
 
@@ -431,25 +430,27 @@ def get_all_delta_files_matching(start_dt: datetime | date, end_dt: datetime | d
             in_filter=delta_prefix,
         )
 
-        file_list_df = pl.DataFrame({"file": file_list}).with_columns(
-            timestamp=pl.col("file").str.slice(57, 20).str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ"),
-            prefix=pl.lit(S3_ARCHIVE),
-            key=pl.col("file").str.slice(5+len(S3_ARCHIVE) + 1),
-            # (pl.col("timestamp") >= pl.lit(start_dt)) & (pl.col("timestamp") <= pl.lit(end_dt))
-        ).filter([pl.col("timestamp") >= start_dt, pl.col("timestamp") <= end_dt])
+        file_list_df = (
+            pl.DataFrame({"file": file_list})
+            .with_columns(
+                timestamp=pl.col("file").str.slice(57, 20).str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ"),
+                prefix=pl.lit(S3_ARCHIVE),
+                key=pl.col("file").str.slice(5 + len(S3_ARCHIVE) + 1),
+                # (pl.col("timestamp") >= pl.lit(start_dt)) & (pl.col("timestamp") <= pl.lit(end_dt))
+            )
+            .filter([pl.col("timestamp") >= start_dt, pl.col("timestamp") <= end_dt])
+        )
         file_list_all = pl.concat([file_list_all, file_list_df])
         print(len(file_list_df))
-        
+
         cur_date = cur_date + timedelta(days=1)
 
     return file_list_all
 
 
-
 def process_delta_files(file_list: pl.DataFrame, polars_filter: pl.Expr) -> pl.DataFrame:
 
-    all_files = file_list['file'].to_list()
-
+    all_files = file_list["file"].to_list()
 
     def gz_json_to_polars_df(filename, filter) -> bool:
         """
@@ -480,38 +481,49 @@ def process_delta_files(file_list: pl.DataFrame, polars_filter: pl.Expr) -> pl.D
             # self.thread_init()
             # return (None, filename, None)
             return False
-    
 
     gz_json_to_polars_df
     # file_list = file_list.with_columns(polars_filter.alias('filter'), pl.struct("file", "filter").alias("processing"))
-    file_listsss = file_list.with_columns(pl.col("processing").map_batches(gz_json_to_polars_df, return_dtype=bool).alias("matches")).filter(pl.col("matches")).select("file").to_series().to_list()
+    file_listsss = (
+        file_list.with_columns(
+            pl.col("processing").map_batches(gz_json_to_polars_df, return_dtype=bool).alias("matches")
+        )
+        .filter(pl.col("matches"))
+        .select("file")
+        .to_series()
+        .to_list()
+    )
 
     return file_listsss
 
 
-def process_s3_json_file(bucket_name, object_key,polars_filter) -> pl.DataFrame:
+def process_s3_json_file(bucket_name, object_key, polars_filter) -> pl.DataFrame:
 
     try:
-        client = boto3.client('s3', region_name='us-east-1')
-    
+        client = boto3.client("s3", region_name="us-east-1")
+
         response = client.get_object(Bucket=bucket_name, Key=object_key)
 
-        data = gzip.decompress(response['Body'].read())
-        json_data = json.loads(data.decode('utf-8'))
-        df = pl.DataFrame(json_data).select('entity')
-        df = df.select('entity').unnest('entity').unnest('vehicle').rename({'id': 'global_id'}).unnest('vehicle')
-        if df.select('label').filter(pl.col('label').str.contains("LF")).height > 0:
+        data = gzip.decompress(response["Body"].read())
+        json_data = json.loads(data.decode("utf-8"))
+        df = pl.DataFrame(json_data).select("entity")
+        df = df.select("entity").unnest("entity").unnest("vehicle").rename({"id": "global_id"}).unnest("vehicle")
+        if df.select("label").filter(pl.col("label").str.contains("LF")).height > 0:
             print(f"Found! {object_key} ")
         # Perform further processing...
         return json_data
     except Exception as e:
-        print(f"Error: {e}")        
+        print(f"Error: {e}")
+
 
 # Example of running multiple tasks concurrently
 def find_in_delta(files_to_process, polars_filter):
 
-    tasks = [process_s3_json_file(bucket, key, polars_filter) for bucket, key in zip(files_to_process['prefix'], files_to_process['key'])]
-    
+    tasks = [
+        process_s3_json_file(bucket, key, polars_filter)
+        for bucket, key in zip(files_to_process["prefix"], files_to_process["key"])
+    ]
+
 
 def generate_all_candidate_files(start_dt: datetime, end_dt: datetime, delta_suffix: str) -> pl.DataFrame:
     """
@@ -520,21 +532,25 @@ def generate_all_candidate_files(start_dt: datetime, end_dt: datetime, delta_suf
     assert (end_dt - start_dt).total_seconds() < 86400, "Search window must be less than 1 day"
 
     all_dt = [start_dt + timedelta(seconds=i) for i in range(int((end_dt - start_dt).total_seconds()) + 1)]
-    delta_key = [os.path.join(LAMP, "delta", dt.strftime("%Y/%m/%d/"), f"{dt.isoformat()}Z_{delta_suffix}") for dt in all_dt]
+    delta_key = [
+        os.path.join(LAMP, "delta", dt.strftime("%Y/%m/%d/"), f"{dt.isoformat()}Z_{delta_suffix}") for dt in all_dt
+    ]
     full_path = [os.path.join(S3_ARCHIVE, key) for key in delta_key]
 
     return pl.DataFrame({"file": full_path, "timestamp": all_dt, "prefix": S3_ARCHIVE, "key": delta_key})
 
+
 if __name__ == "__main__":
 
     # search space
-# 7:06:14 
+    # 7:06:14
     start = datetime(2026, 3, 2, 19, 6, 0)
     end = datetime(2026, 3, 2, 19, 7, 0)
 
-    
     # file_list = get_all_delta_files_matching(start, end, delta_prefix="mbta.com_realtime_VehiclePositions_enhanced.json.gz")
-    file_list = generate_all_candidate_files(start, end, delta_suffix="https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz")
+    file_list = generate_all_candidate_files(
+        start, end, delta_suffix="https_cdn.mbta.com_realtime_VehiclePositions_enhanced.json.gz"
+    )
     # file_list = pl.read_parquet('file_list.parquet')
     polars_filter = pl.col("vehicle.vehicle.id").str.contains("DF")
 
@@ -546,5 +562,5 @@ if __name__ == "__main__":
     #     #     json.dump(file_list, fout)
     #     with open('file_list.json', 'r') as fin:
     #         file_list = json.load(fin)
-    
+
     # process_delta_files(file_list, polars_filter)

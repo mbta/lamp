@@ -31,6 +31,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pyarrow.dataset as pd
 
+from lamp_py.aws.ecs import running_in_aws
 from lamp_py.aws.s3 import (
     move_s3_objects,
     file_list_from_s3,
@@ -136,12 +137,27 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 4) -> None:
+    def __init__(
+        self,
+        config_type: ConfigType,
+        metadata_queue: Queue[Optional[str]],
+        max_workers: int = 4,
+        idempotent: bool = False,
+    ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
+        """
+
+        @config_type - the type of GTFS RT data being converted. this is used to determine the expected schema of the incoming data and the partitioning scheme for the output parquet files.
+        @metadata_queue - a queue for sending metadata about the conversion process to other threads or processes. this is used to communicate with the monitoring system and can be used to trigger alerts or other actions based on the success or failure of the conversion process.
+        @max_workers - the maximum number of worker threads to use for processing files. this is used to control the level of concurrency in the conversion process and can be adjusted based on the expected size of the incoming data and the resources available on the machine running the converter.
+        @idempotent - if true, will ensure that the conversion process can be safely re-run without causing duplicate data or other side effects. this is meant to be used for testing and debugging purposes on local machines where s3 sync is not necessary.
+
+        """
 
         # Depending on filename, assign self.details to correct implementation
         # of GTFSRTDetail class.
         self.detail: GTFSRTDetail
+        self.idempotent = idempotent
 
         if config_type == ConfigType.RT_ALERTS:
             self.detail = RtAlertsDetail()
@@ -199,8 +215,12 @@ class GtfsRtConverter(Converter):
             process_logger.log_complete()
         finally:
             self.data_parts = {}
-            self.move_s3_files()
-            self.clean_local_folders()
+
+            # no side effects when running local
+            if not self.idempotent:
+                self.move_s3_files()
+            if running_in_aws():
+                self.clean_local_folders()
 
     def thread_init(self) -> None:
         """
