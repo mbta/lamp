@@ -381,9 +381,9 @@ class GtfsRtConverter(Converter):
         for col in partitions:
             unique_list = pc.unique(table.column(col)).to_pylist()
 
-            assert (
-                len(unique_list) == 1
-            ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
+            assert len(unique_list) == 1, (
+                f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
+            )
             partitions[col] = unique_list[0]
 
         return datetime(
@@ -417,7 +417,7 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
+    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
         create dataset, with hash column, that will be written to parquet file
 
@@ -427,7 +427,7 @@ class GtfsRtConverter(Converter):
         log = ProcessLogger("make_hash_datset")
         log.log_start()
         table = hash_gtfs_rt_table(table)
-        out_ds = pd.dataset(table)
+        out_ds = table
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
@@ -438,10 +438,13 @@ class GtfsRtConverter(Converter):
             # dataset will have minimal impact on archived data
             try:
                 out_ds = pd.dataset(
-                    [
-                        pd.dataset(table),
-                        pd.dataset(local_path),
-                    ]
+                    pyarrow.concat_tables(
+                        [
+                            table,
+                            pd.dataset(local_path).to_table(),
+                        ],
+                        promote_options="permissive",
+                    )
                 )
             except pyarrow.ArrowTypeError as exception:
                 if self.config_type == ConfigType.RT_ALERTS:
@@ -493,7 +496,6 @@ class GtfsRtConverter(Converter):
 
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-
                 write_table = (
                     pl.from_arrow(
                         out_ds.to_table(
