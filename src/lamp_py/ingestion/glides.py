@@ -65,7 +65,9 @@ class GlidesRecord(dy.Schema):
     id = dy.String()
     type = dy.String()
     time = dy.Datetime(  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
-        min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="ms"  # within Python's serializable range
+        min=datetime(2024, 1, 1),
+        max=datetime(2039, 12, 31),
+        time_unit="ms",  # within Python's serializable range
     )
     source = dy.String()
     specversion = dy.String()
@@ -112,7 +114,13 @@ class TripUpdatesRecord(GlidesRecord):
 
     data = dy.Struct(
         {
-            "metadata": metadata,
+            "metadata": dy.Struct(
+                metadata.inner
+                | {
+                    "uiVersion": dy.String(nullable=True),
+                },
+                nullable=True,
+            ),
             "tripUpdates": dy.List(
                 dy.Struct(
                     {
@@ -234,7 +242,6 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         )
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-
             new_path = os.path.join(tmp_dir, self.base_filename)
             sorted_ds = joined_ds.unique().sort("time")
             valid = process_logger.log_dataframely_filter_results(*self.table_schema.filter(sorted_ds))
