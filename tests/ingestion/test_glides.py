@@ -58,7 +58,10 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
         ({}, {}),
         ({"id": pl.col("id")}, {}),
         ({"new_col": pl.lit(1)}, {}),
-        ({}, {"id": pl.col("id")},),
+        (
+            {},
+            {"id": pl.col("id")},
+        ),
         ({"time": pl.col("time").cast(pl.Datetime(time_unit="us")).dt.offset_by("1us")}, {}),
         ({}, {"time": pl.col("time").cast(pl.Datetime(time_unit="us")).dt.offset_by("1us")}),
     ],
