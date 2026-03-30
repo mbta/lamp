@@ -47,6 +47,8 @@ class LightRailTerminalTripUpdates(TripUpdates):
         alias="trip_update.stop_time_update.stop_id",
         check=lambda x: x.is_in(LightRailFilter.terminal_stop_ids),
     )
+
+
 class HeavyRailTerminalTripUpdates(TripUpdates):
     "Analytical dataset for heavy rail and light rail midpoint dashboards."
     departure_time = dy.Datetime(
@@ -95,7 +97,9 @@ def filter_valid_devgreen_terminal_predictions(polars_df: pl.DataFrame, allowed_
     return polars_df
 
 
-def terminal_prediction_devgreen_filter(trip_updates: pl.DataFrame, allowed_stop_ids: list) -> dy.DataFrame[HeavyRailTerminalTripUpdates]:
+def terminal_prediction_devgreen_filter(
+    trip_updates: pl.DataFrame, allowed_stop_ids: list
+) -> dy.DataFrame[HeavyRailTerminalTripUpdates]:
     """
     Gathers all final transforms to dataset before uploading to tableau
     """

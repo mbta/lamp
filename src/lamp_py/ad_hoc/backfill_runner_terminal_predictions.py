@@ -119,19 +119,18 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
             process_logger.log_complete()
             stats_file = os.path.join(self.tmp_folder, "table_stats.json")
             with open(stats_file, "a") as f:
-                json.dump(self.table_stats, f, indent=2, default=str)            
+                json.dump(self.table_stats, f, indent=2, default=str)
         finally:
             self.data_parts = {}
-
 
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
         just write the file out..
-        
-        # this should be roughly sorted by timestamp. 
+
+        # this should be roughly sorted by timestamp.
         """
         print("running GtfsRtTripUpdatesConverter::write_local_pq")
-        
+
         # self.table_stats[local_path] = table.parquet.RowGroupMetaData.to_dict()
 
         writer = pq.ParquetWriter(local_path, schema=table.schema, compression="zstd", compression_level=3)
@@ -152,9 +151,9 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
         process_logger.log_start()
 
         with ThreadPoolExecutor(max_workers=self.max_workers, initializer=self.thread_init) as pool:
-        # for file in self.files:
-        #     result_dt, result_filename, rt_data = self.gz_to_pyarrow(file)
-            
+            # for file in self.files:
+            #     result_dt, result_filename, rt_data = self.gz_to_pyarrow(file)
+
             for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
@@ -176,14 +175,11 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
-                    self.data_parts[dt_part].table =  self.detail.transform_for_write(rt_data)
+                    self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
 
                 else:
                     self.data_parts[dt_part].table = pyarrow.concat_tables(
-                        [
-                            self.data_parts[dt_part].table,
-                            self.detail.transform_for_write(rt_data)
-                        ]
+                        [self.data_parts[dt_part].table, self.detail.transform_for_write(rt_data)]
                     )
 
                 self.data_parts[dt_part].files.append(result_filename)
@@ -227,8 +223,6 @@ def delta_reingestion_runner(
 
     cur_date = start_date
 
-   
-
     while cur_date <= end_date:
         prefix = (
             os.path.join(
@@ -259,8 +253,6 @@ def delta_reingestion_runner(
 
         print(len(file_list))
 
-
-
         #### Stage 1: local to local (MANY to many)
 
         # construct and run converter once per day
@@ -270,17 +262,19 @@ def delta_reingestion_runner(
             output_location=local_output_location,
             polars_filter=polars_filter,
             max_workers=max_workers,
-            verbose=True
+            verbose=True,
         )
         converter.add_files(file_list)
         # this outputs to local output_location=tmp_output_location
-        # converter.convert()
+        converter.convert()
 
         ## Stage 2: local to local (many to 1)
 
         # Define the path to your input Parquet files (can use a glob pattern)
         converter_output_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
-        consolidated_parquet_output_file = f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+        consolidated_parquet_output_file = (
+            f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+        )
 
         # Create a dataset from the input files
         ds = pd.dataset(converter_output_path, format="parquet")
@@ -297,13 +291,14 @@ def delta_reingestion_runner(
         upload_file(
             consolidated_parquet_output_file,
             consolidated_parquet_output_file.replace(
-                f"{local_output_location}/", f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+                f"{local_output_location}/",
+                f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/",
             ),
         )
 
         cur_date = cur_date + timedelta(days=1)
-        
-        converter.clean_local_folders() # clear local output folders after each day to manage disk space
+
+        converter.clean_local_folders()  # clear local output folders after each day to manage disk space
 
 
 def run_backfill() -> None:
@@ -331,8 +326,9 @@ def run_backfill() -> None:
         local_output_location=local_tmp_output,
         final_output_path=final_output_path,
         polars_filter=polars_filter,
-        max_workers=4
+        max_workers=4,
     )
+
 
 if __name__ == "__main__":
     run_backfill()
