@@ -6,8 +6,6 @@ import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from queue import Queue
-from sys import prefix
-from sys import prefix
 from typing import Dict, Iterable, List, Optional
 import pyarrow
 import pyarrow.dataset as pd
@@ -124,7 +122,6 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
                 json.dump(self.table_stats, f, indent=2, default=str)            
         finally:
             self.data_parts = {}
-            
 
 
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
@@ -135,7 +132,7 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
         """
         print("running GtfsRtTripUpdatesConverter::write_local_pq")
         
-        self.table_stats[local_path] = table.parquet.RowGroupMetaData.to_dict()
+        # self.table_stats[local_path] = table.parquet.RowGroupMetaData.to_dict()
 
         writer = pq.ParquetWriter(local_path, schema=table.schema, compression="zstd", compression_level=3)
         writer.write_table(table)
@@ -179,15 +176,13 @@ class GtfsRtTripsAdHocConverter(GtfsRtConverter):
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
-                    tmp = self.detail.transform_for_write(rt_data)
-                    df = pl.from_arrow(tmp)
-                    self.data_parts[dt_part].table = df.filter(self.filter).to_arrow()  # type: ignore
+                    self.data_parts[dt_part].table =  self.detail.transform_for_write(rt_data)
 
                 else:
                     self.data_parts[dt_part].table = pyarrow.concat_tables(
                         [
                             self.data_parts[dt_part].table,
-                            pl.from_arrow(self.detail.transform_for_write(rt_data)).filter(self.filter).to_arrow(),  # type: ignore
+                            self.detail.transform_for_write(rt_data)
                         ]
                     )
 
@@ -248,7 +243,7 @@ def delta_reingestion_runner(
 
         # check local cache of file_list - this is only valid for reingestion because archive/delta is static for past days
         if end_date.date() < datetime.now().date():
-            cache_file = f"file_list_{start_date.isoformat()}_{end_date.isoformat()}.txt"
+            cache_file = f"file_list_{cur_date.isoformat()}.txt"
             if os.path.exists(cache_file):
                 with open(cache_file, "r") as f:
                     file_list = [line.strip() for line in f.readlines()]
@@ -279,13 +274,13 @@ def delta_reingestion_runner(
         )
         converter.add_files(file_list)
         # this outputs to local output_location=tmp_output_location
-        converter.convert()
+        # converter.convert()
 
         ## Stage 2: local to local (many to 1)
 
         # Define the path to your input Parquet files (can use a glob pattern)
         converter_output_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
-        consolidated_parquet_output_file = f"/tmp/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+        consolidated_parquet_output_file = f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
 
         # Create a dataset from the input files
         ds = pd.dataset(converter_output_path, format="parquet")
@@ -302,27 +297,33 @@ def delta_reingestion_runner(
         upload_file(
             consolidated_parquet_output_file,
             consolidated_parquet_output_file.replace(
-                "/tmp/", f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+                f"{local_output_location}/", f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
             ),
         )
 
         cur_date = cur_date + timedelta(days=1)
+        
+        converter.clean_local_folders() # clear local output folders after each day to manage disk space
+
 
 def run_backfill() -> None:
     """
     Full encapsulated method to call all of this backfill job
     """
-    local_tmp_output = "/tmp/gtfs-rt-continuous"
+    local_tmp_output = "/tmp/gtfs-rt-continuous/"
 
-    start = datetime(2026, 2, 1, 0, 0, 0)
-    end = datetime(2026, 2, 2, 0, 0, 0)
+    if not os.path.exists(local_tmp_output):
+        os.makedirs(local_tmp_output)
+
+    start = datetime(2026, 3, 1, 0, 0, 0)
+    end = datetime(2026, 3, 29, 0, 0, 0)
 
     all_terminal_stops = LightRailFilter.terminal_stop_ids + HeavyRailFilter.terminal_stop_ids
     polars_filter = pl.col("trip_update.trip.route_id").is_in(
         ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
     ) & pl.col("trip_update.stop_time_update.stop_id").is_in(all_terminal_stops)
 
-    final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_20251024_20251124")
+    final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_RAIL_TERMINAL")
 
     delta_reingestion_runner(
         start_date=start,
@@ -330,7 +331,7 @@ def run_backfill() -> None:
         local_output_location=local_tmp_output,
         final_output_path=final_output_path,
         polars_filter=polars_filter,
-        max_workers=16
+        max_workers=4
     )
 
 if __name__ == "__main__":
