@@ -381,9 +381,9 @@ class GtfsRtConverter(Converter):
         for col in partitions:
             unique_list = pc.unique(table.column(col)).to_pylist()
 
-            assert len(unique_list) == 1, (
-                f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
-            )
+            assert (
+                len(unique_list) == 1
+            ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
             partitions[col] = unique_list[0]
 
         return datetime(
@@ -427,7 +427,6 @@ class GtfsRtConverter(Converter):
         log = ProcessLogger("make_hash_datset")
         log.log_start()
         table = hash_gtfs_rt_table(table)
-        out_ds = table
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
@@ -437,20 +436,19 @@ class GtfsRtConverter(Converter):
             # RT_ALERTS updates are essentially the same throughout a service day so resetting the
             # dataset will have minimal impact on archived data
             try:
-                out_ds = pd.dataset(
-                    pyarrow.concat_tables(
-                        [
-                            table,
-                            pd.dataset(local_path).to_table(),
-                        ],
-                        promote_options="permissive",
-                    )
+                table = pyarrow.concat_tables(
+                    [
+                        table,
+                        pd.dataset(local_path).to_table(),
+                    ],
+                    promote_options="permissive",
                 )
             except pyarrow.ArrowTypeError as exception:
                 if self.config_type == ConfigType.RT_ALERTS:
-                    out_ds = pd.dataset(table)
+                    out_ds = table
                 else:
                     raise exception
+        out_ds = pd.dataset(table)
         log.log_complete()
         return out_ds
 
