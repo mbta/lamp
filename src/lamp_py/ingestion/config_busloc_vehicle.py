@@ -56,6 +56,8 @@ class RtBusVehicleDetail(GTFSRTDetail):
                             ("capacity", pyarrow.uint16()),
                             ("occupancy_percentage", pyarrow.uint16()),
                             ("occupancy_status", pyarrow.string()),
+                            ("state_of_charge_percentage", pyarrow.uint16()),
+                            ("state_of_charge_timestamp", pyarrow.uint64()),
                         ]
                     ),
                 ),
