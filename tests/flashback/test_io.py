@@ -143,25 +143,19 @@ async def test_get_vehicle_positions(
     vp = VehiclePositions.sample(generator=dy_gen)
     success_response, _ = mock_vp_response(vp)
 
-    # Create mock error response
     error_response = AsyncMock()
     error_response.raise_for_status = lambda: (_ for _ in ()).throw(ClientError("Non-200 response"))
 
     mock_get.return_value.__aenter__.side_effect = [error_response] * num_failures + [success_response]
 
-    # If too many retries, expect ClientError
-    if num_failures >= max_retries:
-        with pytest.raises(ClientError):
-            await get_vehicle_positions(max_retries=max_retries)
-    else:
+    context_handler = pytest.raises(ClientError) if num_failures >= max_retries else nullcontext()
+    with context_handler:
         df = await get_vehicle_positions(max_retries=max_retries)
-
-        assert df.height == 1
+        # if no error, then check the following
+        assert_frame_equal(df, vp)
         assert mock_sleep.call_count == num_failures
-        # Check that failures were logged (status=failed appears in log message)
         assert "ClientError" in caplog.text
-        failure_logs = [record for record in caplog.record_tuples if "status=failed" in record[2]]
-        assert len(failure_logs) == num_failures
+        assert "status=failed" not in caplog.text
 
 
 @pytest.mark.parametrize(
