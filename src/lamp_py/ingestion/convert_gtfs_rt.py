@@ -427,6 +427,7 @@ class GtfsRtConverter(Converter):
         log = ProcessLogger("make_hash_datset")
         log.log_start()
         table = hash_gtfs_rt_table(table)
+        out_ds = pd.dataset(table)
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
@@ -436,19 +437,15 @@ class GtfsRtConverter(Converter):
             # RT_ALERTS updates are essentially the same throughout a service day so resetting the
             # dataset will have minimal impact on archived data
             try:
-                table = pyarrow.concat_tables(
+                table = pd.dataset(
                     [
-                        table,
-                        pd.dataset(local_path).to_table(),
+                        out_ds,
+                        pd.dataset(local_path, schema=table.schema),
                     ],
-                    promote_options="permissive",
                 )
             except pyarrow.ArrowTypeError as exception:
-                if self.config_type == ConfigType.RT_ALERTS:
-                    out_ds = table
-                else:
+                if self.config_type != ConfigType.RT_ALERTS:
                     raise exception
-        out_ds = pd.dataset(table)
         log.log_complete()
         return out_ds
 
