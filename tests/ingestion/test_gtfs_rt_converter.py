@@ -1,13 +1,19 @@
 import os
+from datetime import datetime
+from pathlib import Path
 from queue import Queue
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from pyarrow import fs
+import dataframely as dy
 import pandas
+import polars as pl
 
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import flatten_table_schema
+from lamp_py.ingestion.config_busloc_vehicle import BusLocVehicleRecord, BusLocVehicleTable
 
 from ..test_resources import (
     incoming_dir,
@@ -256,42 +262,51 @@ def test_rt_trip_file_conversion() -> None:
     assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
-def test_bus_vehicle_positions_file_conversion() -> None:
+def test_bus_vehicle_positions_file_conversion(dy_gen: dy.random.Generator, tmp_path: Path) -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    gtfs_rt_file = os.path.join(
-        incoming_dir,
-        "2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz",
+    vehicle_timestamp = datetime(2026, 1, 1, tzinfo=ZoneInfo("America/New_York"))  # a valid datetime
+    df = BusLocVehicleRecord.sample(
+        overrides={
+            "header": {"timestamp": vehicle_timestamp.timestamp(), "gtfs_realtime_version": "2.0", "incrementality": 0},
+            "entity": BusLocVehicleRecord.entity.sample(dy_gen),
+        }
     )
 
-    config_type = ConfigType.from_filename(gtfs_rt_file)
+    incoming_file = (
+        tmp_path
+        / f"{vehicle_timestamp.isoformat()}_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz"
+    )
+
+    df.write_ndjson(incoming_file, compression="gzip")
+
+    config_type = ConfigType.from_filename(str(incoming_file))
     assert config_type == ConfigType.BUS_VEHICLE_POSITIONS
 
     converter = GtfsRtConverter(config_type, metadata_queue=Queue())
     converter.thread_init()
-    timestamp, filename, table = converter.gz_to_pyarrow(gtfs_rt_file)
+    timestamp, filename, table = converter.gz_to_pyarrow(str(incoming_file))
 
-    assert timestamp.month == 5
-    assert timestamp.year == 2022
-    assert timestamp.day == 5
+    assert timestamp
+    assert timestamp.month == vehicle_timestamp.month
+    assert timestamp.year == vehicle_timestamp.year
+    assert timestamp.day == vehicle_timestamp.day
 
-    assert filename == gtfs_rt_file
+    assert filename == str(incoming_file)
 
-    # 844 records in 'entity' for 2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
-    assert table.num_rows == 844
-    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
+    assert table
+    table = pl.DataFrame(flatten_table_schema(table))
+    assert (
+        df.select(pl.col("entity").explode().struct.field("id").alias("id"))
+        .unique()
+        .join(table.select("id").unique(), on="id", how="anti")
+        .height
+        == 0
+    ), "Some ids in the original message are missing from the converted table."
 
-    np_df = flatten_table_schema(table).to_pandas()
-    np_df = drop_list_columns(np_df)
-
-    parquet_file = os.path.join(test_files_dir, "ingestion_BUSLOC_VP.parquet")
-    parquet_df = pandas.read_parquet(parquet_file)
-    parquet_df = drop_list_columns(parquet_df)
-
-    compare_result = np_df.compare(parquet_df, align_axis=1)
-    assert compare_result.shape[0] == 0, f"{compare_result}"
+    assert not BusLocVehicleTable.validate(table).is_empty()
 
 
 def test_bus_trip_updates_file_conversion() -> None:

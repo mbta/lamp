@@ -608,7 +608,9 @@ def _rds_writer_process(metadata_queue: Queue[Optional[str]]) -> None:
                 with engine.begin() as cursor:
                     cursor.execute(insert_statement)
 
-            except Exception as _:
+            except Exception as e:
+                insert_logger.log_failure(e)
+                insert_logger.add_metadata(retry_attempt=retry_attempt)
                 retry_attempt += 1
                 # wait for gremlins to disappear
                 time.sleep(15)
