@@ -1,18 +1,6 @@
 import dataframely as dy
 
 
-class GTFSRealtime(dy.Schema):
-    """Fields common to all GTFS Realtime messages."""
-
-    header = dy.Struct(
-        inner={
-            "gtfs_realtime_version": dy.String(),
-            "incrementality": dy.String(),
-            "timestamp": dy.UInt64(),
-        }
-    )
-
-
 position = dy.Struct(
     inner={
         "bearing": dy.UInt16(nullable=True),
