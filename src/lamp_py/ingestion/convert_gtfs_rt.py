@@ -417,7 +417,7 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
+    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
         create dataset, with hash column, that will be written to parquet file
 
@@ -437,16 +437,14 @@ class GtfsRtConverter(Converter):
             # RT_ALERTS updates are essentially the same throughout a service day so resetting the
             # dataset will have minimal impact on archived data
             try:
-                out_ds = pd.dataset(
+                table = pd.dataset(
                     [
-                        pd.dataset(table),
-                        pd.dataset(local_path),
-                    ]
+                        out_ds,
+                        pd.dataset(local_path, schema=table.schema),
+                    ],
                 )
             except pyarrow.ArrowTypeError as exception:
-                if self.config_type == ConfigType.RT_ALERTS:
-                    out_ds = pd.dataset(table)
-                else:
+                if self.config_type != ConfigType.RT_ALERTS:
                     raise exception
         log.log_complete()
         return out_ds
@@ -493,7 +491,6 @@ class GtfsRtConverter(Converter):
 
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-
                 write_table = (
                     pl.from_arrow(
                         out_ds.to_table(

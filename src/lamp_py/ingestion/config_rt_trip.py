@@ -33,8 +33,8 @@ class RtTripDetail(GTFSRTDetail):
                     "trip_update",
                     pyarrow.struct(
                         [
-                            ("trip", trip_descriptor),
-                            ("vehicle", vehicle_descriptor),
+                            ("trip", trip_descriptor.pyarrow_dtype),
+                            ("vehicle", vehicle_descriptor.pyarrow_dtype),
                             (
                                 "stop_time_update",
                                 pyarrow.list_(
@@ -42,8 +42,8 @@ class RtTripDetail(GTFSRTDetail):
                                         [
                                             ("stop_sequence", pyarrow.uint32()),
                                             ("stop_id", pyarrow.string()),
-                                            ("arrival", stop_time_event),
-                                            ("departure", stop_time_event),
+                                            ("arrival", stop_time_event.pyarrow_dtype),
+                                            ("departure", stop_time_event.pyarrow_dtype),
                                             (
                                                 "schedule_relationship",
                                                 pyarrow.string(),
