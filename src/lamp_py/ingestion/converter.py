@@ -117,6 +117,10 @@ class Converter(ABC):
         """add files to this converter"""
         self.files += files
 
+    def reset_files(self) -> None:
+        """remove files from this converter"""
+        self.files = []
+
     def send_metadata(self, written_file: str) -> None:
         """send metadata path to rds writer process"""
         self.metadata_queue.put(written_file)
