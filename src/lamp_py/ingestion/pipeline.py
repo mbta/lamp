@@ -47,7 +47,7 @@ def main() -> None:
     # connect to the glides kinesis stream
     glides_reader = KinesisReader(stream_name="ctd-glides-prod")
 
-    day = datetime.now(timezone.utc).date()
+    today = datetime.now(timezone.utc).date()
     # allow reprocessing upon deploy
     can_backfill = True
 
@@ -65,17 +65,19 @@ def main() -> None:
 
         # if can_backfill is false (we've done it once during the window), wait till the next day and re-enable it.
         # set day to today. and backfill true to allow noew processing_window
-        if not can_backfill and day != datetime.now(timezone.utc).date():
+        if not can_backfill and today != datetime.now(timezone.utc).date():
             can_backfill = True
-            day = datetime.now(timezone.utc).date()
+            today = datetime.now(timezone.utc).date()
 
         yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
-        if within_daily_processing_window():
-            if can_backfill:
-                process_logger.add_metadata("within reprocess window - running trip update reprocess")
-                reprocess_trip_updates(start_date=yesterday, end_date=yesterday)
-                # reprocess_trip_updates_terminal_prediction()
-                can_backfill = False
+
+        # this doesn't make use of the processing window fully. we need to have other parts of ingestion
+        # populate a queue. this queue can be written to disk occasionally to pick back up...todo
+        if within_daily_processing_window() and can_backfill:
+            process_logger.add_metadata("within reprocess window - running trip update reprocess")
+            reprocess_trip_updates(start_date=yesterday, end_date=yesterday)
+            # reprocess_trip_updates_terminal_prediction()
+            can_backfill = False
 
         process_logger.log_complete()
 
