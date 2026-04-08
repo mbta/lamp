@@ -18,6 +18,11 @@ from lamp_py.ingestion.glides import ingest_glides_events
 # from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
 from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.utils.clear_folder import clear_folder
+from lamp_py.ingestion.daily.trip_updates import (
+    reprocess_trip_updates,
+    reprocess_trip_updates_terminal_prediction,
+    within_daily_processing_window,
+)
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
@@ -51,6 +56,11 @@ def main() -> None:
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue, upload=True)
         check_for_sigterm(metadata_queue, rds_process)
+
+        if within_daily_processing_window():
+            process_logger.add_metadata("within reprocess window - running trip update reprocess")
+            reprocess_trip_updates()
+            # reprocess_trip_updates_terminal_prediction()
 
         process_logger.log_complete()
 

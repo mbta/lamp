@@ -451,7 +451,7 @@ class GtfsRtConverter(Converter):
 
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
-    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+    def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
 
@@ -586,7 +586,7 @@ class GtfsRtConverter(Converter):
 
             log.add_metadata(local_path=local_path)
 
-            self.write_local_pq(table, local_path)
+            self.write_local_pq_partition(table, local_path)
             self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
 
             log.log_complete()
