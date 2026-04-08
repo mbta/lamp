@@ -63,9 +63,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         self.table_stats = {}
 
         self.verbose = verbose
-        if polars_filter is None:
-            polars_filter = pl.lit(None)
-        self.filter = polars_filter
+        self.filter = polars_filter if polars_filter is not None else pl.lit(True)
 
     def convert(self) -> None:
 
@@ -119,8 +117,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         # this should be roughly sorted by timestamp.
         """
 
-        if self.filter is not None:
-            table = pl.from_arrow(table).filter(self.filter).to_arrow()
+        table = pl.from_arrow(table).filter(self.filter).to_arrow()
 
         writer = pq.ParquetWriter(local_path, schema=table.schema, compression="zstd", compression_level=3)
         writer.write_table(table)
@@ -184,7 +181,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
     def partition_column(self) -> str:
         return "trip_update.trip.route_id"
 
-    def table_sort_order() -> List[Tuple[str, str]]:
+    def table_sort_order(self) -> List[Tuple[str, str]]:
         return [
             ("feed_timestamp", "ascending"),
             ("trip_update.trip.route_pattern_id", "ascending"),

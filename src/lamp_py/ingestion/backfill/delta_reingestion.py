@@ -1,12 +1,10 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
 from concurrent.futures import ThreadPoolExecutor
-import copy
-import logging
 import os
-from datetime import date, datetime, time, timedelta
+from datetime import date, timedelta
+import time
 from pathlib import Path
-from queue import Queue
 from sys import prefix
 import tempfile
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -34,6 +32,7 @@ from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
 from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions, HeavyRailFilter, LightRailFilter
 import json
+from typing import Literal
 import pyarrow.compute as pc
 
 
@@ -65,7 +64,7 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
         # this will be big, but not too big
         partitions = sorted(partitions.to_pylist())
 
-        logger.add_metadata("unique_partitions", len(partitions))
+        logger.add_metadata(unique_partitions=len(partitions))
 
         if debug_flag:
             start_time = time.time()
@@ -77,7 +76,7 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
 
             if debug_flag:
                 elapsed = time.time() - start_time
-                logger.add_metadata(f"Processed partition {part}", f"{elapsed:.2f}s elapsed, total rows: {write_table.num_rows}")
+                logger.add_metadata(partition=part, elapsed=elapsed, total_rows=write_table.num_rows)
 
         writer.close()
 
@@ -86,10 +85,10 @@ def delta_reingestion_runner(
     start_date: date,
     end_date: date,
     final_output_path: S3Location,
-    converter_template_instance: GtfsRtConverter,
+    converter: GtfsRtConverter,
     in_filter: str | None = None,
     local_output_location: str = "/tmp/gtfs-rt-continuous/",
-    bucket: str = S3_ARCHIVE | S3_INCOMING,
+    bucket: str = S3_ARCHIVE,
 ) -> None:
     """
     Docstring for delta_reingestion_runner
@@ -102,10 +101,15 @@ def delta_reingestion_runner(
     :type final_output_base: S3Location
     :param local_output_location: temporary working directory to place outputs
     :type local_output_location: str
+    :param bucket: S3 bucket to read from (S3_ARCHIVE or S3_INCOMING)
+    :type bucket: str
 
     """
     logger = ProcessLogger("delta_reingestion_runner")
     logger.log_start()
+
+    if bucket not in (S3_ARCHIVE, S3_INCOMING):
+        raise ValueError(f"bucket must be either S3_ARCHIVE or S3_INCOMING, got {bucket}")
 
     cur_date = start_date
 
@@ -120,22 +124,17 @@ def delta_reingestion_runner(
             )
             + "/"
         )
-        file_list = file_list_from_s3(
-            bucket,
-            prefix,
-            in_filter=in_filter,
-        )
+        file_list = file_list_from_s3(bucket, prefix, in_filter=in_filter)
 
-        logger.add_metadata("file_list_length", len(file_list))
+        logger.add_metadata(file_list_length=len(file_list))
 
         #### Stage 1: local to local (MANY to many)
-        converter = copy.deepcopy(converter_template_instance)
+        # converter = copy.deepcopy(converter_template_instance)
+
         converter.add_files(file_list)
         converter.convert()
 
         ## Stage 2: local to local (many to 1)
-        converter
-        # Define the path to your input Parquet files (can use a glob pattern)
         converter_output_path = f"{local_output_location}/lamp/{str(converter.config_type)}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
         consolidated_parquet_output_file = (
             f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
@@ -162,4 +161,6 @@ def delta_reingestion_runner(
 
         cur_date = cur_date + timedelta(days=1)
 
+        # cleanup
         converter.clean_local_folders()  # clear local output folders after each day to manage disk space
+        converter.reset_files()
