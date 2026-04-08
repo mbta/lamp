@@ -3,34 +3,22 @@
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
-from datetime import date, datetime, time, timedelta
+from datetime import datetime
 from pathlib import Path
 from queue import Queue
-import tempfile
 from typing import Dict, Iterable, List, Optional, Tuple
 import pyarrow
-from pyarrow import fs
-import pyarrow.dataset as pd
 import pyarrow.parquet as pq
-import dataframely as dy
 import polars as pl
 
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
-from lamp_py.aws.s3 import file_list_from_s3, upload_file
-from lamp_py.runtime_utils.remote_files import springboard_rt_vehicle_positions
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
+from lamp_py.runtime_utils.remote_files import LAMP
 
-from lamp_py.tableau.conversions import convert_gtfs_rt_vehicle_position
-from lamp_py.tableau.conversions.convert_gtfs_rt_trip_updates import filter_valid_devgreen_terminal_predictions
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
-from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions, HeavyRailFilter, LightRailFilter
 import json
-import pyarrow.compute as pc
 
 
 # pylint disable=too-many-arguments

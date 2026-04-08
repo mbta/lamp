@@ -1,10 +1,6 @@
 from datetime import date, datetime, timezone
-
-from aiohttp.hdrs import FROM
-
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.daily.config import END_HOUR, START_HOUR
-from datetime import timedelta
 import polars as pl
 import os
 from lamp_py.runtime_utils.remote_files import S3_ARCHIVE, S3Location

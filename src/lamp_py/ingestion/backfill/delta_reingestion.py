@@ -1,38 +1,20 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
-from concurrent.futures import ThreadPoolExecutor
 import os
 from datetime import date, timedelta
 import time
-from pathlib import Path
-from sys import prefix
 import tempfile
-from typing import Dict, Iterable, List, Optional, Tuple
-import pyarrow
+from typing import List, Tuple
 from pyarrow import fs
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
-import dataframely as dy
-import polars as pl
 
-from lamp_py.aws.ecs import running_in_aws
-from lamp_py.ingestion.backfill.convert_gtfs_rt_fullset import GtfsRtTripsFullSetConverter
-from lamp_py.ingestion.config_rt_trip import RtTripDetail
-from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
-from lamp_py.ingestion.converter import ConfigType
+from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
 from lamp_py.aws.s3 import file_list_from_s3, upload_file
-from lamp_py.runtime_utils.remote_files import S3_INCOMING, springboard_rt_vehicle_positions
+from lamp_py.runtime_utils.remote_files import S3_INCOMING
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
-
-from lamp_py.tableau.conversions import convert_gtfs_rt_vehicle_position
-from lamp_py.tableau.conversions.convert_gtfs_rt_trip_updates import filter_valid_devgreen_terminal_predictions
-from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
-from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions, HeavyRailFilter, LightRailFilter
-import json
-from typing import Literal
 import pyarrow.compute as pc
 
 
