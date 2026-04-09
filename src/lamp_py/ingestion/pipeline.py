@@ -59,10 +59,8 @@ def main() -> None:
         bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
         # ingest_light_rail_gps(bucket_filter=bucket_filter)
-        ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
-        ingest_glides_events(glides_reader, metadata_queue, upload=True)
-        check_for_sigterm(metadata_queue, rds_process)
 
+        #### Check Backfill first for testing ####
         # if can_backfill is false (we've done it once during the window), wait till the next day and re-enable it.
         # set day to today. and backfill true to allow noew processing_window
         if not can_backfill and today != datetime.now(timezone.utc).date():
@@ -70,14 +68,21 @@ def main() -> None:
             today = datetime.now(timezone.utc).date()
 
         yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
+        process_logger.add_metadata(in_processing_window=within_daily_processing_window(), can_backfill=can_backfill)
 
         # this doesn't make use of the processing window fully. we need to have other parts of ingestion
         # populate a queue. this queue can be written to disk occasionally to pick back up...todo
         if within_daily_processing_window() and can_backfill:
-            process_logger.add_metadata("within reprocess window - running trip update reprocess")
             reprocess_trip_updates(start_date=yesterday, end_date=yesterday)
             # reprocess_trip_updates_terminal_prediction()
             can_backfill = False
+        #### Check Backfill first for testing ####
+
+
+        ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
+        ingest_glides_events(glides_reader, metadata_queue, upload=True)
+        check_for_sigterm(metadata_queue, rds_process)
+
 
         process_logger.log_complete()
 
