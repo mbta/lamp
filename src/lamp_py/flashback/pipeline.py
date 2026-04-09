@@ -43,7 +43,7 @@ def pipeline() -> None:
 
     validate_environment(
         required_variables=[
-            "ARCHIVE_BUCKET",
+            "PUBLIC_ARCHIVE_BUCKET",
         ],
     )
 
