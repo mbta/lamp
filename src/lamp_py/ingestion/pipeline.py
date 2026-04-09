@@ -78,11 +78,9 @@ def main() -> None:
             can_backfill = False
         #### Check Backfill first for testing ####
 
-
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue, upload=True)
         check_for_sigterm(metadata_queue, rds_process)
-
 
         process_logger.log_complete()
 

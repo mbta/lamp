@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # print(df)
 
     parquet_file = pq.ParquetFile(file)
-        file_metadata = parquet_file.metadata
+    file_metadata = parquet_file.metadata
     for file in os.listdir("/Users/hhuang/ingestion/lamp/RT_TRIP_UPDATES/year=2026/month=2/day=1/"):
         print(file)
         df = get_rowgroup_statistics(f"/Users/hhuang/ingestion/lamp/RT_TRIP_UPDATES/year=2026/month=2/day=1/{file}")
@@ -58,4 +58,6 @@ if __name__ == "__main__":
         parquet_file = pq.ParquetFile(f"/Users/hhuang/ingestion/lamp/RT_TRIP_UPDATES/year=2026/month=2/day=1/{file}")
         file_metadata = parquet_file.metadata
 
-ts.select('min_value', 'max_value').with_columns(pl.lit(f"/Users/hhuang/ingestion/lamp/RT_TRIP_UPDATES/year=2026/month=2/day=1/{file}").alias('filename'))
+ts.select("min_value", "max_value").with_columns(
+    pl.lit(f"/Users/hhuang/ingestion/lamp/RT_TRIP_UPDATES/year=2026/month=2/day=1/{file}").alias("filename")
+)
