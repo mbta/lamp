@@ -56,7 +56,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
     def convert(self) -> None:
 
         process_logger = ProcessLogger(
-            "parquet_table_creator",
+            "fullset_gtfs_parquet_table_creator",
             table_type="gtfs-rt",
             config_type=str(self.config_type),
             file_count=len(self.files),
@@ -119,7 +119,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         """
 
         process_logger = ProcessLogger(
-            "create_pyarrow_tables",
+            "fullset_create_pyarrow_tables",
             config_type=str(self.config_type),
         )
         process_logger.log_start()
