@@ -11,18 +11,24 @@ from queue import Queue
 
 
 def within_daily_processing_window() -> bool:
+    """
+    Check if current time is within the daily processing window defined by START_HOUR and END_HOUR
+    """
     now = datetime.now(timezone.utc)
     hour = now.hour
     return START_HOUR <= hour < END_HOUR
 
 
 def reprocess_trip_updates_terminal_prediction() -> bool:
-
+    """
+    Filter down fullset trip updates to just terminal predictions for heavy and light rail, and re-upload to a different location in s3 for use in the terminal prediction model training.
+    """
     all_terminal_stops = LightRailFilter.terminal_stop_ids + HeavyRailFilter.terminal_stop_ids
     polars_filter = pl.col("trip_update.trip.route_id").is_in(
         ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
     ) & pl.col("trip_update.stop_time_update.stop_id").is_in(all_terminal_stops)
 
+    
     pass
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import os
 import time
 import logging
@@ -73,7 +73,7 @@ def main() -> None:
         # this doesn't make use of the processing window fully. we need to have other parts of ingestion
         # populate a queue. this queue can be written to disk occasionally to pick back up...todo
         if within_daily_processing_window() and can_backfill:
-            reprocess_trip_updates(start_date=yesterday, end_date=yesterday)
+            reprocess_trip_updates(start_date=date(2026,1,12), end_date=date(2026,1,12))
             # reprocess_trip_updates_terminal_prediction()
             can_backfill = False
         #### Check Backfill first for testing ####

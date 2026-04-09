@@ -58,9 +58,11 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
 
             if debug_flag:
                 elapsed = time.time() - start_time
-                logger.add_metadata(partition=part, elapsed=elapsed, total_rows=write_table.num_rows)
+                logger.add_metadata(partition_id=part, elapsed=elapsed, total_rows=write_table.num_rows)
 
         writer.close()
+        
+    logger.log_complete()
 
 
 def delta_reingestion_runner(
