@@ -35,10 +35,10 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         metadata_queue: Queue[Optional[str]],
         output_location: str,
         polars_filter: pl.Expr | None = None,  # default to true - which will essentially not filter
-        max_delta_readers: int = 8,
+        max_workers: int = 8,
         verbose: bool = False,
     ) -> None:
-        GtfsRtConverter.__init__(self, config_type, metadata_queue, max_delta_readers=max_delta_readers)
+        GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
 
         self.detail = RtTripDetail()
 
@@ -124,7 +124,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         )
         process_logger.log_start()
 
-        with ThreadPoolExecutor(max_delta_readers=self.max_delta_readers, initializer=self.thread_init) as pool:
+        with ThreadPoolExecutor(max_workers=self.max_workers, initializer=self.thread_init) as pool:
             # for file in self.files:
             #     result_dt, result_filename, rt_data = self.gz_to_pyarrow(file)
 
