@@ -437,9 +437,9 @@ class GtfsRtConverter(Converter):
             # RT_ALERTS updates are essentially the same throughout a service day so resetting the
             # dataset will have minimal impact on archived data
             try:
-                table = pd.dataset(
+                out_ds = pd.dataset(
                     [
-                        out_ds,
+                        pd.dataset(table),
                         pd.dataset(local_path, schema=table.schema),
                     ],
                 )
