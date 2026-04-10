@@ -49,7 +49,7 @@ def reprocess_trip_updates(start_date: date, end_date: date) -> bool:
         config_type=ConfigType.RT_TRIP_UPDATES,
         metadata_queue=Queue(),
         output_location=local_tmp_output,
-        max_workers=4,
+        max_workers=8,
         verbose=True,
     )
 

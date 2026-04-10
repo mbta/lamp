@@ -136,7 +136,7 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 4) -> None:
+    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 8) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
