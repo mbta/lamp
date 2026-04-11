@@ -11,7 +11,7 @@ import pyarrow.parquet as pq
 
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
-from lamp_py.aws.s3 import file_list_from_s3, upload_file
+from lamp_py.aws.s3 import file_list_from_s3, object_exists, upload_file
 from lamp_py.runtime_utils.remote_files import S3_INCOMING
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
@@ -42,9 +42,12 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
 
         partitions = pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))
 
-        # grab just the partition values and sort them
-        # this will be big, but not too big
-        partitions = sorted(partitions.to_pylist())
+        ## Note: removed on purpose!
+        # partitions = sorted(partitions.to_pylist())
+        # don't try to sort these partitions - there's a chance the partition_column is null
+        # we want these records to show up in the final combined dataset for completion
+        # sort order doesn't really matter for predicate pushdown anyway
+        # this was just being cute.
 
         logger.add_metadata(unique_partitions=len(partitions))
 
@@ -52,16 +55,20 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
             start_time = time.time()
 
         for part in partitions:
-            write_table = ds.to_table(filter=((pc.field(partition_column) == part))).sort_by(in_partition_sort)
+            try:
+                write_table = ds.to_table(filter=((pc.field(partition_column) == part))).sort_by(in_partition_sort)
 
-            writer.write_table(write_table)
+                writer.write_table(write_table)
 
-            if debug_flag:
-                elapsed = time.time() - start_time
-                logger.add_metadata(partition_id=part, elapsed=elapsed, total_rows=write_table.num_rows)
+                if debug_flag:
+                    elapsed = time.time() - start_time
+                    logger.add_metadata(partition_id=part, elapsed=elapsed, total_rows=write_table.num_rows)
+            except Exception as e:
+                logger.log_exception(e, metadata={"partition_id": part})
+                continue
 
         writer.close()
-        
+
     logger.log_complete()
 
 
@@ -98,6 +105,22 @@ def delta_reingestion_runner(
     cur_date = start_date
 
     while cur_date <= end_date:
+
+        # setup input and output locations
+        local_converter_partition_path = f"{local_output_location}/lamp/{str(converter.config_type)}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+        local_combined_file = f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+        s3_combined_file = local_combined_file.replace(
+            f"{local_output_location}/",
+            f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/",
+        )
+
+        # skip if output already exists - need a more robust version of this eventually
+        if object_exists(s3_combined_file):
+            logger.add_metadata(skipping_date=cur_date, reason="output already exists")
+            cur_date = cur_date + timedelta(days=1)
+            continue
+
+        # otherwise, continue processing
         prefix = (
             os.path.join(
                 LAMP,
@@ -119,14 +142,10 @@ def delta_reingestion_runner(
         converter.convert()
 
         ## Stage 2: local to local (many to 1)
-        converter_output_path = f"{local_output_location}/lamp/{str(converter.config_type)}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
-        consolidated_parquet_output_file = (
-            f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
-        )
 
         write_dataset_to_single_parquet_partitioned_and_sorted(
-            converter_output_path,
-            consolidated_parquet_output_file,
+            local_converter_partition_path,
+            local_combined_file,
             partition_column=converter.partition_column(),
             in_partition_sort=converter.table_sort_order(),
             debug_flag=True,
@@ -136,11 +155,8 @@ def delta_reingestion_runner(
 
         # upload local to remote
         upload_file(
-            consolidated_parquet_output_file,
-            consolidated_parquet_output_file.replace(
-                f"{local_output_location}/",
-                f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/",
-            ),
+            local_combined_file,
+            s3_combined_file,
         )
 
         cur_date = cur_date + timedelta(days=1)
