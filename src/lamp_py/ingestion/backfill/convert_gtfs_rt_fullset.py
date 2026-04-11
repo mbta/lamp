@@ -11,12 +11,13 @@ import pyarrow
 import pyarrow.parquet as pq
 import polars as pl
 
+from lamp_py.aws.s3 import upload_file
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP
+from lamp_py.runtime_utils.remote_files import LAMP, S3Location
 
 import json
 
@@ -33,7 +34,8 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         self,
         config_type: ConfigType,
         metadata_queue: Queue[Optional[str]],
-        output_location: str,
+        local_output_location: str,
+        remote_output_location: S3Location | None = None,
         polars_filter: pl.Expr | None = None,  # default to true - which will essentially not filter
         max_workers: int = 8,
         verbose: bool = False,
@@ -42,7 +44,8 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
 
         self.detail = RtTripDetail()
 
-        self.tmp_folder = output_location
+        self.tmp_folder = local_output_location
+        self.remote_output_location = remote_output_location
 
         self.data_parts: Dict[datetime, TableData] = {}
 
@@ -82,6 +85,11 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
                 os.makedirs(Path(local_path).parent, exist_ok=True)
 
                 self.write_local_pq_partition(table, local_path)
+
+                # mirror on s3 if remote output location is provided
+                if self.remote_output_location is not None:
+                    s3_path = local_path.replace(f"{self.tmp_folder}/", f"{self.remote_output_location.s3_uri}/")
+                    upload_file(local_path, s3_path)
 
                 pool = pyarrow.default_memory_pool()
                 pool.release_unused()

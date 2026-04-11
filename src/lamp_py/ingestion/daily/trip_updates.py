@@ -28,7 +28,6 @@ def reprocess_trip_updates_terminal_prediction() -> bool:
         ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
     ) & pl.col("trip_update.stop_time_update.stop_id").is_in(all_terminal_stops)
 
-    
     pass
 
 
@@ -43,12 +42,14 @@ def reprocess_trip_updates(start_date: date, end_date: date) -> bool:
         os.makedirs(local_tmp_output)
 
     final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_FULLSET")
+    final_output_path_daily = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
 
     # construct and run converter once per day
     converter = GtfsRtTripsFullSetConverter(
         config_type=ConfigType.RT_TRIP_UPDATES,
         metadata_queue=Queue(),
-        output_location=local_tmp_output,
+        local_output_location=local_tmp_output,
+        remote_output_location=final_output_path_daily,
         max_workers=8,
         verbose=True,
     )
