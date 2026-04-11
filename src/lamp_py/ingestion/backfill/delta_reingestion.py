@@ -1,0 +1,166 @@
+# pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
+
+import os
+from datetime import date, timedelta
+import time
+import tempfile
+from typing import List, Tuple
+from pyarrow import fs
+import pyarrow.dataset as pd
+import pyarrow.parquet as pq
+
+from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
+
+from lamp_py.aws.s3 import file_list_from_s3, object_exists, upload_file
+from lamp_py.runtime_utils.remote_files import S3_INCOMING
+from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
+import pyarrow.compute as pc
+
+
+def write_dataset_to_single_parquet_partitioned_and_sorted(
+    local_path: str,
+    output_parquet_path: str,
+    partition_column: str,
+    in_partition_sort: List[Tuple[str, str]],
+    debug_flag: bool = False,
+) -> None:
+
+    logger = ProcessLogger("write_dataset_to_single_parquet_partitioned_and_sorted")
+    ds_paths = os.listdir(local_path)
+    ds_paths = [os.path.join(local_path, s) for s in ds_paths]
+
+    ds = pd.dataset(
+        ds_paths,
+        format="parquet",
+        filesystem=fs.LocalFileSystem(),
+    )
+
+    with tempfile.TemporaryDirectory(delete=False) as temp_dir:
+        # include the hash column for debug
+        writer = pq.ParquetWriter(output_parquet_path, schema=ds.schema, compression="zstd", compression_level=3)
+
+        partitions = pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))
+
+        ## Note: removed on purpose!
+        # partitions = sorted(partitions.to_pylist())
+        # don't try to sort these partitions - there's a chance the partition_column is null
+        # we want these records to show up in the final combined dataset for completion
+        # sort order doesn't really matter for predicate pushdown anyway
+        # this was just being cute.
+
+        logger.add_metadata(unique_partitions=len(partitions))
+
+        if debug_flag:
+            start_time = time.time()
+
+        for part in partitions:
+            try:
+                write_table = ds.to_table(filter=((pc.field(partition_column) == part))).sort_by(in_partition_sort)
+
+                writer.write_table(write_table)
+
+                if debug_flag:
+                    elapsed = time.time() - start_time
+                    logger.add_metadata(partition_id=part, elapsed=elapsed, total_rows=write_table.num_rows)
+            except Exception as e:
+                logger.log_exception(e, metadata={"partition_id": part})
+                continue
+
+        writer.close()
+
+    logger.log_complete()
+
+
+def delta_reingestion_runner(
+    start_date: date,
+    end_date: date,
+    final_output_path: S3Location,
+    converter: GtfsRtConverter,
+    in_filter: str | None = None,
+    local_output_location: str = "/tmp/gtfs-rt-continuous/",
+    bucket: str = S3_ARCHIVE,
+) -> None:
+    """
+    Docstring for delta_reingestion_runner
+
+    :param start_date: start of reingestion range
+    :type start_date: date
+    :param end_date: end of reingestion range
+    :type end_date: date
+    :param final_output_base: final resting prefix-path of output artifacts
+    :type final_output_base: S3Location
+    :param local_output_location: temporary working directory to place outputs
+    :type local_output_location: str
+    :param bucket: S3 bucket to read from (S3_ARCHIVE or S3_INCOMING)
+    :type bucket: str
+
+    """
+    logger = ProcessLogger("delta_reingestion_runner")
+    logger.log_start()
+
+    if bucket not in (S3_ARCHIVE, S3_INCOMING):
+        raise ValueError(f"bucket must be either S3_ARCHIVE or S3_INCOMING, got {bucket}")
+
+    cur_date = start_date
+
+    while cur_date <= end_date:
+
+        # setup input and output locations
+        local_converter_partition_path = f"{local_output_location}/lamp/{str(converter.config_type)}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+        local_combined_file = f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+        s3_combined_file = local_combined_file.replace(
+            f"{local_output_location}/",
+            f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/",
+        )
+
+        # skip if output already exists - need a more robust version of this eventually
+        if object_exists(s3_combined_file):
+            logger.add_metadata(skipping_date=cur_date, reason="output already exists")
+            cur_date = cur_date + timedelta(days=1)
+            continue
+
+        # otherwise, continue processing
+        prefix = (
+            os.path.join(
+                LAMP,
+                "delta",
+                cur_date.strftime("%Y"),
+                cur_date.strftime("%m"),
+                cur_date.strftime("%d"),
+            )
+            + "/"
+        )
+        file_list = file_list_from_s3(bucket, prefix, in_filter=in_filter)
+
+        logger.add_metadata(file_list_length=len(file_list))
+
+        #### Stage 1: local to local (MANY to many)
+        # converter = copy.deepcopy(converter_template_instance)
+
+        converter.add_files(file_list)
+        converter.convert()
+
+        ## Stage 2: local to local (many to 1)
+
+        write_dataset_to_single_parquet_partitioned_and_sorted(
+            local_converter_partition_path,
+            local_combined_file,
+            partition_column=converter.partition_column(),
+            in_partition_sort=converter.table_sort_order(),
+            debug_flag=True,
+        )
+
+        #### Stage 3: local to remote (one to one)
+
+        # upload local to remote
+        upload_file(
+            local_combined_file,
+            s3_combined_file,
+        )
+
+        cur_date = cur_date + timedelta(days=1)
+
+        # cleanup
+        converter.clean_local_folders()  # clear local output folders after each day to manage disk space
+        converter.reset_files()
