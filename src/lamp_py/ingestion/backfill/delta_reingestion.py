@@ -40,14 +40,7 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
         # include the hash column for debug
         writer = pq.ParquetWriter(output_parquet_path, schema=ds.schema, compression="zstd", compression_level=3)
 
-        partitions = pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))
-
-        ## Note: removed on purpose!
-        # partitions = sorted(partitions.to_pylist())
-        # don't try to sort these partitions - there's a chance the partition_column is null
-        # we want these records to show up in the final combined dataset for completion
-        # sort order doesn't really matter for predicate pushdown anyway
-        # this was just being cute.
+        partitions = pc.unique(ds.to_table(columns=[partition_column]).column(partition_column)).sort_by(partition_column).to_pylist()
 
         logger.add_metadata(unique_partitions=len(partitions))
 
