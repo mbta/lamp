@@ -1,0 +1,186 @@
+{
+  "type": "grid",
+  "data": {
+    "columns": 24,
+    "rowHeight": 20,
+    "maxWidth": 1400,
+    "bordered": true,
+    "cells": [
+      {
+        "position": [
+          1,
+          2,
+          22,
+          7
+        ]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          1,
+          10,
+          3,
+          4
+        ]
+      },
+      {
+        "position": [
+          1,
+          14,
+          11,
+          18
+        ]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          4,
+          10,
+          5,
+          4
+        ]
+      },
+      {
+        "position": [
+          13,
+          10,
+          3,
+          4
+        ]
+      },
+      {
+        "position": [
+          13,
+          14,
+          10,
+          20
+        ]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          16,
+          9,
+          7,
+          5
+        ]
+      },
+      {
+        "position": [
+          1,
+          36,
+          6,
+          3
+        ]
+      },
+      {
+        "position": [
+          1,
+          39,
+          20,
+          14
+        ]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          14,
+          34,
+          7,
+          5
+        ]
+      },
+      {
+        "position": [
+          7,
+          34,
+          7,
+          5
+        ]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          1,
+          55,
+          3,
+          2
+        ]
+      },
+      {
+        "position": [
+          1,
+          58,
+          14,
+          18
+        ]
+      },
+      {
+        "position": [
+          8,
+          53,
+          6,
+          5
+        ]
+      }
+    ]
+  }
+}
