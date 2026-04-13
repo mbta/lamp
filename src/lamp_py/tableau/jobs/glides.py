@@ -105,9 +105,7 @@ class HyperGlidesTripUpdates(HyperJob):
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
-        return pyarrow.schema(
-            [("foo", pyarrow.string())]
-        )  # trivial schema to satisfy the HyperJob interface; the actual schema is determined by dataframely schema specified in the function
+        return TripUpdatesTableau.to_pyarrow_schema()
 
     def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
@@ -132,9 +130,7 @@ class HyperGlidesOperatorSignIns(HyperJob):
 
     @property
     def output_processed_schema(self) -> pyarrow.schema:
-        return pyarrow.schema(
-            [("foo", pyarrow.string())]
-        )  # trivial schema to satisfy the HyperJob interface; the actual schema is determined by dataframely schema specified in the function
+        return OperatorSignInsTableau.to_pyarrow_schema()
 
     def create_parquet(self, _: DatabaseManager | None) -> None:
         self.update_parquet(None)
