@@ -40,7 +40,11 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
         # include the hash column for debug
         writer = pq.ParquetWriter(output_parquet_path, schema=ds.schema, compression="zstd", compression_level=3)
 
-        partitions = pc.unique(ds.to_table(columns=[partition_column]).column(partition_column)).sort_by(partition_column).to_pylist()
+        partitions = (
+            pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))
+            .sort_by(partition_column)
+            .to_pylist()
+        )
 
         logger.add_metadata(unique_partitions=len(partitions))
 
