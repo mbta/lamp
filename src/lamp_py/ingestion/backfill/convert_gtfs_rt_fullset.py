@@ -73,8 +73,7 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
                     continue
                 partition_dt = self.partition_dt(table)
 
-                local_path = os.path.join(
-                    self.tmp_folder,
+                path_suffix = os.path.join(
                     LAMP,
                     str(self.config_type),
                     f"year={partition_dt.year}",
@@ -82,13 +81,16 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
                     f"day={partition_dt.day}",
                     f"{partition_dt.isoformat()}_part_{str(table_count)}.parquet",
                 )
+
+                local_path = os.path.join(self.tmp_folder, path_suffix)
+
                 os.makedirs(Path(local_path).parent, exist_ok=True)
 
                 self.write_local_pq_partition(table, local_path)
 
                 # mirror on s3 if remote output location is provided
                 if self.remote_output_location is not None:
-                    s3_path = local_path.replace(f"{self.tmp_folder}/", f"{self.remote_output_location.s3_uri}/")
+                    s3_path = os.path.join(self.remote_output_location.s3_uri, path_suffix)
                     upload_file(local_path, s3_path)
 
                 pool = pyarrow.default_memory_pool()
