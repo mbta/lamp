@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import date, datetime, timedelta, timezone
 import os
 import time
 import logging
@@ -18,6 +19,11 @@ from lamp_py.ingestion.glides import ingest_glides_events
 # from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
 from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.utils.clear_folder import clear_folder
+from lamp_py.ingestion.daily.trip_updates import (
+    reprocess_trip_updates,
+    reprocess_trip_updates_terminal_prediction,
+    within_daily_processing_window,
+)
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
@@ -41,13 +47,37 @@ def main() -> None:
     # connect to the glides kinesis stream
     glides_reader = KinesisReader(stream_name="ctd-glides-prod")
 
+    today = datetime.now(timezone.utc).date()
+    # allow reprocessing upon deploy
+    can_backfill = True
+
     # run the event loop every 30 seconds
     while True:
+
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
         bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
         # ingest_light_rail_gps(bucket_filter=bucket_filter)
+
+        #### Check Backfill first for testing ####
+        # if can_backfill is false (we've done it once during the window), wait till the next day and re-enable it.
+        # set day to today. and backfill true to allow noew processing_window
+        if not can_backfill and today != datetime.now(timezone.utc).date():
+            can_backfill = True
+            today = datetime.now(timezone.utc).date()
+
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
+        process_logger.add_metadata(in_processing_window=within_daily_processing_window(), can_backfill=can_backfill)
+
+        # this doesn't make use of the processing window fully. we need to have other parts of ingestion
+        # populate a queue. this queue can be written to disk occasionally to pick back up...todo
+        if within_daily_processing_window() and can_backfill:
+            reprocess_trip_updates(start_date=date(2026, 4, 1), end_date=date(2026, 4, 9))
+            # reprocess_trip_updates_terminal_prediction()
+            can_backfill = False
+        #### Check Backfill first for testing ####
+
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue, upload=True)
         check_for_sigterm(metadata_queue, rds_process)

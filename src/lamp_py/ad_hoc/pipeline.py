@@ -6,7 +6,7 @@ import os
 from lamp_py.aws.ecs import check_for_parallel_tasks
 from lamp_py.runtime_utils.env_validation import validate_environment
 
-from lamp_py.ad_hoc.runner_003 import runner
+from lamp_py.ad_hoc.backfill_runner_terminal_predictions import run_backfill
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For Ad-Hoc Runner"""
@@ -31,7 +31,7 @@ def start() -> None:
     check_for_parallel_tasks()
 
     # run the main method
-    runner()
+    run_backfill()
 
 
 if __name__ == "__main__":

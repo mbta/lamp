@@ -134,7 +134,7 @@ DevGreen_TripUpdates_HeavyRailTerminals_60Day = FilteredHyperJob(
     remote_output_location=tableau_devgreen_rt_trip_updates_heavyrail_60_day,
     num_days_ago=60,
     processed_schema=convert_gtfs_rt_trip_updates.HeavyRailTerminalTripUpdates.to_pyarrow_schema(),
-    dataframe_filter=convert_gtfs_rt_trip_updates.hrtp_devgreen,
+    dataframe_filter=convert_gtfs_rt_trip_updates.terminal_prediction_devgreen_filter,
     parquet_filter=FilterBankRtTripUpdates.ParquetFilter.heavy_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
