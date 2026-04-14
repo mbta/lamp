@@ -547,15 +547,11 @@ class GtfsRtConverter(Converter):
             # overwrite existing hashed parquet path
             os.replace(hash_pq_path, local_path)
 
-            # record the number of rows in the final parquet file for logging
-            metadata = pq.read_metadata(local_path)
-
             # upload the upload_path file (without hash) to s3
             # replace the first part of the path with the s3 path
             upload_file(
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
-                {"number_of_rows": metadata.num_rows, "file_size": metadata.serialized_size},
             )
             if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
                 upload_file(
@@ -563,7 +559,6 @@ class GtfsRtConverter(Converter):
                     local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace(
                         "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
                     ),
-                    {"number_of_rows": {"number_of_rows": metadata.num_rows, "file_size": metadata.serialized_size}},
                 )
 
     # pylint: enable=R0914
@@ -593,6 +588,10 @@ class GtfsRtConverter(Converter):
 
             self.write_local_pq(table, local_path)
             self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
+
+            # record the number of rows in the final parquet file for logging
+            metadata = pq.read_metadata(local_path)
+            log.add_metadata(number_of_rows=metadata.num_rows, file_size=metadata.serialized_size)
 
             log.log_complete()
 
