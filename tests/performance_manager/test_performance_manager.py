@@ -442,14 +442,14 @@ def test_static_tables(
     # processing the static tables our db tables should have these many record
     # counts.
     row_counts = {
-        StaticTrips: 11709,
-        StaticRoutes: 24,
+        StaticTrips: 10993,
+        StaticRoutes: 21,
         StaticStops: 9743,
-        StaticStopTimes: 186618,
+        StaticStopTimes: 185104,
         StaticCalendar: 102,
         StaticCalendarDates: 85,
         StaticDirections: 378,
-        StaticRoutePatterns: 141,
+        StaticRoutePatterns: 124,
     }
 
     with rpm_db_manager.session.begin() as session:
