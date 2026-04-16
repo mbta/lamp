@@ -589,6 +589,10 @@ class GtfsRtConverter(Converter):
             self.write_local_pq(table, local_path)
             self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
 
+            # record the number of rows in the final parquet file for logging
+            metadata = pq.read_metadata(local_path)
+            log.add_metadata(number_of_rows=metadata.num_rows, file_size=metadata.serialized_size)
+
             log.log_complete()
 
         except Exception as exception:
