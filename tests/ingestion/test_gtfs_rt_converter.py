@@ -398,6 +398,7 @@ def test_convert(
     """It ingests correctly with and without existing files."""
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.move_s3_objects", lambda files, __: files)
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.upload_file", create_mock_upload_file(tmp_path))
+    monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.file_list_from_s3", lambda bucket, file_prefix: [])
     dfs = []
     for ts in timestamp:
         df = gtfs_rt_factory(schema, dy_gen, ts)

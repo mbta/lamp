@@ -23,40 +23,32 @@ from typing import (
 )
 
 import dataframely as dy
-import polars as pl
 import pyarrow
+import pyarrow.compute as pc
+import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 from pyarrow import fs
 
-import pyarrow.compute as pc
-import pyarrow.parquet as pq
-import pyarrow.dataset as pd
-
 from lamp_py.aws.s3 import (
-    move_s3_objects,
-    file_list_from_s3,
     download_file,
+    file_list_from_s3,
+    move_s3_objects,
     upload_file,
 )
-from lamp_py.runtime_utils.process_logger import ProcessLogger
-
-from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
 from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
+from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
 from lamp_py.ingestion.converter import ConfigType, Converter
-from lamp_py.runtime_utils.lamp_exception import NoImplException
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
-from lamp_py.ingestion.utils import (
-    GTFS_RT_HASH_COL,
-    hash_gtfs_rt_table,
-    hash_gtfs_rt_parquet,
-)
+from lamp_py.runtime_utils.lamp_exception import NoImplException
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
-    S3_SPRINGBOARD,
-    S3_ERROR,
     S3_ARCHIVE,
+    S3_ERROR,
+    S3_SPRINGBOARD,
 )
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
 
@@ -204,7 +196,7 @@ class GtfsRtConverter(Converter):
 
     def thread_init(self) -> None:
         """
-        initialize the filesystem in each convert thread
+        Initialize the filesystem in each convert thread
 
         update the active fs to use the s3 filesystem for all loading if the
         first file starts with s3
@@ -217,11 +209,10 @@ class GtfsRtConverter(Converter):
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
-        iterate through all of the files to be converted
+        Iterate through all of the files to be converted
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
             config_type=str(self.config_type),
@@ -272,7 +263,7 @@ class GtfsRtConverter(Converter):
 
     def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
         """
-        yield all tables in the data_parts map that have been sufficiently
+        Yield all tables in the data_parts map that have been sufficiently
         processed.
 
         @min_rows - how many rows the table must have to be yielded
@@ -367,7 +358,7 @@ class GtfsRtConverter(Converter):
 
     def partition_dt(self, table: pyarrow.Table) -> datetime:
         """
-        verify partition structure of pyarrow Table
+        Verify partition structure of pyarrow Table
 
         :param table: pyarrow Table to verify
 
@@ -417,20 +408,15 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
+    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
-        create dataset, with hash column, that will be written to parquet file
+        Merge pyarrow Table with existing local_path parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
-        log = ProcessLogger("make_hash_datset")
-        log.log_start()
-        table = hash_gtfs_rt_table(table)
         out_ds = pd.dataset(table)
-
         if self.sync_with_s3(local_path):
-            hash_gtfs_rt_parquet(local_path)
             # RT_ALERTS parquet files contain columns with nested structure types
             # if a new nested field is ingested, combining of the new and existing nested column is not possible
             # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
@@ -446,122 +432,38 @@ class GtfsRtConverter(Converter):
             except pyarrow.ArrowTypeError as exception:
                 if self.config_type != ConfigType.RT_ALERTS:
                     raise exception
-        log.log_complete()
-        return out_ds
-
-    # pylint: disable=R0914
-    # pylint too many local variables (more than 15)
-    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
-        """
-        merge pyarrow Table with existing local_path parquet file
-
-        :param table: pyarrow Table
-        :param local_path: path to local parquet file
-        """
-        out_ds = self.make_hash_dataset(table, local_path)
-
-        unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
-
-        no_hash_schema = out_ds.schema.remove(out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            rail_full_set_path = os.path.join(temp_dir, "rail_full_set.parquet")
+            with pq.ParquetWriter(upload_path, table.schema, compression="zstd", compression_level=3) as writer:
+                for batch in out_ds.to_batches():
+                    writer.write_batch(batch)
 
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
-            upload_writer = pq.ParquetWriter(
-                upload_path, schema=no_hash_schema, compression="zstd", compression_level=3
-            )
-
-            # include the hash column for debug
-            rail_full_set_writer = pq.ParquetWriter(
-                rail_full_set_path, schema=out_ds.schema, compression="zstd", compression_level=3
-            )
-
-            partitions = pc.unique(
-                out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
-            )
-            for part in partitions:
-                write_table = out_ds.to_table(
-                    filter=(
-                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
+            if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
+                rail_path = os.path.join(temp_dir, "rail.parquet")
+                with pq.ParquetWriter(rail_path, table.schema, compression="zstd", compression_level=3) as writer:
+                    rail_ds = out_ds.filter(
+                        FilterBankRtTripUpdates.ParquetFilter.light_rail
+                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
                     )
-                )
+                    for batch in rail_ds.to_batches():
+                        writer.write_batch(batch)
 
-                hash_writer.write_table(write_table)
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                write_table = (
-                    pl.from_arrow(
-                        out_ds.to_table(
-                            filter=(
-                                (pc.field(self.detail.partition_column) == part)
-                                & (pc.field("feed_timestamp") >= unique_ts_min)
-                            )
-                        )
-                    )
-                    .sort(by=["feed_timestamp"])  # type: ignore
-                    .unique(subset=GTFS_RT_HASH_COL, keep="first")
-                    .to_arrow()
-                    .cast(out_ds.schema)
-                )
-                if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
-                    lr_write_table = out_ds.to_table(
-                        filter=(
-                            (pc.field(self.detail.partition_column) == part)
-                            & (pc.field("feed_timestamp") < unique_ts_min)
-                            & (
-                                FilterBankRtTripUpdates.ParquetFilter.light_rail
-                                | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
-                            )
-                        )
-                    )
-                    rail_full_set_writer.write_table(lr_write_table)
-
-                    lr_write_table = (
-                        pl.from_arrow(
-                            out_ds.to_table(
-                                filter=(
-                                    (pc.field(self.detail.partition_column) == part)
-                                    & (pc.field("feed_timestamp") >= unique_ts_min)
-                                    & (
-                                        FilterBankRtTripUpdates.ParquetFilter.light_rail
-                                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
-                                    )
-                                )
-                            )
-                        )
-                        .sort(by=["feed_timestamp"])  # type: ignore
-                        .to_arrow()
-                        .cast(out_ds.schema)
-                    )
-                    rail_full_set_writer.write_table(lr_write_table)
-
-                hash_writer.write_table(write_table)
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-
-            hash_writer.close()
-            upload_writer.close()
-            rail_full_set_writer.close()
-
-            # overwrite existing hashed parquet path
-            os.replace(hash_pq_path, local_path)
+            os.replace(upload_path, local_path)
 
             # upload the upload_path file (without hash) to s3
             # replace the first part of the path with the s3 path
             upload_file(
-                upload_path,
+                local_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
             if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
                 upload_file(
-                    rail_full_set_path,
+                    rail_path,
                     local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace(
                         "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
                     ),
                 )
-
-    # pylint: enable=R0914
 
     def continuous_pq_update(self, table: pyarrow.Table) -> None:
         """
@@ -610,7 +512,7 @@ class GtfsRtConverter(Converter):
 
     def clean_local_folders(self) -> None:
         """
-        clean local temp folders
+        Clean local temp folders
         """
         days_to_keep = 2
         root_folder = os.path.join(
@@ -630,7 +532,7 @@ class GtfsRtConverter(Converter):
 
     def move_s3_files(self) -> None:
         """
-        move archive and error files to their respective s3 buckets.
+        Move archive and error files to their respective s3 buckets.
         """
         if len(self.error_files) > 0:
             self.error_files = move_s3_objects(
