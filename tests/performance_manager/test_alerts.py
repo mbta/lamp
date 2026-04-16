@@ -289,7 +289,7 @@ def generate_sample_informed_entity(
     for index in range(100):
         informed_entity = []
         for route_id in random.sample(choices["route_id"], random.randint(1, 4)):
-            route_type = random.choice([0, 1, 2, 3, None])
+            route_type = random.choice([0, 1, 2, 3, 4, None])
 
             for direction_id in random.sample(choices["direction_id"], random.randint(1, 2)):
                 for stop_id in random.sample(choices["stop_id"], random.randint(1, 3)):
@@ -326,7 +326,7 @@ def test_explode_informed_entity() -> None:
             "Green-D",
             None,
         ],
-        "route_type": [0.0, 1.0, 2.0, 3.0, None],
+        "route_type": [0.0, 1.0, 2.0, 3.0, 4.0, None],
         "direction_id": ["0", "1", None],
         "stop_id": ["725", "09253", "523", "Winchester Center", None],
         "facility_id": [
