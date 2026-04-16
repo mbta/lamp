@@ -138,6 +138,6 @@ def ingest_gtfs(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP)
 
     static schedule files should be ingested first
     """
-    # gtfs_to_parquet()
-    # ingest_gtfs_archive(metadata_queue)
+    gtfs_to_parquet()
+    ingest_gtfs_archive(metadata_queue)
     ingest_s3_files(metadata_queue, bucket_filter=bucket_filter)
