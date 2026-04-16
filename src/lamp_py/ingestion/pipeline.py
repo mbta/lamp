@@ -15,7 +15,6 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.ingestion.ingest_gtfs import ingest_gtfs
 from lamp_py.ingestion.glides import ingest_glides_events
 
-# from lamp_py.ingestion.light_rail_gps import ingest_light_rail_gps
 from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.utils.clear_folder import clear_folder
 
@@ -47,7 +46,6 @@ def main() -> None:
         process_logger.log_start()
         bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
-        # ingest_light_rail_gps(bucket_filter=bucket_filter)
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue, upload=True)
         check_for_sigterm(metadata_queue, rds_process)
