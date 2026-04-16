@@ -131,7 +131,7 @@ class RtBusVehicleDetail(GTFSRTDetail):
 
     @property
     def partition_column(self) -> str:
-        return "vehicle.trip.route_id"
+        return "vehicle.vehicle.id"
 
     @property
     def import_schema(self) -> pyarrow.schema:

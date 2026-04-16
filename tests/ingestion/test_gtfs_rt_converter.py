@@ -412,23 +412,25 @@ def test_convert(
         converter.convert()
         dfs.append(df)
 
-    converted_records = (
-        pl.read_parquet(
-            [
-                tmp_path.joinpath(
-                    S3_SPRINGBOARD,
-                    LAMP,
-                    str(config_type),
-                    ts.strftime("year=%Y/month=%-m/day=%-d/%Y-%m-%dT00:00:00.parquet"),
-                ).as_posix()
-                for ts in set(ts.date() for ts in timestamp)
-            ]
-        )
-        .select("id")
-        .unique()
+    converted_records = pl.read_parquet(
+        [
+            tmp_path.joinpath(
+                S3_SPRINGBOARD,
+                LAMP,
+                str(config_type),
+                ts.strftime("year=%Y/month=%-m/day=%-d/%Y-%m-%dT00:00:00.parquet"),
+            ).as_posix()
+            for ts in set(ts.date() for ts in timestamp)
+        ]
     )
 
-    # TODO : flatten the whole table and comopare the full thing (minus feed_timestamp) instead of just comparing ids
-    ids = pl.union(dfs).select("entity").explode("entity").unnest("entity").select("id").unique()
+    expected_records = (
+        pl.union(dfs)
+        .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
+        .explode("entity")
+        .unnest("entity")
+        .unnest("vehicle", separator=".")
+        .unnest("vehicle.vehicle", "vehicle.position", "vehicle.trip", "vehicle.operator", separator=".")
+    )
 
-    assert_frame_equal(converted_records, ids)
+    assert_frame_equal(converted_records, expected_records, check_row_order=False, check_column_order=False)
