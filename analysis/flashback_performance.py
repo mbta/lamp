@@ -21,11 +21,11 @@ def _():
     from datetime import datetime, timedelta
     import marimo as mo
     import polars as pl
+    import altair as alt
 
     from lamp_py.flashback.events import StopEvents
     from lamp_py.aws.s3 import file_list_from_s3_with_details
-
-    return StopEvents, datetime, mo, pl, timedelta
+    return StopEvents, alt, datetime, mo, pl, timedelta
 
 
 @app.cell
@@ -203,6 +203,18 @@ def _(coverage, coverage_thresholds, mo):
 
 @app.cell
 def _(mo):
+    mo.md(r"""Here are the events missing from our Flashback dataset.""")
+    return
+
+
+@app.cell
+def _(missing_events):
+    missing_events
+    return
+
+
+@app.cell
+def _(mo):
     mo.md(r"""## Accuracy""")
     return
 
@@ -256,8 +268,8 @@ def _():
 @app.cell
 def _(accuracy_thresholds, event_accuracy, mo):
     mo.stat(
-        label="99% of events have a timestamp difference of",
-        value=f"{match_threshold(event_accuracy, accuracy_thresholds)} {event_accuracy} seconds or less",
+        label="99% of event timestamps differ by",
+        value=f"{match_threshold(event_accuracy, accuracy_thresholds)} <{event_accuracy} seconds",
     )
     return
 
@@ -305,6 +317,30 @@ def _(pl, stop_events):
 
 
 @app.cell
+def _(event_lag):
+    event_lag
+    return
+
+
+@app.cell
+def _(alt, event_lag, pl):
+    (
+        alt.Chart(
+            event_lag
+                .with_columns(pl.col("event_lag").dt.total_seconds())
+                .filter(pl.col("event_lag").is_between(0, 100))
+        )
+        .mark_bar()
+        .encode(
+            alt.X('event_lag:Q').bin(maxbins = 30).title("Lag (seconds)"),
+            alt.Y('count()'),
+            alt.Color('most_recent_event')
+        )
+    )
+    return
+
+
+@app.cell
 def _(event_lag, pl):
     lag = event_lag.group_by("most_recent_event").agg(pl.quantile("event_lag", 0.99).dt.total_seconds()).rows()
     return (lag,)
@@ -319,7 +355,7 @@ def _():
 @app.cell
 def _(lag, lag_thresholds, mo):
     mo.stat(
-        label="99% of departures are available within",
+        label="99% of arrivals are available within",
         value=f"{match_threshold(lag[0][1], lag_thresholds)} {lag[0][1]} seconds",
     )
     return
@@ -328,7 +364,7 @@ def _(lag, lag_thresholds, mo):
 @app.cell
 def _(lag, lag_thresholds, mo):
     mo.stat(
-        label="99% of arrivals are available within",
+        label="99% of departures are available within",
         value=f"{match_threshold(lag[1][1], lag_thresholds)} {lag[1][1]} seconds",
     )
     return
