@@ -30,7 +30,7 @@ trip_descriptor = dy.Struct(
 
 vehicle_descriptor = dy.Struct(
     inner={
-        "id": dy.String(nullable=True),
+        "id": dy.String(nullable=False),
         "label": dy.String(nullable=True),
         "license_plate": dy.String(nullable=True),
         "consist": dy.List(

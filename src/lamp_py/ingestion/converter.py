@@ -41,45 +41,44 @@ class ConfigType(Enum):
         return self.name
 
     @classmethod
+    def filename_patterns(cls) -> dict[ConfigType, list[str]]:
+        """
+        Return mapping of ConfigType to their filename patterns.
+
+        Multiple patterns can match the same ConfigType.
+        """
+        return {
+            cls.RT_ALERTS: ["mbta.com_realtime_Alerts_enhanced"],
+            cls.RT_TRIP_UPDATES: [
+                "mbta.com_realtime_TripUpdates_enhanced",
+                "concentrate_TripUpdates_enhanced.json",
+            ],
+            cls.RT_VEHICLE_POSITIONS: [
+                "mbta.com_realtime_VehiclePositions_enhanced",
+                "concentrate_VehiclePositions_enhanced.json",
+            ],
+            cls.BUS_TRIP_UPDATES: ["com_prod_TripUpdates_enhanced"],
+            cls.BUS_VEHICLE_POSITIONS: ["com_prod_VehiclePositions_enhanced"],
+            cls.VEHICLE_COUNT: ["net_vehicleCount"],
+            cls.SCHEDULE: ["MBTA_GTFS.zip"],
+            cls.LIGHT_RAIL: ["LightRailRawGPS"],
+            cls.DEV_GREEN_RT_TRIP_UPDATES: ["https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_TripUpdates_enhanced"],
+            cls.DEV_GREEN_RT_VEHICLE_POSITIONS: [
+                "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json"
+            ],
+        }
+
+    @classmethod
     def from_filename(cls, filename: str) -> ConfigType:
         """
-        Figure out which config type to use for a given filename. Raise a
-        ConfigTypeFromFilenameException if unable to determine.
+        Figure out which config type to use for a given filename.
+
+        Raise a ConfigTypeFromFilenameException if unable to determine.
         """
-        # pylint: disable-msg=R0911
-        # disable too many returns error message
-        if "mbta.com_realtime_Alerts_enhanced" in filename:
-            return cls.RT_ALERTS
-
-        if "mbta.com_realtime_TripUpdates_enhanced" in filename:
-            return cls.RT_TRIP_UPDATES
-        if "concentrate_TripUpdates_enhanced.json" in filename:
-            return cls.RT_TRIP_UPDATES
-
-        if "mbta.com_realtime_VehiclePositions_enhanced" in filename:
-            return cls.RT_VEHICLE_POSITIONS
-        if "concentrate_VehiclePositions_enhanced.json" in filename:
-            return cls.RT_VEHICLE_POSITIONS
-
-        if "com_prod_TripUpdates_enhanced" in filename:
-            return cls.BUS_TRIP_UPDATES
-
-        if "com_prod_VehiclePositions_enhanced" in filename:
-            return cls.BUS_VEHICLE_POSITIONS
-
-        if "net_vehicleCount" in filename:
-            return cls.VEHICLE_COUNT
-
-        if "MBTA_GTFS.zip" in filename:
-            return cls.SCHEDULE
-
-        if "LightRailRawGPS" in filename:
-            return cls.LIGHT_RAIL
-
-        if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_TripUpdates_enhanced" in filename:
-            return cls.DEV_GREEN_RT_TRIP_UPDATES
-        if "https_mbta_gtfs_s3_dev_green.s3.amazonaws.com_rtr_VehiclePositions_enhanced.json" in filename:
-            return cls.DEV_GREEN_RT_VEHICLE_POSITIONS
+        for config_type, patterns in cls.filename_patterns().items():
+            for pattern in patterns:
+                if pattern in filename:
+                    return config_type
 
         raise ConfigTypeFromFilenameException(filename)
 
