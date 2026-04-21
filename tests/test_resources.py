@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import pyarrow
 from pyarrow import csv, parquet
 
-from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD, S3_INCOMING, S3Location
+from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD, S3_INCOMING, S3Location, LAMP
 
 test_files_dir = os.path.join(os.path.dirname(__file__), "test_files")
 
@@ -76,4 +76,8 @@ tm_time_point_file = LocalS3Location(bucket=S3_SPRINGBOARD, prefix="TM/TMMAIN_TI
 tm_daily_sched_adherence_waiver_file = LocalS3Location(
     bucket=S3_SPRINGBOARD,
     prefix="TM/DAILY_SCHED_ADHERE_WAIVER.parquet",
+)
+bus_vehicle_positions = LocalS3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=f"{LAMP}/BUS_VEHICLE_POSITIONS",
 )
