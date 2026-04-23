@@ -1,87 +1,55 @@
-from typing import List, Tuple
-import pyarrow
+from typing import List
 
-from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
-from lamp_py.ingestion.gtfs_rt_structs import (
-    trip_descriptor,
-    vehicle_descriptor,
-    stop_time_event,
-)
-from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
+import dataframely as dy
+
+from lamp_py.runtime_utils.remote_files import bus_trip_updates
+
+from .config_rt_trip import RtTripTable
+from .gtfs_rt_detail import GTFSRTDetail
+from .gtfs_rt_structs import FeedEntity, FeedMessage, Operator, TripUpdate
+
+
+class BusTripUpdate(TripUpdate, kw_only=True):
+    """Bus Trip Update with operator information."""
+
+    operator: Operator
+
+
+class BusTripUpdateEntity(FeedEntity, kw_only=True):
+    """Each entity in the Bus TripUpdates feed."""
+
+    trip_update: BusTripUpdate
+
+
+class BusTripUpdateMessage(FeedMessage):
+    """A snapshot of the Bus TripUpdates feed."""
+
+    entity: List[BusTripUpdateEntity]
+
+
+class BusTripTable(RtTripTable):
+    """Flattened Bus TripUpdates data."""
+
+    vehicle_consist = dy.List(
+        dy.Struct(inner={"label": dy.String(nullable=True)}), nullable=True, alias="trip_update.vehicle.consist"
+    )
+    vehicle_assignment_status = dy.String(nullable=True, alias="trip_update.vehicle.assignment_status")
+    operator_id = dy.String(nullable=True, alias="trip_update.operator.id")
+    operator_first_name = dy.String(
+        metadata={"reader_roles": ["OperatorName"]}, nullable=True, alias="trip_update.operator.first_name"
+    )
+    operator_last_name = dy.String(
+        metadata={"reader_roles": ["OperatorName"]}, nullable=True, alias="trip_update.operator.last_name"
+    )
+    operator_name = dy.String(
+        metadata={"reader_roles": ["OperatorName"]}, nullable=True, alias="trip_update.operator.name"
+    )
+    operator_logon_time = dy.UInt64(nullable=True, alias="trip_update.operator.logon_time")
 
 
 class RtBusTripDetail(GTFSRTDetail):
-    """
-    Detail for how to convert RT GTFS Trip Updates from json entries into
-    parquet tables.
-    """
+    """How to convert Bus GTFS Trip Updates from structs into a table."""
 
-    def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
-        """modify table schema before write to parquet"""
-        return flatten_table_schema(explode_table_column(flatten_table_schema(table), "trip_update.stop_time_update"))
-
-    @property
-    def partition_column(self) -> str:
-        return "trip_update.trip.route_id"
-
-    @property
-    def import_schema(self) -> pyarrow.schema:
-        return pyarrow.schema(
-            [
-                ("id", pyarrow.string()),
-                (
-                    "trip_update",
-                    pyarrow.struct(
-                        [
-                            (
-                                "timestamp",
-                                pyarrow.uint64(),
-                            ),  # Not currently provided by Busloc
-                            (
-                                "delay",
-                                pyarrow.int32(),
-                            ),  # Not currently provided by Busloc
-                            (
-                                "trip",
-                                trip_descriptor.pyarrow_dtype,
-                            ),  # Busloc currently only provides trip_id, route_id and schedule_relationship
-                            (
-                                "vehicle",
-                                vehicle_descriptor.pyarrow_dtype,
-                            ),  # Busloc currently only provides id and label
-                            (
-                                "stop_time_update",
-                                pyarrow.list_(
-                                    pyarrow.struct(
-                                        [
-                                            ("stop_sequence", pyarrow.uint32()),
-                                            ("stop_id", pyarrow.string()),
-                                            ("arrival", stop_time_event.pyarrow_dtype),
-                                            ("departure", stop_time_event.pyarrow_dtype),
-                                            (
-                                                "schedule_relationship",
-                                                pyarrow.string(),
-                                            ),
-                                            ("cause_id", pyarrow.uint16()),
-                                            (
-                                                "cause_description",
-                                                pyarrow.string(),
-                                            ),
-                                            ("remark", pyarrow.string()),
-                                        ]
-                                    )
-                                ),
-                            ),
-                        ]
-                    ),
-                ),
-            ]
-        )
-
-    @property
-    def table_sort_order(self) -> List[Tuple[str, str]]:
-        return [
-            ("trip_update.trip.route_pattern_id", "ascending"),
-            ("trip_update.trip.direction_id", "ascending"),
-            ("trip_update.vehicle.id", "ascending"),
-        ]
+    record_schema = BusTripUpdateMessage
+    table_schema = BusTripTable
+    remote_location = bus_trip_updates

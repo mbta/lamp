@@ -1,46 +1,24 @@
-import polars as pl
 import dataframely as dy
+import polars as pl
 
-from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
+from lamp_py.ingestion.config_rt_vehicle import RtVehicleTable
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
+from lamp_py.utils.typing import with_nullable
 
 
-class VehiclePositions(dy.Schema):
-    "All fields from VehiclePositions message."
-    id = dy.String(nullable=True)
-    trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id")
-    route_id = dy.String(nullable=True, alias="vehicle.trip.route_id")
-    direction_id = dy.UInt8(nullable=True, alias="vehicle.trip.direction_id")
-    start_time = dy.String(nullable=True, alias="vehicle.trip.start_time")
-    start_date = dy.String(nullable=True, alias="vehicle.trip.start_date")
-    revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue")
-    vehicle_id = dy.String(nullable=True, alias="vehicle.vehicle.id")
-    vehicle_label = dy.String(nullable=True, alias="vehicle.vehicle.label")
+class VehiclePositions(RtVehicleTable):
+    """Tableau-facing dataset"""
+
+    id = with_nullable(RtVehicleTable.id, nullable=True)
+    feed_timestamp = with_nullable(RtVehicleTable.feed_timestamp, nullable=True)
     timestamp = dy.Datetime(
         nullable=True,
         alias="vehicle.timestamp",
-        check=lambda x: x.is_not_null(),  # setting field nullability directly prevents writing with pyarrow; remove explicit pyarrow schema validation once all datasets use dataframely validation
+        check=lambda x: (
+            x.is_not_null()
+        ),  # setting field nullability directly prevents writing with pyarrow; remove explicit pyarrow schema validation once all datasets use dataframely validation
     )
-    feed_timestamp = dy.Datetime(nullable=True)
-    stop_id = dy.String(nullable=True, alias="vehicle.stop_id")
-    route_pattern_id = dy.String(nullable=True, alias="vehicle.trip.route_pattern_id")
-    tm_trip_id = dy.String(nullable=True, alias="vehicle.trip.tm_trip_id")
-    overload_id = dy.Int64(nullable=True, alias="vehicle.trip.overload_id")
-    overload_offset = dy.Int64(nullable=True, alias="vehicle.trip.overload_offset")
-    last_trip = dy.Bool(nullable=True, alias="vehicle.trip.last_trip")
-    schedule_relationship = dy.String(nullable=True, alias="vehicle.trip.schedule_relationship")
-    license_plate = dy.String(nullable=True, alias="vehicle.vehicle.license_plate")
-    assignment_status = dy.String(nullable=True, alias="vehicle.vehicle.assignment_status")
-    bearing = dy.UInt16(nullable=True, alias="vehicle.position.bearing")
-    latitude = dy.Float64(nullable=True, alias="vehicle.position.latitude")
-    longitude = dy.Float64(nullable=True, alias="vehicle.position.longitude")
-    speed = dy.Float64(nullable=True, alias="vehicle.position.speed")
-    odometer = dy.Float64(nullable=True, alias="vehicle.position.odometer")
-    current_stop_sequence = dy.UInt32(nullable=True, alias="vehicle.current_stop_sequence")
-    congestion_level = dy.String(nullable=True, alias="vehicle.congestion_level")
-    occupancy_status = dy.String(nullable=True, alias="vehicle.occupancy_status")
-    occupancy_percentage = dy.UInt32(nullable=True, alias="vehicle.occupancy_percentage")
-    current_status = dy.String(nullable=True, alias="vehicle.current_status")
 
 
 class LightRailTerminalVehiclePositions(dy.Schema):

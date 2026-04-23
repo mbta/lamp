@@ -1,135 +1,138 @@
-from typing import List, Tuple
-import pyarrow
+from typing import List
+
+import dataframely as dy
+import msgspec
+import msgspec.json
+import polars as pl
+
+from lamp_py.runtime_utils.remote_files import rt_alerts
+from lamp_py.utils.typing import struct_to_schema
 
 from .gtfs_rt_detail import GTFSRTDetail
-from .gtfs_rt_structs import (
-    trip_descriptor,
-    translated_string,
-)
+from .gtfs_rt_structs import Alert, FeedEntity, FeedMessage, GTFSRealtimeTable
+
+
+class RtAlertEntity(FeedEntity, kw_only=True):
+    """Each entity in the RT Alerts feed."""
+
+    alert: Alert
+
+
+class RtAlertMessage(FeedMessage):
+    """A snapshot of the RT Alerts feed."""
+
+    entity: List[RtAlertEntity]
+
+
+class RtAlertTable(GTFSRealtimeTable):
+    """Flattened RT Alerts data."""
+
+    cause = dy.String(nullable=True, alias="alert.cause")
+    cause_detail = dy.String(nullable=True, alias="alert.cause_detail")
+    effect = dy.String(nullable=True, alias="alert.effect")
+    effect_detail = dy.String(nullable=True, alias="alert.effect_detail")
+    severity_level = dy.String(nullable=True, alias="alert.severity_level")
+    severity = dy.UInt16(nullable=True, alias="alert.severity")
+    created_timestamp = dy.UInt64(nullable=True, alias="alert.created_timestamp")
+    last_modified_timestamp = dy.UInt64(nullable=True, alias="alert.last_modified_timestamp")
+    last_push_notification_timestamp = dy.UInt64(nullable=True, alias="alert.last_push_notification_timestamp")
+    closed_timestamp = dy.Int64(nullable=True, alias="alert.closed_timestamp")
+    alert_lifecycle = dy.String(nullable=True, alias="alert.alert_lifecycle")
+    duration_certainty = dy.String(nullable=True, alias="alert.duration_certainty")
+    url = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.url.translation",
+    )
+    header_text = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.header_text.translation",
+    )
+    description_text = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.description_text.translation",
+    )
+    short_header_text = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.short_header_text.translation",
+    )
+    service_effect_text = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.service_effect_text.translation",
+    )
+    timeframe_text = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.timeframe_text.translation",
+    )
+    recurrence_text = dy.List(
+        dy.Struct(inner={"text": dy.String(), "language": dy.String(nullable=True)}),
+        nullable=True,
+        alias="alert.recurrence_text.translation",
+    )
+    active_period = dy.List(
+        dy.Struct(inner={"start": dy.UInt64(nullable=True), "end": dy.UInt64(nullable=True)}),
+        nullable=True,
+        alias="alert.active_period",
+    )
+    informed_entity = dy.List(
+        dy.Struct(
+            inner={
+                "agency_id": dy.String(nullable=True),
+                "route_id": dy.String(nullable=True),
+                "route_type": dy.Int32(nullable=True),
+                "direction_id": dy.UInt8(nullable=True),
+                "trip": dy.Struct(
+                    inner={
+                        "trip_id": dy.String(nullable=True),
+                        "route_id": dy.String(nullable=True),
+                        "direction_id": dy.UInt8(nullable=True),
+                        "start_time": dy.String(nullable=True),
+                        "start_date": dy.String(nullable=True),
+                        "schedule_relationship": dy.String(nullable=True),
+                        "route_pattern_id": dy.String(nullable=True),
+                        "tm_trip_id": dy.String(nullable=True),
+                        "overload_id": dy.Int64(nullable=True),
+                        "overload_offset": dy.Int64(nullable=True),
+                        "revenue": dy.Bool(nullable=True),
+                        "last_trip": dy.Bool(nullable=True),
+                    },
+                    nullable=True,
+                ),
+                "stop_id": dy.String(nullable=True),
+                "facility_id": dy.String(nullable=True),
+                "activities": dy.List(dy.String(), nullable=True),
+            }
+        ),
+        nullable=True,
+        alias="alert.informed_entity",
+    )
+    reminder_times = dy.List(dy.UInt64(), nullable=True, alias="alert.reminder_times")
 
 
 class RtAlertsDetail(GTFSRTDetail):
-    """
-    Detail for how to convert RT GTFS Alerts from json entries into parquet
-    tables.
-    """
+    """How to convert RT GTFS Alerts from structs into a table."""
 
-    @property
-    def partition_column(self) -> str:
-        return "alert.cause"
+    record_schema = RtAlertMessage
+    table_schema = RtAlertTable
+    remote_location = rt_alerts
 
-    @property
-    def import_schema(self) -> pyarrow.schema:
-        return pyarrow.schema(
-            [
-                ("id", pyarrow.string()),
-                (
-                    "alert",
-                    pyarrow.struct(
-                        [
-                            (
-                                "active_period",
-                                pyarrow.list_(
-                                    pyarrow.struct(
-                                        [
-                                            ("start", pyarrow.uint64()),
-                                            ("end", pyarrow.uint64()),
-                                        ]
-                                    )
-                                ),
-                            ),
-                            (
-                                "informed_entity",
-                                pyarrow.list_(
-                                    pyarrow.struct(
-                                        [
-                                            ("agency_id", pyarrow.string()),
-                                            ("route_id", pyarrow.string()),
-                                            ("route_type", pyarrow.int32()),
-                                            ("direction_id", pyarrow.uint8()),
-                                            ("trip", trip_descriptor.pyarrow_dtype),
-                                            ("stop_id", pyarrow.string()),
-                                            ("facility_id", pyarrow.string()),
-                                            (
-                                                "activities",
-                                                pyarrow.list_(pyarrow.string()),
-                                            ),  # MBTA Enhanced field
-                                        ]
-                                    )
-                                ),
-                            ),
-                            ("cause", pyarrow.string()),
-                            (
-                                "cause_detail",
-                                pyarrow.string(),
-                            ),  # type does not match spec type of <TranslatedString>
-                            ("effect", pyarrow.string()),
-                            (
-                                "effect_detail",
-                                pyarrow.string(),
-                            ),  # type does not match spec type of <TranslatedString>
-                            ("url", translated_string.pyarrow_dtype),
-                            ("header_text", translated_string.pyarrow_dtype),
-                            ("description_text", translated_string.pyarrow_dtype),
-                            ("severity_level", pyarrow.string()),
-                            (
-                                "severity",
-                                pyarrow.uint16(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "created_timestamp",
-                                pyarrow.uint64(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "last_modified_timestamp",
-                                pyarrow.uint64(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "last_push_notification_timestamp",
-                                pyarrow.uint64(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "closed_timestamp",
-                                pyarrow.int64(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "alert_lifecycle",
-                                pyarrow.string(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "duration_certainty",
-                                pyarrow.string(),
-                            ),  # MBTA Enhanced field
-                            (
-                                "reminder_times",
-                                pyarrow.list_(pyarrow.uint64()),
-                            ),  # MBTA Enhanced field
-                            (
-                                "short_header_text",
-                                translated_string.pyarrow_dtype,
-                            ),  # not in message Alert struct spec
-                            (
-                                "service_effect_text",
-                                translated_string.pyarrow_dtype,
-                            ),  # MBTA Enhanced field
-                            (
-                                "timeframe_text",
-                                translated_string.pyarrow_dtype,
-                            ),  # MBTA Enhanced field
-                            (
-                                "recurrence_text",
-                                translated_string.pyarrow_dtype,
-                            ),  # MBTA Enhanced field
-                        ]
-                    ),
-                ),
-            ]
+    def transform_for_write(self, records: List[FeedMessage]) -> dy.LazyFrame[RtAlertTable]:
+        """Flatten RT Alerts messages."""
+        jsons = msgspec.json.encode(records)
+        lf = (
+            pl.read_json(jsons, schema=struct_to_schema(self.record_schema).to_polars_schema())
+            .lazy()
+            .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
+            .explode("entity")
+            .unnest("entity")
+            .unnest(separator=".")
+            .unnest(separator=".")
         )
+        valid = self.table_schema.validate(lf, eager=False, cast=True)
 
-    @property
-    def table_sort_order(self) -> List[Tuple[str, str]]:
-        return [
-            ("alert.severity", "ascending"),
-            ("alert.effect", "ascending"),
-            ("feed_timestamp", "ascending"),
-        ]
+        return valid

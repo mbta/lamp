@@ -1,39 +1,17 @@
-import json
-import logging
+import gzip
 import os
-import shutil
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import (
-    dataclass,
-    field,
-)
 from datetime import (
     datetime,
-    timezone,
 )
 from queue import Queue
-from threading import current_thread
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-)
+from typing import List, Optional
 
 import dataframely as dy
-import pyarrow
-import pyarrow.compute as pc
-import pyarrow.dataset as pd
-import pyarrow.parquet as pq
-from pyarrow import fs
+import msgspec
+import polars as pl
 
 from lamp_py.aws.s3 import (
-    download_file,
-    file_list_from_s3,
     move_s3_objects,
-    upload_file,
 )
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
 from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
@@ -42,15 +20,10 @@ from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
 from lamp_py.ingestion.converter import ConfigType, Converter
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
+from lamp_py.ingestion.gtfs_rt_structs import FeedMessage, GTFSRealtimeTable
 from lamp_py.runtime_utils.lamp_exception import NoImplException
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import (
-    LAMP,
-    S3_ARCHIVE,
-    S3_ERROR,
-    S3_SPRINGBOARD,
-)
-from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR
 
 
 class VehiclePositions(dy.Schema):
@@ -103,19 +76,6 @@ class VehiclePositions(dy.Schema):
     )
 
 
-@dataclass
-class TableData:
-    """
-    Data structure for holding data related to yielding a parquet table
-
-    tables: list of pyarrow tables that will joined together for final table yield
-    files: list of files that make up tables
-    """
-
-    table: Optional[pyarrow.Table] = None
-    files: List[str] = field(default_factory=list)
-
-
 class GtfsRtConverter(Converter):
     """
     Converter that handles GTFS Real Time JSON data
@@ -128,7 +88,7 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 4) -> None:
+    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]]) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
@@ -145,395 +105,55 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
-        elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
-            self.detail = RtTripDetail()
-        elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
-            self.detail = RtVehicleDetail()
+        # elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
+        #     self.detail = RtTripDetail()
+        # elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
+        #     self.detail = RtVehicleDetail()
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 
-        self.tmp_folder = "/tmp/gtfs-rt-continuous"
-
-        self.data_parts: Dict[datetime, TableData] = {}
-
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
-        self.max_workers = max_workers  # move this to class variable to allow single threading by passing into class
-        self.max_tables_to_convert = 15  # limit number of tables produced on each event loop
+        self.max_files_to_convert = 10
 
     def convert(self) -> None:
+        """Destructure files, validate against schema, and append to remote parquet."""
         process_logger = ProcessLogger(
             "parquet_table_creator",
             table_type="gtfs-rt",
             config_type=str(self.config_type),
-            file_count=len(self.files),
         )
         process_logger.log_start()
 
-        table_count = 0
-        try:
-            for table in self.process_files():
-                if table.num_rows == 0:
-                    continue
+        files = self.files[: self.max_files_to_convert]
 
-                self.continuous_pq_update(table)
-                pool = pyarrow.default_memory_pool()
-                pool.release_unused()
-                table_count += 1
-                process_logger.add_metadata(table_count=table_count)
-                # limit number of tables produced on each event loop
-                if table_count >= self.max_tables_to_convert:
-                    break
+        process_logger.add_metadata(file_count=len(files))
+
+        date_range = self.calculate_date_range(files)
+
+        records = self.validate_records(files)
+
+        try:
+            new_table = self.detail.transform_for_write(records)
+
+            existing_table = self.get_existing_table(date_range)
+
+            valid = self.detail.table_schema.validate(pl.concat([existing_table, new_table]), eager=False, cast=True)
+
+            self.write(valid)
+
+            self.archive_files += files
 
         except Exception as exception:
+            self.error_files += files
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
         finally:
-            self.data_parts = {}
             self.move_s3_files()
-            self.clean_local_folders()
-
-    def thread_init(self) -> None:
-        """
-        Initialize the filesystem in each convert thread
-
-        update the active fs to use the s3 filesystem for all loading if the
-        first file starts with s3
-        """
-        thread_data = current_thread()
-        if self.files and self.files[0].startswith("s3://"):
-            thread_data.__dict__["file_system"] = fs.S3FileSystem()
-        else:
-            thread_data.__dict__["file_system"] = fs.LocalFileSystem()
-
-    def process_files(self) -> Iterable[pyarrow.table]:
-        """
-        Iterate through all of the files to be converted
-
-        only yield a new table when table size crosses over min_rows of yield_check
-        """
-        process_logger = ProcessLogger(
-            "create_pyarrow_tables",
-            config_type=str(self.config_type),
-        )
-        process_logger.log_start()
-
-        with ThreadPoolExecutor(max_workers=self.max_workers, initializer=self.thread_init) as pool:
-            for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
-                # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
-                # function. if one is encountered, the datetime will be none. log
-                # the error and move on to the next file.
-                if result_dt is None:
-                    self.error_files.append(result_filename)
-                    logging.error(
-                        "gz_to_pyarrow exception when loading: %s",
-                        result_filename,
-                    )
-                    continue
-
-                # create key for self.data_parts dictionary
-                dt_part = datetime(
-                    year=result_dt.year,
-                    month=result_dt.month,
-                    day=result_dt.day,
-                )
-
-                # create new self.table_groups entry for key if it doesn't exist
-                if dt_part not in self.data_parts:
-                    self.data_parts[dt_part] = TableData()
-                    self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
-                else:
-                    self.data_parts[dt_part].table = pyarrow.concat_tables(
-                        [
-                            self.data_parts[dt_part].table,
-                            self.detail.transform_for_write(rt_data),
-                        ]
-                    )
-
-                self.data_parts[dt_part].files.append(result_filename)
-
-                yield from self.yield_check(process_logger)
-
-        # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=-1)
-
-        process_logger.add_metadata(file_count=0, number_of_rows=0)
-        process_logger.log_complete()
-
-    def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
-        """
-        Yield all tables in the data_parts map that have been sufficiently
-        processed.
-
-        @min_rows - how many rows the table must have to be yielded
-        @process_logger - a process logger for the conversion process. log a
-            completion and reset before a file is yielded.
-
-        @yield pyarrow.table - a concatenated table of gtfs realtime data.
-        """
-        for iter_ts in list(self.data_parts.keys()):
-            table = self.data_parts[iter_ts].table
-            if table is not None and table.num_rows > min_rows:
-                self.archive_files += self.data_parts[iter_ts].files
-
-                process_logger.add_metadata(
-                    file_count=len(self.data_parts[iter_ts].files),
-                    number_of_rows=table.num_rows,
-                )
-                process_logger.log_complete()
-                # reset process logger
-                process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
-                process_logger.log_start()
-
-                yield table
-                del self.data_parts[iter_ts]
-
-    def gz_to_pyarrow(self, filename: str) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
-        """
-        Convert a gzipped json of gtfs realtime data into a pyarrow table. This
-        function is executed inside of a thread, so all exceptions must be
-        handled internally.
-
-        @filename file of gtfs rt data to be converted (file system chosen by
-            GtfsRtConverter in thread_init)
-
-        @return Optional[datetime] - datetime contained in header of gtfs rt
-            feed. (returns None if an Exception is thrown during conversion)
-        @return str - input filename with s3 prefix stripped out.
-        @return Optional[pyarrow.table] - the pyarrow table of gtfs rt data that
-            has been converted. (returns None if an Exception is thrown during
-            conversion)
-        """
-        try:
-            file_system = current_thread().__dict__["file_system"]
-            filename = filename.replace("s3://", "")
-
-            # some of our older files are named incorrectly, with a simple
-            # .json suffix rather than a .json.gz suffix. in those cases, the
-            # s3 open_input_stream is unable to deduce the correct compression
-            # algo and fails with a UnicodeDecodeError. catch this failure and
-            # retry using a gzip compression algo. (EAFP Style)
-            try:
-                with file_system.open_input_stream(filename) as file:
-                    json_data = json.load(file)
-            except UnicodeDecodeError as _:
-                with file_system.open_input_stream(filename, compression="gzip") as file:
-                    json_data = json.load(file)
-
-            # parse timestamp info out of the header
-            feed_timestamp = json_data["header"]["timestamp"]
-            timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
-
-            table = pyarrow.Table.from_pylist(json_data["entity"], schema=self.detail.import_schema)
-
-            table = table.append_column(
-                "year",
-                pyarrow.array([timestamp.year] * table.num_rows, pyarrow.uint16()),
-            )
-            table = table.append_column(
-                "month",
-                pyarrow.array([timestamp.month] * table.num_rows, pyarrow.uint8()),
-            )
-            table = table.append_column(
-                "day",
-                pyarrow.array([timestamp.day] * table.num_rows, pyarrow.uint8()),
-            )
-            table = table.append_column(
-                "feed_timestamp",
-                pyarrow.array([feed_timestamp] * table.num_rows, pyarrow.uint64()),
-            )
-
-        except FileNotFoundError as _:
-            return (None, filename, None)
-        except Exception as _:
-            self.thread_init()
-            return (None, filename, None)
-
-        return (
-            timestamp,
-            filename,
-            table,
-        )
-
-    def partition_dt(self, table: pyarrow.Table) -> datetime:
-        """
-        Verify partition structure of pyarrow Table
-
-        :param table: pyarrow Table to verify
-
-        :return: datetime of table partition
-        """
-        partitions = {
-            "year": 0,
-            "month": 0,
-            "day": 0,
-        }
-        for col in partitions:
-            unique_list = pc.unique(table.column(col)).to_pylist()
-
-            assert (
-                len(unique_list) == 1
-            ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
-            partitions[col] = unique_list[0]
-
-        return datetime(
-            year=partitions["year"],
-            month=partitions["month"],
-            day=partitions["day"],
-        )
-
-    def sync_with_s3(self, local_path: str) -> bool:
-        """
-        Sync local_path with S3 object
-
-        :param local_path: local tmp path file to sync
-
-        :return bool: True if local_path is available, else False
-        """
-        if os.path.exists(local_path):
-            return True
-
-        local_folder = local_path.replace(os.path.basename(local_path), "")
-        os.makedirs(local_folder, exist_ok=True)
-
-        s3_files = file_list_from_s3(
-            S3_SPRINGBOARD,
-            file_prefix=local_path.replace(f"{self.tmp_folder}/", ""),
-        )
-        if len(s3_files) == 1:
-            s3_path = s3_files[0].replace("s3://", "")
-            download_file(s3_path, local_path)
-            return True
-
-        return False
-
-    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
-        """
-        Merge pyarrow Table with existing local_path parquet file
-
-        :param table: pyarrow Table
-        :param local_path: path to local parquet file
-        """
-        out_ds = pd.dataset(table)
-        if self.sync_with_s3(local_path):
-            # RT_ALERTS parquet files contain columns with nested structure types
-            # if a new nested field is ingested, combining of the new and existing nested column is not possible
-            # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
-            # RT_ALERTS updates are essentially the same throughout a service day so resetting the
-            # dataset will have minimal impact on archived data
-            try:
-                out_ds = pd.dataset(
-                    [
-                        pd.dataset(table),
-                        pd.dataset(local_path, schema=table.schema),
-                    ],
-                )
-            except pyarrow.ArrowTypeError as exception:
-                if self.config_type != ConfigType.RT_ALERTS:
-                    raise exception
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            upload_path = os.path.join(temp_dir, "upload.parquet")
-            with pq.ParquetWriter(upload_path, table.schema, compression="zstd", compression_level=3) as writer:
-                for batch in out_ds.to_batches():
-                    writer.write_batch(batch)
-
-            if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
-                rail_path = os.path.join(temp_dir, "rail.parquet")
-                with pq.ParquetWriter(rail_path, table.schema, compression="zstd", compression_level=3) as writer:
-                    rail_ds = out_ds.filter(
-                        FilterBankRtTripUpdates.ParquetFilter.light_rail
-                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
-                    )
-                    for batch in rail_ds.to_batches():
-                        writer.write_batch(batch)
-
-            os.replace(upload_path, local_path)
-
-            # upload the upload_path file (without hash) to s3
-            # replace the first part of the path with the s3 path
-            upload_file(
-                local_path,
-                local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
-            )
-            if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
-                upload_file(
-                    rail_path,
-                    local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace(
-                        "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
-                    ),
-                )
-
-    def continuous_pq_update(self, table: pyarrow.Table) -> None:
-        """
-        Continuous updating of local parquet files that are synced with S3
-        """
-        log = ProcessLogger("continuous_pq_update")
-        log.log_start()
-        try:
-            partition_dt = self.partition_dt(table)
-
-            local_path = os.path.join(
-                self.tmp_folder,
-                LAMP,
-                str(self.config_type),
-                f"year={partition_dt.year}",
-                f"month={partition_dt.month}",
-                f"day={partition_dt.day}",
-                f"{partition_dt.isoformat()}.parquet",
-            )
-
-            table = table.drop_columns(["year", "month", "day"])
-
-            log.add_metadata(local_path=local_path)
-
-            self.write_local_pq(table, local_path)
-            self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
-
-            # record the number of rows in the final parquet file for logging
-            metadata = pq.read_metadata(local_path)
-            log.add_metadata(number_of_rows=metadata.num_rows, file_size=metadata.serialized_size)
-
-            log.log_complete()
-
-        except Exception as exception:
-            shutil.rmtree(
-                os.path.join(
-                    self.tmp_folder,
-                    LAMP,
-                    str(self.config_type),
-                ),
-                ignore_errors=True,
-            )
-            self.error_files += self.archive_files
-            self.archive_files = []
-            log.log_failure(exception)
-
-    def clean_local_folders(self) -> None:
-        """
-        Clean local temp folders
-        """
-        days_to_keep = 2
-        root_folder = os.path.join(
-            self.tmp_folder,
-            LAMP,
-            str(self.config_type),
-        )
-        paths = {}
-        for w_dir, _, files in os.walk(root_folder):
-            if len(files) == 0:
-                continue
-            paths[datetime.strptime(w_dir, f"{root_folder}/year=%Y/month=%m/day=%d")] = w_dir
-
-        # remove all local day folders except two most recent
-        for key in sorted(paths.keys())[:-days_to_keep]:
-            shutil.rmtree(paths[key])
 
     def move_s3_files(self) -> None:
-        """
-        Move archive and error files to their respective s3 buckets.
-        """
+        """Move archive and error files to their respective s3 buckets."""
         if len(self.error_files) > 0:
             self.error_files = move_s3_objects(
                 self.error_files,
@@ -545,3 +165,77 @@ class GtfsRtConverter(Converter):
                 self.archive_files,
                 os.path.join(S3_ARCHIVE, LAMP),
             )
+
+    def write(self, unioned_lf: dy.LazyFrame[GTFSRealtimeTable]) -> bool:
+        """Sink existing and new records to s3, partitioned by year, month, day."""
+        self.detail.table_schema.sink_parquet(
+            unioned_lf,
+            pl.PartitionBy(
+                self.detail.remote_location.s3_uri,
+                file_path_provider=output_path,
+                key=[
+                    pl.from_epoch("feed_timestamp").dt.date().alias("date"),
+                ],
+                include_key=False,
+            ),
+            compression="zstd",
+            compression_level=3,
+        )
+
+        return True
+
+    def get_existing_table(self, date_range: set) -> pl.LazyFrame:
+        """Scan existing table from s3. If no existing table, create empty table with correct schema."""
+        process_logger = ProcessLogger("get_existing_table")
+        paths = [
+            os.path.join(
+                self.detail.remote_location.s3_uri,
+                f"year={date.year}",
+                f"month={date.month}",
+                f"day={date.day}",
+                "*.parquet",
+            )
+            for date in date_range
+        ]
+        process_logger.add_metadata(paths=paths)
+        try:
+            return pl.scan_parquet(paths, schema=self.detail.table_schema.to_polars_schema())
+        except dy.exc.ValidationError as e:
+            process_logger.log_failure(e)
+            return self.detail.table_schema.create_empty(lazy=True)
+
+    def calculate_date_range(self, files: List[str]) -> set:
+        """
+        Calculate date range from list of files. Assumes files are named in format {timestamp}_enhanced.json.gz and timestamp is in ISO format with timezone.
+
+        Args:
+            files (List[str]): List of file paths.
+
+        Returns:
+            set: Set of unique dates in the file list.
+        """
+        return set(
+            datetime.strptime(file.split("/")[-1].split("_")[0], "%Y-%m-%dT%H:%M:%S%z").date()
+            for file in [files[0], files[-1]]
+        )
+
+    def validate_records(self, files: List[str]) -> List[FeedMessage]:
+        """Return records lazily as FeedMessage objects."""
+        process_logger = ProcessLogger("validate_records", config_type=str(self.config_type))
+        decoder = msgspec.json.Decoder(self.detail.record_schema)
+        records = []
+        for file in files:
+            try:
+                with gzip.open(file, "rb") as f:
+                    records.append(decoder.decode(f.read()))
+            except Exception as e:
+                process_logger.log_failure(e)
+                self.error_files.append(file)
+        process_logger.log_complete()
+        return records
+
+
+def output_path(provider_args: pl.io.partition.FileProviderArgs) -> str:
+    """Format the file path given partition keys of a date."""
+    date = provider_args.partition_keys.item(0, 0)
+    return f"year={date.year}/month={date.month}/day={date.day}/{date.isoformat()}T00:00:00.parquet"
