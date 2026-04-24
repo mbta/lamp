@@ -120,7 +120,7 @@ def _handle_struct_meta(field: mi.Type, nullable: bool, **kwargs) -> dy.Column |
     if not isinstance(field, msgspec.StructMeta):
         return None
 
-    return _handle_struct_type(mi.type_info(field), nullable=nullable, **kwargs)
+    return _handle_struct_type(mi.type_info(field), nullable=nullable)
 
 
 # Handler registry - order matters!

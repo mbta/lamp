@@ -1,14 +1,16 @@
-import gzip
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import (
     datetime,
 )
 from queue import Queue
+from threading import current_thread
 from typing import List, Optional
 
 import dataframely as dy
 import msgspec
 import polars as pl
+from pyarrow import fs
 
 from lamp_py.aws.s3 import (
     move_s3_objects,
@@ -105,16 +107,17 @@ class GtfsRtConverter(Converter):
             self.detail = RtBusVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
-        # elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
-        #     self.detail = RtTripDetail()
-        # elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
-        #     self.detail = RtVehicleDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
+            self.detail = RtTripDetail()
+        elif config_type == ConfigType.DEV_GREEN_RT_VEHICLE_POSITIONS:
+            self.detail = RtVehicleDetail()
         else:
             raise NoImplException(f"No Specialization for {config_type}")
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
         self.max_files_to_convert = 10
+        self.fs = fs.LocalFileSystem()
 
     def convert(self) -> None:
         """Destructure files, validate against schema, and append to remote parquet."""
@@ -131,7 +134,7 @@ class GtfsRtConverter(Converter):
 
         date_range = self.calculate_date_range(files)
 
-        records = self.validate_records(files)
+        records = self.get_records(files)
 
         try:
             new_table = self.detail.transform_for_write(records)
@@ -219,18 +222,39 @@ class GtfsRtConverter(Converter):
             for file in [files[0], files[-1]]
         )
 
-    def validate_records(self, files: List[str]) -> List[FeedMessage]:
-        """Return records lazily as FeedMessage objects."""
+    def get_filesystem(self) -> None:
+        """Update the converter's filesystem to S3 if files are in S3."""
+        if self.files and self.files[0].startswith("s3://"):
+            self.fs = fs.S3FileSystem()
+
+    def thread_init(self) -> None:
+        """Share filesystem across all threads."""
+        thread_data = current_thread()
+        thread_data.__dict__["file_system"] = self.fs
+
+    def validate_record(self, filename: str, decoder: msgspec.json.Decoder):
+        """Detect compression from filename."""
+        try:
+            with self.fs.open_input_stream(filename, compression="detect") as f:
+                record = decoder.decode(f.read())
+        except Exception as e:
+            record = f"Error processing file {filename}: {str(e)}"
+
+        return filename, record
+
+    def get_records(self, files: List[str], max_workers: int = 15) -> List[FeedMessage]:
+        """Use more workers for I/O-bound S3 operations."""
         process_logger = ProcessLogger("validate_records", config_type=str(self.config_type))
         decoder = msgspec.json.Decoder(self.detail.record_schema)
         records = []
-        for file in files:
-            try:
-                with gzip.open(file, "rb") as f:
-                    records.append(decoder.decode(f.read()))
-            except Exception as e:
-                process_logger.log_failure(e)
-                self.error_files.append(file)
+
+        with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
+            for filename, record in pool.map(lambda file: self.validate_record(file, decoder), files):
+                if isinstance(record, str):
+                    process_logger.log_failure(record)
+                    self.error_files.append(filename)
+                else:
+                    records.append(record)
         process_logger.log_complete()
         return records
 
