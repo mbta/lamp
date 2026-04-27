@@ -137,7 +137,7 @@ class GtfsRtConverter(Converter):
         records = self.get_records(files)
 
         try:
-            new_table = self.detail.transform_for_write(records)
+            new_table = self.detail.flatten_record(records)
 
             existing_table = self.get_existing_table(date_range)
 
@@ -228,17 +228,19 @@ class GtfsRtConverter(Converter):
             self.fs = fs.S3FileSystem()
 
     def thread_init(self) -> None:
-        """Share filesystem across all threads."""
+        """Initialize the thread using the shared filesystem."""
         thread_data = current_thread()
         thread_data.__dict__["file_system"] = self.fs
 
-    def validate_record(self, filename: str, decoder: msgspec.json.Decoder):
-        """Detect compression from filename."""
+    def validate_record(
+        self, filename: str, decoder: msgspec.json.Decoder
+    ) -> tuple[str, FeedMessage | msgspec.DecodeError]:
+        """Validate a single JSON using the config-defined schema."""
         try:
             with self.fs.open_input_stream(filename, compression="detect") as f:
                 record = decoder.decode(f.read())
-        except Exception as e:
-            record = f"Error processing file {filename}: {str(e)}"
+        except msgspec.DecodeError as e:
+            record = msgspec.DecodeError(f"Failed to decode {filename}: {str(e)}")
 
         return filename, record
 
@@ -250,7 +252,7 @@ class GtfsRtConverter(Converter):
 
         with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
             for filename, record in pool.map(lambda file: self.validate_record(file, decoder), files):
-                if isinstance(record, str):
+                if isinstance(record, msgspec.DecodeError):
                     process_logger.log_failure(record)
                     self.error_files.append(filename)
                 else:

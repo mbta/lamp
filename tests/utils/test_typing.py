@@ -1,6 +1,6 @@
 from contextlib import nullcontext
 from enum import IntEnum, Enum, StrEnum, Flag
-from typing import Type, Annotated, Any
+from typing import Type, Annotated
 
 import dataframely as dy
 import msgspec
@@ -242,17 +242,17 @@ def test_unnest_columns(columns: dict[str, dy.Column], expected_output: dict[str
         (list[str | None], dy.List(inner=dy.String(nullable=True)), nullcontext()),
         (list[int | None], dy.List(inner=dy.Int64(nullable=True)), nullcontext()),
         (
-            list[msgspec.defstruct("User", [("id", int), ("name", str)])],
+            list[msgspec.defstruct("User", [("id", int), ("name", str)])],  # type: ignore[misc]
             dy.List(inner=dy.Struct(inner={"id": dy.Int64(), "name": dy.String()})),
             nullcontext(),
         ),
         (
-            list[IntEnum("Status", {"ACTIVE": 1, "INACTIVE": 0})],
+            list[IntEnum("Status", {"ACTIVE": 1, "INACTIVE": 0})],  # type: ignore[misc]
             dy.List(inner=dy.Int64(is_in=[1, 0])),
             nullcontext(),
         ),
         (
-            list[Enum("Color", {"RED": "red", "BLUE": "blue"})],
+            list[Enum("Color", {"RED": "red", "BLUE": "blue"})],  # type: ignore[misc]
             dy.List(inner=dy.Enum(["red", "blue"])),
             nullcontext(),
         ),
@@ -323,7 +323,7 @@ def test_struct_to_schema(fields: list[tuple[str, type]]) -> None:
     """It converts a msgspec struct to a dataframely schema."""
     User: Type[msgspec.Struct] = msgspec.defstruct("User", fields)
 
-    class UserFactory(MsgspecFactory[User]): ...
+    class UserFactory(MsgspecFactory[User]): ...  # type: ignore[valid-type]
 
     user_instance = UserFactory.build()
     assert isinstance(user_instance, User)

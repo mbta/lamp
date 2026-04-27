@@ -55,14 +55,12 @@ class RtVehicleTable(GTFSRealtimeTable):
     current_status = dy.String(nullable=True, alias="vehicle.current_status")
 
 
-class RtVehicleDetail(GTFSRTDetail):
+class VehicleDetail(GTFSRTDetail):
     """How to convert BusLoc Vehicle Positions from structs into a table."""
 
-    record_schema = RtVehiclePositionMessage
-    table_schema = RtVehicleTable
-    remote_location = bus_vehicle_positions
+    table_schema: type[RtVehicleTable]
 
-    def transform_for_write(self, records: List[FeedMessage]) -> dy.LazyFrame[RtVehicleTable]:
+    def flatten_record(self, records: List[FeedMessage]) -> dy.LazyFrame[RtVehicleTable]:
         """Flatten BusLoc VehiclePositions messages."""
         jsons = msgspec.json.encode(records)
         lf = (
@@ -77,3 +75,11 @@ class RtVehicleDetail(GTFSRTDetail):
         valid = self.table_schema.validate(lf, eager=False, cast=True)
 
         return valid
+
+
+class RtVehicleDetail(VehicleDetail):
+    """Base class for VehiclePositions messages. Applies to both enhanced realtime and BusLoc feeds."""
+
+    record_schema = RtVehiclePositionMessage
+    table_schema = RtVehicleTable
+    remote_location = bus_vehicle_positions

@@ -22,7 +22,7 @@ class GTFSRTDetail(ABC):
     table_schema: type[GTFSRealtimeTable]
     remote_location: S3Location
 
-    def transform_for_write(self, records: List[FeedMessage]) -> dy.LazyFrame[GTFSRealtimeTable]:
+    def flatten_record(self, records: List[FeedMessage]) -> dy.LazyFrame[GTFSRealtimeTable]:
         """Flatten the GTFS Realtime message depending on its type."""
         jsons = msgspec.json.encode(records)
         lf = (

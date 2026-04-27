@@ -1,13 +1,10 @@
 from typing import List
 
 import dataframely as dy
-import msgspec
-import polars as pl
 
 from lamp_py.runtime_utils.remote_files import bus_vehicle_positions
-from lamp_py.utils.typing import struct_to_schema
-from .gtfs_rt_detail import GTFSRTDetail
-from .gtfs_rt_structs import FeedEntity, FeedMessage, GTFSRealtimeTable, VehiclePosition, Operator
+from .config_rt_vehicle import RtVehicleTable, VehicleDetail
+from .gtfs_rt_structs import FeedEntity, FeedMessage, VehiclePosition, Operator
 
 
 class BusLocVehiclePosition(VehiclePosition, kw_only=True):
@@ -36,36 +33,9 @@ class BusLocVehiclePositionMessage(FeedMessage):
     entity: List[BusLocVehiclePositionEntity]
 
 
-class BusLocVehicleTable(GTFSRealtimeTable):
+class BusLocVehicleTable(RtVehicleTable):
     """Flattened BusLoc VehiclePositions data."""
 
-    is_deleted = dy.Bool(nullable=True)
-    position_bearing = dy.UInt16(nullable=True, alias="vehicle.position.bearing")
-    position_latitude = dy.Float64(nullable=True, alias="vehicle.position.latitude")
-    position_longitude = dy.Float64(nullable=True, alias="vehicle.position.longitude")
-    position_speed = dy.Float64(nullable=True, alias="vehicle.position.speed")
-    position_odometer = dy.Float64(nullable=True, alias="vehicle.position.odometer")
-    location_source = dy.String(nullable=True, alias="vehicle.location_source")
-    vehicle_timestamp = dy.UInt64(nullable=True, alias="vehicle.timestamp")
-    trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id")
-    route_id = dy.String(nullable=True, alias="vehicle.trip.route_id")
-    direction_id = dy.UInt8(nullable=True, alias="vehicle.trip.direction_id")
-    trip_start_time = dy.String(nullable=True, alias="vehicle.trip.start_time")
-    trip_start_date = dy.String(nullable=True, alias="vehicle.trip.start_date")
-    trip_schedule_relationship = dy.String(nullable=True, alias="vehicle.trip.schedule_relationship")
-    trip_route_pattern_id = dy.String(nullable=True, alias="vehicle.trip.route_pattern_id")
-    trip_tm_trip_id = dy.String(nullable=True, alias="vehicle.trip.tm_trip_id")
-    trip_overload_id = dy.Int64(nullable=True, alias="vehicle.trip.overload_id")
-    trip_overload_offset = dy.Int64(nullable=True, alias="vehicle.trip.overload_offset")
-    trip_revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue")
-    trip_last_trip = dy.Bool(nullable=True, alias="vehicle.trip.last_trip")
-    vehicle_id = dy.String(nullable=True, alias="vehicle.vehicle.id")
-    vehicle_label = dy.String(nullable=True, alias="vehicle.vehicle.label")
-    vehicle_license_plate = dy.String(nullable=True, alias="vehicle.vehicle.license_plate")
-    vehicle_consist = dy.List(
-        dy.Struct(inner={"label": dy.String(nullable=True)}), nullable=True, alias="vehicle.vehicle.consist"
-    )
-    vehicle_assignment_status = dy.String(nullable=True, alias="vehicle.vehicle.assignment_status")
     operator_id = dy.String(nullable=True, alias="vehicle.operator.id")
     operator_first_name = dy.String(
         metadata={"reader_roles": ["OperatorName"]}, nullable=True, alias="vehicle.operator.first_name"
@@ -75,39 +45,15 @@ class BusLocVehicleTable(GTFSRealtimeTable):
     )
     operator_name = dy.String(metadata={"reader_roles": ["OperatorName"]}, nullable=True, alias="vehicle.operator.name")
     operator_logon_time = dy.UInt64(nullable=True, alias="vehicle.operator.logon_time")
-    block_id = dy.String(nullable=True, alias="vehicle.block_id")
-    run_id = dy.String(nullable=True, alias="vehicle.run_id")
-    stop_id = dy.String(nullable=True, alias="vehicle.stop_id")
-    current_stop_sequence = dy.UInt32(nullable=True, alias="vehicle.current_stop_sequence")
-    revenue = dy.Bool(nullable=True, alias="vehicle.revenue")
-    current_status = dy.String(nullable=True, alias="vehicle.current_status")
     load = dy.UInt16(nullable=True, alias="vehicle.load")
     capacity = dy.UInt16(nullable=True, alias="vehicle.capacity")
-    occupancy_percentage = dy.UInt16(nullable=True, alias="vehicle.occupancy_percentage")
-    occupancy_status = dy.String(nullable=True, alias="vehicle.occupancy_status")
     state_of_charge_percentage = dy.UInt16(nullable=True, alias="vehicle.state_of_charge_percentage")
     state_of_charge_timestamp = dy.UInt64(nullable=True, alias="vehicle.state_of_charge_timestamp")
 
 
-class RtBusVehicleDetail(GTFSRTDetail):
+class RtBusVehicleDetail(VehicleDetail):
     """How to convert BusLoc Vehicle Positions from structs into a table."""
 
     record_schema = BusLocVehiclePositionMessage
     table_schema = BusLocVehicleTable
     remote_location = bus_vehicle_positions
-
-    def transform_for_write(self, records: List[FeedMessage]) -> dy.LazyFrame[BusLocVehicleTable]:
-        """Flatten BusLoc VehiclePositions messages."""
-        jsons = msgspec.json.encode(records)
-        lf = (
-            pl.read_json(jsons, schema=struct_to_schema(self.record_schema).to_polars_schema())
-            .lazy()
-            .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
-            .explode("entity")
-            .unnest()
-            .unnest(separator=".")
-            .unnest(separator=".")
-        )
-        valid = self.table_schema.validate(lf, eager=False, cast=True)
-
-        return valid

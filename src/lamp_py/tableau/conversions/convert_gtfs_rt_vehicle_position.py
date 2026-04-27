@@ -33,7 +33,6 @@ class LightRailTerminalVehiclePositions(dy.Schema):
     vehicle_id = VehiclePositions.vehicle_id
     vehicle_label = VehiclePositions.vehicle_label
     timestamp = VehiclePositions.timestamp
-    feed_timestamp = VehiclePositions.feed_timestamp
     stop_id = VehiclePositions.stop_id
     stop_id = dy.String(
         nullable=True,

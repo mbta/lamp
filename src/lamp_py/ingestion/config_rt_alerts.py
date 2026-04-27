@@ -121,7 +121,7 @@ class RtAlertsDetail(GTFSRTDetail):
     table_schema = RtAlertTable
     remote_location = rt_alerts
 
-    def transform_for_write(self, records: List[FeedMessage]) -> dy.LazyFrame[RtAlertTable]:
+    def flatten_record(self, records: List[FeedMessage]) -> dy.LazyFrame[RtAlertTable]:
         """Flatten RT Alerts messages."""
         jsons = msgspec.json.encode(records)
         lf = (

@@ -64,8 +64,8 @@ def test_convert(
         records.append(record)
 
     expected_records = converter.detail.table_schema.validate(
-        # TODO : find non-tautological way to test transform_for_write without re-implementing it in the test
-        converter.detail.transform_for_write(records),
+        # TODO : find non-tautological way to test flatten_record without re-implementing it in the test
+        converter.detail.flatten_record(records),
         cast=True,
         eager=True,
     )

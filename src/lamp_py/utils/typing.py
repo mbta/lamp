@@ -1,24 +1,26 @@
-from typing import Type
+from typing import Type, Any, TypeVar, Callable
 
 import dataframely as dy
 import msgspec
 import msgspec.inspect as mi
 
+ColumnT = TypeVar("ColumnT", bound=dy.Column)
 
-def with_alias(column: dy.Column, new_alias: str) -> dy.Column:
+
+def with_alias(column: ColumnT, new_alias: str) -> ColumnT:
     """Return the input column with a new alias."""
     column.alias = new_alias
 
     return column
 
 
-def with_nullable(column: dy.Column, nullable: bool) -> dy.Column:
+def with_nullable(column: ColumnT, nullable: bool) -> ColumnT:
     """Return the input column and set its nullability."""
     column.nullable = nullable
     return column
 
 
-def unnest_columns(columns: dict[str, dy.Column]) -> dict[str, dy.Column]:
+def unnest_columns(columns: dict[str, ColumnT]) -> dict[str, dy.Column]:
     """Return a schema without any lists or structs named using `.` to delineate former nested structures. Does not support aliases defined inside dy.Column types."""
     new_schema = {}
     for name, col in columns.items():
@@ -59,7 +61,7 @@ KWARG_MAP: dict[str, str] = {
 }
 
 
-def _handle_basic_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | None:
+def _handle_basic_type(field: mi.Type, nullable: bool, **kwargs: Any) -> dy.Column | None:
     """Handle basic types like str, int, float, bool, bytes."""
     dy_type = TYPE_MAP.get(field.__class__)
     if not dy_type:
@@ -74,7 +76,7 @@ def _handle_basic_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | 
     return dy_type(nullable=nullable, **kwargs | constraints)
 
 
-def _handle_union_type(field: mi.Type, _: bool, **kwargs) -> dy.Column | None:
+def _handle_union_type(field: mi.Type, _: bool, **kwargs: Any) -> dy.Column | None:
     """Handle Optional types (Type | None)."""
     if not isinstance(field, mi.UnionType):
         return None
@@ -85,7 +87,7 @@ def _handle_union_type(field: mi.Type, _: bool, **kwargs) -> dy.Column | None:
     return msgspec_to_dataframely_field(non_none_type, nullable=True, **kwargs)
 
 
-def _handle_enum_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | None:
+def _handle_enum_type(field: mi.Type, nullable: bool, **kwargs: Any) -> dy.Column | None:
     """Handle Enum types (IntEnum, StrEnum, etc)."""
     if not isinstance(field, mi.EnumType):
         return None
@@ -95,7 +97,7 @@ def _handle_enum_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | N
     return dy.Enum(categories=[m.value for m in field.cls], nullable=nullable, **kwargs)
 
 
-def _handle_struct_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | None:
+def _handle_struct_type(field: mi.Type, nullable: bool, **kwargs: Any) -> dy.Column | None:
     """Handle nested Struct types."""
     if not isinstance(field, mi.StructType):
         return None
@@ -107,7 +109,7 @@ def _handle_struct_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column |
     )
 
 
-def _handle_list_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | None:
+def _handle_list_type(field: mi.Type, nullable: bool, **kwargs: Any) -> dy.Column | None:
     """Handle List types."""
     if not isinstance(field, mi.ListType):
         return None
@@ -115,16 +117,16 @@ def _handle_list_type(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | N
     return dy.List(inner=msgspec_to_dataframely_field(field.item_type), nullable=nullable, **kwargs)
 
 
-def _handle_struct_meta(field: mi.Type, nullable: bool, **kwargs) -> dy.Column | None:
+def _handle_struct_meta(field: mi.Type, nullable: bool, **kwargs: Any) -> dy.Column | None:
     """Handle StructMeta (direct struct class references)."""
     if not isinstance(field, msgspec.StructMeta):
         return None
 
-    return _handle_struct_type(mi.type_info(field), nullable=nullable)
+    return _handle_struct_type(mi.type_info(field), nullable=nullable, **kwargs)
 
 
 # Handler registry - order matters!
-_TYPE_HANDLERS = [
+_TYPE_HANDLERS: list[Callable[[mi.Type, bool], dy.Column | None]] = [
     _handle_basic_type,
     _handle_union_type,
     _handle_enum_type,
