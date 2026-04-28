@@ -1,12 +1,8 @@
 from typing import List
 
 import dataframely as dy
-import msgspec
-import msgspec.json
-import polars as pl
 
 from lamp_py.runtime_utils.remote_files import rt_alerts
-from lamp_py.utils.typing import struct_to_schema
 
 from .gtfs_rt_detail import GTFSRTDetail
 from .gtfs_rt_structs import Alert, FeedEntity, FeedMessage, GTFSRealtimeTable
@@ -120,19 +116,3 @@ class RtAlertsDetail(GTFSRTDetail):
     record_schema = RtAlertMessage
     table_schema = RtAlertTable
     remote_location = rt_alerts
-
-    def flatten_record(self, records: List[FeedMessage]) -> dy.LazyFrame[RtAlertTable]:
-        """Flatten RT Alerts messages."""
-        jsons = msgspec.json.encode(records)
-        lf = (
-            pl.read_json(jsons, schema=struct_to_schema(self.record_schema).to_polars_schema())
-            .lazy()
-            .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
-            .explode("entity")
-            .unnest("entity")
-            .unnest(separator=".")
-            .unnest(separator=".")
-        )
-        valid = self.table_schema.validate(lf, eager=False, cast=True)
-
-        return valid

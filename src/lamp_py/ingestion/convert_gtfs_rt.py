@@ -1,11 +1,12 @@
 import os
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import (
     datetime,
 )
 from queue import Queue
 from threading import current_thread
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 import dataframely as dy
 import msgspec
@@ -16,7 +17,7 @@ from lamp_py.aws.s3 import (
     move_s3_objects,
 )
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
-from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
+from lamp_py.ingestion.config_busloc_vehicle import BusLocVehicleDetail
 from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
@@ -26,6 +27,7 @@ from lamp_py.ingestion.gtfs_rt_structs import FeedMessage, GTFSRealtimeTable
 from lamp_py.runtime_utils.lamp_exception import NoImplException
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR
+from lamp_py.utils.typing import struct_to_schema
 
 
 class VehiclePositions(dy.Schema):
@@ -104,7 +106,7 @@ class GtfsRtConverter(Converter):
         elif config_type == ConfigType.RT_VEHICLE_POSITIONS:
             self.detail = RtVehicleDetail()
         elif config_type == ConfigType.BUS_VEHICLE_POSITIONS:
-            self.detail = RtBusVehicleDetail()
+            self.detail = BusLocVehicleDetail()
         elif config_type == ConfigType.BUS_TRIP_UPDATES:
             self.detail = RtBusTripDetail()
         elif config_type == ConfigType.DEV_GREEN_RT_TRIP_UPDATES:
@@ -116,28 +118,32 @@ class GtfsRtConverter(Converter):
 
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
-        self.max_files_to_convert = 10
-        self.fs = fs.LocalFileSystem()
+        self.max_files_to_convert = 60
+        self.fs: fs.FileSystem = fs.LocalFileSystem()
 
     def convert(self) -> None:
         """Destructure files, validate against schema, and append to remote parquet."""
         process_logger = ProcessLogger(
-            "parquet_table_creator",
+            "convert",
             table_type="gtfs-rt",
             config_type=str(self.config_type),
         )
         process_logger.log_start()
 
-        files = self.files[: self.max_files_to_convert]
+        self.files = self.files[: self.max_files_to_convert]
 
-        process_logger.add_metadata(file_count=len(files))
+        process_logger.add_metadata(file_count=len(self.files))
 
-        date_range = self.calculate_date_range(files)
+        self.get_filesystem()
 
-        records = self.get_records(files)
+        date_range = self.calculate_date_range(self.files)
+
+        records_file = self.encode_records_as_ndjson(self.get_records())
+
+        entities = self.scan_ndjson(records_file)
 
         try:
-            new_table = self.detail.flatten_record(records)
+            new_table = self.detail.flatten_record(entities)
 
             existing_table = self.get_existing_table(date_range)
 
@@ -145,15 +151,16 @@ class GtfsRtConverter(Converter):
 
             self.write(valid)
 
-            self.archive_files += files
+            self.archive_files += self.files
 
         except Exception as exception:
-            self.error_files += files
+            self.error_files += self.files
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
         finally:
             self.move_s3_files()
+            os.unlink(records_file)
 
     def move_s3_files(self) -> None:
         """Move archive and error files to their respective s3 buckets."""
@@ -171,6 +178,7 @@ class GtfsRtConverter(Converter):
 
     def write(self, unioned_lf: dy.LazyFrame[GTFSRealtimeTable]) -> bool:
         """Sink existing and new records to s3, partitioned by year, month, day."""
+        process_logger = ProcessLogger("GtfsRtConverter.write", config_type=str(self.config_type))
         self.detail.table_schema.sink_parquet(
             unioned_lf,
             pl.PartitionBy(
@@ -184,6 +192,7 @@ class GtfsRtConverter(Converter):
             compression="zstd",
             compression_level=3,
         )
+        process_logger.log_complete()
 
         return True
 
@@ -201,8 +210,13 @@ class GtfsRtConverter(Converter):
             for date in date_range
         ]
         process_logger.add_metadata(paths=paths)
+        process_logger.log_start()
         try:
-            return pl.scan_parquet(paths, schema=self.detail.table_schema.to_polars_schema())
+            lf = pl.scan_parquet(paths, schema=self.detail.table_schema.to_polars_schema())
+            process_logger.log_complete()
+            return lf
+        except FileNotFoundError:
+            return self.detail.table_schema.create_empty(lazy=True)
         except dy.exc.ValidationError as e:
             process_logger.log_failure(e)
             return self.detail.table_schema.create_empty(lazy=True)
@@ -226,6 +240,8 @@ class GtfsRtConverter(Converter):
         """Update the converter's filesystem to S3 if files are in S3."""
         if self.files and self.files[0].startswith("s3://"):
             self.fs = fs.S3FileSystem()
+        else:
+            self.fs = fs.LocalFileSystem()
 
     def thread_init(self) -> None:
         """Initialize the thread using the shared filesystem."""
@@ -244,21 +260,64 @@ class GtfsRtConverter(Converter):
 
         return filename, record
 
-    def get_records(self, files: List[str], max_workers: int = 15) -> List[FeedMessage]:
-        """Use more workers for I/O-bound S3 operations."""
+    def get_records(self) -> Iterator[FeedMessage]:
+        """Process files in parallel for S3 I/O."""
         process_logger = ProcessLogger("validate_records", config_type=str(self.config_type))
         decoder = msgspec.json.Decoder(self.detail.record_schema)
-        records = []
 
-        with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
-            for filename, record in pool.map(lambda file: self.validate_record(file, decoder), files):
+        with ThreadPoolExecutor(max_workers=15, initializer=self.thread_init) as pool:
+            for filename, record in pool.map(lambda f: self.validate_record(f, decoder), self.files[:]):
                 if isinstance(record, msgspec.DecodeError):
                     process_logger.log_failure(record)
                     self.error_files.append(filename)
                 else:
-                    records.append(record)
+                    yield record
+
+        # Update self.files to remove errors
+        self.files = [f for f in self.files if f not in self.error_files]
         process_logger.log_complete()
-        return records
+
+    def encode_records_as_ndjson(self, records: Iterator[FeedMessage]) -> str:
+        """Stream records to a temporary NDJSON file and return the path."""
+        encoder = msgspec.json.Encoder()
+        buffer = bytearray(4 * 1024 * 1024)  # 4MB buffer
+        write_buffer = bytearray()
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".ndjson", delete=False) as temp_file:
+            try:
+                for record in records:
+                    encoder.encode_into(record, buffer)
+                    write_buffer.extend(buffer)
+                    write_buffer.extend(b"\n")
+
+                    # Batch writes at 10MB
+                    if len(write_buffer) >= 10 * 1024 * 1024:
+                        temp_file.write(write_buffer)
+                        write_buffer.clear()
+
+                # Write remaining
+                if write_buffer:
+                    temp_file.write(write_buffer)
+
+                temp_file.close()
+                return temp_file.name
+            except Exception:
+                temp_file.close()
+                os.unlink(temp_file.name)
+                raise
+
+    def scan_ndjson(self, ndjson_path: str) -> pl.LazyFrame:
+        """Scan NDJSON file as a Polars LazyFrame."""
+        lf = (
+            pl.scan_ndjson(ndjson_path, schema=struct_to_schema(self.detail.record_schema).to_polars_schema())
+            .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
+            .explode("entity")
+            .unnest("entity")
+            .unnest(separator=".")
+            .unnest(separator=".")
+        )
+
+        return lf
 
 
 def output_path(provider_args: pl.io.partition.FileProviderArgs) -> str:

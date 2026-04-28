@@ -4,8 +4,7 @@ import dataframely as dy
 
 from lamp_py.runtime_utils.remote_files import bus_trip_updates
 
-from .config_rt_trip import RtTripTable
-from .gtfs_rt_detail import GTFSRTDetail
+from .config_rt_trip import RtTripTable, TripDetail
 from .gtfs_rt_structs import FeedEntity, FeedMessage, Operator, TripUpdate
 
 
@@ -47,7 +46,7 @@ class BusTripTable(RtTripTable):
     operator_logon_time = dy.UInt64(nullable=True, alias="trip_update.operator.logon_time")
 
 
-class RtBusTripDetail(GTFSRTDetail):
+class RtBusTripDetail(TripDetail):
     """How to convert Bus GTFS Trip Updates from structs into a table."""
 
     record_schema = BusTripUpdateMessage

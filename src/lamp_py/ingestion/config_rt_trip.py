@@ -1,6 +1,7 @@
 from typing import List
 
 import dataframely as dy
+import polars as pl
 
 from lamp_py.runtime_utils.remote_files import springboard_rt_trip_updates
 
@@ -52,7 +53,22 @@ class RtTripTable(GTFSRealtimeTable):
     boarding_status = dy.String(nullable=True, alias="trip_update.stop_time_update.boarding_status")
 
 
-class RtTripDetail(GTFSRTDetail):
+class TripDetail(GTFSRTDetail):
+    """How to convert RT GTFS Trip Updates from structs into a table."""
+
+    def flatten_record(self, lf: pl.LazyFrame) -> dy.LazyFrame[GTFSRealtimeTable]:
+        """Flatten the GTFS Realtime message depending on its type."""
+        lf = (
+            lf.explode("trip_update.stop_time_update")
+            .unnest("trip_update.stop_time_update", separator=".")
+            .unnest(separator=".")
+        )
+        valid = self.table_schema.validate(lf, eager=False, cast=True)
+
+        return valid
+
+
+class RtTripDetail(TripDetail):
     """How to convert RT GTFS Trip Updates from structs into a table."""
 
     record_schema = RtTripUpdateMessage

@@ -19,6 +19,7 @@ from lamp_py.ingestion.config_rt_vehicle import RtVehiclePositionMessage
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.gtfs_rt_structs import FeedMessage
+from lamp_py.utils.typing import struct_to_schema
 from tests.test_resources import LocalS3Location
 
 
@@ -63,14 +64,20 @@ def test_convert(
         converter.convert()
         records.append(record)
 
-    expected_records = converter.detail.table_schema.validate(
-        # TODO : find non-tautological way to test flatten_record without re-implementing it in the test
-        converter.detail.flatten_record(records),
-        cast=True,
-        eager=True,
+    expected_records = converter.detail.flatten_record(
+        pl.read_json(
+            msgspec.json.encode(records),
+            schema=struct_to_schema(converter.detail.record_schema).to_polars_schema(),
+        )
+        .lazy()
+        .explode("entity")
+        .unnest()
+        .with_columns(feed_timestamp=pl.col("timestamp"))
+        .unnest(separator=".")
+        .unnest(separator=".")
     )
 
-    converted_records = pl.read_parquet(
+    converted_records = pl.scan_parquet(
         [
             os.path.join(
                 test_dir.s3_uri,

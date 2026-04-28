@@ -3,7 +3,7 @@ from typing import List
 import dataframely as dy
 
 from lamp_py.runtime_utils.remote_files import bus_vehicle_positions
-from .config_rt_vehicle import RtVehicleTable, VehicleDetail
+from .config_rt_vehicle import RtVehicleTable, GTFSRTDetail
 from .gtfs_rt_structs import FeedEntity, FeedMessage, VehiclePosition, Operator
 
 
@@ -51,7 +51,7 @@ class BusLocVehicleTable(RtVehicleTable):
     state_of_charge_timestamp = dy.UInt64(nullable=True, alias="vehicle.state_of_charge_timestamp")
 
 
-class RtBusVehicleDetail(VehicleDetail):
+class BusLocVehicleDetail(GTFSRTDetail):
     """How to convert BusLoc Vehicle Positions from structs into a table."""
 
     record_schema = BusLocVehiclePositionMessage

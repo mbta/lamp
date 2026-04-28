@@ -1,11 +1,8 @@
 from typing import List
 
 import dataframely as dy
-import msgspec
-import polars as pl
 
 from lamp_py.runtime_utils.remote_files import bus_vehicle_positions
-from lamp_py.utils.typing import struct_to_schema
 from .gtfs_rt_detail import GTFSRTDetail
 from .gtfs_rt_structs import FeedEntity, FeedMessage, GTFSRealtimeTable, VehiclePosition
 
@@ -55,29 +52,7 @@ class RtVehicleTable(GTFSRealtimeTable):
     current_status = dy.String(nullable=True, alias="vehicle.current_status")
 
 
-class VehicleDetail(GTFSRTDetail):
-    """How to convert BusLoc Vehicle Positions from structs into a table."""
-
-    table_schema: type[RtVehicleTable]
-
-    def flatten_record(self, records: List[FeedMessage]) -> dy.LazyFrame[RtVehicleTable]:
-        """Flatten BusLoc VehiclePositions messages."""
-        jsons = msgspec.json.encode(records)
-        lf = (
-            pl.read_json(jsons, schema=struct_to_schema(self.record_schema).to_polars_schema())
-            .lazy()
-            .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
-            .explode("entity")
-            .unnest()
-            .unnest(separator=".")
-            .unnest(separator=".")
-        )
-        valid = self.table_schema.validate(lf, eager=False, cast=True)
-
-        return valid
-
-
-class RtVehicleDetail(VehicleDetail):
+class RtVehicleDetail(GTFSRTDetail):
     """Base class for VehiclePositions messages. Applies to both enhanced realtime and BusLoc feeds."""
 
     record_schema = RtVehiclePositionMessage
