@@ -119,7 +119,7 @@ class GtfsRtConverter(Converter):
         self.error_files: List[str] = []
         self.archive_files: List[str] = []
         self.max_files_to_convert = 60
-        self.fs: fs.FileSystem = fs.LocalFileSystem()
+        self.fs: fs.FileSystem | None = None
 
     def convert(self) -> None:
         """Destructure files, validate against schema, and append to remote parquet."""
@@ -137,6 +137,8 @@ class GtfsRtConverter(Converter):
         self.get_filesystem()
 
         date_range = self.calculate_date_range(self.files)
+
+        process_logger.add_metadata(date_range=str(date_range))
 
         ndjson_file = self.download_records(self.files)
 
@@ -242,7 +244,7 @@ class GtfsRtConverter(Converter):
         """Update the converter's filesystem to S3 if files are in S3."""
         if self.files and self.files[0].startswith("s3://"):
             self.fs = fs.S3FileSystem()
-        else:
+        elif self.fs is None:
             self.fs = fs.LocalFileSystem()
 
     def thread_init(self) -> None:
@@ -264,16 +266,20 @@ class GtfsRtConverter(Converter):
 
     def download_records(self, files: List[str]) -> str:
         """Process files in parallel and write to incremental NDJSON file."""
-        process_logger = ProcessLogger("validate_records", config_type=str(self.config_type))
+        process_logger = ProcessLogger("download_records", config_type=str(self.config_type))
         decoder = msgspec.json.Decoder(self.detail.record_schema)
         encoder = msgspec.json.Encoder()
 
         write_buffer = bytearray()
         encode_buffer = bytearray()
 
+        # Limit workers to avoid oversubscription when running in multiprocess pool
+        # Each process should use modest threading to avoid GIL contention
+        max_workers = min(8, (os.cpu_count() or 4))
+
         try:
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".ndjson", delete=False) as temp_file:
-                with ThreadPoolExecutor(max_workers=15, initializer=self.thread_init) as pool:
+                with ThreadPoolExecutor(max_workers=max_workers, initializer=self.thread_init) as pool:
                     for filename, record in pool.map(lambda f: self.validate_record(f, decoder), files):
                         if isinstance(record, msgspec.DecodeError):
                             process_logger.log_failure(record)

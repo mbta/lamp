@@ -1,5 +1,4 @@
 import os
-from multiprocessing import get_context
 from queue import Queue
 from typing import (
     Dict,
@@ -41,13 +40,6 @@ class NoImplConverter(Converter):
             self.files,
             os.path.join(S3_ERROR, LAMP),
         )
-
-
-def run_converter(converter: Converter) -> None:
-    """
-    Run converters in subprocess
-    """
-    converter.convert()
 
 
 def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
@@ -107,27 +99,9 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     except Exception as exception:
         logger.log_failure(exception)
 
-    # The remaining converters can be run in parallel
-    #
-    # Using signal.signal to detect ECS termination and multiprocessing.Manager
-    # to manage the metadata queue along with multiprocessing.Pool.map causes
-    # inadvertent SIGTERM signals to be sent and blocks the main event loop. To
-    # fix this, we use multiprocessing.Pool.map_async. We use pool.close()
-    # and pool.join() to ensure all work has completed in pools.
-    #
-    # Also worth noting, this application is run on Ubuntu when run on ECS,
-    # who's default subprocess start method is "fork". On OSX, this default is
-    # "spawn" some of the behavior described above only occurs when using
-    # "fork". On OSX (and Windows?) to force this behavior, run
-    # multiprocessing.set_start_method("fork") when starting the script.
-    process_count = os.cpu_count()
-    if process_count is None:
-        process_count = 4
     if len(converters) > 0:
-        with get_context("spawn").Pool(processes=process_count, maxtasksperchild=1) as pool:
-            pool.map_async(run_converter, converters.values())
-            pool.close()
-            pool.join()
+        for converter in converters.values():
+            converter.convert()
 
     logger.log_complete()
 
