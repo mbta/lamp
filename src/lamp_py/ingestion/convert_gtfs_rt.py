@@ -6,7 +6,7 @@ from datetime import (
 )
 from queue import Queue
 from threading import current_thread
-from typing import Iterator, List, Optional
+from typing import List, Optional
 
 import dataframely as dy
 import msgspec
@@ -138,9 +138,11 @@ class GtfsRtConverter(Converter):
 
         date_range = self.calculate_date_range(self.files)
 
-        records_file = self.encode_records_as_ndjson(self.get_records())
+        ndjson_file = self.download_records(self.files)
 
-        entities = self.scan_ndjson(records_file)
+        self.files = [file for file in self.files if file not in self.error_files]
+
+        entities = self.scan_ndjson(ndjson_file)
 
         try:
             new_table = self.detail.flatten_record(entities)
@@ -160,7 +162,7 @@ class GtfsRtConverter(Converter):
             process_logger.log_complete()
         finally:
             self.move_s3_files()
-            os.unlink(records_file)
+            os.unlink(ndjson_file)
 
     def move_s3_files(self) -> None:
         """Move archive and error files to their respective s3 buckets."""
@@ -260,51 +262,42 @@ class GtfsRtConverter(Converter):
 
         return filename, record
 
-    def get_records(self) -> Iterator[FeedMessage]:
-        """Process files in parallel for S3 I/O."""
+    def download_records(self, files: List[str]) -> str:
+        """Process files in parallel and write to incremental NDJSON file."""
         process_logger = ProcessLogger("validate_records", config_type=str(self.config_type))
         decoder = msgspec.json.Decoder(self.detail.record_schema)
-
-        with ThreadPoolExecutor(max_workers=15, initializer=self.thread_init) as pool:
-            for filename, record in pool.map(lambda f: self.validate_record(f, decoder), self.files[:]):
-                if isinstance(record, msgspec.DecodeError):
-                    process_logger.log_failure(record)
-                    self.error_files.append(filename)
-                else:
-                    yield record
-
-        # Update self.files to remove errors
-        self.files = [f for f in self.files if f not in self.error_files]
-        process_logger.log_complete()
-
-    def encode_records_as_ndjson(self, records: Iterator[FeedMessage]) -> str:
-        """Stream records to a temporary NDJSON file and return the path."""
         encoder = msgspec.json.Encoder()
-        buffer = bytearray(4 * 1024 * 1024)  # 4MB buffer
+
         write_buffer = bytearray()
+        encode_buffer = bytearray()
 
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".ndjson", delete=False) as temp_file:
-            try:
-                for record in records:
-                    encoder.encode_into(record, buffer)
-                    write_buffer.extend(buffer)
-                    write_buffer.extend(b"\n")
+        try:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".ndjson", delete=False) as temp_file:
+                with ThreadPoolExecutor(max_workers=15, initializer=self.thread_init) as pool:
+                    for filename, record in pool.map(lambda f: self.validate_record(f, decoder), files):
+                        if isinstance(record, msgspec.DecodeError):
+                            process_logger.log_failure(record)
+                            self.error_files.append(filename)
+                        else:
+                            # Use encode_into to avoid allocating new bytes objects
+                            encoder.encode_into(record, encode_buffer)
+                            write_buffer.extend(encode_buffer)
+                            write_buffer.extend(b"\n")
 
-                    # Batch writes at 10MB
-                    if len(write_buffer) >= 10 * 1024 * 1024:
-                        temp_file.write(write_buffer)
-                        write_buffer.clear()
+                            # Flush buffer at 4MB for better memory efficiency
+                            if len(write_buffer) >= 4 * 1024 * 1024:
+                                temp_file.write(write_buffer)
+                                write_buffer.clear()
 
-                # Write remaining
+                # Write remaining data
                 if write_buffer:
                     temp_file.write(write_buffer)
 
-                temp_file.close()
-                return temp_file.name
-            except Exception:
-                temp_file.close()
-                os.unlink(temp_file.name)
-                raise
+            process_logger.log_complete()
+            return temp_file.name
+        except Exception:
+            os.unlink(temp_file.name)
+            raise
 
     def scan_ndjson(self, ndjson_path: str) -> pl.LazyFrame:
         """Scan NDJSON file as a Polars LazyFrame."""
