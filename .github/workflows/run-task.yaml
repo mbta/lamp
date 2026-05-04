@@ -33,6 +33,10 @@ on:
         required: false
         default: main
 
+concurrency:
+  group: run-task-${{ inputs.environment }}-${{ inputs.task }}
+  cancel-in-progress: true
+
 jobs:
   run_task:
     runs-on: ubuntu-latest
@@ -41,7 +45,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           ref: ${{ inputs.branch }}
           persist-credentials: false
