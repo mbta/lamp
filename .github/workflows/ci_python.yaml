@@ -93,7 +93,7 @@ jobs:
       ALEMBIC_RPM_DB_NAME: performance_manager_prod
     services:
       rpm_postgres:
-        image: postgres:14.4
+        image: postgres:14.4@sha256:9ceb24f8c5f15c053d973a3610866f473690875dc13eb3282b45302189321040
         ports:
           - 5434:5432
         env:
@@ -106,7 +106,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       md_postgres:
-        image: postgres:14.4
+        image: postgres:14.4@sha256:9ceb24f8c5f15c053d973a3610866f473690875dc13eb3282b45302189321040
         ports:
           - 5433:5432
         env:

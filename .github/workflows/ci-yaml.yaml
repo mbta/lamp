@@ -23,4 +23,6 @@ jobs:
         with:
           persist-credentials: false
       - run: yamllint . -f parsable --strict
-      - uses: mbta/actions@6ed3f15c8c065113cf60835aa9d9595c65a9ed65
+      - uses: mbta/actions/zizmor@797bb12aca2b8dbc58195b6b463ed52814118cf0
+        with:
+          minimum_issue_severity: medium
