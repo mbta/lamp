@@ -49,13 +49,15 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   deploy:
     concurrency:
       group: github.event.inputs.environment
     uses: ./.github/workflows/deploy-base.yaml
+    permissions:
+      id-token: write
+      contents: read
     with:
       # pass the inputs from the workflow dispatch through to the deploy base. the booleans are
       # converted to strings, so flip them back using fromJson function
