@@ -38,7 +38,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout Branch
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3
         with:
           persist-credentials: false
       - name: Run Ad-Hoc Task

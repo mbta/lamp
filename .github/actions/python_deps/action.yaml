@@ -8,7 +8,7 @@ runs:
       uses: ./.github/actions/tools
 
     - name: Python Deps Cache
-      uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
+      uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c  # v3
       id: python-cache
       with:
         path: |
