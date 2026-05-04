@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Run Ad-Hoc Task
         uses: ./.github/actions/run_task
         with:

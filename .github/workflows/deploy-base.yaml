@@ -72,6 +72,8 @@ jobs:
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Configure AWS credentials
         id: setup-aws
         uses: aws-actions/configure-aws-credentials@v4

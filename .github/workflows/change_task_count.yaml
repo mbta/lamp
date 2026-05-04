@@ -44,6 +44,10 @@ jobs:
         run: >
           aws ecs update-service
           --cluster lamp
-          --service lamp-${{ github.event.inputs.application_name }}-${{ github.event.inputs.environment }}
-          --desired-count ${{ github.event.inputs.new_count }}
+          --service lamp-${GITHUB_EVENT_INPUTS_APPLICATION_NAME}-${GITHUB_EVENT_INPUTS_ENVIRONMENT}
+          --desired-count ${GITHUB_EVENT_INPUTS_NEW_COUNT}
+        env:
+          GITHUB_EVENT_INPUTS_APPLICATION_NAME: ${{ github.event.inputs.application_name }}
+          GITHUB_EVENT_INPUTS_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          GITHUB_EVENT_INPUTS_NEW_COUNT: ${{ github.event.inputs.new_count }}
         # yamllint enable

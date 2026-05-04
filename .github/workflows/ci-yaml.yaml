@@ -17,4 +17,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - run: yamllint . -f parsable --strict

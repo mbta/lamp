@@ -35,6 +35,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
   format:
@@ -43,6 +45,8 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
       - run: poetry run black . --check
@@ -53,6 +57,8 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
       - run: poetry run mypy .
@@ -63,6 +69,8 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
       - run: poetry run pylint src tests --rcfile pyproject.toml
@@ -118,6 +126,8 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
       # Execute tests and generate coverage report
@@ -140,6 +150,8 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
       # Execute tests and generate coverage report
       - name: Run pytest With Coverage
@@ -162,6 +174,8 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
       # Execute tests and generate coverage report
@@ -184,6 +198,8 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/python_deps
 
       # Execute tests and generate coverage report
@@ -213,6 +229,8 @@ jobs:
       - testother
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: download-artifact
         uses: actions/download-artifact@v4
         with:
