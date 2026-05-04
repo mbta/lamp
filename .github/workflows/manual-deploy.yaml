@@ -47,6 +47,10 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     concurrency:
@@ -63,4 +67,7 @@ jobs:
       deploy-tableau-publisher: ${{ fromJson(github.event.inputs.deploy-tableau-publisher) }}
       deploy-flashback: ${{ fromJson(github.event.inputs.deploy-flashback) }}
       deploy-lightswitch: ${{ fromJson(github.event.inputs.deploy-lightswitch) }}
-    secrets: inherit
+    secrets:
+      DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
