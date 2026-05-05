@@ -1,24 +1,24 @@
-from typing import Dict, List, Optional, Type
 import os
-from datetime import datetime
 import tempfile
-from queue import Queue
-
 from abc import ABC, abstractmethod
+from datetime import datetime
+from queue import Queue
+from typing import Dict, List, Optional, Type
+
 import dataframely as dy
 import polars as pl
 import pyarrow
 import pyarrow.parquet as pq
 
-from lamp_py.aws.s3 import download_file, upload_file
 from lamp_py.aws.kinesis import KinesisReader
+from lamp_py.aws.s3 import download_file, replace_remote_parquet
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
-from lamp_py.utils.dataframely import unnest_columns
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
     S3_SPRINGBOARD,
 )
+from lamp_py.utils.dataframely import unnest_columns
 
 RFC3339_DATE_REGEX = r"^[0-9]{4}-[01][0-9]-[0-3][0-9]"
 RFC3339_DATETIME_REGEX = (
@@ -208,7 +208,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         """Key in record['data'] that is unique to this event type"""
 
     def download_remote(self) -> None:
-        """download the remote parquet path for appending"""
+        """Download the remote parquet path for appending"""
         if os.path.exists(self.local_path):
             os.remove(self.local_path)
 
@@ -249,7 +249,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
 
     def upload_records(self) -> None:
         """Upload local parquet file to remote storage."""
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
+        replace_remote_parquet(file_name=self.local_path, object_path=self.remote_path)
 
 
 class EditorChanges(GlidesConverter):
@@ -400,7 +400,7 @@ def ingest_glides_events(
     kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]], upload: bool = False
 ) -> None:
     """
-    ingest glides records from the kinesis stream and add them to parquet files
+    Ingest glides records from the kinesis stream and add them to parquet files
     """
     process_logger = ProcessLogger(process_name="ingest_glides_events")
     process_logger.log_start()

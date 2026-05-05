@@ -25,38 +25,36 @@ from typing import (
 import dataframely as dy
 import polars as pl
 import pyarrow
+import pyarrow.compute as pc
+import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 from pyarrow import fs
 
-import pyarrow.compute as pc
-import pyarrow.parquet as pq
-import pyarrow.dataset as pd
-
 from lamp_py.aws.s3 import (
-    move_s3_objects,
-    file_list_from_s3,
     download_file,
-    upload_file,
+    file_list_from_s3,
+    move_s3_objects,
+    replace_remote_parquet,
 )
-from lamp_py.runtime_utils.process_logger import ProcessLogger
-
-from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
 from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
+from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.config_rt_vehicle import RtVehicleDetail
 from lamp_py.ingestion.converter import ConfigType, Converter
-from lamp_py.runtime_utils.lamp_exception import NoImplException
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
 from lamp_py.ingestion.utils import (
     GTFS_RT_HASH_COL,
-    hash_gtfs_rt_table,
     hash_gtfs_rt_parquet,
+    hash_gtfs_rt_table,
 )
+from lamp_py.runtime_utils.lamp_exception import NoImplException
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
-    S3_SPRINGBOARD,
-    S3_ERROR,
     S3_ARCHIVE,
+    S3_ERROR,
+    S3_SPRINGBOARD,
 )
 from lamp_py.utils.filter_bank import FilterBankRtTripUpdates
 
@@ -204,7 +202,7 @@ class GtfsRtConverter(Converter):
 
     def thread_init(self) -> None:
         """
-        initialize the filesystem in each convert thread
+        Initialize the filesystem in each convert thread
 
         update the active fs to use the s3 filesystem for all loading if the
         first file starts with s3
@@ -217,11 +215,10 @@ class GtfsRtConverter(Converter):
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
-        iterate through all of the files to be converted
+        Iterate through all of the files to be converted
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
             config_type=str(self.config_type),
@@ -272,7 +269,7 @@ class GtfsRtConverter(Converter):
 
     def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
         """
-        yield all tables in the data_parts map that have been sufficiently
+        Yield all tables in the data_parts map that have been sufficiently
         processed.
 
         @min_rows - how many rows the table must have to be yielded
@@ -367,7 +364,7 @@ class GtfsRtConverter(Converter):
 
     def partition_dt(self, table: pyarrow.Table) -> datetime:
         """
-        verify partition structure of pyarrow Table
+        Verify partition structure of pyarrow Table
 
         :param table: pyarrow Table to verify
 
@@ -381,9 +378,9 @@ class GtfsRtConverter(Converter):
         for col in partitions:
             unique_list = pc.unique(table.column(col)).to_pylist()
 
-            assert (
-                len(unique_list) == 1
-            ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
+            assert len(unique_list) == 1, (
+                f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
+            )
             partitions[col] = unique_list[0]
 
         return datetime(
@@ -419,7 +416,7 @@ class GtfsRtConverter(Converter):
 
     def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
-        create dataset, with hash column, that will be written to parquet file
+        Create dataset, with hash column, that will be written to parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
@@ -453,7 +450,7 @@ class GtfsRtConverter(Converter):
     # pylint too many local variables (more than 15)
     def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
         """
-        merge pyarrow Table with existing local_path parquet file
+        Merge pyarrow Table with existing local_path parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
@@ -549,12 +546,12 @@ class GtfsRtConverter(Converter):
 
             # upload the upload_path file (without hash) to s3
             # replace the first part of the path with the s3 path
-            upload_file(
+            replace_remote_parquet(
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
             if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
-                upload_file(
+                replace_remote_parquet(
                     rail_full_set_path,
                     local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace(
                         "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
@@ -610,7 +607,7 @@ class GtfsRtConverter(Converter):
 
     def clean_local_folders(self) -> None:
         """
-        clean local temp folders
+        Clean local temp folders
         """
         days_to_keep = 2
         root_folder = os.path.join(
@@ -630,7 +627,7 @@ class GtfsRtConverter(Converter):
 
     def move_s3_files(self) -> None:
         """
-        move archive and error files to their respective s3 buckets.
+        Move archive and error files to their respective s3 buckets.
         """
         if len(self.error_files) > 0:
             self.error_files = move_s3_objects(

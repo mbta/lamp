@@ -170,7 +170,7 @@ def test_ingest_glides_events(
     kinesis_reader.get_records.return_value = sample(test_records, len(test_records))
 
     mock_upload = mocker.Mock(return_value=True)
-    mocker.patch("lamp_py.ingestion.glides.upload_file", mock_upload)
+    mocker.patch("lamp_py.ingestion.glides.replace_remote_parquet", mock_upload)
 
     ingest_glides_events(kinesis_reader, Queue(), upload=True)
     assert Path(converter.local_path).exists()
