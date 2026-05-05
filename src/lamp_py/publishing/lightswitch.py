@@ -52,7 +52,7 @@ HIVE_VIEWS = {
 
 
 def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
-    "Register IAM credentials with duckdb."
+    """Register IAM credentials with duckdb."""
     connection.install_extension("aws")
     connection.load_extension("aws")
     return connection.sql(  # type: ignore[index]
@@ -145,6 +145,22 @@ def register_read_ymd(
     pl.log_complete()
 
 
+def register_to_timestamptz(
+    connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """Register function in DuckDB for converting unix timestamp to datetime with time zone"""
+    pl = ProcessLogger("register_to_timestamptz")
+    pl.log_start()
+    connection.sql(
+        """
+        CREATE OR REPLACE MACRO to_timestamptz(unix_timestamp, tz := 'America/New_York')
+            AS (TO_TIMESTAMP(unix_timestamp) AT TIME ZONE tz)::TIMESTAMPTZ
+        """
+    )
+
+    pl.log_complete()
+
+
 def register_effective_gtfs_timestamps(
     connection: duckdb.DuckDBPyConnection,
     bucket: str = "s3://mbta-ctd-dataplatform-springboard",
@@ -195,8 +211,7 @@ def register_effective_gtfs_timestamps(
 def add_views_to_local_metastore(
     connection: duckdb.DuckDBPyConnection, views: dict[str, List[rf.S3Location]]
 ) -> List[str]:
-    "Add views of remote Parquet files to duckdb database."
-
+    """Add views of remote Parquet files to duckdb database."""
     built_views: List[str] = []
     for k in views.keys():
         for item in views[k]:
@@ -235,6 +250,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
         pl.add_metadata(authenticated=auth)
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
+        register_to_timestamptz(con)
         register_effective_gtfs_timestamps(con)
 
     if remote_location:

@@ -1,8 +1,10 @@
+from zoneinfo import ZoneInfo
 import os
 from contextlib import nullcontext
 from logging import ERROR
 from pathlib import Path
 from typing import Generator
+from datetime import datetime
 
 import polars as pl
 import pytest
@@ -14,6 +16,7 @@ from lamp_py.publishing.lightswitch import (
     register_read_ymd,
     register_effective_gtfs_timestamps,
     create_schemas,
+    register_to_timestamptz,
 )
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
@@ -100,6 +103,14 @@ def test_register_read_ymd(
             assert duckdb_con.sql(
                 f"SELECT * FROM read_ymd('{directory_name}', '2024-06-01' :: DATE, '2024-06-02' :: DATE, '{tmp_path.resolve()}')"
             )
+
+
+def test_totimestamptz(duckdb_con: duckdb.DuckDBPyConnection) -> None:
+    """It converts unix timestamp to datetime with timezone"""
+    with duckdb_con:
+        register_to_timestamptz(duckdb_con)
+        timestamp_tz = duckdb_con.execute("SELECT to_timestamptz(0, 'Etc/Utc')").pl().row(0)[0]
+        assert timestamp_tz == datetime.fromtimestamp(0, tz=ZoneInfo('Etc/Utc'))
 
 
 def test_register_effective_gtfs_timestamps(
