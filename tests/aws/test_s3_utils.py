@@ -1,4 +1,4 @@
-# pylint: disable=[W0621, W0611]
+# pylint: disable=[W0621, W0611, R0913, R0917]
 # disable these warnings that are triggered by pylint not understanding how test
 # fixtures work. https://stackoverflow.com/q/59664605
 
@@ -166,16 +166,19 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
     ],
 )
 def test_replace_remote_parquet(
-    remote_file_exists: bool, local_records: int, upload_succeeds: bool, raises: pytest.RaisesExc, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    remote_file_exists: bool,
+    local_records: int,
+    upload_succeeds: bool,
+    raises: pytest.RaisesExc,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It replaces a remote parquet or fails loudly trying."""
     local_file = tmp_path / "foo.parquet"
     pl.int_range(0, local_records, eager=True).to_frame().write_parquet(local_file.as_posix())
 
     remote_file = tmp_path / "remote_foo.parquet"
-    pl.int_range(0, 10, eager=True).to_frame().write_parquet(
-        remote_file.as_posix()
-    )
+    pl.int_range(0, 10, eager=True).to_frame().write_parquet(remote_file.as_posix())
 
     with patch("lamp_py.aws.s3.object_exists", return_value=remote_file_exists):
         with patch("pyarrow.fs.S3FileSystem", return_value=LocalFileSystem()):
@@ -183,8 +186,7 @@ def test_replace_remote_parquet(
                 with raises:
                     replace_remote_parquet(local_file.as_posix(), "s3://" + remote_file.as_posix())
                     assert_frame_equal(
-                        pl.int_range(0, 10, eager=True).to_frame(),
-                        pl.read_parquet(remote_file.as_posix())
+                        pl.int_range(0, 10, eager=True).to_frame(), pl.read_parquet(remote_file.as_posix())
                     )
                     assert ("existing_row_count=10" in caplog.text) == remote_file_exists
                     assert ("new_row_count=10" in caplog.text) == remote_file_exists

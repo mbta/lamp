@@ -34,7 +34,7 @@ from lamp_py.aws.s3 import (
     download_file,
     file_list_from_s3,
     move_s3_objects,
-    replace_remote_parquet,
+    upload_file,
 )
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
 from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
@@ -378,9 +378,9 @@ class GtfsRtConverter(Converter):
         for col in partitions:
             unique_list = pc.unique(table.column(col)).to_pylist()
 
-            assert len(unique_list) == 1, (
-                f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
-            )
+            assert (
+                len(unique_list) == 1
+            ), f"{self.config_type} Table column {col} had {len(unique_list)} unique elements"
             partitions[col] = unique_list[0]
 
         return datetime(
@@ -546,12 +546,12 @@ class GtfsRtConverter(Converter):
 
             # upload the upload_path file (without hash) to s3
             # replace the first part of the path with the s3 path
-            replace_remote_parquet(
+            upload_file(
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
             if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
-                replace_remote_parquet(
+                upload_file(
                     rail_full_set_path,
                     local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace(
                         "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
