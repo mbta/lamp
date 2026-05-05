@@ -7,9 +7,9 @@ from datetime import date, datetime, timezone
 from io import BytesIO
 from threading import current_thread
 from typing import (
+    IO,
     Callable,
     Dict,
-    IO,
     Iterator,
     List,
     Optional,
@@ -20,12 +20,12 @@ from typing import (
 import boto3
 import botocore
 import botocore.exceptions
-from botocore.exceptions import ClientError
 import pandas
 import pyarrow as pa
 import pyarrow.compute as pc
-import pyarrow.parquet as pq
 import pyarrow.dataset as pd
+import pyarrow.parquet as pq
+from botocore.exceptions import ClientError
 from pyarrow import Table, fs
 from pyarrow.util import guid
 
@@ -124,7 +124,7 @@ def download_file(object_path: str, file_name: str) -> bool:
 
 def delete_object(del_obj: str) -> bool:
     """
-    delete s3 object
+    Delete s3 object
 
     :param del_obj - expected as 's3://my_bucket/object' or 'my_bucket/object'
 
@@ -158,7 +158,7 @@ def delete_object(del_obj: str) -> bool:
 
 def object_metadata(obj: str) -> Dict[str, str]:
     """
-    retrieve s3 object Metadata
+    Retrieve s3 object Metadata
 
     Will throw if object does not exist
 
@@ -193,7 +193,7 @@ def object_metadata(obj: str) -> Dict[str, str]:
 
 def object_exists(obj: str) -> bool:
     """
-    check if s3 object exists
+    Check if s3 object exists
 
     will raise on any error other than "NoSuchKey"
 
@@ -221,7 +221,7 @@ def object_exists(obj: str) -> bool:
 
 def version_check(obj: str, version: str) -> bool:
     """
-    compare an s3 file's lamp version to a given version
+    Compare an s3 file's lamp version to a given version
 
     :return True if remote and expected version match, return False if the file
             doesn't exist of or if the versions do not match.
@@ -260,7 +260,7 @@ def file_list_from_s3(
     suppress_logging_below_level: int = logging.NOTSET,
 ) -> List[str]:
     """
-    get a list of s3 objects
+    Get a list of s3 objects
 
     :param bucket_name: the name of the bucket to look inside of
     :param file_prefix: prefix filter for object keys
@@ -270,7 +270,6 @@ def file_list_from_s3(
     ]
     """
     with override_log_level(suppress_logging_below_level):
-
         process_logger = ProcessLogger("file_list_from_s3", bucket_name=bucket_name, file_prefix=file_prefix)
         process_logger.log_start()
 
@@ -302,7 +301,7 @@ def file_list_from_s3(
 
 def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[Dict]:
     """
-    get a list of s3 objects with additional details
+    Get a list of s3 objects with additional details
 
     :param bucket_name: the name of the bucket to look inside of
     :param file_prefix: prefix filter for object keys
@@ -358,7 +357,7 @@ def file_list_from_s3_date_range(
     end_date: date,
 ) -> List[str]:
     """
-    get a list of s3 objects between two dates
+    Get a list of s3 objects between two dates
 
     :param bucket_name: the name of the bucket to look inside of
     :param path_template: prefix template string for object keys - will be populated with dates
@@ -371,7 +370,6 @@ def file_list_from_s3_date_range(
         object path as s3://bucket-name/object-key
     ]
     """
-
     paths = build_data_range_paths(path_template, start_date, end_date)
     full_list = []
     for search_path in paths:
@@ -414,7 +412,7 @@ def get_last_modified_object(bucket_name: str, file_prefix: str, version: Option
 
 def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
     """
-    move a single s3 file to the to_bucket bucket. break the incoming s3 path
+    Move a single s3 file to the to_bucket bucket. break the incoming s3 path
     into parts that are used for copying. each process will have it's own
     boto session and resource available, from the _init_process_session function
     to avoid multi-processing issues
@@ -466,7 +464,7 @@ def _move_s3_object(filename: str, to_bucket: str) -> Optional[str]:
 
 def _init_process_session() -> None:
     """
-    initialization function for any process in multi processing pool needing to
+    Initialization function for any process in multi processing pool needing to
     use a boto session object
 
     this avoids the expensive operation of creating a new session for every unti of work
@@ -636,7 +634,7 @@ def write_parquet_file(
 
 def dt_from_obj_path(path: str) -> datetime:
     """
-    process and return datetime from partitioned s3 path
+    Process and return datetime from partitioned s3 path
 
     handles the following formats:
     - year=YYYY/month=MM/day=DD/hour=HH
@@ -672,7 +670,7 @@ def _get_pyarrow_dataset(
     filters: Optional[pd.Expression] = None,
 ) -> pd.Dataset:
     """
-    internal function to get pyarrow dataset from parquet file(s)
+    Internal function to get pyarrow dataset from parquet file(s)
     """
     active_fs = fs.S3FileSystem()
 
@@ -696,7 +694,7 @@ def read_parquet(
     filters: Optional[pd.Expression] = None,
 ) -> pandas.core.frame.DataFrame:
     """
-    read parquet file or files from s3 and return it as a pandas dataframe
+    Read parquet file or files from s3 and return it as a pandas dataframe
 
     if requested column from "columns" does not exist in parquet file then
     the column will be added as all nulls, this was added to capture
@@ -732,7 +730,7 @@ def read_parquet_chunks(
     filters: Optional[pd.Expression] = None,
 ) -> Iterator[pandas.core.frame.DataFrame]:
     """
-    read parquet file or files from s3 IN CHUNKS
+    Read parquet file or files from s3 IN CHUNKS
     return chunks as pandas dataframes
 
     chunk size attempts to be close to max_rows parameter, but may sometimes
@@ -743,3 +741,36 @@ def read_parquet_chunks(
         batch_size=max_rows,
     ):
         yield batch.to_pandas()
+
+
+def replace_remote_parquet(
+    file_name: str,
+    object_path: str,
+    extra_args: Optional[Dict] = None,
+) -> None:
+    """
+    Overwrite an existing object with a new file if the new file has at least as many rows as the existing file.
+
+    If the existing file does not exist, the new file will be uploaded.
+
+    :param file_name: local parquet file path to upload
+    :param object_path: S3 object path to upload to (including bucket); if not empty, the existing file must be Parquet
+    :param extra_args: additional arguments passed to upload_file
+
+    :return: None
+
+    :raises AssertionError if the new file has fewer rows than the existing file or if the upload failed when attempted.
+    """
+    process_logger = ProcessLogger("replace_remote_parquet", file_name=file_name, object_path=object_path)
+    process_logger.log_start()
+
+    object_path = object_path.replace("s3://", "")
+
+    if object_exists(object_path):
+        existing_row_count = pq.read_metadata(object_path, filesystem=fs.S3FileSystem()).num_rows
+        new_row_count = pq.read_metadata(file_name).num_rows
+        assert new_row_count >= existing_row_count, f"{new_row_count} < {existing_row_count}; cancelling upload."
+
+    result = upload_file(file_name, object_path, extra_args)
+    assert result, "upload_file failed"
+    process_logger.log_complete()
