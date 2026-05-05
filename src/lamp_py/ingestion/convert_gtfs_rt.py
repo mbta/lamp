@@ -136,8 +136,19 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 8) -> None:
+    def __init__(
+        self,
+        config_type: ConfigType,
+        metadata_queue: Queue[Optional[str]],
+        max_workers: int = 8,
+        time_chunk_minutes: int = 0,
+    ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
+
+        # time_chunk_minutes controls periodic yielding.
+        # 0 = disabled (use row-count-based yield_check),
+        # >0 = yield data in wall-clock-aligned intervals of this many minutes
+        self.time_chunk_minutes = time_chunk_minutes
 
         # Depending on filename, assign self.details to correct implementation
         # of GTFSRTDetail class.
@@ -242,11 +253,16 @@ class GtfsRtConverter(Converter):
                     continue
 
                 # create key for self.data_parts dictionary
-                dt_part = datetime(
-                    year=result_dt.year,
-                    month=result_dt.month,
-                    day=result_dt.day,
-                )
+                # when time_chunk_minutes > 0, partition by sub-day interval;
+                # otherwise partition by day as before
+                if self.time_chunk_minutes > 0:
+                    dt_part = self._interval_key(result_dt)
+                else:
+                    dt_part = datetime(
+                        year=result_dt.year,
+                        month=result_dt.month,
+                        day=result_dt.day,
+                    )
 
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
@@ -262,10 +278,16 @@ class GtfsRtConverter(Converter):
 
                 self.data_parts[dt_part].files.append(result_filename)
 
-                yield from self.yield_check(process_logger)
+                if self.time_chunk_minutes > 0:
+                    yield from self.yield_check_periodic(process_logger, result_dt)
+                else:
+                    yield from self.yield_check(process_logger)
 
         # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=-1)
+        if self.time_chunk_minutes > 0:
+            yield from self.yield_check_periodic(process_logger, datetime.min, flush=True)
+        else:
+            yield from self.yield_check(process_logger, min_rows=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
@@ -292,6 +314,66 @@ class GtfsRtConverter(Converter):
                 )
                 process_logger.log_complete()
                 # reset process logger
+                process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
+                process_logger.log_start()
+
+                yield table
+                del self.data_parts[iter_ts]
+
+    def _interval_key(self, ts: datetime) -> datetime:
+        """
+        Truncate a UTC datetime to its wall-clock-aligned interval start.
+
+        For time_chunk_minutes=15:
+            01:07 -> 01:00,  01:15 -> 01:15,  01:29 -> 01:15,  23:59 -> 23:45
+
+        Returns a naive datetime (no timezone) matching the existing data_parts key convention.
+        """
+        total_minutes = ts.hour * 60 + ts.minute
+        aligned_minutes = (total_minutes // self.time_chunk_minutes) * self.time_chunk_minutes
+        return datetime(
+            year=ts.year,
+            month=ts.month,
+            day=ts.day,
+            hour=aligned_minutes // 60,
+            minute=aligned_minutes % 60,
+        )
+
+    def yield_check_periodic(
+        self,
+        process_logger: ProcessLogger,
+        current_ts: datetime,
+        flush: bool = False,
+    ) -> Iterable[pyarrow.table]:
+        """
+        Yield completed time-chunk intervals from data_parts.
+
+        When processing files in reverse chronological order, an interval is
+        complete once current_ts is *before* the interval start (we've moved
+        past it going backwards and won't see more data for it).
+
+        When flush=True, yield all remaining intervals regardless of current_ts.
+
+        @current_ts - the feed timestamp of the file just processed
+        @flush - if True, yield everything remaining
+        """
+        current_interval = self._interval_key(current_ts)
+        for iter_ts in list(self.data_parts.keys()):
+            table = self.data_parts[iter_ts].table
+            if table is None:
+                continue
+
+            # yield if we've moved past this interval (reverse order)
+            # or if flushing all remaining data
+            if flush or current_interval < iter_ts:
+                self.archive_files += self.data_parts[iter_ts].files
+
+                process_logger.add_metadata(
+                    file_count=len(self.data_parts[iter_ts].files),
+                    number_of_rows=table.num_rows,
+                    interval_start=iter_ts.isoformat(),
+                )
+                process_logger.log_complete()
                 process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
                 process_logger.log_start()
 

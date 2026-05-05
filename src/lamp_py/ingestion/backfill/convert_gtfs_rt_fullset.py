@@ -39,8 +39,9 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
         polars_filter: pl.Expr | None = None,  # default to true - which will essentially not filter
         max_workers: int = 8,
         verbose: bool = False,
+        time_chunk_minutes: int = 0,
     ) -> None:
-        GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
+        GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers, time_chunk_minutes=time_chunk_minutes)
 
         self.detail = RtTripDetail()
 
@@ -73,13 +74,19 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
                     continue
                 partition_dt = self.partition_dt(table)
 
+                # include hour/minute in filename when using time-chunk partitioning
+                if self.time_chunk_minutes > 0:
+                    time_suffix = f"{partition_dt.hour:02d}{partition_dt.minute:02d}"
+                else:
+                    time_suffix = ""
+
                 path_suffix = os.path.join(
                     LAMP,
                     str(self.config_type),
                     f"year={partition_dt.year}",
                     f"month={partition_dt.month}",
                     f"day={partition_dt.day}",
-                    f"{partition_dt.isoformat()}_part_{str(table_count)}.parquet",
+                    f"{partition_dt.isoformat()}{time_suffix}_part_{str(table_count)}.parquet",
                 )
 
                 local_path = os.path.join(self.tmp_folder, path_suffix)
@@ -151,11 +158,16 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
                     continue
 
                 # create key for self.data_parts dictionary
-                dt_part = datetime(
-                    year=result_dt.year,
-                    month=result_dt.month,
-                    day=result_dt.day,
-                )
+                # when time_chunk_minutes > 0, partition by sub-day interval;
+                # otherwise partition by day as before
+                if self.time_chunk_minutes > 0:
+                    dt_part = self._interval_key(result_dt)
+                else:
+                    dt_part = datetime(
+                        year=result_dt.year,
+                        month=result_dt.month,
+                        day=result_dt.day,
+                    )
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
@@ -168,10 +180,16 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
 
                 self.data_parts[dt_part].files.append(result_filename)
 
-                yield from self.yield_check(process_logger)
+                if self.time_chunk_minutes > 0:
+                    yield from self.yield_check_periodic(process_logger, result_dt)
+                else:
+                    yield from self.yield_check(process_logger)
 
         # yield any remaining tables
-        yield from self.yield_check(process_logger, min_rows=-1)
+        if self.time_chunk_minutes > 0:
+            yield from self.yield_check_periodic(process_logger, datetime.min, flush=True)
+        else:
+            yield from self.yield_check(process_logger, min_rows=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
         process_logger.log_complete()
