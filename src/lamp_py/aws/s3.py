@@ -1,3 +1,4 @@
+from debugpy.launcher.debuggee import process
 import logging
 import os
 import re
@@ -770,6 +771,7 @@ def replace_remote_parquet(
         existing_row_count = pq.read_metadata(object_path, filesystem=fs.S3FileSystem()).num_rows
         new_row_count = pq.read_metadata(file_name).num_rows
         assert new_row_count >= existing_row_count, f"{new_row_count} < {existing_row_count}; cancelling upload."
+        process_logger.add_metadata(existing_row_count=existing_row_count, new_row_count=new_row_count)
 
     result = upload_file(file_name, object_path, extra_args)
     assert result, "upload_file failed"
