@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type
 
 import pyarrow
 import dataframely as dy
@@ -19,20 +19,27 @@ from lamp_py.aws.s3 import file_list_from_s3
 GLIDES_TABLEAU_PROJECT = "Glides"
 
 
-class TripUpdatesTableau(TripUpdatesTable):  # type: ignore[misc, valid-type]
-    """Glides Trip Updates data, transformed for Tableau consumption."""
+TripUpdatesTableau: Type[dy.Schema] = type(
+    "TripUpdatesTable",
+    (dy.Schema,),
+    TripUpdatesTable.columns()
+    | {
+        "data.metadata.inputTimestamp": dy.Datetime(time_unit="ms", nullable=True),
+        "data.tripUpdates.previousTripKey.serviceDate": dy.Date(nullable=True),
+        "data.tripUpdates.tripKey.serviceDate": dy.Date(nullable=True),
+    },
+)
 
-    input_timestamp = dy.Datetime(time_unit="ms", alias="data.metadata.inputTimestamp", nullable=True)
-    previous_trip_service_date = dy.Date(alias="data.tripUpdates.previousTripKey.serviceDate", nullable=True)
-    trip_service_date = dy.Date(alias="data.tripUpdates.tripKey.serviceDate", nullable=True)
-
-
-class OperatorSignInsTableau(OperatorSignInsTable):  # type: ignore[misc, valid-type]
-    """Glides Operator Sign-Ins data, transformed for Tableau consumption."""
-
-    input_timestamp = dy.Datetime(time_unit="ms", alias="data.metadata.inputTimestamp", nullable=True)
-    signed_in_at = dy.Datetime(time_unit="ms", alias="data.signedInAt", nullable=True)
-    time = dy.Datetime(time_unit="ms", alias="time", nullable=True)
+OperatorSignInsTableau: Type[dy.Schema] = type(
+    "OperatorSignInsTable",
+    (dy.Schema,),
+    OperatorSignInsTable.columns()
+    | {
+        "data.metadata.inputTimestamp": dy.Datetime(time_unit="ms", nullable=True),
+        "data.signedInAt": dy.Datetime(time_unit="ms", nullable=True),
+        "time": dy.Datetime(time_unit="ms", nullable=True),
+    },
+)
 
 
 def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
