@@ -5,6 +5,7 @@ from datetime import date, timedelta
 import time
 import tempfile
 from typing import List, Tuple
+import polars as pl
 from pyarrow import fs
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
@@ -40,11 +41,8 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
         # include the hash column for debug
         writer = pq.ParquetWriter(output_parquet_path, schema=ds.schema, compression="zstd", compression_level=3)
 
-        partitions = (
-            pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))
-            .sort_by(partition_column)
-            .to_pylist()
-        )
+
+        partitions = pl.from_arrow(pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))).sort().to_list()
 
         logger.add_metadata(unique_partitions=len(partitions))
 
