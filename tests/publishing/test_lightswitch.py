@@ -109,8 +109,8 @@ def test_totimestamptz(duckdb_con: duckdb.DuckDBPyConnection) -> None:
     """It converts unix timestamp to datetime with timezone"""
     with duckdb_con:
         register_to_timestamptz(duckdb_con)
-        timestamp_tz = duckdb_con.execute("SELECT to_timestamptz(0, 'Etc/Utc')").pl().row(0)[0]
-        assert timestamp_tz == datetime.fromtimestamp(0, tz=ZoneInfo('Etc/Utc'))
+        timestamp_tz = duckdb_con.execute("SELECT to_timestamptz(0, 'Etc/UTC')").pl().row(0)[0]
+        assert timestamp_tz == datetime.fromtimestamp(0, tz=ZoneInfo('Etc/UTC'))
 
 
 def test_register_effective_gtfs_timestamps(
