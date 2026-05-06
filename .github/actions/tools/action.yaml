@@ -21,4 +21,4 @@ runs:
       if: steps.asdf-cache.outputs.cache-hit != 'true'
 
     - name: Re-shim ASDF Install
-      uses: mbta/actions/reshim-asdf@20a677d22e01056a0ea63ff3b996bbc774188770  # v2
+      uses: mbta/actions/reshim-asdf@20a677d22e01056a0ea63ff3b996bbc774188770  # v2.17
