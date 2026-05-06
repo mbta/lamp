@@ -18,7 +18,7 @@ from lamp_py.runtime_utils.remote_files import (
     bus_operator_mapping,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
-    tableau_rt_vehicle_positions_heavyrail_30_day,
+    tableau_rt_vehicle_positions_heavyrail_60_day,
     tableau_rt_trip_updates_heavyrail_30_day,
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
@@ -69,10 +69,10 @@ Prod_TripUpdates_LightRailTerminals_60Day = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-Prod_VehiclePositions_HeavyRailTerminals_30Day = FilteredHyperJob(
+Prod_VehiclePositions_HeavyRailTerminals_60Day = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
-    remote_output_location=tableau_rt_vehicle_positions_heavyrail_30_day,
-    num_days_ago=30,
+    remote_output_location=tableau_rt_vehicle_positions_heavyrail_60_day,
+    num_days_ago=60,
     processed_schema=convert_gtfs_rt_vehicle_position.HeavyRailTerminalVehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.heavyrail,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.heavy_rail,
