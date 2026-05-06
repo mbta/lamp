@@ -1,3 +1,5 @@
+import copy
+
 import dataframely as dy
 
 
@@ -9,9 +11,10 @@ def with_alias(column: dy.Column, new_alias: str) -> dy.Column:
 
 
 def with_nullable(column: dy.Column, nullable: bool) -> dy.Column:
-    """Return the input column and set its nullability."""
-    column.nullable = nullable
-    return column
+    """Return a copy of the input column with updated nullability."""
+    new_column = copy.deepcopy(column)
+    new_column.nullable = nullable
+    return new_column
 
 
 def unnest_columns(columns: dict[str, dy.Column]) -> dict[str, dy.Column]:

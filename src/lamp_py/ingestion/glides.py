@@ -18,7 +18,7 @@ from lamp_py.runtime_utils.remote_files import (
     LAMP,
     S3_SPRINGBOARD,
 )
-from lamp_py.utils.dataframely import unnest_columns
+from lamp_py.utils.dataframely import unnest_columns, with_nullable
 
 RFC3339_DATE_REGEX = r"^[0-9]{4}-[01][0-9]-[0-3][0-9]"
 RFC3339_DATETIME_REGEX = (
@@ -86,7 +86,7 @@ class EditorChangesRecord(GlidesRecord):
                     {
                         "type": dy.String(regex=r"start|stop"),
                         "location": location,
-                        "editor": user,
+                        "editor": with_nullable(user, False),
                     }
                 ),
                 min_length=1,
