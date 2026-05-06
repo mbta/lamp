@@ -747,7 +747,7 @@ def replace_remote_parquet(
     file_name: str,
     object_path: str,
     extra_args: Optional[Dict] = None,
-) -> None:
+) -> bool:
     """
     Overwrite an existing object with a new file if the new file has at least as many rows as the existing file.
 
@@ -758,20 +758,23 @@ def replace_remote_parquet(
     :param extra_args: additional arguments passed to upload_file
 
     :return: None
-
-    :raises AssertionError if the new file has fewer rows than the existing file or if the upload failed when attempted.
     """
     process_logger = ProcessLogger("replace_remote_parquet", file_name=file_name, object_path=object_path)
     process_logger.log_start()
 
     object_path = object_path.replace("s3://", "")
 
-    if object_exists(object_path):
-        existing_row_count = pq.read_metadata(object_path, filesystem=fs.S3FileSystem()).num_rows
-        new_row_count = pq.read_metadata(file_name).num_rows
-        assert new_row_count >= existing_row_count, f"{new_row_count} < {existing_row_count}; cancelling upload."
-        process_logger.add_metadata(existing_row_count=existing_row_count, new_row_count=new_row_count)
+    try:
+        if object_exists(object_path):
+            existing_row_count = pq.read_metadata(object_path, filesystem=fs.S3FileSystem()).num_rows
+            new_row_count = pq.read_metadata(file_name).num_rows
+            assert new_row_count >= existing_row_count, f"{new_row_count} < {existing_row_count}; cancelling upload."
+            process_logger.add_metadata(existing_row_count=existing_row_count, new_row_count=new_row_count)
 
-    result = upload_file(file_name, object_path, extra_args)
-    assert result, "upload_file failed"
+        result = upload_file(file_name, object_path, extra_args)
+        assert result, "upload_file failed"
+    except Exception as e:
+        process_logger.log_failure(e)
+        return False
     process_logger.log_complete()
+    return result

@@ -157,23 +157,23 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
 
 
 @pytest.mark.parametrize(
-    ["remote_file_exists", "local_records", "upload_succeeds", "raises"],
+    ["remote_file_exists", "local_records", "upload_succeeds", "log_text"],
     [
-        (True, 10, True, nullcontext()),
-        (True, 5, True, pytest.raises(AssertionError, match="<")),
-        (False, 5, True, nullcontext()),
-        (True, 10, False, pytest.raises(AssertionError, match="upload_file failed")),
+        (True, 10, True, "existing_row_count=10"),
+        (True, 5, True, "<"),
+        (False, 5, True, "status=complete"),
+        (True, 10, False, "upload_file failed"),
     ],
 )
 def test_replace_remote_parquet(
     remote_file_exists: bool,
     local_records: int,
     upload_succeeds: bool,
-    raises: pytest.RaisesExc,
+    log_text: str,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """It replaces a remote parquet or fails loudly trying."""
+    """It replaces a remote parquet or logs an error trying."""
     local_file = tmp_path / "foo.parquet"
     pl.int_range(0, local_records, eager=True).to_frame().write_parquet(local_file.as_posix())
 
@@ -183,10 +183,7 @@ def test_replace_remote_parquet(
     with patch("lamp_py.aws.s3.object_exists", return_value=remote_file_exists):
         with patch("pyarrow.fs.S3FileSystem", return_value=LocalFileSystem()):
             with patch("lamp_py.aws.s3.upload_file", return_value=upload_succeeds):
-                with raises:
-                    replace_remote_parquet(local_file.as_posix(), "s3://" + remote_file.as_posix())
-                    assert_frame_equal(
-                        pl.int_range(0, 10, eager=True).to_frame(), pl.read_parquet(remote_file.as_posix())
-                    )
-                    assert ("existing_row_count=10" in caplog.text) == remote_file_exists
-                    assert ("new_row_count=10" in caplog.text) == remote_file_exists
+                result = replace_remote_parquet(local_file.as_posix(), "s3://" + remote_file.as_posix())
+                assert_frame_equal(pl.int_range(0, 10, eager=True).to_frame(), pl.read_parquet(remote_file.as_posix()))
+                assert log_text in caplog.text
+                assert result == (upload_succeeds and ((not remote_file_exists) or (local_records >= 10)))
