@@ -3,13 +3,16 @@ on:
   pull_request:
     types: [opened, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   move-asana-ticket-job:
     runs-on: ubuntu-latest
     if: ${{ !github.event.pull_request.head.repo.fork }}
     steps:
       - name: Github-Asana Move Ticket Action
-        uses: mbta/github-asana-action@v4.3.0
+        uses: mbta/github-asana-action@a2e76ae34e901ba72df4f7f415c183362e824c68  # v4.3.0
         with:
           asana-pat: ${{ secrets.ASANA_SECRET_FOR_MOVE_ACTION }}
           trigger-phrase: "Asana Task:"

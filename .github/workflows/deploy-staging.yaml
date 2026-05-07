@@ -1,17 +1,24 @@
 name: Deploy to Staging
 
 on:
-  # deploy when ci has been completed on main (should occur after new commits are added to main
-  # directly or via pull request)
-  workflow_run:
-    workflows: ["Continuous Integration (Python)"]
-    types: [completed]
+  push:
     branches:
       - main
+    paths:
+      - 'src/**'
+
+permissions:
+  contents: read
 
 jobs:
+  python-ci:
+    uses: ./.github/workflows/ci_python.yaml
   deploy:
     name: Deploy to Staging
+    needs: python-ci
+    permissions:
+      id-token: write
+      contents: read
     concurrency:
       group: staging
     uses: ./.github/workflows/deploy-base.yaml
@@ -23,5 +30,17 @@ jobs:
       deploy-tm-ingestion: true
       deploy-tableau-publisher: true
       deploy-flashback: true
-      deploy-lightswitch: false
-    secrets: inherit
+      deploy-lightswitch: true
+    secrets:
+      DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+  run-lightswitch:
+    needs: deploy
+    uses: ./.github/workflows/run-task.yaml
+    with:
+      environment: staging
+      task: Lightswitch
+    permissions:
+      contents: read
+      id-token: write
