@@ -105,7 +105,7 @@ class VehiclePositions(dy.Schema):
             },
             alias="vehicle",
         ),
-        nullable=False,
+        min_length=1,
     )
 
 
