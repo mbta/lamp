@@ -28,7 +28,7 @@ GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be grea
 
 user = dy.Struct(
     {
-        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
+        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}, nullable=True),
         "badgeNumber": dy.String(nullable=True),
     },
     nullable=True,
@@ -86,7 +86,7 @@ class EditorChangesRecord(GlidesRecord):
                     {
                         "type": dy.String(regex=r"start|stop"),
                         "location": location,
-                        "editor": user,
+                        "editor": user.with_nullable(True),
                     }
                 ),
                 min_length=1,
@@ -131,8 +131,9 @@ class TripUpdatesRecord(GlidesRecord):
                         "revenue": dy.String(nullable=True),
                         "dropped": dy.String(nullable=True),
                         "scheduled": dy.String(),  # an object with an array of objects
-                    }
-                )
+                    },
+                ),
+                min_length=1,
             ),
         }
     )
