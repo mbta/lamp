@@ -1,77 +1,9 @@
-from typing import Type, Callable
+from typing import Type
 
 import dataframely as dy
 import pytest
 
-from lamp_py.utils.dataframely import with_alias, with_nullable, unnest_columns
-
-
-# new name
-# new name with reserved characters
-@pytest.mark.parametrize(
-    ["alias"],
-    [
-        ("abc",),
-        ("1",),
-        ("`.''",),
-    ],
-    ids=[
-        "letters",
-        "numbers",
-        "normally-reserved",
-    ],
-)
-def test_with_alias(alias: str) -> None:
-    """It replaces the alias with the specified string."""
-    new_col = with_alias(dy.Struct(inner={"test": dy.String()}), alias)
-
-    assert alias == new_col.alias
-
-
-@pytest.mark.parametrize(
-    ["dtype"],
-    [
-        (dy.Binary,),
-        (dy.Bool,),
-        (dy.Categorical,),
-        (dy.Date,),
-        (dy.Datetime,),
-        (dy.Decimal,),
-        (dy.Float,),
-        (dy.Float32,),
-        (dy.Float64,),
-        (dy.Integer,),
-        (dy.Int16,),
-        (dy.Int32,),
-        (dy.Int64,),
-        (dy.Int8,),
-        (dy.Object,),
-        (dy.String,),
-        (dy.Time,),
-        (dy.UInt16,),
-        (dy.UInt32,),
-        (dy.UInt64,),
-        (dy.UInt8,),
-    ],
-)
-@pytest.mark.parametrize(
-    ["input_nullability"],
-    [
-        (True,),
-        (False,),
-    ],
-)
-@pytest.mark.parametrize(
-    ["desired_nullability"],
-    [
-        (True,),
-        (False,),
-    ],
-)
-def test_with_nullable(dtype: Type[dy.Column], input_nullability: bool, desired_nullability: bool) -> None:
-    """It always sets the specified nullability."""
-    new_column = dtype(nullable=input_nullability)
-    assert desired_nullability == with_nullable(new_column, desired_nullability).nullable
+from lamp_py.utils.dataframely import unnest_columns
 
 
 @pytest.mark.parametrize(

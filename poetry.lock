@@ -827,17 +827,17 @@ tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "dataframely"
-version = "2.7.0"
+version = "2.9.1"
 description = "A declarative, polars-native data frame validation library"
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "dataframely-2.7.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:9cb9717fc4ba54e718468c019a7850672caba4b3d770f7fd729c74f74ec54eae"},
-    {file = "dataframely-2.7.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:492eb798d336720e7df82ea794a04ce7d8eaa5c23a9e346ce3918addef579da8"},
-    {file = "dataframely-2.7.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6f726c49fe907d87ef121b3a24050dbe155b6cf2a98c48dee999d30e5170097f"},
-    {file = "dataframely-2.7.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6fc8850a27abe357f03f8a3f7dafb6895c3e13ead160dba67ca04d95e91059ac"},
-    {file = "dataframely-2.7.0-cp310-abi3-win_amd64.whl", hash = "sha256:ab84c8bc74ae41cfc68f5e9d13968d1583d5449ccc9e2f85053a362e72eb9024"},
-    {file = "dataframely-2.7.0.tar.gz", hash = "sha256:752a39abff4494374040dea3662ba5fed63217c9467d8ca52b68e4587988f6ff"},
+    {file = "dataframely-2.9.1-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:37c365860eb7bf3e10c24f9f04af6c217c0b91e7611070334152f23487c79708"},
+    {file = "dataframely-2.9.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:5dfa28f36151aabe4f42683766660741e8824cd5d29d4c061284681aa796ec43"},
+    {file = "dataframely-2.9.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fb73dc25bc288ef177a0499d9a9bb34e9538238681b6351d926d7c1df49470c9"},
+    {file = "dataframely-2.9.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d040e432944632e3ebdbb97710ec54f2abac4cc0fb8c4ca1e0eaa9612426a114"},
+    {file = "dataframely-2.9.1-cp310-abi3-win_amd64.whl", hash = "sha256:4c6f79012a3f1388f6c53c2b991e03f26b4c58bbc0d6055a585342c4bbc093bf"},
+    {file = "dataframely-2.9.1.tar.gz", hash = "sha256:450dc40f9c7d442e5493db45ece18861c0609ff12b0df4ac32c05b47f543978c"},
 ]
 
 [package.dependencies]
