@@ -28,7 +28,7 @@ GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be grea
 
 user = dy.Struct(
     {
-        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}, primary_key=True),
+        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
         "badgeNumber": dy.String(nullable=True),
     },
     nullable=True,
@@ -49,14 +49,14 @@ metadata = dy.Struct(
 
 trip_key = dy.Struct(
     {
-        "serviceDate": dy.String(regex=RFC3339_DATE_REGEX, primary_key=True),
-        "tripId": dy.String(primary_key=True),
+        "serviceDate": dy.String(regex=RFC3339_DATE_REGEX, nullable=True),
+        "tripId": dy.String(nullable=True),
         "startLocation": location,
         "endLocation": location,
-        "startTime": dy.String(regex=GTFS_TIME_REGEX),
-        "endTime": dy.String(regex=GTFS_TIME_REGEX),
-        "revenue": dy.String(regex=r"(non)?revenue"),
-        "glidesId": dy.String(),
+        "startTime": dy.String(regex=GTFS_TIME_REGEX, nullable=True),
+        "endTime": dy.String(regex=GTFS_TIME_REGEX, nullable=True),
+        "revenue": dy.String(regex=r"(non)?revenue", nullable=True),
+        "glidesId": dy.String(nullable=True),
     },
 )
 
@@ -64,7 +64,7 @@ trip_key = dy.Struct(
 class GlidesRecord(dy.Schema):
     """Base schema for all Glides records."""
 
-    id = dy.String(primary_key=True)
+    id = dy.String()
     type = dy.String()
     time = dy.Datetime(  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
         time_unit="ms",  # within Python's serializable range
