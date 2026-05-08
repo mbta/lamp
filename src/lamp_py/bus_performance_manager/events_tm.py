@@ -18,16 +18,21 @@ from lamp_py.runtime_utils.remote_files import (
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class TransitMasterEvents(BusBaseSchema):
+class TransitMasterEventsCore(BusBaseSchema):
     "Scheduled and actual stops in TransitMaster."
 
     tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
     tm_actual_arrival_time_sam = dy.Int64(nullable=True)
     tm_actual_departure_time_sam = dy.Int64(nullable=True)
-    vehicle_label = dy.String(nullable=True)
-    tm_stop_sequence = dy.Int64(primary_key=True)
     tm_pullout_id = dy.String(primary_key=True)
+
+
+class TransitMasterEvents(TransitMasterEventsCore):
+    "Scheduled and actual stops in TransitMaster, with designated primary key."
+
+    tm_stop_sequence = dy.Int64(primary_key=True)
+    vehicle_label = dy.String(nullable=True)
 
 
 class TMDailyWorkPiece(dy.Schema):

@@ -3,20 +3,17 @@ import polars as pl
 
 from lamp_py.bus_performance_manager.events_gtfs_rt import remove_rare_variant_route_suffix
 from lamp_py.bus_performance_manager.events_tm_schedule import TransitMasterSchedule
-from lamp_py.bus_performance_manager.events_gtfs_schedule import GTFSBusSchedule
+from lamp_py.bus_performance_manager.events_gtfs_schedule import GTFSBusScheduleCore, GTFSBusSchedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class CombinedBusSchedule(GTFSBusSchedule):
+class CombinedBusScheduleCore(GTFSBusScheduleCore):
     """Union of GTFS and TransitMaster bus schedules."""
 
-    gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     stop_sequence = dy.UInt32(primary_key=True, min=1)
-    tm_pullout_id = dy.String(primary_key=True)
-    vehicle_label = dy.String(nullable=True)
+    gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     schedule_joined = dy.String(nullable=False)
     tm_planned_sequence_start = dy.Int64(nullable=True)
-    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = TransitMasterSchedule.pattern_id
     point_type = dy.String(nullable=True)
@@ -28,6 +25,14 @@ class CombinedBusSchedule(GTFSBusSchedule):
     timepoint_order = TransitMasterSchedule.timepoint_order
     plan_stop_departure_sam = dy.Int64(nullable=False)
     waiver_remark = TransitMasterSchedule.waiver_remark
+
+
+class CombinedBusSchedule(CombinedBusScheduleCore):
+    """Union of GTFS and TransitMaster bus schedules, with designated primary key."""
+
+    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
+    vehicle_label = dy.String(nullable=True)
+    tm_pullout_id = dy.String(primary_key=True)
 
 
 # pylint: disable=R0801

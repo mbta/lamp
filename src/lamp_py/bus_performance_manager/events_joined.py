@@ -1,27 +1,20 @@
 import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_tm import (
-    TMDailyWorkPiece,
-    TransitMasterEvents,
-)
-from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedBusSchedule
+from lamp_py.bus_performance_manager.events_tm import TMDailyWorkPiece, TransitMasterEventsCore, TransitMasterEvents
+from lamp_py.bus_performance_manager.combined_bus_schedule import CombinedBusScheduleCore, CombinedBusSchedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import GTFSEvents, remove_overload_and_rare_variant_suffix
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-class BusEvents(CombinedBusSchedule, TransitMasterEvents):
+class BusEvents(CombinedBusScheduleCore, TransitMasterEventsCore):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
 
-    trip_id = dy.String(primary_key=True)
     vehicle_label = dy.String(primary_key=True)
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
     stop_count = dy.UInt32(nullable=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
-    direction_id = dy.Int8(nullable=True)
-    direction = dy.String(nullable=True)
     gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")

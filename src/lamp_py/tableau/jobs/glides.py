@@ -19,7 +19,7 @@ from lamp_py.utils.dataframely import unnest_columns
 GLIDES_TABLEAU_PROJECT = "Glides"
 
 TripUpdatesTableau: Type[GlidesRecord] = type(
-    "TripUpdatesTable",
+    "TripUpdatesTableau",
     (GlidesRecord,),
     unnest_columns({"data": TripUpdatesRecord.data})
     | {
@@ -29,8 +29,8 @@ TripUpdatesTableau: Type[GlidesRecord] = type(
     },
 )
 
-OperatorSignInsTableau = type(
-    "OperatorSignInsTable",
+OperatorSignInsTableau: Type[GlidesRecord] = type(
+    "OperatorSignInsTableau",
     (GlidesRecord,),
     unnest_columns({"data": OperatorSignInsRecord.data})
     | {

@@ -16,10 +16,9 @@ class BusBaseSchema(dy.Schema):
     route_id = dy.String(primary_key=True)
 
 
-class GTFSBusSchedule(BusBaseSchema):
+class GTFSBusScheduleCore(BusBaseSchema):
     """Joined table of scheduled GTFS trips."""
 
-    gtfs_stop_sequence = dy.Int64(primary_key=True)
     checkpoint_id = dy.String(nullable=True)
     block_id = dy.String(nullable=True)
     service_id = dy.String(nullable=True)
@@ -37,6 +36,12 @@ class GTFSBusSchedule(BusBaseSchema):
     plan_start_dt = dy.Datetime(nullable=True, time_zone=None)
     plan_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
     service_date = dy.Date(primary_key=True)
+
+
+class GTFSBusSchedule(GTFSBusScheduleCore):
+    """GTFS schedule with designated primary key."""
+
+    gtfs_stop_sequence = dy.Int64(primary_key=True)
 
 
 def service_ids_for_date(service_date: date) -> pl.DataFrame:
