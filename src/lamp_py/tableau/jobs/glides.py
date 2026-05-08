@@ -1,38 +1,44 @@
-from typing import Optional
+from typing import Optional, Type
 
-import pyarrow
 import dataframely as dy
-
 import polars as pl
+import pyarrow
 
-from lamp_py.tableau.hyper import HyperJob
-from lamp_py.postgres.postgres_utils import DatabaseManager
-from lamp_py.ingestion.glides import TripUpdatesTable, OperatorSignInsTable
-from lamp_py.runtime_utils.remote_files import (
-    glides_trips_updated,
-    glides_operator_signed_in,
-    tableau_glides_all_trips_updated,
-    tableau_glides_all_operator_signed_in,
-)
 from lamp_py.aws.s3 import file_list_from_s3
+from lamp_py.ingestion.glides import GlidesRecord, OperatorSignInsRecord, TripUpdatesRecord
+from lamp_py.postgres.postgres_utils import DatabaseManager
+from lamp_py.runtime_utils.remote_files import (
+    glides_operator_signed_in,
+    glides_trips_updated,
+    tableau_glides_all_operator_signed_in,
+    tableau_glides_all_trips_updated,
+)
+from lamp_py.tableau.hyper import HyperJob
+from lamp_py.utils.dataframely import unnest_columns
 
 GLIDES_TABLEAU_PROJECT = "Glides"
 
+TripUpdatesTableau: Type[GlidesRecord] = type(
+    "TripUpdatesTable",
+    (GlidesRecord,),
+    unnest_columns({"data": TripUpdatesRecord.data})
+    | {
+        "data.metadata.inputTimestamp": dy.Datetime(time_unit="ms", nullable=True),
+        "data.tripUpdates.previousTripKey.serviceDate": dy.Date(nullable=True),
+        "data.tripUpdates.tripKey.serviceDate": dy.Date(nullable=True),
+    },
+)
 
-class TripUpdatesTableau(TripUpdatesTable):  # type: ignore[misc, valid-type]
-    """Glides Trip Updates data, transformed for Tableau consumption."""
-
-    input_timestamp = dy.Datetime(time_unit="ms", alias="data.metadata.inputTimestamp", nullable=True)
-    previous_trip_service_date = dy.Date(alias="data.tripUpdates.previousTripKey.serviceDate", nullable=True)
-    trip_service_date = dy.Date(alias="data.tripUpdates.tripKey.serviceDate", nullable=True)
-
-
-class OperatorSignInsTableau(OperatorSignInsTable):  # type: ignore[misc, valid-type]
-    """Glides Operator Sign-Ins data, transformed for Tableau consumption."""
-
-    input_timestamp = dy.Datetime(time_unit="ms", alias="data.metadata.inputTimestamp", nullable=True)
-    signed_in_at = dy.Datetime(time_unit="ms", alias="data.signedInAt", nullable=True)
-    time = dy.Datetime(time_unit="ms", alias="time", nullable=True)
+OperatorSignInsTableau = type(
+    "OperatorSignInsTable",
+    (GlidesRecord,),
+    unnest_columns({"data": OperatorSignInsRecord.data})
+    | {
+        "data.metadata.inputTimestamp": dy.Datetime(time_unit="ms", nullable=True),
+        "data.signedInAt": dy.Datetime(time_unit="ms", nullable=True),
+        "time": dy.Datetime(time_unit="ms", nullable=True),
+    },
+)
 
 
 def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int]) -> None:
