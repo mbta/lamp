@@ -39,6 +39,7 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
+            "id": [str(i) for i in range(num_rows)],
             "time": dy_gen.sample_datetime(
                 num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
             ).cast(pl.Datetime(time_unit="ms"))
