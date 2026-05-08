@@ -25,7 +25,6 @@ def _():
 
     from lamp_py.flashback.events import StopEvents
     from lamp_py.aws.s3 import file_list_from_s3_with_details
-
     return StopEvents, alt, datetime, mo, pl, timedelta
 
 
@@ -327,15 +326,15 @@ def _(event_lag):
 def _(alt, event_lag, pl):
     (
         alt.Chart(
-            event_lag.with_columns(pl.col("event_lag").dt.total_seconds()).filter(
-                pl.col("event_lag").is_between(0, 100)
-            )
+            event_lag
+                .with_columns(pl.col("event_lag").dt.total_seconds())
+                .filter(pl.col("event_lag").is_between(0, 100))
         )
         .mark_bar()
         .encode(
-            alt.X("event_lag:Q").bin(maxbins=30).title("Lag (seconds)"),
-            alt.Y("count()"),
-            alt.Color("most_recent_event"),
+            alt.X('event_lag:Q').bin(maxbins = 30).title("Lag (seconds)"),
+            alt.Y('count()'),
+            alt.Color('most_recent_event')
         )
     )
     return
