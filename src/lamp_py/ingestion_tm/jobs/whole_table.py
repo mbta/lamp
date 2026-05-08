@@ -21,7 +21,7 @@ from lamp_py.runtime_utils.remote_files import (
     tm_time_point_file,
     tm_pattern_geo_node_xref_file,
 )
-from lamp_py.aws.s3 import upload_file
+from lamp_py.aws.s3 import replace_remote_parquet
 
 
 class TMWholeTable(TMExport):
@@ -49,7 +49,7 @@ class TMWholeTable(TMExport):
                 local_export_path = os.path.join(temp_dir, "out.parquet")
                 tm_db.write_to_parquet(query, local_export_path, self.export_schema)
                 logger.add_metadata(pq_export_bytes=os.stat(local_export_path).st_size)
-                upload_file(local_export_path, self.s3_location.s3_uri)
+                replace_remote_parquet(local_export_path, self.s3_location.s3_uri)
                 logger.log_complete()
 
         except Exception as exception:
