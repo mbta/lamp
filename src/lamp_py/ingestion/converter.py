@@ -113,8 +113,12 @@ class Converter(ABC):
         self.metadata_queue: Queue[Optional[str]] = metadata_queue
 
     def add_files(self, files: List[str]) -> None:
-        """add files to this converter"""
+        """add files to this converter, ensuring sorted order"""
         self.files += files
+
+        # ensures recent data is processed first, then backfill is done.
+        self.files.sort(reverse=True)
+
 
     def reset_files(self) -> None:
         """remove files from this converter"""

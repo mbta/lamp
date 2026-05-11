@@ -69,10 +69,10 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
 
         table_count = 0
         try:
-            for table in self.process_files():
+            for table, chunk_ts in self.process_files():
                 if table.num_rows == 0:
                     continue
-                partition_dt = self.partition_dt(table)
+                partition_dt = chunk_ts
 
                 # include hour/minute in filename when using time-chunk partitioning
                 if self.time_chunk_minutes > 0:
@@ -180,14 +180,19 @@ class GtfsRtTripsFullSetConverter(GtfsRtConverter):
 
                 self.data_parts[dt_part].files.append(result_filename)
 
-                if self.time_chunk_minutes > 0:
+                # we're mapping each gz to a range dt_part. when we have > 1 dt_parts in the map, 
+                # that means we've processed files from at least 2 different time intervals and 
+                # can start yielding tables for the intervals that are complete.
+                # this relies on self.files being sorted - enforced by add_files(), 
+                # and ThreadPoolExecutor/map yields __next__ iterator, i.e. returns in the right order
+                if self.time_chunk_minutes > 0 and len(self.data_parts) > 1:
                     yield from self.yield_check_periodic(process_logger, result_dt)
-                else:
-                    yield from self.yield_check(process_logger)
+                # else:
+                #     yield from self.yield_check(process_logger)
 
         # yield any remaining tables
         if self.time_chunk_minutes > 0:
-            yield from self.yield_check_periodic(process_logger, datetime.min, flush=True)
+            yield from self.yield_check_periodic(process_logger, flush=True)
         else:
             yield from self.yield_check(process_logger, min_rows=-1)
 

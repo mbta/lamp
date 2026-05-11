@@ -191,11 +191,11 @@ class GtfsRtConverter(Converter):
 
         table_count = 0
         try:
-            for table in self.process_files():
+            for table, chunk_ts in self.process_files():
                 if table.num_rows == 0:
                     continue
 
-                self.continuous_pq_update(table)
+                self.continuous_pq_update(table, chunk_ts)
                 pool = pyarrow.default_memory_pool()
                 pool.release_unused()
                 table_count += 1
@@ -278,7 +278,12 @@ class GtfsRtConverter(Converter):
 
                 self.data_parts[dt_part].files.append(result_filename)
 
-                if self.time_chunk_minutes > 0:
+                # we're mapping each gz to a range dt_part. when we have > 1 dt_parts in the map, 
+                # that means we've processed files from at least 2 different time intervals and 
+                # can start yielding tables for the intervals that are complete.
+                # this relies on self.files being sorted - enforced by add_files(), 
+                # and ThreadPoolExecutor/map yields __next__ iterator, i.e. returns in the right order
+                if self.time_chunk_minutes > 0 and len(self.data_parts) > 1:
                     yield from self.yield_check_periodic(process_logger, result_dt)
                 else:
                     yield from self.yield_check(process_logger)
@@ -342,9 +347,9 @@ class GtfsRtConverter(Converter):
     def yield_check_periodic(
         self,
         process_logger: ProcessLogger,
-        current_ts: datetime,
+        current_ts: datetime = datetime.now(),
         flush: bool = False,
-    ) -> Iterable[pyarrow.table]:
+    ) -> Iterable[Tuple[pyarrow.table, datetime]]:
         """
         Yield completed time-chunk intervals from data_parts.
 
@@ -377,7 +382,7 @@ class GtfsRtConverter(Converter):
                 process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
                 process_logger.log_start()
 
-                yield table
+                yield (table, iter_ts)
                 del self.data_parts[iter_ts]
 
     def gz_to_pyarrow(self, filename: str) -> Tuple[Optional[datetime], str, Optional[pyarrow.table]]:
@@ -645,15 +650,13 @@ class GtfsRtConverter(Converter):
 
     # pylint: enable=R0914
 
-    def continuous_pq_update(self, table: pyarrow.Table) -> None:
+    def continuous_pq_update(self, table: pyarrow.Table, partition_dt: datetime) -> None:
         """
         Continuous updating of local parquet files that are synced with S3
         """
         log = ProcessLogger("continuous_pq_update")
         log.log_start()
         try:
-            partition_dt = self.partition_dt(table)
-
             local_path = os.path.join(
                 self.tmp_folder,
                 LAMP,
