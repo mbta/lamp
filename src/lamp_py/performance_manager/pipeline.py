@@ -95,7 +95,7 @@ def main(args: argparse.Namespace) -> None:
         process_logger = ProcessLogger("reads", job_counter=job)
         process_logger.log_start()
         try:
-            PERFORMANCE_MANAGER_JOBS[job % len(PERFORMANCE_MANAGER_JOBS)].run_parquet()
+            PERFORMANCE_MANAGER_JOBS[job % len(PERFORMANCE_MANAGER_JOBS)].run_parquet(rpm_db_manager)
 
             process_logger.log_complete()
         except Exception as exception:
