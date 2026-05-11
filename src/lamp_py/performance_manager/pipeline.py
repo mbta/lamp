@@ -72,10 +72,10 @@ def main(args: argparse.Namespace) -> None:
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.monotonic, time.sleep)
 
-    def fast_iter() -> None:
+    def writes() -> None:
         """function to invoke a fast scheduled routine"""
         check_for_sigterm()
-        process_logger = ProcessLogger("fast_event_loop")
+        process_logger = ProcessLogger("writes")
         process_logger.log_start()
         try:
             process_static_tables(rpm_db_manager, md_db_manager)
@@ -87,7 +87,7 @@ def main(args: argparse.Namespace) -> None:
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            scheduler.enter(int(args.interval), 2, fast_iter)
+            scheduler.enter(int(args.interval), 2, writes)
 
     def slow_iter() -> None:
         """function to invoke a slow scheduled routine"""
