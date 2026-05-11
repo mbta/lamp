@@ -101,8 +101,8 @@ def main(args: argparse.Namespace) -> None:
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            # re-schedule every 2 minutes
-            scheduler.enter(60 * 2, 1, reads, (job + 1,))
+            # re-schedule every 60 seconds
+            scheduler.enter(60, 1, reads, (job + 1,))
 
     # schedule the initial loop and start the scheduler
     scheduler.enter(0, 1, writes)
