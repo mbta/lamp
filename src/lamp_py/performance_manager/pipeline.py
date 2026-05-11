@@ -15,7 +15,7 @@ from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from lamp_py.tableau.pipeline import start_parquet_updates
+from lamp_py.tableau.pipeline import PERFORMANCE_MANAGER_JOBS
 
 from lamp_py.publishing.performancedata import publish_performance_index
 from lamp_py.utils.clear_folder import clear_folder
@@ -89,24 +89,24 @@ def main(args: argparse.Namespace) -> None:
         finally:
             scheduler.enter(int(args.interval), 2, writes)
 
-    def slow_iter() -> None:
+    def reads(job: int) -> None:
         """function to invoke a slow scheduled routine"""
         check_for_sigterm()
-        process_logger = ProcessLogger("slow_event_loop")
+        process_logger = ProcessLogger("reads", job_counter=job)
         process_logger.log_start()
         try:
-            start_parquet_updates(rpm_db_manager)
+            PERFORMANCE_MANAGER_JOBS[job % len(PERFORMANCE_MANAGER_JOBS)].run_parquet()
 
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            # re-schedule every 30 minutes
-            scheduler.enter(60 * 30, 1, slow_iter)
+            # re-schedule every 2 minutes
+            scheduler.enter(60 * 2, 1, reads, (job + 1,))
 
     # schedule the initial loop and start the scheduler
-    scheduler.enter(0, 1, fast_iter)
-    scheduler.enter(0, 2, slow_iter)
+    scheduler.enter(0, 1, writes)
+    scheduler.enter(0, 2, reads, (0,))
     scheduler.run()
 
 
