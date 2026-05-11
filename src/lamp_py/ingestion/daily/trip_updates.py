@@ -6,7 +6,7 @@ import os
 from lamp_py.runtime_utils.remote_files import S3_ARCHIVE, S3Location
 from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 from lamp_py.ingestion.backfill.delta_reingestion import delta_reingestion_runner
-from lamp_py.ingestion.backfill.convert_gtfs_rt_fullset import GtfsRtTripsFullSetConverter
+from lamp_py.ingestion.backfill.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from queue import Queue
 
 
@@ -31,6 +31,25 @@ def reprocess_trip_updates_terminal_prediction() -> bool:
     pass
 
 
+# def consolidate_partitions_for_archive(local_converter_partition_path: date) -> bool:
+
+#     write_dataset_to_single_parquet_partitioned_and_sorted(
+#         local_converter_partition_path,
+#         local_combined_file,
+#         partition_column=converter.partition_column(),
+#         in_partition_sort=converter.table_sort_order(),
+#         debug_flag=True,
+#     )
+
+#     #### Stage 3: local to remote (one to one)
+
+#     # upload local to remote
+#     upload_file(
+#         local_combined_file,
+#         s3_combined_file,
+#     )
+
+
 def reprocess_trip_updates(start_date: date, end_date: date) -> bool:
     """
     Full encapsulated method to call all of this backfill job
@@ -45,13 +64,14 @@ def reprocess_trip_updates(start_date: date, end_date: date) -> bool:
     final_output_path_daily = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
 
     # construct and run converter once per day
-    converter = GtfsRtTripsFullSetConverter(
+    converter = GtfsRtFullPartitionConverter(
         config_type=ConfigType.RT_TRIP_UPDATES,
         metadata_queue=Queue(),
         local_output_location=local_tmp_output,
-        remote_output_location=final_output_path_daily,
+        # remote_output_location=final_output_path_daily,
         max_workers=8,
         verbose=True,
+        time_chunk_minutes=15,
     )
 
     delta_reingestion_runner(
