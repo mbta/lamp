@@ -7,6 +7,7 @@ import sched
 import sys
 import time
 import signal
+from itertools import cycle
 from typing import List
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
@@ -72,8 +73,10 @@ def main(args: argparse.Namespace) -> None:
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.monotonic, time.sleep)
 
+    tableau_cycle = cycle(PERFORMANCE_MANAGER_JOBS)
+
     def writes() -> None:
-        """function to invoke a fast scheduled routine"""
+        """Write new data to the database."""
         check_for_sigterm()
         process_logger = ProcessLogger("writes")
         process_logger.log_start()
@@ -89,24 +92,25 @@ def main(args: argparse.Namespace) -> None:
         finally:
             scheduler.enter(int(args.interval), 2, writes)
 
-    def reads(job: int) -> None:
-        """function to invoke a slow scheduled routine"""
+    def reads() -> None:
+        """Update parquet files with the latest data."""
         check_for_sigterm()
-        process_logger = ProcessLogger("reads", job_counter=job)
+        job = next(tableau_cycle)
+        process_logger = ProcessLogger("reads", job_name=str(job))
         process_logger.log_start()
         try:
-            PERFORMANCE_MANAGER_JOBS[job % len(PERFORMANCE_MANAGER_JOBS)].run_parquet(rpm_db_manager)
+            job.run_parquet(rpm_db_manager)
 
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            # re-schedule every 60 seconds
-            scheduler.enter(60, 1, reads, (job + 1,))
+            # schedule next job in 10 seconds
+            scheduler.enter(10, 1, reads)
 
     # schedule the initial loop and start the scheduler
     scheduler.enter(0, 1, writes)
-    scheduler.enter(0, 2, reads, (0,))
+    scheduler.enter(0, 2, reads)
     scheduler.run()
 
 
