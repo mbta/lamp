@@ -196,7 +196,12 @@ async def test_invalid_vehicle_positions_schema(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """It filters out events that don't comply with the schema."""
-    vp = VehiclePositions.sample(generator=dy_gen).with_columns(**overrides)
+    vp = VehiclePositions.sample(
+        generator=dy_gen,
+        overrides={
+            "entity": VehiclePositions.entity.inner.sample(generator=dy_gen, n=2).implode()
+        },  # need at least 2 entities to test duplicate primary keys
+    ).with_columns(**overrides)
     mock_response, _ = mock_vp_response(vp)  # type: ignore[arg-type]
     mock_get.return_value.__aenter__.return_value = mock_response
 

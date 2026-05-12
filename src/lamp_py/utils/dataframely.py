@@ -1,17 +1,19 @@
+from copy import deepcopy
 import dataframely as dy
 
 
 def with_alias(column: dy.Column, new_alias: str) -> dy.Column:
     """Return the input column with a new alias."""
-    column.alias = new_alias
-
-    return column
+    new_column = deepcopy(column)
+    new_column.alias = new_alias
+    return new_column
 
 
 def with_nullable(column: dy.Column, nullable: bool) -> dy.Column:
     """Return the input column and set its nullability."""
-    column.nullable = nullable
-    return column
+    new_column = deepcopy(column)
+    new_column.nullable = nullable
+    return new_column
 
 
 def unnest_columns(columns: dict[str, dy.Column]) -> dict[str, dy.Column]:
