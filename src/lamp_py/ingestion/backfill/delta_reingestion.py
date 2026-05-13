@@ -137,23 +137,23 @@ def delta_reingestion_runner(
         converter.add_files(file_list)
         converter.convert()
 
-        ## Stage 2: local to local (many to 1)
+        # ## Stage 2: local to local (many to 1)
 
-        write_dataset_to_single_parquet_partitioned_and_sorted(
-            local_converter_partition_path,
-            local_combined_file,
-            partition_column=converter.partition_column(),
-            in_partition_sort=converter.table_sort_order(),
-            debug_flag=True,
-        )
+        # write_dataset_to_single_parquet_partitioned_and_sorted(
+        #     local_converter_partition_path,
+        #     local_combined_file,
+        #     partition_column=converter.partition_column(),
+        #     in_partition_sort=converter.table_sort_order(),
+        #     debug_flag=True,
+        # )
 
-        #### Stage 3: local to remote (one to one)
+        # #### Stage 3: local to remote (one to one)
 
-        # upload local to remote
-        upload_file(
-            local_combined_file,
-            s3_combined_file,
-        )
+        # # upload local to remote
+        # upload_file(
+        #     local_combined_file,
+        #     s3_combined_file,
+        # )
 
         cur_date = cur_date + timedelta(days=1)
 
