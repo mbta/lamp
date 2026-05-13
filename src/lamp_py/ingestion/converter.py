@@ -119,7 +119,6 @@ class Converter(ABC):
         # ensures recent data is processed first, then backfill is done.
         self.files.sort(reverse=True)
 
-
     def reset_files(self) -> None:
         """remove files from this converter"""
         self.files = []

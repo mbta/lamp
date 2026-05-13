@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     start = datetime(2026, 3, 3, 0, 0, 0)
     end = datetime(2026, 3, 3, 0, 0, 0)
-    config=ConfigType.RT_TRIP_UPDATES    
+    config = ConfigType.RT_TRIP_UPDATES
 
     final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_FULLSET")
     final_output_path_daily = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         # remote_output_location=final_output_path_daily,
         max_workers=16,
         time_chunk_minutes=15,
-        move_source_on_completion=True
+        move_source_on_completion=True,
     )
 
     delta_reingestion_runner(

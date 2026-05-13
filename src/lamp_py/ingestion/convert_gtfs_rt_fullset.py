@@ -112,9 +112,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     self.archive_files = []
                     self.error_files = []
                     move_futures.append(
-                        move_executor.submit(
-                            self._move_s3_files_async, archive_snapshot, error_snapshot
-                        )
+                        move_executor.submit(self._move_s3_files_async, archive_snapshot, error_snapshot)
                     )
 
                 # mirror on s3 if remote output location is provided
@@ -158,7 +156,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         table = pl.from_arrow(table).filter(self.filter).to_arrow()
 
         # read local_path if exists and concat with table
-        # this handles the case where a prior iteration yielded an incomplete time chunk, 
+        # this handles the case where a prior iteration yielded an incomplete time chunk,
         # and we are now filling in the remaining record that is part of that chunk
         if os.path.exists(local_path):
             existing_table = pq.read_table(local_path)
