@@ -21,7 +21,7 @@ from lamp_py.runtime_utils.remote_files import (
 
 from lamp_py.aws.s3 import (
     file_list_from_s3,
-    upload_file,
+    replace_remote_parquet,
     object_metadata,
 )
 
@@ -50,7 +50,7 @@ class TMDailyTable(TMExport):
             with open(local_version, "w", encoding="utf8") as f:
                 f.write(self.lamp_version)
 
-            upload_file(
+            replace_remote_parquet(
                 file_name=local_version,
                 object_path=self.s3_version_path,
                 extra_args={"Metadata": {self.version_key: self.lamp_version}},
@@ -160,7 +160,7 @@ class TMDailyTable(TMExport):
                         last_export_path=s3_export_path,
                         last_export_bytes=os.stat(local_pq).st_size,
                     )
-                    upload_file(local_pq, s3_export_path)
+                    replace_remote_parquet(file_name=local_pq, object_path=s3_export_path)
 
                 self.update_version_file()
                 logger.log_complete()

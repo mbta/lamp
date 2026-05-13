@@ -1,30 +1,30 @@
-# pylint: disable=[W0621, W0611]
+# pylint: disable=[W0621, W0611, R0913, R0917]
 # disable these warnings that are triggered by pylint not understanding how test
 # fixtures work. https://stackoverflow.com/q/59664605
 
 import json
 import logging
 import os
-
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import boto3
+import polars as pl
 import pytest
+from botocore.stub import ANY, Stubber
+from polars.testing import assert_frame_equal
+from pyarrow.fs import LocalFileSystem
 
-from botocore.stub import Stubber
-from botocore.stub import ANY
-
-from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range
-from lamp_py.aws.s3 import move_s3_objects
-from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
+from lamp_py.aws.s3 import file_list_from_s3, file_list_from_s3_date_range, move_s3_objects, replace_remote_parquet
+from lamp_py.runtime_utils.remote_files import S3_SPRINGBOARD
 
 from ..test_resources import incoming_dir
 
 
 @pytest.fixture
 def s3_stub():  # type: ignore
-    """test fixture for simulating s3 calls"""
+    """Test fixture for simulating s3 calls"""
     s3_stub = boto3.client("s3")
     with Stubber(s3_stub) as stubber:
         with patch("lamp_py.aws.s3.get_s3_client", return_value=s3_stub):
@@ -34,8 +34,7 @@ def s3_stub():  # type: ignore
 
 @pytest.mark.skip("this wont work in CI without mock...TODO")
 def test_file_list_from_s3_date_range() -> None:
-    """test for s3 date range call - query for all files within a range of dates"""
-
+    """Test for s3 date range call - query for all files within a range of dates"""
     template = "year={yy}/month={mm}/day={dd}/"
     end_date = datetime.now()
     start_date = end_date - timedelta(days=10)
@@ -53,7 +52,7 @@ def test_file_list_from_s3_date_range() -> None:
 
 def test_file_list_s3(s3_stub):  # type: ignore
     """
-    test that list files works as expected given pre-described s3 responses
+    Test that list files works as expected given pre-described s3 responses
     """
     # Process 'list_objects_v2' that returns no files
     page_obj_params = {
@@ -131,7 +130,7 @@ def test_file_list_s3(s3_stub):  # type: ignore
 
 def test_move_bad_objects(s3_stub, caplog):  # type: ignore
     """
-    test that unsuccesful moves are correctly logged
+    Test that unsuccesful moves are correctly logged
     """
     bad_file_list = [
         "bad_file1",
@@ -154,3 +153,42 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
             found_error = True
 
     assert found_error
+
+
+@pytest.mark.parametrize(
+    ["remote_file_exists", "local_records", "upload_succeeds", "log_text"],
+    [
+        (True, 10, True, "uploaded=True"),
+        (True, 5, True, "LampInvalidReplacementError"),
+        (False, 5, True, "uploaded=True"),
+        (True, 10, False, "uploaded=False"),
+    ],
+    ids=[
+        "replace-existing",
+        "fewer-records-than-existing",
+        "no-existing",
+        "upload-fails",
+    ],
+)
+def test_replace_remote_parquet(
+    remote_file_exists: bool,
+    local_records: int,
+    upload_succeeds: bool,
+    log_text: str,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """It replaces a remote parquet or logs an error trying."""
+    local_file = tmp_path / "foo.parquet"
+    pl.int_range(0, local_records, eager=True).to_frame().write_parquet(local_file.as_posix())
+
+    remote_file = tmp_path / "remote_foo.parquet"
+    pl.int_range(0, 10, eager=True).to_frame().write_parquet(remote_file.as_posix())
+
+    with patch("lamp_py.aws.s3.object_exists", return_value=remote_file_exists):
+        with patch("pyarrow.fs.S3FileSystem", return_value=LocalFileSystem()):
+            with patch("lamp_py.aws.s3.upload_file", return_value=upload_succeeds):
+                result = replace_remote_parquet(local_file.as_posix(), "s3://" + remote_file.as_posix())
+                assert_frame_equal(pl.int_range(0, 10, eager=True).to_frame(), pl.read_parquet(remote_file.as_posix()))
+                assert log_text in caplog.text
+                assert result == (upload_succeeds and ((not remote_file_exists) or (local_records >= 10)))
