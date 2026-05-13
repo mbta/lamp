@@ -1,6 +1,6 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 import logging
 import os
 from datetime import datetime
@@ -11,13 +11,13 @@ import pyarrow
 import pyarrow.parquet as pq
 import polars as pl
 
-from lamp_py.aws.s3 import upload_file
+from lamp_py.aws.s3 import move_s3_objects, upload_file
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD, S3Location
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR, S3_SPRINGBOARD, S3Location
 
 import json
 
@@ -39,7 +39,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         polars_filter: pl.Expr = pl.lit(True),  # default to true - which will essentially not filter
         max_workers: int = 8,
         time_chunk_minutes: int = 15,
-        backfill_mode: bool = False,
+        move_source_on_completion: bool = False,
     ) -> None:
         GtfsRtConverter.__init__(
             self, config_type, metadata_queue, max_workers=max_workers, time_chunk_minutes=time_chunk_minutes
@@ -54,7 +54,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         self.remote_output_location = remote_output_location
         self.data_parts: Dict[datetime, TableData] = {}
         self.filter = polars_filter
-        self.backfill_mode = backfill_mode
+        self.move_source_on_completion = move_source_on_completion
 
     def convert(self) -> None:
         """
@@ -77,12 +77,12 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         process_logger.log_start()
 
         table_count = 0
+        move_futures: List[Future] = []
+        move_executor = ThreadPoolExecutor(max_workers=1) if self.move_source_on_completion else None
         try:
             for table, partition_dt in self.process_files():
                 if table.num_rows == 0:
                     continue
-
-                time_suffix = f"{partition_dt.hour:02d}{partition_dt.minute:02d}"
 
                 path_suffix = os.path.join(
                     LAMP,
@@ -90,7 +90,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     f"year={partition_dt.year}",
                     f"month={partition_dt.month}",
                     f"day={partition_dt.day}",
-                    f"{partition_dt.isoformat()}{time_suffix}.parquet",
+                    f"{partition_dt.isoformat()}.parquet",
                 )
 
                 local_path = os.path.join(self.tmp_folder, path_suffix)
@@ -104,8 +104,18 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 # (which could be a temp location or the final archive location).
                 # in non-backfill mode, we want to move the original gtfs-rt files from
                 # incoming to archive after successful conversion.
-                if not self.backfill_mode:
-                    self.move_s3_files()
+                if self.move_source_on_completion and move_executor is not None:
+                    # snapshot and clear file lists so the async move
+                    # doesn't interfere with ongoing accumulation
+                    archive_snapshot = self.archive_files[:]
+                    error_snapshot = self.error_files[:]
+                    self.archive_files = []
+                    self.error_files = []
+                    move_futures.append(
+                        move_executor.submit(
+                            self._move_s3_files_async, archive_snapshot, error_snapshot
+                        )
+                    )
 
                 # mirror on s3 if remote output location is provided
                 if self.remote_output_location is not None:
@@ -117,12 +127,26 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
 
+            # wait for all background s3 moves to finish
+            for future in move_futures:
+                future.result()
+
         except Exception as exception:
             process_logger.log_failure(exception)
         else:
             process_logger.log_complete()
         finally:
             self.data_parts = {}
+            if move_executor is not None:
+                move_executor.shutdown(wait=False)
+
+    @staticmethod
+    def _move_s3_files_async(archive_files: List[str], error_files: List[str]) -> None:
+        """Move archive and error files to S3 in a background thread."""
+        if error_files:
+            move_s3_objects(error_files, os.path.join(S3_ERROR, LAMP))
+        if archive_files:
+            move_s3_objects(archive_files, os.path.join(S3_ARCHIVE, LAMP))
 
     def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
@@ -132,6 +156,13 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         """
 
         table = pl.from_arrow(table).filter(self.filter).to_arrow()
+
+        # read local_path if exists and concat with table
+        # this handles the case where a prior iteration yielded an incomplete time chunk, 
+        # and we are now filling in the remaining record that is part of that chunk
+        if os.path.exists(local_path):
+            existing_table = pq.read_table(local_path)
+            table = pyarrow.concat_tables([existing_table, table])
 
         writer = pq.ParquetWriter(local_path, schema=table.schema, compression="zstd", compression_level=3)
         writer.write_table(table)
@@ -251,7 +282,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             if flush or current_interval < iter_ts:
 
                 # only populate archive_files if we're in live ingestion mode
-                if not self.backfill_mode:
+                if self.move_source_on_completion:
                     self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
