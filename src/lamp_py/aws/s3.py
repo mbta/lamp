@@ -29,6 +29,7 @@ from botocore.exceptions import ClientError
 from pyarrow import Table, fs
 from pyarrow.util import guid
 
+from lamp_py.runtime_utils.lamp_exception import LampInvalidReplacementError
 from lamp_py.runtime_utils.process_logger import ProcessLogger, override_log_level
 from lamp_py.utils.date_range_builder import build_data_range_paths
 
@@ -758,7 +759,7 @@ def replace_remote_parquet(
     :param object_path: S3 object path to upload to (including bucket); if not empty, the existing file must be Parquet
     :param extra_args: additional arguments passed to upload_file
 
-    :return: None
+    :return: True if uploaded; False otherwise
     """
     process_logger = ProcessLogger("replace_remote_parquet", file_name=file_name, object_path=object_path)
     process_logger.log_start()
@@ -769,11 +770,15 @@ def replace_remote_parquet(
         if object_exists(object_path):
             existing_row_count = pq.read_metadata(object_path, filesystem=fs.S3FileSystem()).num_rows
             new_row_count = pq.read_metadata(file_name).num_rows
-            assert new_row_count >= existing_row_count, f"{new_row_count} < {existing_row_count}; cancelling upload."
+            if new_row_count < existing_row_count:
+                raise LampInvalidReplacementError(f"{new_row_count} < {existing_row_count}: cancelling upload")
             process_logger.add_metadata(existing_row_count=existing_row_count, new_row_count=new_row_count)
 
         result = upload_file(file_name, object_path, extra_args)
-        assert result, "upload_file failed"
+        process_logger.add_metadata(uploaded=result)
+    except LampInvalidReplacementError as e:
+        process_logger.log_failure(e)
+        return False
     except Exception as e:
         process_logger.log_failure(e)
         return False

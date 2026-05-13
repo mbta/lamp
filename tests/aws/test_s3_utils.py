@@ -158,10 +158,16 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
 @pytest.mark.parametrize(
     ["remote_file_exists", "local_records", "upload_succeeds", "log_text"],
     [
-        (True, 10, True, "existing_row_count=10"),
-        (True, 5, True, "<"),
-        (False, 5, True, "status=complete"),
-        (True, 10, False, "upload_file failed"),
+        (True, 10, True, "uploaded=True"),
+        (True, 5, True, "LampInvalidReplacementError"),
+        (False, 5, True, "uploaded=True"),
+        (True, 10, False, "uploaded=False"),
+    ],
+    ids=[
+        "replace-existing",
+        "fewer-records-than-existing",
+        "no-existing",
+        "upload-fails",
     ],
 )
 def test_replace_remote_parquet(
