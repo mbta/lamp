@@ -3432,6 +3432,40 @@ pytest = ">=6.2.5"
 dev = ["pre-commit", "pytest-asyncio", "tox"]
 
 [[package]]
+name = "pytest-order"
+version = "1.4.0"
+description = "pytest plugin to run tests in a specific order"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "pytest_order-1.4.0-py3-none-any.whl", hash = "sha256:05b1710cf16bb2123294eec5bdfaee513322ff1926c0dfa86eb8be632eb264a1"},
+    {file = "pytest_order-1.4.0.tar.gz", hash = "sha256:327fb6eee1ae771051da13d2a0d9306d947e87f9ab8f4d6302e5d122c7472691"},
+]
+
+[package.dependencies]
+pytest = [
+    {version = ">=6.2.4", markers = "python_version < \"3.14\""},
+    {version = ">=7.4", markers = "python_version >= \"3.14\""},
+]
+
+[package.extras]
+dev = ["pytest-dependency (>=0.5.1)", "pytest-mock (>=1.11.0)", "pytest-xdist (>=1.29.0)"]
+
+[[package]]
+name = "pytest-randomly"
+version = "4.1.0"
+description = "Pytest plugin to randomly order tests and control random.seed."
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "pytest_randomly-4.1.0-py3-none-any.whl", hash = "sha256:f55e89e53367b090c0c053697d7f9d77595543d0e0516c93978b50c0f6b252f9"},
+    {file = "pytest_randomly-4.1.0.tar.gz", hash = "sha256:47f1d9746c3bc3efabd53ae1ebfb8bb385cf3d4df4b505b6d58d9c97a3dfe70f"},
+]
+
+[package.dependencies]
+pytest = "*"
+
+[[package]]
 name = "pytest-xdist"
 version = "3.8.0"
 description = "pytest xdist plugin for distributed testing, most importantly across multiple CPUs"
@@ -4338,4 +4372,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "55c3ecc76f4564a5f61a223c92a89cd77ee5a4465406096f8f79d8d3e080a82c"
+content-hash = "c05a7a05e026148b1efeea002b63f96966caeee0c735afa5a2595134a7e3d481"

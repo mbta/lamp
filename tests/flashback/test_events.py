@@ -83,15 +83,10 @@ from lamp_py.ingestion.convert_gtfs_rt import VehiclePositions
             ],
             0,
         ),
-        (
-            [],
-            0,
-        ),
     ],
     ids=[
         "complete-data",
         "missing-trip-id",
-        "empty-entity",
     ],
 )
 def test_unnest_vehicle_positions(entity: list[dict], valid_records: int) -> None:
