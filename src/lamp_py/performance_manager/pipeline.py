@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from lamp_py.tableau.hyper import HyperJob
 
 import argparse
 import logging
@@ -95,8 +96,8 @@ def main(args: argparse.Namespace) -> None:
     def reads() -> None:
         """Update parquet files with the latest data."""
         check_for_sigterm()
-        job = next(tableau_cycle)
-        process_logger = ProcessLogger("reads", job_name=str(job))
+        job: HyperJob = next(tableau_cycle)
+        process_logger = ProcessLogger("reads", output_path=job.remote_parquet_path)
         process_logger.log_start()
         try:
             job.run_parquet(rpm_db_manager)
