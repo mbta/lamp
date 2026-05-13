@@ -21,7 +21,7 @@ from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.utils.clear_folder import clear_folder
 from lamp_py.ingestion.daily.trip_updates import (
     consolidate_partitions_for_archive,
-    reprocess_trip_updates,
+    reprocess_delta_backfill,
     reprocess_trip_updates_terminal_prediction,
     within_daily_processing_window,
 )

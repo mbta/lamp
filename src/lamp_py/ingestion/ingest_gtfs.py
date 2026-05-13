@@ -11,7 +11,7 @@ from lamp_py.aws.s3 import (
     move_s3_objects,
     file_list_from_s3,
 )
-from lamp_py.ingestion.backfill.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
+from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from lamp_py.ingestion.convert_gtfs import GtfsConverter
