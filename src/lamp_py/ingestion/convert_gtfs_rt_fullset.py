@@ -152,7 +152,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         """
         just write the file out..
 
-        # this should be already sorted by timestamp based on how self.files is yielded.
+        this should be already sorted by timestamp based on how self.files is yielded.
         """
 
         table = pl.from_arrow(table).filter(self.filter).to_arrow()
