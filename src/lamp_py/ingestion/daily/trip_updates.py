@@ -6,7 +6,7 @@ import os
 from lamp_py.runtime_utils.remote_files import S3_ARCHIVE, S3Location
 from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 from lamp_py.ingestion.backfill.delta_reingestion import delta_reingestion_runner
-from lamp_py.ingestion.backfill.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
+from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from queue import Queue
 
 
@@ -50,38 +50,35 @@ def reprocess_trip_updates_terminal_prediction() -> bool:
 #     )
 
 
-def reprocess_trip_updates(start_date: date, end_date: date) -> bool:
-    """
-    Full encapsulated method to call all of this backfill job
-    """
+#         ## Stage 2: local to local (many to 1)
 
-    local_tmp_output = "/tmp/gtfs-rt-continuous/"
+#         # Define the path to your input Parquet files (can use a glob pattern)
+#         converter_output_path = f"{local_output_location}/lamp/RT_TRIP_UPDATES/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
+#         consolidated_parquet_output_file = (
+#             f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
+#         )
 
-    if not os.path.exists(local_tmp_output):
-        os.makedirs(local_tmp_output)
+#         # Create a dataset from the input files
+#         ds = pd.dataset(converter_output_path, format="parquet")
 
-    final_output_path = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES_FULLSET")
-    final_output_path_daily = S3Location(S3_ARCHIVE, "lamp/adhoc/RT_TRIP_UPDATES")
+#         with pq.ParquetWriter(
+#             consolidated_parquet_output_file, schema=ds.schema, compression="zstd", compression_level=3
+#         ) as writer:
+#             for batch in ds.to_batches(batch_size=512 * 1024):
+#                 writer.write_batch(batch)
 
-    # construct and run converter once per day
-    converter = GtfsRtFullPartitionConverter(
-        config_type=ConfigType.RT_TRIP_UPDATES,
-        metadata_queue=Queue(),
-        local_output_location=local_tmp_output,
-        # remote_output_location=final_output_path_daily,
-        max_workers=8,
-        verbose=True,
-        time_chunk_minutes=15,
-    )
+#         #### Stage 3: local to remote (one to one)
 
-    delta_reingestion_runner(
-        start_date=start_date,
-        end_date=end_date,
-        local_output_location=local_tmp_output,
-        final_output_path=final_output_path,
-        converter=converter,
-        in_filter="mbta.com_realtime_TripUpdates_enhanced.json.gz",
-        bucket=S3_ARCHIVE,
-    )
+#         # upload local to remote
+#         upload_file(
+#             consolidated_parquet_output_file,
+#             consolidated_parquet_output_file.replace(
+#                 f"{local_output_location}/",
+#                 f"{final_output_path.s3_uri}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/",
+#             ),
+#         )
 
-    return True
+
+# def reprocess_delta_backfill(config: ConfigType, start_date: date, end_date: date) -> bool:
+
+#     return True
