@@ -1,31 +1,28 @@
 #!/usr/bin/env python
-from lamp_py.tableau.hyper import HyperJob
-
 import argparse
 import logging
 import os
 import sched
+import signal
 import sys
 import time
-import signal
 from itertools import cycle
 from typing import List
 
-from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.postgres.postgres_utils import DatabaseManager, DatabaseIndex
+from lamp_py.aws.ecs import check_for_sigterm, handle_ecs_sigterm
+from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
+from lamp_py.publishing.performancedata import publish_performance_index
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-
+from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.pipeline import PERFORMANCE_MANAGER_JOBS
-
-from lamp_py.publishing.performancedata import publish_performance_index
 from lamp_py.utils.clear_folder import clear_folder
 
+from .alerts import process_alerts
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
 from .l0_gtfs_static_load import process_static_tables
-from .alerts import process_alerts
 
 logging.getLogger().setLevel("INFO")
 
