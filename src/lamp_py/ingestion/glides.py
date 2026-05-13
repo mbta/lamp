@@ -127,6 +127,8 @@ class TripUpdatesRecord(GlidesRecord):
                         "endLocation": location,
                         "startTime": dy.String(nullable=True),  # can be "unset" string :(
                         "endTime": dy.String(nullable=True),  # can be "unset" string :(
+                        "automaticStartTime": dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX),
+                        "automaticEndTime": dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX),
                         "cars": dy.String(nullable=True),  # an array of objects
                         "revenue": dy.String(nullable=True),
                         "dropped": dy.String(nullable=True),
