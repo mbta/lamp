@@ -19,7 +19,7 @@ from lamp_py.ingestion.compress_gtfs.schedule_details import (
     schedules_to_compress,
 )
 from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
-from lamp_py.aws.s3 import upload_file
+from lamp_py.aws.s3 import replace_remote_parquet
 from lamp_py.runtime_utils.remote_files import compressed_gtfs
 
 
@@ -297,7 +297,7 @@ def gtfs_to_parquet() -> None:
         year_path = os.path.join(gtfs_tmp_folder, year)
         pq_folder_to_sqlite(year_path)
         for file in os.listdir(year_path):
-            upload_file(
+            replace_remote_parquet(
                 file_name=os.path.join(year_path, file),
                 object_path=os.path.join(compressed_gtfs.s3_uri, year, file),
             )

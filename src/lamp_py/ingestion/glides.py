@@ -10,7 +10,7 @@ import polars as pl
 import pyarrow
 import pyarrow.parquet as pq
 
-from lamp_py.aws.s3 import download_file, upload_file
+from lamp_py.aws.s3 import download_file, replace_remote_parquet
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
 from lamp_py.utils.dataframely import unnest_columns
@@ -250,7 +250,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
 
     def upload_records(self) -> None:
         """Upload local parquet file to remote storage."""
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
+        replace_remote_parquet(file_name=self.local_path, object_path=self.remote_path)
 
 
 class EditorChanges(GlidesConverter):
