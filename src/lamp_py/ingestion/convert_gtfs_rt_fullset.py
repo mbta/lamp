@@ -153,18 +153,16 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         this should be already sorted by timestamp based on how self.files is yielded.
         """
 
-        table = pl.from_arrow(table).filter(self.filter).to_arrow()
+        table = pl.from_arrow(table).filter(self.filter)
 
         # read local_path if exists and concat with table
         # this handles the case where a prior iteration yielded an incomplete time chunk,
         # and we are now filling in the remaining record that is part of that chunk
         if os.path.exists(local_path):
-            existing_table = pq.read_table(local_path)
-            table = pyarrow.concat_tables([existing_table, table])
-
-        writer = pq.ParquetWriter(local_path, schema=table.schema, compression="zstd", compression_level=3)
-        writer.write_table(table)
-        writer.close()
+            existing_table = pl.read_parquet(local_path)
+            table = pl.concat([existing_table, table])
+        
+        table.write_parquet(local_path, compression="zstd", compression_level=3)
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
