@@ -122,7 +122,10 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
     )
 
     stop_crossings = (
-        pl.scan_parquet(os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime('%Y%m%d')}.parquet"))
+        pl.scan_parquet(
+            os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime('%Y%m%d')}.parquet"),
+            storage_options={"max_retries": 5},
+        )
         .filter(
             pl.col("ROUTE_ID").is_not_null(),
             pl.col("GEO_NODE_ID").is_not_null(),
