@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 import os
 import time
 import logging
@@ -8,7 +8,6 @@ import signal
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
-from lamp_py.ingestion.converter import ConfigType
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
@@ -19,12 +18,6 @@ from lamp_py.ingestion.glides import ingest_glides_events
 
 from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.utils.clear_folder import clear_folder
-from lamp_py.ingestion.daily.trip_updates import (
-    consolidate_partitions_for_archive,
-    reprocess_delta_backfill,
-    reprocess_trip_updates_terminal_prediction,
-    within_daily_processing_window,
-)
 
 logging.getLogger().setLevel("INFO")
 DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
@@ -32,7 +25,7 @@ DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
 
 def main() -> None:
     """
-    run the ingestion pipeline
+    Run the ingestion pipeline
 
     * setup metadata queue metadata writer process
     * setup a glides kinesis reader
@@ -83,7 +76,7 @@ def main() -> None:
 
 
 def start() -> None:
-    """configure and start the ingestion process"""
+    """Configure and start the ingestion process"""
     clear_folder("/tmp")
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
