@@ -55,3 +55,7 @@ class EmptyDataStructureException(Exception):
     """
     Raised when returning an empty data structure.
     """
+
+
+class LampInvalidReplacementError(Exception):
+    """Existing parquet file has more rows than proposed replacement."""

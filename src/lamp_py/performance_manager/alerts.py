@@ -13,8 +13,8 @@ from dateutil.relativedelta import relativedelta
 from lamp_py.aws.s3 import (
     download_file,
     read_parquet,
-    upload_file,
     version_check,
+    replace_remote_parquet,
 )
 
 from lamp_py.postgres.metadata_schema import MetadataLog
@@ -182,7 +182,7 @@ class AlertParquetHandler:
         upload the local parquet file to s3 if new data was added
         """
         if self.new_data:
-            upload_file(
+            replace_remote_parquet(
                 file_name=self.local_path,
                 object_path=self.s3_path,
                 extra_args={"Metadata": {AlertsS3Info.version_key: AlertsS3Info.file_version}},
