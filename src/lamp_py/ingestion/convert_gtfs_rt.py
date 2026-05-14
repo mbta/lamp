@@ -191,11 +191,11 @@ class GtfsRtConverter(Converter):
 
         table_count = 0
         try:
-            for table, chunk_ts in self.process_files():
+            for table in self.process_files():
                 if table.num_rows == 0:
                     continue
 
-                self.continuous_pq_update(table, chunk_ts)
+                self.continuous_pq_update(table)
                 pool = pyarrow.default_memory_pool()
                 pool.release_unused()
                 table_count += 1
