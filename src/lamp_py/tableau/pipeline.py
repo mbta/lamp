@@ -4,7 +4,6 @@ from typing import List
 from lamp_py.runtime_utils.env_validation import validate_environment
 
 from lamp_py.tableau.hyper import HyperJob
-from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.tableau.jobs.lamp_jobs import (
     Prod_VehiclePositions_LightRailTerminals_60Day,
     Prod_TripUpdates_LightRailTerminals_60Day,
@@ -38,6 +37,31 @@ from lamp_py.tableau.jobs.bus_performance import HyperBusPerformanceRecent
 from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
 from lamp_py.aws.ecs import check_for_parallel_tasks
+
+
+PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
+    HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
+    HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
+    Prod_RailMetrics_Subway_LongTerm,
+    Prod_RailMetrics_CommuterRail_LongTerm,
+    HyperServiceIdByRoute(),
+    HyperStaticCalendar(),
+    HyperStaticCalendarDates(),
+    HyperStaticFeedInfo(),
+    HyperStaticRoutes(),
+    HyperStaticStops(),
+    HyperStaticStopTimes(),
+    HyperStaticTrips(),
+    Prod_TripUpdates_LightRailTerminals_60Day,
+    Prod_VehiclePositions_HeavyRailTerminals_60Day,
+    Prod_TripUpdates_HeavyRailTerminals_30Day,
+    Prod_VehiclePositions_LightRailTerminals_60Day,
+    Prod_VehiclePositions_LightRail_7Day,
+    DevGreen_VehiclePositions_LightRailTerminals_60Day,
+    DevGreen_TripUpdates_LightRailTerminals_60Day,
+    DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
+    DevGreen_TripUpdates_HeavyRailTerminals_60Day,
+]
 
 
 def start_hyper_updates() -> None:
@@ -103,39 +127,6 @@ def start_hyper_updates() -> None:
 
     for job in hyper_jobs:
         job.run_hyper()
-
-
-def start_parquet_updates(db_manager: DatabaseManager) -> None:
-    """Run all Parquet Update jobs
-    called from performance manager
-    """
-
-    parquet_update_jobs: List[HyperJob] = [
-        HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
-        HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
-        Prod_RailMetrics_Subway_LongTerm,
-        Prod_RailMetrics_CommuterRail_LongTerm,
-        HyperServiceIdByRoute(),
-        HyperStaticCalendar(),
-        HyperStaticCalendarDates(),
-        HyperStaticFeedInfo(),
-        HyperStaticRoutes(),
-        HyperStaticStops(),
-        HyperStaticStopTimes(),
-        HyperStaticTrips(),
-        Prod_TripUpdates_LightRailTerminals_60Day,
-        Prod_VehiclePositions_HeavyRailTerminals_60Day,
-        Prod_TripUpdates_HeavyRailTerminals_30Day,
-        Prod_VehiclePositions_LightRailTerminals_60Day,
-        Prod_VehiclePositions_LightRail_7Day,
-        DevGreen_VehiclePositions_LightRailTerminals_60Day,
-        DevGreen_TripUpdates_LightRailTerminals_60Day,
-        DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
-        DevGreen_TripUpdates_HeavyRailTerminals_60Day,
-    ]
-
-    for job in parquet_update_jobs:
-        job.run_parquet(db_manager)
 
 
 def start_bus_parquet_updates() -> None:
