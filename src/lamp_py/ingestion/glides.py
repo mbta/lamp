@@ -61,6 +61,8 @@ trip_key = dy.Struct(
     nullable=True,
 )
 
+start_end_time = dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX)
+
 
 class GlidesRecord(dy.Schema):
     """Base schema for all Glides records."""
@@ -125,10 +127,10 @@ class TripUpdatesRecord(GlidesRecord):
                         "comment": dy.String(nullable=True),
                         "startLocation": location,
                         "endLocation": location,
-                        "startTime": dy.String(nullable=True),  # can be "unset" string :(
-                        "endTime": dy.String(nullable=True),  # can be "unset" string :(
-                        "automaticStartTime": dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX),
-                        "automaticEndTime": dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX),
+                        "startTime": start_end_time,
+                        "endTime": start_end_time,
+                        "automaticStartTime": start_end_time,
+                        "automaticEndTime": start_end_time,
                         "cars": dy.String(nullable=True),  # an array of objects
                         "revenue": dy.String(nullable=True),
                         "dropped": dy.String(nullable=True),
