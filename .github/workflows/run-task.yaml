@@ -32,6 +32,9 @@ on:
         type: string
         required: false
         default: main
+    secrets:
+      AWS_ROLE_ARN:
+        required: true
 
 concurrency:
   group: run-task-${{ inputs.environment }}-${{ inputs.task }}
