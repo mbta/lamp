@@ -76,7 +76,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     logger.log_start()
 
     try:
-        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=100000)
+        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=50000)
 
         grouped_files = group_sort_file_list(files)
 
@@ -99,7 +99,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                         converters[config_type] = GtfsRtFullPartitionConverter(
                             config_type,
                             metadata_queue,
-                            # remote_output_location=S3Location(S3_SPRINGBOARD, os.path.join(LAMP, str(config_type))),
+                            remote_output_location=S3Location(S3_SPRINGBOARD, os.path.join(LAMP, str(config_type))),
                         )
                     else:
                         converters[config_type] = GtfsRtConverter(config_type, metadata_queue)
@@ -115,7 +115,9 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     except Exception as exception:
         logger.log_failure(exception)
 
-    converters[ConfigType.RT_TRIP_UPDATES].convert()
+    # for converter in converters.values():
+    #     converter.convert()
+    # converters[ConfigType.RT_TRIP_UPDATES].convert()
     # The remaining converters can be run in parallel
     #
     # Using signal.signal to detect ECS termination and multiprocessing.Manager
@@ -129,15 +131,15 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     # "spawn" some of the behavior described above only occurs when using
     # "fork". On OSX (and Windows?) to force this behavior, run
     # multiprocessing.set_start_method("fork") when starting the script.
-    # process_count = os.cpu_count()
-    # if process_count is None:
-    #     process_count = 4
+    process_count = os.cpu_count()
+    if process_count is None:
+        process_count = 4
 
-    # if len(converters) > 0:
-    #     with get_context("fork").Pool(processes=process_count, maxtasksperchild=1) as pool:
-    #         pool.map_async(run_converter, converters.values())
-    #         pool.close()
-    #         pool.join()
+    if len(converters) > 0:
+        with get_context("fork").Pool(processes=process_count, maxtasksperchild=1) as pool:
+            pool.map_async(run_converter, converters.values())
+            pool.close()
+            pool.join()
 
     logger.log_complete()
 

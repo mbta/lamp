@@ -42,8 +42,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         move_source_on_completion: bool = False,
     ) -> None:
         GtfsRtConverter.__init__(
-            self, config_type, metadata_queue, max_workers=max_workers, time_chunk_minutes=time_chunk_minutes
-        )
+            self, config_type, metadata_queue, max_workers=max_workers)
 
         if time_chunk_minutes < 5:
             raise ValueError(
@@ -55,7 +54,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         self.data_parts: Dict[datetime, TableData] = {}
         self.filter = polars_filter
         self.move_source_on_completion = move_source_on_completion
-
+        self.time_chunk_minutes = time_chunk_minutes
+        
     def convert(self) -> None:
         """
         main convert function - will convert all files in self.files to parquet and
