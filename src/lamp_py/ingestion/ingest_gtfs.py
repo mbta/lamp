@@ -136,7 +136,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
         process_count = 4
 
     if len(converters) > 0:
-        with get_context("fork").Pool(processes=process_count, maxtasksperchild=1) as pool:
+        with get_context("spawn").Pool(processes=process_count, maxtasksperchild=1) as pool:
             pool.map_async(run_converter, converters.values())
             pool.close()
             pool.join()
