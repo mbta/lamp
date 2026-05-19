@@ -95,10 +95,11 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
             try:
                 config_type = ConfigType.from_filename(file_group[0])
                 if config_type not in converters:
+
                     converters[config_type] = GtfsRtFullPartitionConverter(
                         config_type,
                         metadata_queue,
-                        remote_output_location=S3Location(S3_SPRINGBOARD, os.path.join(LAMP, str(config_type))),
+                        remote_output_location=S3Location(S3_SPRINGBOARD),
                     )
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:
