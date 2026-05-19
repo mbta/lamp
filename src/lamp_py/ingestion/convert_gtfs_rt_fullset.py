@@ -55,7 +55,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         self.filter = polars_filter
         self.move_source_on_completion = move_source_on_completion
         self.time_chunk_minutes = time_chunk_minutes
-        
+
     def convert(self) -> None:
         """
         main convert function - will convert all files in self.files to parquet and
@@ -104,16 +104,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 # (which could be a temp location or the final archive location).
                 # in non-backfill mode, we want to move the original gtfs-rt files from
                 # incoming to archive after successful conversion.
-                if self.move_source_on_completion and move_executor is not None:
-                    # snapshot and clear file lists so the async move
-                    # doesn't interfere with ongoing accumulation
-                    archive_snapshot = self.archive_files[:]
-                    error_snapshot = self.error_files[:]
-                    self.archive_files = []
-                    self.error_files = []
-                    move_futures.append(
-                        move_executor.submit(self._move_s3_files_async, archive_snapshot, error_snapshot)
-                    )
+                if self.move_source_on_completion:
+                    self.move_s3_files()
 
                 # mirror on s3 if remote output location is provided
                 if self.remote_output_location is not None:
@@ -135,8 +127,9 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             process_logger.log_complete()
         finally:
             self.data_parts = {}
-            if move_executor is not None:
-                move_executor.shutdown(wait=False)
+            if self.move_source_on_completion:
+                self.move_s3_files()
+            self.clean_local_folders()
 
     @staticmethod
     def _move_s3_files_async(archive_files: List[str], error_files: List[str]) -> None:
