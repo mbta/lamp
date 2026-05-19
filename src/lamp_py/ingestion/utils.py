@@ -20,7 +20,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 GTFS_RT_HASH_COL = "lamp_record_hash"
 
 
-def group_sort_file_list(filepaths: List[str], reverse: bool = False) -> Dict[str, List[str]]:
+def group_sort_file_list(filepaths: List[str]) -> Dict[str, List[str]]:
     """
     group and sort list of filepaths by filename
 
@@ -66,7 +66,7 @@ def group_sort_file_list(filepaths: List[str], reverse: bool = False) -> Dict[st
         grouped_files[file_type].append(file)
 
     for group in grouped_files.values():
-        group.sort(key=strip_timestamp, reverse=reverse)
+        group.sort(key=strip_timestamp)
 
     return grouped_files
 
