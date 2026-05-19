@@ -141,14 +141,8 @@ class GtfsRtConverter(Converter):
         config_type: ConfigType,
         metadata_queue: Queue[Optional[str]],
         max_workers: int = 8,
-        time_chunk_minutes: int = 0,
     ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
-
-        # time_chunk_minutes controls periodic yielding.
-        # 0 = disabled (use row-count-based yield_check),
-        # >0 = yield data in wall-clock-aligned intervals of this many minutes
-        self.time_chunk_minutes = time_chunk_minutes
 
         # Depending on filename, assign self.details to correct implementation
         # of GTFSRTDetail class.
@@ -572,13 +566,15 @@ class GtfsRtConverter(Converter):
 
     # pylint: enable=R0914
 
-    def continuous_pq_update(self, table: pyarrow.Table, partition_dt: datetime) -> None:
+    def continuous_pq_update(self, table: pyarrow.Table) -> None:
         """
         Continuous updating of local parquet files that are synced with S3
         """
         log = ProcessLogger("continuous_pq_update")
         log.log_start()
         try:
+            partition_dt = self.partition_dt(table)
+                
             local_path = os.path.join(
                 self.tmp_folder,
                 LAMP,
