@@ -20,6 +20,7 @@ from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
 from lamp_py.tableau.jobs.lamp_jobs import GTFS_RT_TABLEAU_PROJECT
 from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
 
+
 def adhoc_convert_tz_filter_revenue_only(df: pl.DataFrame) -> pl.DataFrame:
     """
     Docstring for adhoc_convert_tz_filter_revenue_only

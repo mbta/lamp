@@ -41,8 +41,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         time_chunk_minutes: int = 15,
         move_source_on_completion: bool = False,
     ) -> None:
-        GtfsRtConverter.__init__(
-            self, config_type, metadata_queue, max_workers=max_workers)
+        GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
 
         if time_chunk_minutes < 5:
             raise ValueError(
@@ -154,9 +153,11 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         if os.path.exists(local_path):
             existing_table = pl.read_parquet(local_path)
             table = pl.concat([existing_table, table])
-        
+
         if not self.move_source_on_completion:
-            table = table.unique()  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
+            table = (
+                table.unique()
+            )  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
         table.write_parquet(local_path, compression="zstd", compression_level=3)
 
     def process_files(self) -> Iterable[pyarrow.table]:

@@ -574,7 +574,7 @@ class GtfsRtConverter(Converter):
         log.log_start()
         try:
             partition_dt = self.partition_dt(table)
-                
+
             local_path = os.path.join(
                 self.tmp_folder,
                 LAMP,
