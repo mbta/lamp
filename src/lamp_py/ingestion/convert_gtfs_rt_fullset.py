@@ -162,6 +162,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             existing_table = pl.read_parquet(local_path)
             table = pl.concat([existing_table, table])
         
+        if not self.move_source_on_completion:
+            table = table.unique()  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
         table.write_parquet(local_path, compression="zstd", compression_level=3)
 
     def process_files(self) -> Iterable[pyarrow.table]:
@@ -258,10 +260,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         """
         Yield completed time-chunk intervals from data_parts.
 
-        When processing files in reverse chronological order, an interval is
-        complete once current_ts is *before* the interval start (we've moved
-        past it going backwards and won't see more data for it).
-
         When flush=True, yield all remaining intervals regardless of current_ts.
 
         @current_ts - the feed timestamp of the file just processed
@@ -273,9 +271,9 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             if table is None:
                 continue
 
-            # yield if we've moved past this interval (reverse order)
+            # yield if we've moved past this interval
             # or if flushing all remaining data
-            if flush or current_interval < iter_ts:
+            if flush or current_interval > iter_ts:
 
                 # only populate archive_files if we're in live ingestion mode
                 if self.move_source_on_completion:
