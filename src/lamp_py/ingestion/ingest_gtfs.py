@@ -100,6 +100,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                         config_type,
                         metadata_queue,
                         remote_output_location=S3Location(S3_SPRINGBOARD),
+                        move_source_on_completion=True,
                     )
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:
