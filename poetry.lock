@@ -1938,40 +1938,42 @@ testing = ["pytest"]
 
 [[package]]
 name = "marimo"
-version = "0.16.5"
+version = "0.23.6"
 description = "A library for making reactive notebooks and apps"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 files = [
-    {file = "marimo-0.16.5-py3-none-any.whl", hash = "sha256:1f98c0ee0fed9337e26c895c662f92cc578cdd03502c194eac9ceeb434bf479b"},
-    {file = "marimo-0.16.5.tar.gz", hash = "sha256:8f5939d3c4e67ff25f6cfeefe731971ed7f3346c20098034b923a24a0d7770d6"},
+    {file = "marimo-0.23.6-py3-none-any.whl", hash = "sha256:e8d19d875b0212600faa80eaaed0fd3f34dfb7b5241e630cf2b1cedd8dd14509"},
+    {file = "marimo-0.23.6.tar.gz", hash = "sha256:d63aeeee1e9ea7cac79bf2530daba915199153dce4d156fade7546474679d3ca"},
 ]
 
 [package.dependencies]
 click = ">=8.0,<9"
 docutils = ">=0.16.0"
 itsdangerous = ">=2.0.0"
-jedi = ">=0.18.0"
-loro = {version = ">=1.5.0", markers = "python_full_version >= \"3.11\""}
+jedi = ">=0.18.0,<0.20.0"
+loro = ">=1.10.0"
 markdown = ">=3.6,<4"
-msgspec = ">=0.19.0"
+msgspec = ">=0.20.0"
 narwhals = ">=2.0.0"
 packaging = "*"
 psutil = ">=5.0"
-pygments = ">=2.13,<3"
-pymdown-extensions = ">=10.15,<11"
-pyyaml = ">=6.0"
-starlette = ">=0.35.0,<0.36.0 || >0.36.0"
+pygments = ">=2.19,<3"
+pymdown-extensions = ">=10.21.2,<11"
+pyyaml = ">=6.0.1"
+pyzmq = {version = ">=27.1.0", markers = "python_full_version < \"3.15\""}
+starlette = ">=0.37.2"
 tomlkit = ">=0.12.0"
-uvicorn = ">=0.22.0,<0.36.0"
+uvicorn = ">=0.22.0"
 websockets = ">=14.2.0"
 
 [package.extras]
-dev = ["black (>=23.12.1,<23.13.0)", "click (>=8.0,<9)", "duckdb (>=1.0.0)", "openai (>=1.55.3)", "opentelemetry-api (>=1.26.0,<1.27.0)", "opentelemetry-sdk (>=1.26.0,<1.27.0)", "ruff (>=0.13.2)", "sqlglot[rs] (>=26.2.0)"]
 lsp = ["python-lsp-ruff (>=2.0.0)", "python-lsp-server (>=1.13.0)"]
 mcp = ["mcp (>=1.0.0)", "pydantic (>2)"]
-recommended = ["altair (>=5.4.0)", "duckdb (>=1.0.0)", "nbformat (>=5.7.0)", "openai (>=1.55.3)", "polars[pyarrow] (>=1.9.0)", "ruff", "sqlglot[rs] (>=26.2.0)"]
-sql = ["duckdb (>=1.0.0)", "polars[pyarrow] (>=1.9.0)", "sqlglot[rs] (>=26.2.0)"]
+otel = ["opentelemetry-api (>=1.28.0,<1.29.0)", "opentelemetry-exporter-otlp-proto-grpc (>=1.28.0,<1.29.0)", "opentelemetry-exporter-otlp-proto-http (>=1.28.0,<1.29.0)", "opentelemetry-sdk (>=1.28.0,<1.29.0)"]
+recommended = ["altair (>=5.4.0)", "marimo[sandbox]", "marimo[sql]", "nbformat (>=5.7.0)", "pydantic-ai-slim[openai] (>=1.52.0)", "ruff"]
+sandbox = ["pyzmq (>=27.1.0)", "uv (>=0.9.21)"]
+sql = ["duckdb (>=1.0.0)", "polars[pyarrow] (>=1.9.0)", "sqlglot[c] (>=26.8.0)"]
 
 [[package]]
 name = "markdown"
@@ -3236,13 +3238,13 @@ testutils = ["gitpython (>3)"]
 
 [[package]]
 name = "pymdown-extensions"
-version = "10.21"
+version = "10.21.3"
 description = "Extension pack for Python Markdown."
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pymdown_extensions-10.21-py3-none-any.whl", hash = "sha256:91b879f9f864d49794c2d9534372b10150e6141096c3908a455e45ca72ad9d3f"},
-    {file = "pymdown_extensions-10.21.tar.gz", hash = "sha256:39f4a020f40773f6b2ff31d2cd2546c2c04d0a6498c31d9c688d2be07e1767d5"},
+    {file = "pymdown_extensions-10.21.3-py3-none-any.whl", hash = "sha256:d7a5d08014fc571e80ca21dd6f854e31f94c489800350564d55d15b3c41e76b6"},
+    {file = "pymdown_extensions-10.21.3.tar.gz", hash = "sha256:72cfcf55f07aea0d4af2c4f11dd4e52466ddfb1bb819673146398e0bd3a77354"},
 ]
 
 [package.dependencies]
@@ -4372,4 +4374,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "c05a7a05e026148b1efeea002b63f96966caeee0c735afa5a2595134a7e3d481"
+content-hash = "453e3d5378b2505a1183687b8b1d9cfd14d7122e097fc7921b6a7fed611ebf0f"

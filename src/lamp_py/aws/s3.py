@@ -514,7 +514,6 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
     for retry_attempt in range(retry_count):
         max_pool_size = max(1, int(len(files_to_move) / files_per_pool))
         pool_size = min(32, cpu_count + 4, max_pool_size)
-        process_logger.add_metadata(pool_size=pool_size)
         results = []
         try:
             with ThreadPoolExecutor(max_workers=pool_size, initializer=_init_process_session) as pool:
@@ -533,13 +532,11 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
             break
 
         # wait for gremlins to disappear
-        time.sleep(15)
+        time.sleep(10)
 
-    process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
+    # process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
 
-    if len(files_to_move) == 0:
-        process_logger.log_complete()
-    else:
+    if len(files_to_move) > 0:
         process_logger.log_failure(exception=found_exception)
 
     return list(files_to_move)

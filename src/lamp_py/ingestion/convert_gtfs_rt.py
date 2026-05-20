@@ -136,7 +136,12 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 4) -> None:
+    def __init__(
+        self,
+        config_type: ConfigType,
+        metadata_queue: Queue[Optional[str]],
+        max_workers: int = 8,
+    ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
@@ -241,7 +246,6 @@ class GtfsRtConverter(Converter):
                     )
                     continue
 
-                # create key for self.data_parts dictionary
                 dt_part = datetime(
                     year=result_dt.year,
                     month=result_dt.month,
@@ -264,7 +268,6 @@ class GtfsRtConverter(Converter):
 
                 yield from self.yield_check(process_logger)
 
-        # yield any remaining tables
         yield from self.yield_check(process_logger, min_rows=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)
@@ -451,7 +454,7 @@ class GtfsRtConverter(Converter):
 
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
-    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+    def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
         merge pyarrow Table with existing local_path parquet file
 
@@ -586,7 +589,7 @@ class GtfsRtConverter(Converter):
 
             log.add_metadata(local_path=local_path)
 
-            self.write_local_pq(table, local_path)
+            self.write_local_pq_partition(table, local_path)
             self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
 
             # record the number of rows in the final parquet file for logging
