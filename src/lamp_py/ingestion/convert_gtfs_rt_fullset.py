@@ -48,7 +48,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 "time_chunk_minutes must be at least 5 to ensure proper partitioning and avoid too many small files"
             )
         self.detail = RtTripDetail()
-        self.tmp_folder = local_output_location
+        self.tmp_folder = os.path.join(local_output_location, LAMP, str(self.config_type))
         self.remote_output_location = remote_output_location
         self.data_parts: Dict[datetime, TableData] = {}
         self.filter = polars_filter
@@ -84,8 +84,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     continue
 
                 path_suffix = os.path.join(
-                    LAMP,
-                    str(self.config_type),
                     f"year={partition_dt.year}",
                     f"month={partition_dt.month}",
                     f"day={partition_dt.day}",
