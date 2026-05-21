@@ -768,6 +768,8 @@ def replace_remote_parquet(
 
     try:
         if object_exists(object_path):
+            if not object_path.endswith(".parquet"):
+                raise LampInvalidReplacementError(f"Existing object {object_path} is not a parquet file")
             existing_row_count = pq.read_metadata(object_path, filesystem=fs.S3FileSystem()).num_rows
             new_row_count = pq.read_metadata(file_name).num_rows
             if new_row_count < existing_row_count:

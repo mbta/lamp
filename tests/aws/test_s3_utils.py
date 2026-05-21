@@ -156,25 +156,28 @@ def test_move_bad_objects(s3_stub, caplog):  # type: ignore
 
 
 @pytest.mark.parametrize(
-    ["remote_file_exists", "local_records", "upload_succeeds", "log_text"],
+    ["remote_file_path", "local_records", "upload_succeeds", "log_text", "expected_result"],
     [
-        (True, 10, True, "uploaded=True"),
-        (True, 5, True, "LampInvalidReplacementError"),
-        (False, 5, True, "uploaded=True"),
-        (True, 10, False, "uploaded=False"),
+        ("remote_foo.parquet", 10, True, "uploaded=True", True),
+        ("remote_foo.parquet", 5, True, "LampInvalidReplacementError", False),
+        ("remote_bar.parquet", 5, True, "uploaded=True", True),
+        ("remote_foo.parquet", 10, False, "uploaded=False", False),
+        ("remote_foo.xyz", 10, True, "LampInvalidReplacementError", False),
     ],
     ids=[
         "replace-existing",
         "fewer-records-than-existing",
         "no-existing",
         "upload-fails",
+        "existing-not-parquet",
     ],
 )
 def test_replace_remote_parquet(
-    remote_file_exists: bool,
+    remote_file_path: str,
     local_records: int,
     upload_succeeds: bool,
     log_text: str,
+    expected_result: bool,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -182,8 +185,10 @@ def test_replace_remote_parquet(
     local_file = tmp_path / "foo.parquet"
     pl.int_range(0, local_records, eager=True).to_frame().write_parquet(local_file.as_posix())
 
-    remote_file = tmp_path / "remote_foo.parquet"
+    remote_file = tmp_path / remote_file_path
     pl.int_range(0, 10, eager=True).to_frame().write_parquet(remote_file.as_posix())
+
+    remote_file_exists = "remote_" + local_file.stem == remote_file.stem
 
     with patch("lamp_py.aws.s3.object_exists", return_value=remote_file_exists):
         with patch("pyarrow.fs.S3FileSystem", return_value=LocalFileSystem()):
@@ -191,4 +196,4 @@ def test_replace_remote_parquet(
                 result = replace_remote_parquet(local_file.as_posix(), "s3://" + remote_file.as_posix())
                 assert_frame_equal(pl.int_range(0, 10, eager=True).to_frame(), pl.read_parquet(remote_file.as_posix()))
                 assert log_text in caplog.text
-                assert result == (upload_succeeds and ((not remote_file_exists) or (local_records >= 10)))
+                assert result == expected_result
