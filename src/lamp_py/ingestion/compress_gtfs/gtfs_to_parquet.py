@@ -220,9 +220,9 @@ def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) 
         pl.concat(
             (old_records, same_records, new_records),
             how="diagonal",
-        ).filter(pl.col("gtfs_end_date") > pl.col("gtfs_active_date")).write_parquet(
-            export_path, use_pyarrow=True, statistics=True
-        )
+        ).filter(
+            pl.col("gtfs_end_date") > pl.col("gtfs_active_date")
+        ).write_parquet(export_path, use_pyarrow=True, statistics=True)
     else:
         #
         # no partition file exists (current or last)
