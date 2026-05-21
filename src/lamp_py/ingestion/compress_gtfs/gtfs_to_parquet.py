@@ -1,25 +1,24 @@
 import os
-import time
 import tempfile
+import time
 from typing import Tuple
 
 import polars as pl
-import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 
-from lamp_py.runtime_utils.process_logger import ProcessLogger
-
+from lamp_py.aws.s3 import replace_remote_parquet, upload_file
 from lamp_py.ingestion.compress_gtfs.gtfs_schema_map import (
-    gtfs_schema_list,
     gtfs_schema,
+    gtfs_schema_list,
 )
+from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
 from lamp_py.ingestion.compress_gtfs.schedule_details import (
     ScheduleDetails,
     schedules_to_compress,
 )
-from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
-from lamp_py.aws.s3 import replace_remote_parquet, upload_file
+from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import compressed_gtfs
 
 
@@ -30,7 +29,7 @@ def frame_parquet_diffs(
     filter_date: int,
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """
-    compare new_frame records to applicable records from an existing parquet file
+    Compare new_frame records to applicable records from an existing parquet file
 
     creates 3 frames based on diffs:
         - new_records -> records in new_frame that are not found in parquet file
@@ -79,7 +78,7 @@ def frame_parquet_diffs(
 
 def merge_frame_with_parquet(merge_df: pl.DataFrame, export_path: str, filter_date: int) -> None:
     """
-    merge merge_df with existing parqut file (export_path) and over-write with results
+    Merge merge_df with existing parqut file (export_path) and over-write with results
 
     all parquet read/write operations are done in batches to constrain memory usage
 
@@ -119,8 +118,7 @@ def merge_frame_with_parquet(merge_df: pl.DataFrame, export_path: str, filter_da
 
 def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) -> None:
     """
-    compress an indivdual gtfs_table_file (ie. stop_times.txt) into yearly parquet
-    partitioned parquet file(s)
+    Compress an indivdual gtfs_table_file (ie. stop_times.txt) into yearly parquet partitioned parquet file(s)
 
     yearly partition is based on ScheduleDetals.active_from_int value (1 day after published_dt)
 
@@ -149,7 +147,7 @@ def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) 
     )
     last_export_path = os.path.join(
         schedule_details.tmp_folder,
-        f"{partition_year-1}",
+        f"{partition_year - 1}",
         f"{gtfs_table}.parquet",
     )
 
@@ -186,7 +184,7 @@ def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) 
         #
         # new year merge operation (with last_export_path)
         #
-        end_last_year = int(f"{partition_year-1}1231")
+        end_last_year = int(f"{partition_year - 1}1231")
         start_current_year = int(f"{partition_year}0101")
         old_records, same_records, new_records = frame_parquet_diffs(
             new_frame=new_frame,
@@ -222,9 +220,9 @@ def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) 
         pl.concat(
             (old_records, same_records, new_records),
             how="diagonal",
-        ).filter(
-            pl.col("gtfs_end_date") > pl.col("gtfs_active_date")
-        ).write_parquet(export_path, use_pyarrow=True, statistics=True)
+        ).filter(pl.col("gtfs_end_date") > pl.col("gtfs_active_date")).write_parquet(
+            export_path, use_pyarrow=True, statistics=True
+        )
     else:
         #
         # no partition file exists (current or last)
@@ -238,7 +236,7 @@ def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) 
 
 def compress_gtfs_schedule(schedule_details: ScheduleDetails) -> None:
     """
-    compress all table files of gtfs schedule into parquet files partitioned by year
+    Compress all table files of gtfs schedule into parquet files partitioned by year
 
     this process is currently configured to run sequentially (oldest -> newest)
 
@@ -271,7 +269,7 @@ def compress_gtfs_schedule(schedule_details: ScheduleDetails) -> None:
 
 def gtfs_to_parquet() -> None:
     """
-    run gtfs -> parquet schedule compression process locally and then sync with S3 bucket
+    Run gtfs -> parquet schedule compression process locally and then sync with S3 bucket
 
     maximum process memory usage for this operation peaked at 5440MB
     while processing Feb-2018 to April-2024
