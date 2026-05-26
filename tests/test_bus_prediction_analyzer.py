@@ -12,6 +12,7 @@ from analysis.bus_prediction_analyzer_utils import (
     TimeOfDayBin,
     add_error_columns,
     assign_ibi_bin,
+    assign_time_of_day_bin,
     calculate_ibi_accuracy,
     default_config,
     is_prediction_accurate,
@@ -604,3 +605,69 @@ class TestCalculateIbiAccuracy:
         row = result.filter(pl.col("ibi_bin") == "0-3min")
         assert row["total"][0] == 3
         assert row["accurate"][0] == 2
+
+
+class TestAssignTimeOfDayBin:
+    """Tests for assign_time_of_day_bin()."""
+
+    @pytest.fixture()
+    def cfg(self):
+        return default_config()
+
+    @pytest.mark.parametrize(
+        ["start_time", "expected_bin"],
+        [
+            ("00:00:00", "late_night"),
+            ("05:59:59", "late_night"),
+            ("06:00:00", "morning_rush"),
+            ("08:59:59", "morning_rush"),
+            ("09:00:00", "midday"),
+            ("15:59:59", "midday"),
+            ("16:00:00", "evening_rush"),
+            ("18:59:59", "evening_rush"),
+            ("19:00:00", "night"),
+            ("23:59:59", "night"),
+            # >24h values should still be binned by clock-time.
+            ("24:30:00", "late_night"),
+            ("30:30:00", "morning_rush"),
+            ("49:15:00", "late_night"),
+            (None, None),
+            ("not-a-time", None),
+        ],
+        ids=[
+            "midnight",
+            "late-night-end",
+            "morning-start",
+            "morning-end",
+            "midday-start",
+            "midday-end",
+            "evening-start",
+            "evening-end",
+            "night-start",
+            "night-end",
+            "over-24h-late-night",
+            "over-24h-morning",
+            "over-48h-late-night",
+            "null",
+            "bad-format",
+        ],
+    )
+    def test_bin_assignment(self, cfg, start_time, expected_bin):
+        df = pl.DataFrame(
+            {"start_time": [start_time]},
+            schema={"start_time": pl.Utf8},
+        )
+        result = assign_time_of_day_bin(df, cfg)
+        assert result["time_of_day_bin"][0] == expected_bin
+
+    def test_custom_wraparound_bin(self):
+        cfg = AnalyzerConfig(
+            ibi_bins=(),
+            time_of_day_bins=(
+                TimeOfDayBin("overnight", 22, 2),
+                TimeOfDayBin("day", 2, 22),
+            ),
+        )
+        df = pl.DataFrame({"start_time": ["23:15:00", "01:30:00", "12:00:00", "26:00:00"]})
+        result = assign_time_of_day_bin(df, cfg)
+        assert result["time_of_day_bin"].to_list() == ["overnight", "overnight", "day", "day"]

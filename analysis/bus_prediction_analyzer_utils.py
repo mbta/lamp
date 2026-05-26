@@ -149,11 +149,11 @@ def add_error_columns(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
+def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
     """Add an ``ibi_bin`` column based on ``prediction_ahead_sec``.
 
     Only predictions made *before* the predicted arrival are binned
-    (prediction_ahead_sec <= 0).  The negated value gives "seconds until
+    (prediction_ahead_sec <= 0).  The negated value gives "seconds until"
     arrival" which is mapped into the configured IBI bin ranges.
     Positive prediction_ahead_sec (stale / after-the-fact) and values
     outside all bins receive null.
@@ -171,7 +171,7 @@ def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
     return df.with_columns(ibi_bin=expr)
 
 
-def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
+def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
     """Add boolean ``is_accurate`` column using IBI bin thresholds.
 
     A prediction is accurate when:
@@ -191,7 +191,7 @@ def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataF
     return df.with_columns(is_accurate=expr)
 
 
-def calculate_ibi_accuracy(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
+def calculate_ibi_accuracy(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
     """Calculate per-bin and overall IBI accuracy.
 
     Returns a DataFrame with columns: ibi_bin, total, accurate, accuracy_pct.
@@ -225,4 +225,34 @@ def calculate_ibi_accuracy(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataF
         schema={"ibi_bin": pl.Utf8, "total": pl.UInt32, "accurate": pl.UInt32, "accuracy_pct": pl.Float64},
     )
     return pl.concat([per_bin, overall_row])
+
+
+def assign_time_of_day_bin(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
+    """Add a ``time_of_day_bin`` column based on trip ``start_time``.
+
+    ``start_time`` is expected in GTFS ``HH:MM:SS`` format where hours may
+    exceed 24 for overnight service (e.g., ``25:30:00``).  We compute seconds
+    after midnight as ``HH*3600 + MM*60 + SS`` and assign bins using configured
+    time-of-day windows by clock-time (modulo 24h).
+
+    Bin ranges are ``[start_hour, end_hour)`` in hours and support wrap-around
+    windows when ``start_hour > end_hour``.
+    """
+    parts = pl.col("start_time").str.split_exact(":", 2)
+    start_seconds = (
+        parts.struct.field("field_0").cast(pl.Int64, strict=False) * 3600
+        + parts.struct.field("field_1").cast(pl.Int64, strict=False) * 60
+        + parts.struct.field("field_2").cast(pl.Int64, strict=False)
+    )
+    seconds_in_day = start_seconds % 86400
+    expr = pl.lit(None, dtype=pl.Utf8)
+    for b in reversed(config.time_of_day_bins):
+        start_sec = b.start_hour * 3600
+        end_sec = b.end_hour * 3600
+        if b.start_hour < b.end_hour:
+            cond = seconds_in_day.ge(start_sec) & seconds_in_day.lt(end_sec)
+        else:
+            cond = seconds_in_day.ge(start_sec) | seconds_in_day.lt(end_sec)
+        expr = pl.when(cond).then(pl.lit(b.name)).otherwise(expr)
+    return df.with_columns(time_of_day_bin=expr)
 
