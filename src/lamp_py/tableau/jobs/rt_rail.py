@@ -1,18 +1,18 @@
-import os
 import datetime
+import os
 from typing import Any
 
 import pyarrow
-import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 import sqlalchemy as sa
 
-from lamp_py.common.gtfs_types import RouteType
-from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
+from lamp_py.common.gtfs_types import RouteType
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.tableau.hyper import HyperJob
 
 
 class HyperRtRail(HyperJob):
@@ -488,3 +488,47 @@ class HyperRtCommuterRail(HyperRtRail):
                 ("scheduled_headway_trunk", pyarrow.int64()),
             ]
         )
+
+
+class HyperRtVehicleEvents(HyperRtRail):
+    """Export the table `vehicle_events` as a Parquet to migrate off database."""
+
+    def __init__(
+        self,
+        **hyper_job_args: Any,
+    ) -> None:
+        HyperRtRail.__init__(
+            self,
+            ">=",
+            RouteType.LIGHT_RAIL,
+            **hyper_job_args,
+        )
+
+        self.table_query = "SELECT * FROM vehicle_events;"
+
+        self.ds_batch_size = 1024 * 256
+
+        # /tmp/db_local_RAIL_xyz.parquet
+        self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
+
+
+class HyperRtVehicleTrips(HyperRtRail):
+    """Export the table `vehicle_trips` as a Parquet to migrate off database."""
+
+    def __init__(
+        self,
+        **hyper_job_args: Any,
+    ) -> None:
+        HyperRtRail.__init__(
+            self,
+            ">=",
+            RouteType.LIGHT_RAIL,
+            **hyper_job_args,
+        )
+
+        self.table_query = "SELECT * FROM vehicle_trips;"
+
+        self.ds_batch_size = 1024 * 256
+
+        # /tmp/db_local_RAIL_xyz.parquet
+        self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))

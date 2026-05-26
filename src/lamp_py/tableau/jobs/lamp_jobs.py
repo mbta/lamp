@@ -29,10 +29,12 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_bus_operator_mapping_all,
     tableau_rail_commuter,
     tableau_rail_subway,
+    tableau_rail_vehicle_events,
+    tableau_rail_vehicle_trips,
 )
 
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.tableau.jobs.rt_rail import HyperRtCommuterRail, HyperRtRail
+from lamp_py.tableau.jobs.rt_rail import HyperRtCommuterRail, HyperRtRail, HyperRtVehicleEvents, HyperRtVehicleTrips
 
 from lamp_py.runtime_utils.remote_files import (
     bus_events,
@@ -209,4 +211,16 @@ Prod_RailMetrics_CommuterRail_LongTerm = HyperRtCommuterRail(
     hyper_file_name="LAMP_COMMUTER_RAIL_RT_fields.hyper",
     remote_parquet_path=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.parquet"),
     lamp_version="1.1.1",
+)
+
+Prod_RailMetrics_VehicleEvents_LongTerm = HyperRtVehicleEvents(
+    hyper_file_name="LAMP_RAIL_VEHICLE_EVENTS.hyper",
+    remote_parquet_path=tableau_rail_vehicle_events.s3_uri,
+    lamp_version="1.0.0",
+)
+
+Prod_RailMetrics_VehicleTrips_LongTerm = HyperRtVehicleTrips(
+    hyper_file_name="LAMP_RAIL_VEHICLE_TRIPS.hyper",
+    remote_parquet_path=tableau_rail_vehicle_trips.s3_uri,
+    lamp_version="1.0.0",
 )
