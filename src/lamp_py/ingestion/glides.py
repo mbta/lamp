@@ -10,7 +10,7 @@ import polars as pl
 import pyarrow
 import pyarrow.parquet as pq
 
-from lamp_py.aws.s3 import download_file, upload_file
+from lamp_py.aws.s3 import download_file, replace_remote_parquet
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
 from lamp_py.utils.dataframely import unnest_columns
@@ -60,6 +60,8 @@ trip_key = dy.Struct(
     },
     nullable=True,
 )
+
+start_end_time = dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX)
 
 
 class GlidesRecord(dy.Schema):
@@ -125,8 +127,10 @@ class TripUpdatesRecord(GlidesRecord):
                         "comment": dy.String(nullable=True),
                         "startLocation": location,
                         "endLocation": location,
-                        "startTime": dy.String(nullable=True),  # can be "unset" string :(
-                        "endTime": dy.String(nullable=True),  # can be "unset" string :(
+                        "startTime": start_end_time,
+                        "endTime": start_end_time,
+                        "automaticStartTime": start_end_time,
+                        "automaticEndTime": start_end_time,
                         "cars": dy.String(nullable=True),  # an array of objects
                         "revenue": dy.String(nullable=True),
                         "dropped": dy.String(nullable=True),
@@ -250,7 +254,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
 
     def upload_records(self) -> None:
         """Upload local parquet file to remote storage."""
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
+        replace_remote_parquet(file_name=self.local_path, object_path=self.remote_path)
 
 
 class EditorChanges(GlidesConverter):
