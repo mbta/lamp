@@ -26,7 +26,7 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
     in_partition_sort: List[Tuple[str, str]],
     debug_flag: bool = False,
 ) -> None:
-
+    """Write partitioned and sorted parquet file from pyarrow dataset."""
     logger = ProcessLogger("write_dataset_to_single_parquet_partitioned_and_sorted")
     ds_paths = os.listdir(local_path)
     ds_paths = [os.path.join(local_path, s) for s in ds_paths]
@@ -37,13 +37,14 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
         filesystem=fs.LocalFileSystem(),
     )
 
-    with tempfile.TemporaryDirectory(delete=False) as temp_dir:
+    with tempfile.TemporaryDirectory(delete=False):
         # include the hash column for debug
         writer = pq.ParquetWriter(output_parquet_path, schema=ds.schema, compression="zstd", compression_level=3)
 
-        partitions = (
-            pl.from_arrow(pc.unique(ds.to_table(columns=[partition_column]).column(partition_column))).sort().to_list()
-        )
+        # Get unique partition values and sort them
+        unique_column = ds.to_table(columns=[partition_column]).column(partition_column).unique()
+        partitions_series: pl.Series = pl.from_arrow(unique_column).sort()  # type: ignore[assignment]
+        partitions = partitions_series.to_list()
 
         logger.add_metadata(unique_partitions=len(partitions))
 
@@ -52,7 +53,7 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
 
         for part in partitions:
             try:
-                write_table = ds.to_table(filter=((pc.field(partition_column) == part))).sort_by(in_partition_sort)
+                write_table = ds.to_table(filter=(pc.field(partition_column) == part)).sort_by(in_partition_sort)
 
                 writer.write_table(write_table)
 
@@ -60,7 +61,8 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
                     elapsed = time.time() - start_time
                     logger.add_metadata(partition_id=part, elapsed=elapsed, total_rows=write_table.num_rows)
             except Exception as e:
-                logger.log_exception(e, metadata={"partition_id": part})
+                logger.log_warning(e)
+                logger.add_metadata(partition_id=part, status="warning")
                 continue
 
         writer.close()
@@ -101,9 +103,7 @@ def delta_reingestion_runner(
     cur_date = start_date
 
     while cur_date <= end_date:
-
         # setup input and output locations
-        local_converter_partition_path = f"{local_output_location}/lamp/{str(converter.config_type)}/year={cur_date.year}/month={cur_date.month}/day={cur_date.day}/"
         local_combined_file = f"{local_output_location}/{cur_date.year}_{cur_date.month}_{cur_date.day}.parquet"
         s3_combined_file = local_combined_file.replace(
             f"{local_output_location}/",

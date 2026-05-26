@@ -8,7 +8,6 @@ from pathlib import Path
 from queue import Queue
 from typing import Dict, Iterable, List, Optional, Tuple
 import pyarrow
-import pyarrow.parquet as pq
 import polars as pl
 
 from lamp_py.aws.s3 import move_s3_objects, upload_file
@@ -17,9 +16,7 @@ from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR, S3_SPRINGBOARD, S3Location
-
-import json
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR, S3Location
 
 
 # pylint disable=too-many-arguments
@@ -41,6 +38,19 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         time_chunk_minutes: int = 15,
         move_source_on_completion: bool = False,
     ) -> None:
+        """
+        Initialize GTFS-RT fullset converter with time-chunked partitioning.
+
+        Args:
+            config_type: Type of GTFS-RT configuration (trip updates, vehicle positions, alerts).
+            metadata_queue: Queue for metadata communication.
+            local_output_location: Local directory for temporary parquet files.
+            remote_output_location: S3 location for final output; if None, files stay local.
+            polars_filter: Polars expression to filter data at conversion time; defaults to no filtering.
+            max_workers: Number of worker threads for parallel processing.
+            time_chunk_minutes: Minutes for time-based partitioning (e.g., 15 min intervals).
+            move_source_on_completion: If True, move source files to archive after completion.
+        """
         GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
 
         if time_chunk_minutes < 5:
@@ -57,14 +67,15 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
     def convert(self) -> None:
         """
-        main convert function - will convert all files in self.files to parquet and
-        upload to s3 if remote_output_location is provided
+        Convert all files in self.files to time-chunked parquet partitions.
 
-        Specialization over GtfsRtConverter::convert() - this converter does not apply unique()
-        on the incoming GTFS-RT data, and will partition files by day or by time chunk (e.g. 15 min intervals)
-        depending on the time_chunk_minutes parameter. it will also apply a polars filter to the data at the
-        point of conversion from json.gz to pyarrow table, which should help reduce the amount of data being
-        written out and speed up the conversion process. This converter is applicable for live ingestion and
+        Specialization over GtfsRtConverter::convert() - this converter does not
+        apply unique() on the incoming GTFS-RT data, and will partition files by
+        day or by time chunk (e.g. 15 min intervals) depending on the
+        time_chunk_minutes parameter. It will also apply a polars filter to the
+        data at the point of conversion from json.gz to pyarrow table, which
+        should help reduce the amount of data being written out and speed up the
+        conversion process. This converter is applicable for live ingestion and
         backfill tasks.
         """
         process_logger = ProcessLogger(
@@ -77,7 +88,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
         table_count = 0
         move_futures: List[Future] = []
-        move_executor = ThreadPoolExecutor(max_workers=1) if self.move_source_on_completion else None
         try:
             for table, partition_dt in self.process_files():
                 if table.num_rows == 0:
@@ -138,32 +148,31 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
     def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
-        just write the file out..
+        Just write the file out..
 
         this should be already sorted by timestamp based on how self.files is yielded.
         """
-
-        table = pl.from_arrow(table).filter(self.filter)
+        df: pl.DataFrame = pl.from_arrow(table).filter(self.filter)  # type: ignore[assignment]
 
         # read local_path if exists and concat with table
         # this handles the case where a prior iteration yielded an incomplete time chunk,
         # and we are now filling in the remaining record that is part of that chunk
         if os.path.exists(local_path):
-            existing_table = pl.read_parquet(local_path)
-            table = pl.concat([existing_table, table])
+            existing_table: pl.DataFrame = pl.read_parquet(local_path)
+            df = pl.concat([existing_table, df])
 
         if not self.move_source_on_completion:
-            table = (
-                table.unique()
-            )  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
-        table.write_parquet(local_path, compression="zstd", compression_level=3)
+            df = df.unique()  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
+        df.write_parquet(local_path, compression="zstd", compression_level=3)
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
-        iterate through all of the files to be converted - apply a polars filter to narrow results at the source to reduce write churn - filter at json.gz input level
-        convert to pyarrow tables, group into time chunk intervals, and yield tables for completed intervals as we go
-        """
+        Yield time-chunked parquet tables from all input files.
 
+        Applies a polars filter to narrow results at the source to reduce write
+        churn. Converts json.gz input files to pyarrow tables, groups into time
+        chunk intervals, and yields tables for completed intervals as we go.
+        """
         process_logger = ProcessLogger(
             "fullset_create_pyarrow_tables",
             config_type=str(self.config_type),
@@ -214,9 +223,11 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         process_logger.log_complete()
 
     def partition_column(self) -> str:
+        """Return the column name for partitioning output parquet files."""
         return "trip_update.trip.route_id"
 
     def table_sort_order(self) -> List[Tuple[str, str]]:
+        """Return sort order specification for output parquet tables."""
         return [
             ("feed_timestamp", "ascending"),
             ("trip_update.trip.route_pattern_id", "ascending"),
@@ -266,7 +277,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             # yield if we've moved past this interval
             # or if flushing all remaining data
             if flush or current_interval > iter_ts:
-
                 # only populate archive_files if we're in live ingestion mode
                 if self.move_source_on_completion:
                     self.archive_files += self.data_parts[iter_ts].files
