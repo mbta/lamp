@@ -504,12 +504,36 @@ class HyperRtVehicleEvents(HyperRtRail):
             **hyper_job_args,
         )
 
-        self.table_query = "SELECT * FROM vehicle_events;"
+        self.table_query = "SELECT * FROM vehicle_events %s;"
 
         self.ds_batch_size = 1024 * 256
 
         # /tmp/db_local_RAIL_xyz.parquet
         self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
+
+    def output_processed_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("pm_event_id", pyarrow.int64()),
+                ("service_date", pyarrow.int64()),
+                ("pm_trip_id", pyarrow.int64()),
+                ("stop_id", pyarrow.string()),
+                ("stop_sequence", pyarrow.int16()),
+                ("canonical_stop_sequence", pyarrow.int16()),
+                ("sync_stop_sequence", pyarrow.int16()),
+                ("parent_station", pyarrow.string()),
+                ("previous_trip_stop_pm_event_id", pyarrow.int64()),
+                ("next_trip_stop_pm_event_id", pyarrow.int64()),
+                ("vp_move_timestamp", pyarrow.int64()),
+                ("vp_stop_timestamp", pyarrow.int64()),
+                ("tu_stop_timestamp", pyarrow.int64()),
+                ("travel_time_seconds", pyarrow.int32()),
+                ("dwell_time_seconds", pyarrow.int32()),
+                ("headway_trunk_seconds", pyarrow.int32()),
+                ("headway_branch_seconds", pyarrow.int32()),
+                ("updated_on", pyarrow.timestamp("us")),
+            ]
+        )
 
 
 class HyperRtVehicleTrips(HyperRtRail):
@@ -526,9 +550,35 @@ class HyperRtVehicleTrips(HyperRtRail):
             **hyper_job_args,
         )
 
-        self.table_query = "SELECT * FROM vehicle_trips;"
+        self.table_query = "SELECT * FROM vehicle_trips %s;"
 
         self.ds_batch_size = 1024 * 256
 
         # /tmp/db_local_RAIL_xyz.parquet
         self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
+
+    def output_processed_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("pm_trip_id", pyarrow.int64()),
+                ("direction_id", pyarrow.bool_()),
+                ("route_id", pyarrow.string()),
+                ("branch_route_id", pyarrow.string()),
+                ("trunk_route_id", pyarrow.string()),
+                ("service_date", pyarrow.int64()),
+                ("start_time", pyarrow.int64()),
+                ("vehicle_id", pyarrow.string()),
+                ("stop_count", pyarrow.int16()),
+                ("trip_id", pyarrow.string()),
+                ("vehicle_label", pyarrow.string()),
+                ("vehicle_consist", pyarrow.string()),
+                ("direction", pyarrow.string()),
+                ("direction_destination", pyarrow.string()),
+                ("static_trip_id_guess", pyarrow.string()),
+                ("static_start_time", pyarrow.int64()),
+                ("static_stop_count", pyarrow.int16()),
+                ("first_last_station_match", pyarrow.bool_()),
+                ("static_version_key", pyarrow.int64()),
+                ("updated_on", pyarrow.timestamp("us")),
+            ]
+        )
