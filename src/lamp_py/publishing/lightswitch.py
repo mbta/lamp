@@ -47,6 +47,10 @@ HIVE_VIEWS = {
         rf.tableau_rt_trip_updates_heavyrail_30_day,
         rf.tableau_devgreen_rt_trip_updates_lightrail_60_day,
         rf.tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
+        rf.tableau_rail_vehicle_events,
+        rf.tableau_rail_vehicle_trips,
+        rf.tableau_rail_commuter,
+        rf.tableau_rail_subway,
     ],
 }
 
