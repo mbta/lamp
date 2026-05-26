@@ -10,6 +10,8 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import polars as pl
+
 
 @dataclass(frozen=True)
 class IBIBin:
@@ -73,5 +75,33 @@ def load_config(path: str | Path) -> AnalyzerConfig:
         ibi_bins=ibi_bins,
         time_of_day_bins=time_of_day_bins,
         ignore_threshold_sec=ignore_threshold_sec,
+    )
+
+
+# Column name mappings: GTFS-RT raw -> canonical
+VP_COLUMN_MAP = {
+    "vehicle.trip.trip_id": "trip_id",
+    "vehicle.current_stop_sequence": "stop_sequence",
+    "vehicle.vehicle.id": "vehicle_id",
+    "vehicle.timestamp": "actual_timestamp",
+    "vehicle.current_status": "current_status",
+    "feed_timestamp": "vp_feed_timestamp",
+}
+
+
+def narrow_vehicle_positions(df: pl.DataFrame) -> pl.DataFrame:
+    """Filter and deduplicate vehicle positions to one row per stop visit.
+
+    Filters to STOPPED_AT status, deduplicates by (trip_id, stop_sequence)
+    keeping the first occurrence, renames to canonical column names, and sorts.
+    """
+    required = list(VP_COLUMN_MAP.keys())
+    return (
+        df.select(required)
+        .filter(pl.col("vehicle.current_status") == "STOPPED_AT")
+        .unique(subset=["vehicle.trip.trip_id", "vehicle.current_stop_sequence"], keep="first")
+        .sort("vehicle.trip.trip_id", "vehicle.current_stop_sequence")
+        .rename(VP_COLUMN_MAP)
+        .drop("current_status")
     )
 

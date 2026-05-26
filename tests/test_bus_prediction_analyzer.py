@@ -1,8 +1,9 @@
-"""Tests for bus_prediction_analyzer_utils — Step 1: Config."""
+"""Tests for bus_prediction_analyzer_utils."""
 
 import json
 from pathlib import Path
 
+import polars as pl
 import pytest
 
 from analysis.bus_prediction_analyzer_utils import (
@@ -11,6 +12,7 @@ from analysis.bus_prediction_analyzer_utils import (
     TimeOfDayBin,
     default_config,
     load_config,
+    narrow_vehicle_positions,
 )
 
 
@@ -181,3 +183,107 @@ class TestLoadConfig:
 
         loaded = load_config(config_path)
         assert loaded == cfg
+
+
+def _make_vp_df(
+    trip_ids: list[str],
+    stop_seqs: list[int],
+    statuses: list[str],
+    vehicle_ids: list[str],
+    timestamps: list[int],
+    feed_timestamps: list[int],
+) -> pl.DataFrame:
+    """Helper to build a vehicle_positions DataFrame with raw GTFS-RT column names."""
+    return pl.DataFrame(
+        {
+            "vehicle.trip.trip_id": trip_ids,
+            "vehicle.current_stop_sequence": stop_seqs,
+            "vehicle.current_status": statuses,
+            "vehicle.vehicle.id": vehicle_ids,
+            "vehicle.timestamp": timestamps,
+            "feed_timestamp": feed_timestamps,
+        }
+    )
+
+
+class TestNarrowVehiclePositions:
+    """Tests for narrow_vehicle_positions()."""
+
+    CANONICAL_COLS = {"trip_id", "stop_sequence", "vehicle_id", "actual_timestamp", "vp_feed_timestamp"}
+
+    @pytest.mark.parametrize(
+        ["trip_ids", "stop_seqs", "statuses", "vehicle_ids", "timestamps", "feed_ts", "expected_rows"],
+        [
+            # normal: two STOPPED_AT rows
+            (
+                ["t1", "t1"],
+                [1, 2],
+                ["STOPPED_AT", "STOPPED_AT"],
+                ["v1", "v1"],
+                [1000, 2000],
+                [900, 1900],
+                2,
+            ),
+            # filters out IN_TRANSIT_TO
+            (
+                ["t1", "t1", "t1"],
+                [1, 2, 3],
+                ["STOPPED_AT", "IN_TRANSIT_TO", "STOPPED_AT"],
+                ["v1", "v1", "v1"],
+                [1000, 1500, 2000],
+                [900, 1400, 1900],
+                2,
+            ),
+            # deduplicates same trip+stop, keeps first
+            (
+                ["t1", "t1"],
+                [1, 1],
+                ["STOPPED_AT", "STOPPED_AT"],
+                ["v1", "v1"],
+                [1000, 1100],
+                [900, 1000],
+                1,
+            ),
+            # all filtered out -> 0 rows
+            (
+                ["t1"],
+                [1],
+                ["IN_TRANSIT_TO"],
+                ["v1"],
+                [1000],
+                [900],
+                0,
+            ),
+        ],
+        ids=["normal", "mixed-statuses", "dedup-same-stop", "all-filtered"],
+    )
+    def test_row_count(
+        self, trip_ids, stop_seqs, statuses, vehicle_ids, timestamps, feed_ts, expected_rows
+    ):
+        df = _make_vp_df(trip_ids, stop_seqs, statuses, vehicle_ids, timestamps, feed_ts)
+        result = narrow_vehicle_positions(df)
+        assert result.shape[0] == expected_rows
+
+    def test_output_columns(self):
+        df = _make_vp_df(["t1"], [1], ["STOPPED_AT"], ["v1"], [1000], [900])
+        result = narrow_vehicle_positions(df)
+        assert set(result.columns) == self.CANONICAL_COLS
+
+    def test_sorted_by_trip_and_stop(self):
+        df = _make_vp_df(
+            ["t2", "t1", "t1"],
+            [3, 2, 1],
+            ["STOPPED_AT", "STOPPED_AT", "STOPPED_AT"],
+            ["v1", "v1", "v1"],
+            [3000, 2000, 1000],
+            [2900, 1900, 900],
+        )
+        result = narrow_vehicle_positions(df)
+        assert result["trip_id"].to_list() == ["t1", "t1", "t2"]
+        assert result["stop_sequence"].to_list() == [1, 2, 3]
+
+    def test_empty_input(self):
+        df = _make_vp_df([], [], [], [], [], [])
+        result = narrow_vehicle_positions(df)
+        assert result.shape[0] == 0
+        assert set(result.columns) == self.CANONICAL_COLS
