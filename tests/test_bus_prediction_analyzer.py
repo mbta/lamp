@@ -11,6 +11,7 @@ from analysis.bus_prediction_analyzer_utils import (
     IBIBin,
     TimeOfDayBin,
     add_error_columns,
+    assign_ibi_bin,
     default_config,
     join_tu_vp,
     load_config,
@@ -444,3 +445,69 @@ class TestAddErrorColumns:
         result = add_error_columns(df)
         assert result["prediction_error_sec"][0] is None
         assert result["prediction_ahead_sec"][0] == -100
+
+
+class TestAssignIbiBin:
+    """Tests for assign_ibi_bin()."""
+
+    @pytest.fixture()
+    def cfg(self):
+        return default_config()
+
+    @pytest.mark.parametrize(
+        ["ahead_sec", "expected_bin"],
+        [
+            # -prediction_ahead_sec maps into bins: [0,180) [180,360) [360,600) [600,900)
+            # inside 0-3min bin (90 seconds before arrival)
+            (-90, "0-3min"),
+            # boundary: exactly 180 -> 3-6min (>= 180)
+            (-180, "3-6min"),
+            # inside 3-6min
+            (-300, "3-6min"),
+            # boundary: exactly 360 -> 6-10min
+            (-360, "6-10min"),
+            # inside 6-10min
+            (-500, "6-10min"),
+            # boundary: exactly 600 -> 10-15min
+            (-600, "10-15min"),
+            # inside 10-15min
+            (-800, "10-15min"),
+            # at 0 -> 0-3min (>= 0)
+            (0, "0-3min"),
+            # positive ahead_sec = stale prediction (after arrival) -> ignored
+            (100, None),
+            # outside all bins: >= 900
+            (-900, None),
+            (-1200, None),
+        ],
+        ids=[
+            "mid-0-3", "boundary-180", "mid-3-6", "boundary-360",
+            "mid-6-10", "boundary-600", "mid-10-15", "zero",
+            "positive-stale", "boundary-900-outside", "far-outside",
+        ],
+    )
+    def test_bin_assignment(self, cfg, ahead_sec, expected_bin):
+        df = pl.DataFrame({"prediction_ahead_sec": [ahead_sec]})
+        result = assign_ibi_bin(df, cfg)
+        assert result["ibi_bin"][0] == expected_bin
+
+    def test_null_ahead_produces_null_bin(self, cfg):
+        df = pl.DataFrame(
+            {"prediction_ahead_sec": [None]},
+            schema={"prediction_ahead_sec": pl.Int64},
+        )
+        result = assign_ibi_bin(df, cfg)
+        assert result["ibi_bin"][0] is None
+
+    def test_multiple_rows(self, cfg):
+        df = pl.DataFrame({"prediction_ahead_sec": [-50, -200, -500, -700, -1000]})
+        result = assign_ibi_bin(df, cfg)
+        assert result["ibi_bin"].to_list() == ["0-3min", "3-6min", "6-10min", "10-15min", None]
+
+    def test_custom_single_bin(self):
+        cfg = AnalyzerConfig(
+            ibi_bins=(IBIBin("custom", 0, 60, 10, 20),),
+        )
+        df = pl.DataFrame({"prediction_ahead_sec": [-30, -61]})
+        result = assign_ibi_bin(df, cfg)
+        assert result["ibi_bin"].to_list() == ["custom", None]

@@ -148,3 +148,25 @@ def add_error_columns(df: pl.DataFrame) -> pl.DataFrame:
         prediction_ahead_sec=pl.col("tu_feed_timestamp") - pl.col("predicted_arrival"),
     )
 
+
+def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
+    """Add an ``ibi_bin`` column based on ``prediction_ahead_sec``.
+
+    Only predictions made *before* the predicted arrival are binned
+    (prediction_ahead_sec <= 0).  The negated value gives "seconds until
+    arrival" which is mapped into the configured IBI bin ranges.
+    Positive prediction_ahead_sec (stale / after-the-fact) and values
+    outside all bins receive null.
+
+    Bin ranges are ``[min_seconds_away, max_seconds_away)``.
+    """
+    seconds_until = -pl.col("prediction_ahead_sec")
+    expr = pl.lit(None, dtype=pl.Utf8)
+    for b in reversed(config.ibi_bins):
+        expr = (
+            pl.when(seconds_until.ge(b.min_seconds_away) & seconds_until.lt(b.max_seconds_away))
+            .then(pl.lit(b.name))
+            .otherwise(expr)
+        )
+    return df.with_columns(ibi_bin=expr)
+
