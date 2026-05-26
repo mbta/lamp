@@ -10,8 +10,11 @@ from analysis.bus_prediction_analyzer_utils import (
     AnalyzerConfig,
     IBIBin,
     TimeOfDayBin,
+    add_error_columns,
     default_config,
+    join_tu_vp,
     load_config,
+    narrow_trip_updates,
     narrow_vehicle_positions,
 )
 
@@ -287,3 +290,157 @@ class TestNarrowVehiclePositions:
         result = narrow_vehicle_positions(df)
         assert result.shape[0] == 0
         assert set(result.columns) == self.CANONICAL_COLS
+
+
+def _make_tu_df(
+    trip_ids: list[str],
+    stop_seqs: list[int],
+    stop_ids: list[str],
+    vehicle_ids: list[str],
+    arrival_times: list[int | None],
+    route_ids: list[str],
+    feed_timestamps: list[int],
+) -> pl.DataFrame:
+    """Helper to build a trip_updates DataFrame with raw GTFS-RT column names."""
+    return pl.DataFrame(
+        {
+            "trip_update.trip.trip_id": trip_ids,
+            "trip_update.stop_time_update.stop_sequence": stop_seqs,
+            "trip_update.stop_time_update.stop_id": stop_ids,
+            "trip_update.vehicle.id": vehicle_ids,
+            "trip_update.stop_time_update.arrival.time": arrival_times,
+            "trip_update.trip.route_id": route_ids,
+            "feed_timestamp": feed_timestamps,
+        }
+    )
+
+
+def _make_canonical_vp(
+    trip_ids: list[str],
+    stop_seqs: list[int],
+    vehicle_ids: list[str],
+    actual_ts: list[int],
+    vp_feed_ts: list[int],
+) -> pl.DataFrame:
+    """Helper to build an already-narrowed VP DataFrame with canonical column names."""
+    return pl.DataFrame(
+        {
+            "trip_id": trip_ids,
+            "stop_sequence": stop_seqs,
+            "vehicle_id": vehicle_ids,
+            "actual_timestamp": actual_ts,
+            "vp_feed_timestamp": vp_feed_ts,
+        }
+    )
+
+
+class TestNarrowTripUpdates:
+    """Tests for narrow_trip_updates()."""
+
+    CANONICAL_COLS = {"trip_id", "stop_sequence", "stop_id", "vehicle_id", "predicted_arrival", "route_id", "tu_feed_timestamp"}
+
+    def test_output_columns(self):
+        df = _make_tu_df(["t1"], [1], ["s1"], ["v1"], [1000], ["r1"], [900])
+        result = narrow_trip_updates(df)
+        assert set(result.columns) == self.CANONICAL_COLS
+
+    def test_preserves_row_count(self):
+        df = _make_tu_df(["t1", "t1"], [1, 2], ["s1", "s2"], ["v1", "v1"], [1000, 2000], ["r1", "r1"], [900, 1900])
+        result = narrow_trip_updates(df)
+        assert result.shape[0] == 2
+
+
+class TestJoinTuVp:
+    """Tests for join_tu_vp()."""
+
+    @pytest.mark.parametrize(
+        ["tu_trips", "tu_seqs", "vp_trips", "vp_seqs", "expected_nulls"],
+        [
+            # all match
+            (["t1", "t1"], [1, 2], ["t1", "t1"], [1, 2], 0),
+            # no matches -> actual_timestamp is null
+            (["t1"], [1], ["t2"], [1], 1),
+            # partial match
+            (["t1", "t1"], [1, 2], ["t1"], [1], 1),
+        ],
+        ids=["all-match", "no-match", "partial-match"],
+    )
+    def test_join_null_count(self, tu_trips, tu_seqs, vp_trips, vp_seqs, expected_nulls):
+        tu = narrow_trip_updates(
+            _make_tu_df(tu_trips, tu_seqs, ["s"] * len(tu_trips), ["v1"] * len(tu_trips), [1000] * len(tu_trips), ["r1"] * len(tu_trips), [900] * len(tu_trips))
+        )
+        vp = _make_canonical_vp(vp_trips, vp_seqs, ["v1"] * len(vp_trips), [1000] * len(vp_trips), [900] * len(vp_trips))
+        result = join_tu_vp(tu, vp)
+        assert result.shape[0] == len(tu_trips)
+        assert result["actual_timestamp"].null_count() == expected_nulls
+
+    def test_preserves_tu_columns(self):
+        tu = narrow_trip_updates(_make_tu_df(["t1"], [1], ["s1"], ["v1"], [1000], ["r1"], [900]))
+        vp = _make_canonical_vp(["t1"], [1], ["v1"], [999], [890])
+        result = join_tu_vp(tu, vp)
+        assert "stop_id" in result.columns
+        assert "route_id" in result.columns
+        assert "actual_timestamp" in result.columns
+
+    def test_empty_tu(self):
+        tu = pl.DataFrame(
+            schema={
+                "trip_id": pl.Utf8,
+                "stop_sequence": pl.Int64,
+                "stop_id": pl.Utf8,
+                "vehicle_id": pl.Utf8,
+                "predicted_arrival": pl.Int64,
+                "route_id": pl.Utf8,
+                "tu_feed_timestamp": pl.Int64,
+            }
+        )
+        vp = _make_canonical_vp(["t1"], [1], ["v1"], [1000], [900])
+        result = join_tu_vp(tu, vp)
+        assert result.shape[0] == 0
+
+
+class TestAddErrorColumns:
+    """Tests for add_error_columns()."""
+
+    @pytest.mark.parametrize(
+        ["predicted", "actual", "feed_ts", "expected_error", "expected_ahead"],
+        [
+            # predicted late: predicted 1010, actual 1000 -> error = +10
+            (1010, 1000, 900, 10, -110),
+            # predicted early: predicted 990, actual 1000 -> error = -10
+            (990, 1000, 900, -10, -90),
+            # exact: no error
+            (1000, 1000, 900, 0, -100),
+            # prediction made well ahead
+            (2000, 2000, 1000, 0, -1000),
+        ],
+        ids=["predicted-late", "predicted-early", "exact", "far-ahead"],
+    )
+    def test_error_values(self, predicted, actual, feed_ts, expected_error, expected_ahead):
+        df = pl.DataFrame(
+            {
+                "predicted_arrival": [predicted],
+                "actual_timestamp": [actual],
+                "tu_feed_timestamp": [feed_ts],
+            }
+        )
+        result = add_error_columns(df)
+        assert result["prediction_error_sec"][0] == expected_error
+        assert result["prediction_ahead_sec"][0] == expected_ahead
+
+    def test_null_actual_produces_null_error(self):
+        df = pl.DataFrame(
+            {
+                "predicted_arrival": [1000],
+                "actual_timestamp": [None],
+                "tu_feed_timestamp": [900],
+            },
+            schema={
+                "predicted_arrival": pl.Int64,
+                "actual_timestamp": pl.Int64,
+                "tu_feed_timestamp": pl.Int64,
+            },
+        )
+        result = add_error_columns(df)
+        assert result["prediction_error_sec"][0] is None
+        assert result["prediction_ahead_sec"][0] == -100

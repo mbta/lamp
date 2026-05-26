@@ -105,3 +105,46 @@ def narrow_vehicle_positions(df: pl.DataFrame) -> pl.DataFrame:
         .drop("current_status")
     )
 
+
+TU_COLUMN_MAP = {
+    "trip_update.trip.trip_id": "trip_id",
+    "trip_update.stop_time_update.stop_sequence": "stop_sequence",
+    "trip_update.stop_time_update.stop_id": "stop_id",
+    "trip_update.vehicle.id": "vehicle_id",
+    "trip_update.stop_time_update.arrival.time": "predicted_arrival",
+    "trip_update.trip.route_id": "route_id",
+    "feed_timestamp": "tu_feed_timestamp",
+}
+
+
+def narrow_trip_updates(df: pl.DataFrame) -> pl.DataFrame:
+    """Select and rename trip_update columns to canonical names."""
+    required = list(TU_COLUMN_MAP.keys())
+    return df.select(required).rename(TU_COLUMN_MAP)
+
+
+def join_tu_vp(tu_df: pl.DataFrame, vp_df: pl.DataFrame) -> pl.DataFrame:
+    """Left join narrowed trip_updates onto narrowed vehicle_positions.
+
+    Join keys: trip_id, vehicle_id, stop_sequence.
+    """
+    return tu_df.join(
+        vp_df,
+        on=["trip_id", "vehicle_id", "stop_sequence"],
+        how="left",
+    )
+
+
+def add_error_columns(df: pl.DataFrame) -> pl.DataFrame:
+    """Add prediction error and prediction-ahead columns.
+
+    prediction_error_sec: predicted_arrival - actual_timestamp
+        positive = predicted too late, negative = predicted too early
+    prediction_ahead_sec: tu_feed_timestamp - predicted_arrival
+        negative = prediction was made before the predicted arrival
+    """
+    return df.with_columns(
+        prediction_error_sec=pl.col("predicted_arrival") - pl.col("actual_timestamp"),
+        prediction_ahead_sec=pl.col("tu_feed_timestamp") - pl.col("predicted_arrival"),
+    )
+
