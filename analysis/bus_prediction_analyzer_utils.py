@@ -170,3 +170,59 @@ def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
         )
     return df.with_columns(ibi_bin=expr)
 
+
+def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
+    """Add boolean ``is_accurate`` column using IBI bin thresholds.
+
+    A prediction is accurate when:
+      -early_threshold_sec <= prediction_error_sec <= late_threshold_sec
+
+    Rows with null ``ibi_bin`` receive null ``is_accurate``.
+    Thresholds are inclusive at both boundaries per TransitApp spec.
+    """
+    error = pl.col("prediction_error_sec")
+    expr = pl.lit(None, dtype=pl.Boolean)
+    for b in reversed(config.ibi_bins):
+        expr = (
+            pl.when(pl.col("ibi_bin") == b.name)
+            .then(error.ge(-b.early_threshold_sec) & error.le(b.late_threshold_sec))
+            .otherwise(expr)
+        )
+    return df.with_columns(is_accurate=expr)
+
+
+def calculate_ibi_accuracy(df: pl.DataFrame, config: AnalyzerConfig) -> pl.DataFrame:
+    """Calculate per-bin and overall IBI accuracy.
+
+    Returns a DataFrame with columns: ibi_bin, total, accurate, accuracy_pct.
+    The overall row is the equal-weighted average of per-bin accuracies.
+    Bins with no data are excluded from the overall average.
+    """
+    binned = df.filter(pl.col("ibi_bin").is_not_null())
+    if binned.is_empty():
+        return pl.DataFrame(
+            schema={"ibi_bin": pl.Utf8, "total": pl.UInt32, "accurate": pl.UInt32, "accuracy_pct": pl.Float64}
+        )
+
+    per_bin = (
+        binned.group_by("ibi_bin")
+        .agg(
+            total=pl.len(),
+            accurate=pl.col("is_accurate").sum(),
+        )
+        .with_columns(accuracy_pct=pl.col("accurate") / pl.col("total") * 100)
+        .sort("ibi_bin")
+    )
+
+    overall_acc = per_bin["accuracy_pct"].mean()
+    overall_row = pl.DataFrame(
+        {
+            "ibi_bin": ["overall"],
+            "total": [per_bin["total"].sum()],
+            "accurate": [per_bin["accurate"].sum()],
+            "accuracy_pct": [overall_acc],
+        },
+        schema={"ibi_bin": pl.Utf8, "total": pl.UInt32, "accurate": pl.UInt32, "accuracy_pct": pl.Float64},
+    )
+    return pl.concat([per_bin, overall_row])
+

@@ -12,7 +12,9 @@ from analysis.bus_prediction_analyzer_utils import (
     TimeOfDayBin,
     add_error_columns,
     assign_ibi_bin,
+    calculate_ibi_accuracy,
     default_config,
+    is_prediction_accurate,
     join_tu_vp,
     load_config,
     narrow_trip_updates,
@@ -511,3 +513,94 @@ class TestAssignIbiBin:
         df = pl.DataFrame({"prediction_ahead_sec": [-30, -61]})
         result = assign_ibi_bin(df, cfg)
         assert result["ibi_bin"].to_list() == ["custom", None]
+
+
+class TestIsPredictionAccurate:
+    """Tests for is_prediction_accurate()."""
+
+    @pytest.fixture()
+    def cfg(self):
+        return default_config()
+
+    @pytest.mark.parametrize(
+        ["ibi_bin", "error_sec", "expected"],
+        [
+            # 0-3min: early_threshold=30, late_threshold=90
+            ("0-3min", 0, True),
+            ("0-3min", 90, True),       # exactly on late boundary (inclusive)
+            ("0-3min", 91, False),      # just over late
+            ("0-3min", -30, True),      # exactly on early boundary (inclusive)
+            ("0-3min", -31, False),     # just over early
+            # 3-6min: early=60, late=150
+            ("3-6min", 150, True),
+            ("3-6min", 151, False),
+            ("3-6min", -60, True),
+            ("3-6min", -61, False),
+            # null bin -> null accuracy
+            (None, 50, None),
+        ],
+        ids=[
+            "0-3-exact", "0-3-late-boundary", "0-3-over-late",
+            "0-3-early-boundary", "0-3-over-early",
+            "3-6-late-boundary", "3-6-over-late",
+            "3-6-early-boundary", "3-6-over-early",
+            "null-bin",
+        ],
+    )
+    def test_accuracy_flag(self, cfg, ibi_bin, error_sec, expected):
+        df = pl.DataFrame(
+            {"ibi_bin": [ibi_bin], "prediction_error_sec": [error_sec]},
+            schema={"ibi_bin": pl.Utf8, "prediction_error_sec": pl.Int64},
+        )
+        result = is_prediction_accurate(df, cfg)
+        assert result["is_accurate"][0] == expected
+
+
+class TestCalculateIbiAccuracy:
+    """Tests for calculate_ibi_accuracy()."""
+
+    @pytest.fixture()
+    def cfg(self):
+        return default_config()
+
+    def test_all_accurate(self, cfg):
+        df = pl.DataFrame(
+            {"ibi_bin": ["0-3min", "0-3min", "3-6min"], "is_accurate": [True, True, True]}
+        )
+        result = calculate_ibi_accuracy(df, cfg)
+        overall = result.filter(pl.col("ibi_bin") == "overall")
+        assert overall["accuracy_pct"][0] == 100.0
+
+    def test_none_accurate(self, cfg):
+        df = pl.DataFrame(
+            {"ibi_bin": ["0-3min", "3-6min"], "is_accurate": [False, False]}
+        )
+        result = calculate_ibi_accuracy(df, cfg)
+        overall = result.filter(pl.col("ibi_bin") == "overall")
+        assert overall["accuracy_pct"][0] == 0.0
+
+    def test_mixed_accuracy(self, cfg):
+        # 0-3min: 1/2 = 50%, 3-6min: 1/1 = 100%, overall = (50+100)/2 = 75
+        df = pl.DataFrame(
+            {"ibi_bin": ["0-3min", "0-3min", "3-6min"], "is_accurate": [True, False, True]}
+        )
+        result = calculate_ibi_accuracy(df, cfg)
+        overall = result.filter(pl.col("ibi_bin") == "overall")
+        assert overall["accuracy_pct"][0] == 75.0
+
+    def test_empty_after_filter(self, cfg):
+        df = pl.DataFrame(
+            {"ibi_bin": [None], "is_accurate": [None]},
+            schema={"ibi_bin": pl.Utf8, "is_accurate": pl.Boolean},
+        )
+        result = calculate_ibi_accuracy(df, cfg)
+        assert result.shape[0] == 0
+
+    def test_per_bin_counts(self, cfg):
+        df = pl.DataFrame(
+            {"ibi_bin": ["0-3min", "0-3min", "0-3min"], "is_accurate": [True, True, False]}
+        )
+        result = calculate_ibi_accuracy(df, cfg)
+        row = result.filter(pl.col("ibi_bin") == "0-3min")
+        assert row["total"][0] == 3
+        assert row["accurate"][0] == 2
