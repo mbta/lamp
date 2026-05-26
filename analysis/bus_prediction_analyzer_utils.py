@@ -256,3 +256,77 @@ def assign_time_of_day_bin(df: pl.DataFrame, config: AnalyzerConfig = default_co
         expr = pl.when(cond).then(pl.lit(b.name)).otherwise(expr)
     return df.with_columns(time_of_day_bin=expr)
 
+
+def parse_start_time_seconds(df: pl.DataFrame) -> pl.DataFrame:
+    """Add a ``start_time_seconds`` column: seconds after midnight from ``start_time``.
+
+    Parses GTFS ``start_time`` (HH:MM:SS, allowing HH > 24) to integer seconds.
+    Returns the raw value without modulo, so overnight service times remain > 86400.
+    Useful for temporal binning, visualizations, and downstream metrics.
+    """
+    parts = pl.col("start_time").str.split_exact(":", 2)
+    return df.with_columns(
+        start_time_seconds=(
+            parts.struct.field("field_0").cast(pl.Int64, strict=False) * 3600
+            + parts.struct.field("field_1").cast(pl.Int64, strict=False) * 60
+            + parts.struct.field("field_2").cast(pl.Int64, strict=False)
+        )
+    )
+
+
+def filter_predictions(
+    df: pl.DataFrame,
+    route_id: str | None = None,
+    trip_id: str | None = None,
+    stop_id: str | None = None,
+    service_date: str | None = None,
+) -> pl.DataFrame:
+    """Filter predictions by optional route, trip, stop, or service_date.
+
+    Each filter is applied only if not None. Returns input DataFrame if all filters are None.
+    """
+    result = df
+    if route_id is not None:
+        result = result.filter(pl.col("route_id") == route_id)
+    if trip_id is not None:
+        result = result.filter(pl.col("trip_id") == trip_id)
+    if stop_id is not None:
+        result = result.filter(pl.col("stop_id") == stop_id)
+    if service_date is not None:
+        result = result.filter(pl.col("service_date") == service_date)
+    return result
+
+
+def calculate_accuracy_by_group(
+    df: pl.DataFrame,
+    group_cols: list[str],
+    config: AnalyzerConfig = default_config(),
+) -> pl.DataFrame:
+    """Calculate per-group IBI accuracy for arbitrary grouping columns.
+
+    Groups by ``group_cols``, calculates per-group IBI accuracy (total, accurate, accuracy_pct).
+    Only rows with non-null ``ibi_bin`` are included. Returns sorted dataframe by group_cols.
+    """
+    binned = df.filter(pl.col("ibi_bin").is_not_null())
+    if binned.is_empty():
+        # Return empty dataframe with expected schema
+        return pl.DataFrame(
+            schema={
+                **{col: pl.Utf8 for col in group_cols},
+                "total": pl.UInt32,
+                "accurate": pl.UInt32,
+                "accuracy_pct": pl.Float64,
+            }
+        )
+
+    grouped = (
+        binned.group_by(group_cols)
+        .agg(
+            total=pl.len(),
+            accurate=pl.col("is_accurate").sum(),
+        )
+        .with_columns(accuracy_pct=pl.col("accurate") / pl.col("total") * 100)
+        .sort(group_cols)
+    )
+    return grouped
+

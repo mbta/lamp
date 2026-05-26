@@ -13,6 +13,9 @@ from analysis.bus_prediction_analyzer_utils import (
     add_error_columns,
     assign_ibi_bin,
     assign_time_of_day_bin,
+    calculate_accuracy_by_group,
+    filter_predictions,
+    parse_start_time_seconds,
     calculate_ibi_accuracy,
     default_config,
     is_prediction_accurate,
@@ -671,3 +674,214 @@ class TestAssignTimeOfDayBin:
         df = pl.DataFrame({"start_time": ["23:15:00", "01:30:00", "12:00:00", "26:00:00"]})
         result = assign_time_of_day_bin(df, cfg)
         assert result["time_of_day_bin"].to_list() == ["overnight", "overnight", "day", "day"]
+
+
+class TestParseStartTimeSeconds:
+    """Tests for parse_start_time_seconds()."""
+
+    @pytest.mark.parametrize(
+        ["start_time", "expected_seconds"],
+        [
+            ("00:00:00", 0),
+            ("00:01:00", 60),
+            ("00:00:01", 1),
+            ("01:00:00", 3600),
+            ("06:30:45", 6 * 3600 + 30 * 60 + 45),
+            ("12:00:00", 12 * 3600),
+            ("23:59:59", 23 * 3600 + 59 * 60 + 59),
+            # >24h times remain as-is (no modulo)
+            ("24:00:00", 24 * 3600),
+            ("25:30:15", 25 * 3600 + 30 * 60 + 15),
+            ("48:45:30", 48 * 3600 + 45 * 60 + 30),
+            (None, None),
+        ],
+        ids=[
+            "midnight", "one-minute", "one-second", "one-hour",
+            "morning", "noon", "end-of-day",
+            "24-hour", "overnight", "48-hour", "null",
+        ],
+    )
+    def test_seconds_calculation(self, start_time, expected_seconds):
+        df = pl.DataFrame(
+            {"start_time": [start_time]},
+            schema={"start_time": pl.Utf8},
+        )
+        result = parse_start_time_seconds(df)
+        assert result["start_time_seconds"][0] == expected_seconds
+
+    def test_multiple_rows(self):
+        df = pl.DataFrame(
+            {"start_time": ["00:00:00", "06:00:00", "12:00:00", "24:00:00", "25:30:00"]}
+        )
+        result = parse_start_time_seconds(df)
+        assert result["start_time_seconds"].to_list() == [
+            0,
+            6 * 3600,
+            12 * 3600,
+            24 * 3600,
+            25 * 3600 + 30 * 60,
+        ]
+
+
+class TestFilterPredictions:
+    """Tests for filter_predictions()."""
+
+    @pytest.fixture()
+    def sample_df(self):
+        return pl.DataFrame(
+            {
+                "route_id": ["1", "1", "2", "2", "3"],
+                "trip_id": ["t1", "t2", "t1", "t3", "t1"],
+                "stop_id": ["s1", "s1", "s2", "s2", "s3"],
+                "service_date": ["2025-01-01", "2025-01-02", "2025-01-01", "2025-01-02", "2025-01-01"],
+            }
+        )
+
+    def test_no_filters(self, sample_df):
+        result = filter_predictions(sample_df)
+        assert result.shape[0] == 5
+
+    def test_single_route_filter(self, sample_df):
+        result = filter_predictions(sample_df, route_id="1")
+        assert result.shape[0] == 2
+        assert set(result["route_id"]) == {"1"}
+
+    def test_single_trip_filter(self, sample_df):
+        result = filter_predictions(sample_df, trip_id="t1")
+        assert result.shape[0] == 3
+        assert set(result["trip_id"]) == {"t1"}
+
+    def test_single_stop_filter(self, sample_df):
+        result = filter_predictions(sample_df, stop_id="s2")
+        assert result.shape[0] == 2
+        assert set(result["stop_id"]) == {"s2"}
+
+    def test_single_service_date_filter(self, sample_df):
+        result = filter_predictions(sample_df, service_date="2025-01-02")
+        assert result.shape[0] == 2
+        assert set(result["service_date"]) == {"2025-01-02"}
+
+    def test_multiple_filters(self, sample_df):
+        result = filter_predictions(sample_df, route_id="1", trip_id="t1")
+        assert result.shape[0] == 1
+        assert result["route_id"][0] == "1"
+        assert result["trip_id"][0] == "t1"
+
+    def test_multiple_filters_no_match(self, sample_df):
+        result = filter_predictions(sample_df, route_id="1", trip_id="t3")
+        assert result.shape[0] == 0
+
+    @pytest.mark.parametrize(
+        ["route", "trip", "stop", "date", "expected_count"],
+        [
+            ("1", None, None, None, 2),
+            ("1", "t1", None, None, 1),
+            ("1", "t1", "s1", None, 1),
+            ("1", "t1", "s2", None, 0),
+            (None, "t1", "s1", "2025-01-01", 1),
+            (None, None, None, "2025-01-01", 3),
+            ("2", None, None, "2025-01-02", 1),
+        ],
+        ids=[
+            "route-only", "route-trip", "route-trip-stop-match",
+            "route-trip-stop-no-match", "trip-stop-date",
+            "date-only", "route-date",
+        ],
+    )
+    def test_filter_combinations(self, sample_df, route, trip, stop, date, expected_count):
+        result = filter_predictions(sample_df, route_id=route, trip_id=trip, stop_id=stop, service_date=date)
+        assert result.shape[0] == expected_count
+
+
+class TestCalculateAccuracyByGroup:
+    """Tests for calculate_accuracy_by_group()."""
+
+    @pytest.fixture()
+    def cfg(self):
+        return default_config()
+
+    @pytest.fixture()
+    def sample_grouped_df(self):
+        """Sample data with route, time_of_day_bin, ibi_bin, is_accurate."""
+        return pl.DataFrame(
+            {
+                "route_id": ["1", "1", "1", "2", "2", "2"],
+                "time_of_day_bin": ["morning", "morning", "midday", "morning", "evening", "evening"],
+                "ibi_bin": ["0-3min", "0-3min", "3-6min", "0-3min", "3-6min", "3-6min"],
+                "is_accurate": [True, False, True, True, False, False],
+            }
+        )
+
+    def test_group_by_single_column(self, cfg, sample_grouped_df):
+        result = calculate_accuracy_by_group(sample_grouped_df, ["route_id"], cfg)
+        assert result.shape[0] == 2
+        route_1 = result.filter(pl.col("route_id") == "1")
+        assert route_1["total"][0] == 3
+        assert route_1["accurate"][0] == 2
+        assert route_1["accuracy_pct"][0] == pytest.approx(66.666666, abs=0.001)
+
+    def test_group_by_multiple_columns(self, cfg, sample_grouped_df):
+        result = calculate_accuracy_by_group(
+            sample_grouped_df, ["route_id", "time_of_day_bin"], cfg
+        )
+        assert result.shape[0] == 4
+        r1_morning = result.filter(
+            (pl.col("route_id") == "1") & (pl.col("time_of_day_bin") == "morning")
+        )
+        assert r1_morning["total"][0] == 2
+        assert r1_morning["accurate"][0] == 1
+        assert r1_morning["accuracy_pct"][0] == 50.0
+
+    def test_group_with_null_ibi_bin(self, cfg):
+        df = pl.DataFrame(
+            {
+                "route_id": ["1", "1", "1"],
+                "ibi_bin": ["0-3min", None, "3-6min"],
+                "is_accurate": [True, False, True],
+            }
+        )
+        result = calculate_accuracy_by_group(df, ["route_id"], cfg)
+        assert result.shape[0] == 1
+        assert result["total"][0] == 2  # Only non-null ibi_bin rows
+
+    def test_empty_input(self, cfg):
+        df = pl.DataFrame(
+            schema={
+                "route_id": pl.Utf8,
+                "ibi_bin": pl.Utf8,
+                "is_accurate": pl.Boolean,
+            }
+        )
+        result = calculate_accuracy_by_group(df, ["route_id"], cfg)
+        assert result.shape[0] == 0
+
+    def test_all_null_ibi_bin(self, cfg):
+        df = pl.DataFrame(
+            {
+                "route_id": ["1", "1"],
+                "ibi_bin": [None, None],
+                "is_accurate": [True, False],
+            },
+            schema={
+                "route_id": pl.Utf8,
+                "ibi_bin": pl.Utf8,
+                "is_accurate": pl.Boolean,
+            },
+        )
+        result = calculate_accuracy_by_group(df, ["route_id"], cfg)
+        assert result.shape[0] == 0
+
+    @pytest.mark.parametrize(
+        ["group_cols", "expected_rows"],
+        [
+            (["route_id"], 2),
+            (["time_of_day_bin"], 3),
+            (["ibi_bin"], 2),
+            (["route_id", "time_of_day_bin"], 4),
+            (["route_id", "time_of_day_bin", "ibi_bin"], 4),
+        ],
+        ids=["route-only", "timeofday-only", "ibi-only", "route-timeofday", "all-three"],
+    )
+    def test_group_by_various_columns(self, cfg, sample_grouped_df, group_cols, expected_rows):
+        result = calculate_accuracy_by_group(sample_grouped_df, group_cols, cfg)
+        assert result.shape[0] == expected_rows
