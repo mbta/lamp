@@ -511,6 +511,7 @@ class HyperRtVehicleEvents(HyperRtRail):
         # /tmp/db_local_RAIL_xyz.parquet
         self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
 
+    @property
     def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
@@ -557,6 +558,7 @@ class HyperRtVehicleTrips(HyperRtRail):
         # /tmp/db_local_RAIL_xyz.parquet
         self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
 
+    @property
     def output_processed_schema(self) -> pyarrow.schema:
         return pyarrow.schema(
             [
