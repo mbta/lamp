@@ -108,7 +108,7 @@ def start_hyper_updates() -> None:
         HyperStaticStopTimes(),
         HyperStaticTrips(),
         HyperRtAlerts(),
-        # HyperBusPerformanceAll(),
+        HyperBusPerformanceAll(),
         HyperBusPerformanceRecent(),
         Prod_BusOperatorMapping_Recent,
         Prod_BusOperatorMapping_LongTerm,
