@@ -18,7 +18,7 @@ from lamp_py.runtime_utils.remote_files import S3_ARCHIVE, S3_INCOMING, S3Locati
         pytest.param(S3_INCOMING, date(2026, 5, 1), date(2026, 5, 1), [False], False, 1, 1, id="single-day-run"),
     ],
 )
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def test_delta_reingestion_runner(
     bucket: str,
     start_date: date,
