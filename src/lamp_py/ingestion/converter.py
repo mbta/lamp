@@ -113,16 +113,20 @@ class Converter(ABC):
         self.metadata_queue: Queue[Optional[str]] = metadata_queue
 
     def add_files(self, files: List[str]) -> None:
-        """add files to this converter"""
+        """Add files to this converter"""
         self.files += files
 
+    def reset_files(self) -> None:
+        """Remove files from this converter"""
+        self.files = []
+
     def send_metadata(self, written_file: str) -> None:
-        """send metadata path to rds writer process"""
+        """Send metadata path to rds writer process"""
         self.metadata_queue.put(written_file)
 
     @abstractmethod
     def convert(self) -> None:
         """
-        convert files to pyarrow tables, write them to s3 as parquete, and move
+        Convert files to pyarrow tables, write them to s3 as parquete, and move
         files from incoming to archive (or error)
         """

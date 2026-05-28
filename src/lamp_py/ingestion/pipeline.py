@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import time
 import logging
@@ -24,7 +23,7 @@ DESCRIPTION = """Entry Point For GTFS Ingestion Scripts"""
 
 def main() -> None:
     """
-    run the ingestion pipeline
+    Run the ingestion pipeline
 
     * setup metadata queue metadata writer process
     * setup a glides kinesis reader
@@ -40,15 +39,33 @@ def main() -> None:
     # connect to the glides kinesis stream
     glides_reader = KinesisReader(stream_name="ctd-glides-prod")
 
+    # today = datetime.now(timezone.utc).date()
+
     # run the event loop every 30 seconds
     while True:
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
         bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
+
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
         ingest_glides_events(glides_reader, metadata_queue, upload=True)
         check_for_sigterm(metadata_queue, rds_process)
+
+        # # if datetime has moved on (i.e. it's the next day)
+        # if today != datetime.now(timezone.utc).date():
+
+        #     in_processing_window=within_daily_processing_window()
+        #     process_logger.add_metadata(in_processing_window=in_processing_window)
+
+        #     # this doesn't make use of the processing window fully. we need to have other parts of ingestion
+        #     # populate a queue. this queue can be written to disk occasionally to pick back up...todo
+        #     if in_processing_window:
+        #         # it is next day, do repack and reset
+        #         yesterday = today
+        #         today = datetime.now(timezone.utc).date()
+        #         status = consolidate_partitions_for_archive(yesterday, config=[ConfigType.TRIP_UPDATES])
+        #         process_logger.add_metadata(consolidate_day=yesterday,consolidation_status=status)
 
         process_logger.log_complete()
 
@@ -56,7 +73,7 @@ def main() -> None:
 
 
 def start() -> None:
-    """configure and start the ingestion process"""
+    """Configure and start the ingestion process"""
     clear_folder("/tmp")
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
