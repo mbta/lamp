@@ -1,7 +1,7 @@
 import polars as pl
 import dataframely as dy
 
-from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
+from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions, LightRailFilter
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -60,7 +60,7 @@ class LightRailTerminalVehiclePositions(dy.Schema):
     stop_id = dy.String(
         nullable=True,
         alias="vehicle.stop_id",
-        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
+        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list),
     )
     trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id", check=lambda x: x.is_not_null())
     revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue", check=lambda x: x)
@@ -100,12 +100,12 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
     process_logger.log_start()
 
     polars_df = restrict_vp_to_only_terminal_stop_ids(
-        polars_df, FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list
+        polars_df, FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list + LightRailFilter.terminal_stop_ids
     )
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     valid = LightRailTerminalVehiclePositions.validate(polars_df)
 
-    process_logger.log_start()
+    process_logger.log_complete()
 
     return valid
 
