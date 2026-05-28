@@ -60,7 +60,10 @@ class LightRailTerminalVehiclePositions(dy.Schema):
     stop_id = dy.String(
         nullable=True,
         alias="vehicle.stop_id",
-        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list),
+        check=lambda x: x.is_in(
+            FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list
+            + LightRailFilter.terminal_stop_ids
+        ),
     )
     trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id", check=lambda x: x.is_not_null())
     revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue", check=lambda x: x)
