@@ -598,7 +598,7 @@ class HyperRtVehicleTrips(HyperRtRail):
           static_start_time,
           static_stop_count,
           first_last_station_match,
-          static_version_key,
+          static_version_key
           updated_on,
         FROM vehicle_trips vt
         WHERE
