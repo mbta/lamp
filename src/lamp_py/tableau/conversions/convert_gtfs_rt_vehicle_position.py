@@ -100,7 +100,9 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
     process_logger.log_start()
 
     polars_df = restrict_vp_to_only_terminal_stop_ids(
-        polars_df, FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list + LightRailFilter.terminal_stop_ids
+        polars_df,
+        FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list
+        + LightRailFilter.terminal_stop_ids,
     )
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     valid = LightRailTerminalVehiclePositions.validate(polars_df)
