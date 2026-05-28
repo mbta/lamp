@@ -140,7 +140,7 @@ class GtfsRtConverter(Converter):
         self,
         config_type: ConfigType,
         metadata_queue: Queue[Optional[str]],
-        max_workers: int = 8,
+        max_workers: int = os.cpu_count(),
     ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
@@ -245,6 +245,7 @@ class GtfsRtConverter(Converter):
                     )
                     continue
 
+                # create key for self.data_parts dictionary
                 dt_part = datetime(
                     year=result_dt.year,
                     month=result_dt.month,
@@ -267,6 +268,7 @@ class GtfsRtConverter(Converter):
 
                 yield from self.yield_check(process_logger)
 
+        # yield any remaining tables
         yield from self.yield_check(process_logger, min_rows=-1)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)

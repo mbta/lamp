@@ -535,12 +535,13 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         # wait for gremlins to disappear
         time.sleep(15)
 
-        process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
+    process_logger.add_metadata(failed_count=len(files_to_move), retry_attempts=retry_attempt)
 
     if len(files_to_move) == 0:
         process_logger.log_complete()
     else:
         process_logger.log_failure(exception=found_exception)
+        
     return list(files_to_move)
 
 

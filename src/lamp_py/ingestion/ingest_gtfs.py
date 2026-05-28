@@ -112,9 +112,6 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     except Exception as exception:
         logger.log_failure(exception)
 
-    # for converter in converters.values():
-    #     converter.convert()
-    # converters[ConfigType.RT_TRIP_UPDATES].convert()
     # The remaining converters can be run in parallel
     #
     # Using signal.signal to detect ECS termination and multiprocessing.Manager
