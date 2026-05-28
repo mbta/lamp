@@ -96,7 +96,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                 if config_type not in converters:
                     if config_type in (ConfigType.RT_ALERTS, ConfigType.VEHICLE_COUNT, ConfigType.SCHEDULE):
                         converters[config_type] = GtfsConverter(config_type, metadata_queue)
-                    else: # all TripUpdates, VehiclePositions
+                    else:  # all TripUpdates, VehiclePositions
                         converters[config_type] = GtfsRtFullPartitionConverter(
                             config_type,
                             metadata_queue,
