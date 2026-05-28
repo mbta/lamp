@@ -6,7 +6,7 @@ import polars as pl
 
 
 def hash_gtfs_rt_row_marked_for_removal_wip(row: Any) -> bytes:
-    """hash row from polars dataframe"""
+    """Hash row from polars dataframe"""
     return hashlib.md5(pickle.dumps(row), usedforsecurity=False).digest()
 
 
@@ -16,7 +16,6 @@ def test_polars_hashrows_equivalent_to_hash_gtfs_rt_row() -> None:
     the built in polars method does. Can remove hash_gtfs_rt_row_marked_for_removal_wip once we
     are confident this always holds.
     """
-
     table = pl.DataFrame(
         [
             pl.Series("month", [10, 10, 11], dtype=pl.Int64),
@@ -54,7 +53,6 @@ def test_polars_hashrows_works_for_all_trip_update_col_types() -> None:
 
     Check that hash_row() and the custom hash_gtfs_rt_row() return the same sets when their individual hashes are applied
     """
-
     table = pl.read_json(
         io.StringIO(
             '[{"id":"71194552","trip_update.trip.trip_id":"71194552","trip_update.trip.route_id":"Green-E","trip_update.trip.direction_id":1,"trip_update.trip.start_time":"20:30:00","trip_update.trip.start_date":"20251023","trip_update.trip.schedule_relationship":null,"trip_update.trip.route_pattern_id":"Green-E-886-1","trip_update.trip.tm_trip_id":null,"trip_update.trip.overload_id":null,"trip_update.trip.overload_offset":null,"trip_update.trip.revenue":true,"trip_update.trip.last_trip":false,"trip_update.vehicle.id":"G-10052","trip_update.vehicle.label":null,"trip_update.vehicle.license_plate":null,"trip_update.vehicle.consist":null,"trip_update.vehicle.assignment_status":null,"trip_update.timestamp":1761263939,"trip_update.delay":null,"year":2025,"month":10,"day":24,"feed_timestamp":1761264002,"trip_update.stop_time_update.stop_sequence":1,"trip_update.stop_time_update.stop_id":"70260","trip_update.stop_time_update.arrival.delay":null,"trip_update.stop_time_update.arrival.time":null,"trip_update.stop_time_update.arrival.uncertainty":null,"trip_update.stop_time_update.departure.delay":null,"trip_update.stop_time_update.departure.time":1761265800,"trip_update.stop_time_update.departure.uncertainty":360,"trip_update.stop_time_update.schedule_relationship":null,"trip_update.stop_time_update.boarding_status":null}]'
