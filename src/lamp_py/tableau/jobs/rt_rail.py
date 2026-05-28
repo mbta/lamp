@@ -543,7 +543,7 @@ class HyperRtVehicleEvents(HyperRtRail):
         return pyarrow.schema(
             [
                 ("pm_event_id", pyarrow.int64()),
-                ("service_date", pyarrow.int64()),
+                ("service_date", pyarrow.date32()),
                 ("pm_trip_id", pyarrow.int64()),
                 ("stop_id", pyarrow.string()),
                 ("stop_sequence", pyarrow.int16()),
@@ -584,7 +584,7 @@ class HyperRtVehicleTrips(HyperRtRail):
           direction_id,
           route_id,
           branch_route_id,
-          trunk_route_id",
+          trunk_route_id,
           date(vt.service_date::text) as service_date,
           start_time,
           vehicle_id,
@@ -621,7 +621,7 @@ class HyperRtVehicleTrips(HyperRtRail):
                 ("route_id", pyarrow.string()),
                 ("branch_route_id", pyarrow.string()),
                 ("trunk_route_id", pyarrow.string()),
-                ("service_date", pyarrow.int64()),
+                ("service_date", pyarrow.date32()),
                 ("start_time", pyarrow.int64()),
                 ("vehicle_id", pyarrow.string()),
                 ("stop_count", pyarrow.int16()),
