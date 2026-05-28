@@ -38,6 +38,7 @@ duckdb = "^1.4.2"
 aiohttp = "^3.13.3"
 dataframely = "^2.7"
 polars = "^1.39"
+plotly = "^6.7.0"
 
 [tool.poetry.group.tableau]
 optional = false
