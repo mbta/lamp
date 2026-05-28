@@ -94,12 +94,15 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
             try:
                 config_type = ConfigType.from_filename(file_group[0])
                 if config_type not in converters:
-                    converters[config_type] = GtfsRtFullPartitionConverter(
-                        config_type,
-                        metadata_queue,
-                        remote_output_location=S3Location(S3_SPRINGBOARD, os.path.join(LAMP, str(config_type))),
-                        move_source_on_completion=True,
-                    )
+                    if config_type in (ConfigType.RT_ALERTS, ConfigType.VEHICLE_COUNT, ConfigType.SCHEDULE):
+                        converters[config_type] = GtfsConverter(config_type, metadata_queue)
+                    else: # all TripUpdates, VehiclePositions
+                        converters[config_type] = GtfsRtFullPartitionConverter(
+                            config_type,
+                            metadata_queue,
+                            remote_output_location=S3Location(S3_SPRINGBOARD, os.path.join(LAMP, str(config_type))),
+                            move_source_on_completion=True,
+                        )
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:
                 continue
