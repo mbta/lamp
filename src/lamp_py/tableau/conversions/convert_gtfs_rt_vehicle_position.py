@@ -46,17 +46,13 @@ class VehiclePositions(dy.Schema):
 class LightRailTerminalVehiclePositions(dy.Schema):
     "Analytical VehiclePositions dataset for light rail terminal predictions."
     id = VehiclePositions.id
-    trip_id = VehiclePositions.trip_id
     route_id = VehiclePositions.route_id
     direction_id = VehiclePositions.direction_id
     start_time = VehiclePositions.start_time
     start_date = VehiclePositions.start_date
-    revenue = VehiclePositions.revenue
     vehicle_id = VehiclePositions.vehicle_id
     vehicle_label = VehiclePositions.vehicle_label
     timestamp = VehiclePositions.timestamp
-    feed_timestamp = VehiclePositions.feed_timestamp
-    stop_id = VehiclePositions.stop_id
     stop_id = dy.String(
         nullable=True,
         alias="vehicle.stop_id",
