@@ -118,7 +118,8 @@ def merge_frame_with_parquet(merge_df: pl.DataFrame, export_path: str, filter_da
 
 def compress_gtfs_file(gtfs_table_file: str, schedule_details: ScheduleDetails) -> None:
     """
-    Compress an indivdual gtfs_table_file (ie. stop_times.txt) into yearly parquet partitioned parquet file(s)
+    Compress an indivdual gtfs_table_file (ie. stop_times.txt) into yearly parquet
+    partitioned parquet file(s)
 
     yearly partition is based on ScheduleDetals.active_from_int value (1 day after published_dt)
 

@@ -17,7 +17,7 @@ class RtTripDetail(GTFSRTDetail):
     """
 
     def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
-        """modify table schema before write to parquet"""
+        """Modify table schema before write to parquet"""
         return flatten_table_schema(explode_table_column(flatten_table_schema(table), "trip_update.stop_time_update"))
 
     @property

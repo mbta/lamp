@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-from lamp_py.ingestion.daily.config import END_HOUR, START_HOUR
 import polars as pl
+from lamp_py.ingestion.daily.config import END_HOUR, START_HOUR
 from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 
 

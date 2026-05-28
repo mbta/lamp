@@ -21,7 +21,7 @@ from lamp_py.ingestion.daily.trip_updates import within_daily_processing_window
         (22, True),
     ],
 )
-def test_get_daily_processing_window(hour, expected):
+def test_get_daily_processing_window(hour: int, expected: bool) -> None:
     """Test that processing window correctly identifies hours within range [1, 23)."""
     mock_time = datetime(2026, 4, 7, hour, 0, 0, tzinfo=timezone.utc)
     with patch("lamp_py.ingestion.daily.trip_updates.datetime") as mock_dt:

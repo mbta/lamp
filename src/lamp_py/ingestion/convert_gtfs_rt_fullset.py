@@ -19,7 +19,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR, S3Location
 
 
-# pylint disable=too-many-arguments
+# pylint: disable=too-many-arguments,too-many-instance-attributes
 class GtfsRtFullPartitionConverter(GtfsRtConverter):
     """
     Converter that handles GTFS Real Time JSON data
@@ -152,7 +152,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
         this should be already sorted by timestamp based on how self.files is yielded.
         """
-        df: pl.DataFrame = pl.from_arrow(table).filter(self.filter)  # type: ignore[assignment]
+        df: pl.DataFrame = pl.from_arrow(table).filter(self.filter)  # type: ignore[arg-type, assignment]
 
         # read local_path if exists and concat with table
         # this handles the case where a prior iteration yielded an incomplete time chunk,
@@ -162,7 +162,9 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             df = pl.concat([existing_table, df])
 
         if not self.move_source_on_completion:
-            df = df.unique()  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
+            df = (
+                df.unique()
+            )  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
         df.write_parquet(local_path, compression="zstd", compression_level=3)
 
     def process_files(self) -> Iterable[pyarrow.table]:

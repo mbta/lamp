@@ -209,7 +209,7 @@ class GtfsRtConverter(Converter):
 
     def thread_init(self) -> None:
         """
-        initialize the filesystem in each convert thread
+        Initialize the filesystem in each convert thread
 
         update the active fs to use the s3 filesystem for all loading if the
         first file starts with s3
@@ -222,11 +222,10 @@ class GtfsRtConverter(Converter):
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
-        iterate through all of the files to be converted
+        Iterate through all of the files to be converted
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
             config_type=str(self.config_type),
@@ -275,7 +274,7 @@ class GtfsRtConverter(Converter):
 
     def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
         """
-        yield all tables in the data_parts map that have been sufficiently
+        Yield all tables in the data_parts map that have been sufficiently
         processed.
 
         @min_rows - how many rows the table must have to be yielded
@@ -370,7 +369,7 @@ class GtfsRtConverter(Converter):
 
     def partition_dt(self, table: pyarrow.Table) -> datetime:
         """
-        verify partition structure of pyarrow Table
+        Verify partition structure of pyarrow Table
 
         :param table: pyarrow Table to verify
 
@@ -422,7 +421,7 @@ class GtfsRtConverter(Converter):
 
     def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
-        create dataset, with hash column, that will be written to parquet file
+        Create dataset, with hash column, that will be written to parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
@@ -456,7 +455,7 @@ class GtfsRtConverter(Converter):
     # pylint too many local variables (more than 15)
     def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
-        merge pyarrow Table with existing local_path parquet file
+        Merge pyarrow Table with existing local_path parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
@@ -613,7 +612,7 @@ class GtfsRtConverter(Converter):
 
     def clean_local_folders(self) -> None:
         """
-        clean local temp folders
+        Clean local temp folders
         """
         days_to_keep = 2
         root_folder = os.path.join(
@@ -633,7 +632,7 @@ class GtfsRtConverter(Converter):
 
     def move_s3_files(self) -> None:
         """
-        move archive and error files to their respective s3 buckets.
+        Move archive and error files to their respective s3 buckets.
         """
         if len(self.error_files) > 0:
             self.error_files = move_s3_objects(

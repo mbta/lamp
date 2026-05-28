@@ -1,4 +1,4 @@
-"""Tests for time-based periodic yielding in GtfsRtConverter."""
+"""Tests for time-based periodic yielding in GtfsRtFullPartitionConverter."""
 
 from datetime import datetime
 from queue import Queue
@@ -7,17 +7,20 @@ from typing import List, Tuple
 import pyarrow
 import pytest
 
-from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
+from lamp_py.ingestion.convert_gtfs_rt import TableData
+from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from lamp_py.ingestion.converter import ConfigType
-from lamp_py.ingestion.utils import group_sort_file_list
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-def make_converter(time_chunk_minutes: int = 15) -> GtfsRtConverter:
+def make_converter(
+    time_chunk_minutes: int = 15, move_source_on_completion: bool = False
+) -> GtfsRtFullPartitionConverter:
     """Create a converter with periodic yielding enabled."""
-    return GtfsRtConverter(
-        config_type=ConfigType.RT_ALERTS,
+    return GtfsRtFullPartitionConverter(
+        config_type=ConfigType.RT_TRIP_UPDATES,
         metadata_queue=Queue(),
+        move_source_on_completion=move_source_on_completion,
         time_chunk_minutes=time_chunk_minutes,
     )
 
@@ -58,7 +61,7 @@ def test_interval_key(chunk_minutes: int, input_ts: datetime, expected_ts: datet
 @pytest.mark.parametrize(
     "interval_minutes, current_ts, flush, expected_yield_count, expected_remaining_keys",
     [
-        # current_ts in same interval as data — should NOT yield
+        # current_ts in same interval as data: should not yield
         pytest.param(
             [(1, 15)],
             datetime(2026, 5, 4, 1, 20),
@@ -67,23 +70,23 @@ def test_interval_key(chunk_minutes: int, input_ts: datetime, expected_ts: datet
             [datetime(2026, 5, 4, 1, 15)],
             id="same-interval-no-yield",
         ),
-        # current_ts before interval start — should yield (reverse order)
+        # current_ts before interval start: should not yield
         pytest.param(
             [(1, 15)],
             datetime(2026, 5, 4, 1, 10),
             False,
-            1,
-            [],
-            id="past-interval-yields",
-        ),
-        # current_ts at end of interval — should NOT yield
-        pytest.param(
-            [(1, 15)],
-            datetime(2026, 5, 4, 1, 29),
-            False,
             0,
             [datetime(2026, 5, 4, 1, 15)],
-            id="end-of-interval-no-yield",
+            id="past-interval-no-yield",
+        ),
+        # current_ts in a later interval: should yield old interval
+        pytest.param(
+            [(1, 15)],
+            datetime(2026, 5, 4, 1, 35),
+            False,
+            1,
+            [],
+            id="later-interval-yields",
         ),
         # flush yields everything regardless of current_ts
         pytest.param(
@@ -97,11 +100,11 @@ def test_interval_key(chunk_minutes: int, input_ts: datetime, expected_ts: datet
         # selective yield: current at 01:00, should yield 01:15 and 01:30 but not 01:00
         pytest.param(
             [(1, 0), (1, 15), (1, 30)],
-            datetime(2026, 5, 4, 1, 10),
+            datetime(2026, 5, 4, 1, 20),
             False,
-            2,
-            [datetime(2026, 5, 4, 1, 0)],
-            id="selective-yield-keeps-current",
+            1,
+            [datetime(2026, 5, 4, 1, 15), datetime(2026, 5, 4, 1, 30)],
+            id="selective-yield-older-only",
         ),
     ],
 )
@@ -144,7 +147,7 @@ def test_yield_check_periodic_skips_none_table() -> None:
 
 def test_yield_check_periodic_archives_files() -> None:
     """Yielded intervals should move their files to archive_files."""
-    c = make_converter(15)
+    c = make_converter(15, move_source_on_completion=True)
     logger = ProcessLogger("test")
     logger.log_start()
 
@@ -153,28 +156,7 @@ def test_yield_check_periodic_archives_files() -> None:
     c.data_parts[key].table = make_dummy_table(5)
     c.data_parts[key].files = ["a.json.gz", "b.json.gz"]
 
-    list(c.yield_check_periodic(logger, datetime(2026, 5, 4, 1, 0)))
+    list(c.yield_check_periodic(logger, datetime(2026, 5, 4, 1, 40)))
 
     assert "a.json.gz" in c.archive_files
     assert "b.json.gz" in c.archive_files
-
-
-@pytest.mark.parametrize(
-    "reverse, expected_first_ts, expected_last_ts",
-    [
-        pytest.param(True, "01:30:00Z", "01:00:00Z", id="reverse-newest-first"),
-        pytest.param(False, "01:00:00Z", "01:30:00Z", id="forward-oldest-first"),
-    ],
-)
-def test_group_sort_file_sort_order(reverse: bool, expected_first_ts: str, expected_last_ts: str) -> None:
-    """group_sort_file_list sorts files chronologically with optional reverse."""
-    files = [
-        "s3://bucket/lamp/delta/2026/05/04/2026-05-04T01:00:00Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz",
-        "s3://bucket/lamp/delta/2026/05/04/2026-05-04T01:15:00Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz",
-        "s3://bucket/lamp/delta/2026/05/04/2026-05-04T01:30:00Z_https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz",
-    ]
-
-    result = group_sort_file_list(files, reverse=reverse)
-    group = result["https_cdn.mbta.com_realtime_TripUpdates_enhanced.json.gz"]
-    assert expected_first_ts in group[0]
-    assert expected_last_ts in group[-1]

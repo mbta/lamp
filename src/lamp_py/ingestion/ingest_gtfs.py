@@ -15,7 +15,6 @@ from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConvert
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from lamp_py.ingestion.convert_gtfs import GtfsConverter
-from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import (
     ConfigType,
     Converter,
@@ -95,7 +94,6 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
             try:
                 config_type = ConfigType.from_filename(file_group[0])
                 if config_type not in converters:
-
                     converters[config_type] = GtfsRtFullPartitionConverter(
                         config_type,
                         metadata_queue,

@@ -1,3 +1,4 @@
+# type: ignore
 import marimo
 
 __generated_with = "0.14.17"
@@ -9,6 +10,7 @@ def _():
     import marimo as mo
     import polars as pl
     import pyarrow.parquet as pq
+
     return pl, pq
 
 
@@ -51,30 +53,34 @@ def _(pl, pq):
                 )
 
         return pl.DataFrame(records)
+
     return (get_rowgroup_statistics,)
 
 
 @app.cell
 def _(get_rowgroup_statistics):
-    df = get_rowgroup_statistics('s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=1/2026-05-01T00:00:00.parquet')
+    df = get_rowgroup_statistics(
+        "s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=1/2026-05-01T00:00:00.parquet"
+    )
     return (df,)
 
 
 @app.cell
 def _(df):
-    df['total_byte_size'].sum()/(1024**3)
+    df["total_byte_size"].sum() / (1024**3)
     return
 
 
 @app.cell
 def _(df):
-    df['num_rows'].sum()
+    df["num_rows"].sum()
     return
 
 
 @app.cell
 def _():
     import duckdb
+
     return (duckdb,)
 
 
@@ -92,25 +98,29 @@ def _(con):
 
 @app.cell
 def _(con):
-    con.execute("""
+    con.execute(
+        """
         CREATE OR REPLACE SECRET secret (
         TYPE s3,
         PROVIDER credential_chain
     );
-    """)
+    """
+    )
     return
 
 
 @app.cell
 def _():
-    2000000*171
+    2000000 * 171
     return
 
 
 @app.cell
 def _(con):
-    route1 = con.sql("""SELECT * from read_parquet('s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=16/2026-05-16T00:00:00.parquet')
-    where "trip_update.trip.route_id" == '1'""").pl()
+    route1 = con.sql(
+        """SELECT * from read_parquet('s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=16/2026-05-16T00:00:00.parquet')
+    where "trip_update.trip.route_id" == '1'"""
+    ).pl()
     return (route1,)
 
 
@@ -122,15 +132,19 @@ def _(route1):
 
 @app.cell
 def _(con):
-    route1_prod = con.sql("""SELECT * from read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=16/2026-05-16T00:00:00.parquet')
-    where "trip_update.trip.route_id" == '1'""").pl()
+    route1_prod = con.sql(
+        """SELECT * from read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=16/2026-05-16T00:00:00.parquet')
+    where "trip_update.trip.route_id" == '1'"""
+    ).pl()
     return (route1_prod,)
 
 
 @app.cell
 def _(con):
-    route1_prod_vp = con.sql("""SELECT * from read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/RT_VEHICLE_POSITIONS/year=2026/month=5/day=16/2026-05-16T00:00:00.parquet')
-    where "vehicle.trip.route_id" == '1'""").pl()
+    route1_prod_vp = con.sql(
+        """SELECT * from read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/RT_VEHICLE_POSITIONS/year=2026/month=5/day=16/2026-05-16T00:00:00.parquet')
+    where "vehicle.trip.route_id" == '1'"""
+    ).pl()
     return (route1_prod_vp,)
 
 
@@ -142,14 +156,16 @@ def _(route1_prod_vp):
 
 @app.cell
 def _(con):
-    route1_dev = con.sql("""SELECT * from read_parquet('s3://mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=16/*.parquet')
-    where "trip_update.trip.route_id" == '1'""").pl()
+    route1_dev = con.sql(
+        """SELECT * from read_parquet('s3://mbta-ctd-dataplatform-dev-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=16/*.parquet')
+    where "trip_update.trip.route_id" == '1'"""
+    ).pl()
     return (route1_dev,)
 
 
 @app.cell
 def _(route1, route1_prod):
-    route1_prod.sort('feed_timestamp').equals(route1.sort('feed_timestamp'))
+    route1_prod.sort("feed_timestamp").equals(route1.sort("feed_timestamp"))
     return
 
 
@@ -167,13 +183,15 @@ def _(route1, route1_prod):
 
 @app.cell
 def _(pl, route1_dev, route1_prod):
-    route1_prod.describe().equals(route1_dev.unique(subset=pl.exclude('feed_timestamp')).select(route1_prod.columns).describe())
+    route1_prod.describe().equals(
+        route1_dev.unique(subset=pl.exclude("feed_timestamp")).select(route1_prod.columns).describe()
+    )
     return
 
 
 @app.cell
 def _(pl, route1_dev, route1_prod):
-    route1_dev.unique(subset=pl.exclude('feed_timestamp')).select(route1_prod.columns).describe()
+    route1_dev.unique(subset=pl.exclude("feed_timestamp")).select(route1_prod.columns).describe()
     return
 
 
@@ -184,29 +202,33 @@ def _():
 
 @app.cell
 def _(route1, route1_dev, route1_prod):
-    route1.write_parquet('stage.parquet')
-    route1_prod.write_parquet('prod.parquet')
-    route1_dev.write_parquet('dev.parquet')
+    route1.write_parquet("stage.parquet")
+    route1_prod.write_parquet("prod.parquet")
+    route1_dev.write_parquet("dev.parquet")
     return
 
 
 @app.cell
 def _():
     import pyarrow.dataset as ds
-    dset = ds.dataset('s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=1/2026-05-01T00:00:00.parquet', format="parquet")
+
+    dset = ds.dataset(
+        "s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=1/2026-05-01T00:00:00.parquet",
+        format="parquet",
+    )
 
     return (dset,)
 
 
 @app.cell
 def _(dset, pl):
-    pl.scan_pyarrow_dataset(dset).filter(pl.col('trip_update.trip.route_id') == "1").collect()
+    pl.scan_pyarrow_dataset(dset).filter(pl.col("trip_update.trip.route_id") == "1").collect()
     return
 
 
 @app.cell
 def _(df):
-    routes = df.select('trip_update.trip.route_id').unique().collect()
+    routes = df.select("trip_update.trip.route_id").unique().collect()
     return (routes,)
 
 
@@ -218,19 +240,21 @@ def _(df):
 
 @app.cell
 def _(routes):
-    routes.sort(by='trip_update.trip.route_id')
+    routes.sort(by="trip_update.trip.route_id")
     return
 
 
 @app.cell
 def _(get_rowgroup_statistics):
-    get_rowgroup_statistics("s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=1/2026-05-01T00:00:00.parquet")
+    get_rowgroup_statistics(
+        "s3://mbta-ctd-dataplatform-staging-springboard/lamp/RT_TRIP_UPDATES/year=2026/month=5/day=1/2026-05-01T00:00:00.parquet"
+    )
     return
 
 
 @app.cell
 def _(df, pl):
-    df1 = df.filter(pl.col('trip_update.trip.route_id') == "1").collect()
+    df1 = df.filter(pl.col("trip_update.trip.route_id") == "1").collect()
     return
 
 

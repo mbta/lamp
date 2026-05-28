@@ -9,6 +9,7 @@ import polars as pl
 from pyarrow import fs
 import pyarrow.dataset as pd
 import pyarrow.parquet as pq
+import pyarrow.compute as pc
 
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
@@ -16,7 +17,7 @@ from lamp_py.aws.s3 import file_list_from_s3, object_exists
 from lamp_py.runtime_utils.remote_files import S3_INCOMING
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
-import pyarrow.compute as pc
+
 
 
 def write_dataset_to_single_parquet_partitioned_and_sorted(
@@ -43,9 +44,8 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
 
         # Get unique partition values and sort them
         unique_column = ds.to_table(columns=[partition_column]).column(partition_column).unique()
-        partitions_series: pl.Series = pl.from_arrow(unique_column).sort()  # type: ignore[assignment]
-        partitions = partitions_series.to_list()
 
+        partitions = sorted(pl.from_arrow(unique_column).to_list())
         logger.add_metadata(unique_partitions=len(partitions))
 
         if debug_flag:
@@ -53,7 +53,7 @@ def write_dataset_to_single_parquet_partitioned_and_sorted(
 
         for part in partitions:
             try:
-                write_table = ds.to_table(filter=(pc.field(partition_column) == part)).sort_by(in_partition_sort)
+                write_table = ds.to_table(filter=pc.field(partition_column) == part).sort_by(in_partition_sort)
 
                 writer.write_table(write_table)
 

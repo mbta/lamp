@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-from datetime import datetime, timezone
 import os
 import time
 import logging
@@ -41,11 +39,10 @@ def main() -> None:
     # connect to the glides kinesis stream
     glides_reader = KinesisReader(stream_name="ctd-glides-prod")
 
-    today = datetime.now(timezone.utc).date()
+    # today = datetime.now(timezone.utc).date()
 
     # run the event loop every 30 seconds
     while True:
-
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
         bucket_filter = LAMP
