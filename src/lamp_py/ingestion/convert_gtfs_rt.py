@@ -140,7 +140,7 @@ class GtfsRtConverter(Converter):
         self,
         config_type: ConfigType,
         metadata_queue: Queue[Optional[str]],
-        max_workers: int = os.cpu_count(),
+        max_workers: int = 8,
     ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 

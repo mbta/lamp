@@ -207,7 +207,7 @@ def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
         feed["published_dt"].dt.strftime("%Y").unique(),
         reverse=True,
     )
-    
+
     # Insert extra year in case schedule is issued on last day of year
     feed_years.insert(0, str(int(feed_years[0]) + 1))
 

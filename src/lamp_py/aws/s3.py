@@ -541,7 +541,7 @@ def move_s3_objects(files: List[str], to_bucket: str) -> List[str]:
         process_logger.log_complete()
     else:
         process_logger.log_failure(exception=found_exception)
-        
+
     return list(files_to_move)
 
 
