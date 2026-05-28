@@ -55,6 +55,7 @@ def make_dummy_table(num_rows: int = 10) -> pyarrow.Table:
 def test_interval_key(chunk_minutes: int, input_ts: datetime, expected_ts: datetime) -> None:
     """_interval_key truncates timestamps to wall-clock-aligned interval starts."""
     c = make_converter(chunk_minutes)
+    # pylint: disable=protected-access
     assert c._interval_key(input_ts) == expected_ts
 
 
