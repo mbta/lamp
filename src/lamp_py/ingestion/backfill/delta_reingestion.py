@@ -19,7 +19,6 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3Location
 
 
-
 def write_dataset_to_single_parquet_partitioned_and_sorted(
     local_path: str,
     output_parquet_path: str,
