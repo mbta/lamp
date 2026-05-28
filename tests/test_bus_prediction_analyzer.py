@@ -14,6 +14,7 @@ from analysis.bus_prediction_analyzer_utils import (
     assign_ibi_bin,
     assign_time_of_day_bin,
     calculate_accuracy_by_group,
+    detect_prediction_bias,
     filter_predictions,
     parse_start_time_seconds,
     calculate_ibi_accuracy,
@@ -23,6 +24,7 @@ from analysis.bus_prediction_analyzer_utils import (
     load_config,
     narrow_trip_updates,
     narrow_vehicle_positions,
+    run_analysis,
 )
 
 
@@ -307,8 +309,11 @@ def _make_tu_df(
     arrival_times: list[int | None],
     route_ids: list[str],
     feed_timestamps: list[int],
+    start_times: list[str] | None = None,
 ) -> pl.DataFrame:
     """Helper to build a trip_updates DataFrame with raw GTFS-RT column names."""
+    if start_times is None:
+        start_times = ["06:00:00"] * len(trip_ids)
     return pl.DataFrame(
         {
             "trip_update.trip.trip_id": trip_ids,
@@ -317,6 +322,7 @@ def _make_tu_df(
             "trip_update.vehicle.id": vehicle_ids,
             "trip_update.stop_time_update.arrival.time": arrival_times,
             "trip_update.trip.route_id": route_ids,
+            "trip_update.trip.start_time": start_times,
             "feed_timestamp": feed_timestamps,
         }
     )
@@ -344,7 +350,7 @@ def _make_canonical_vp(
 class TestNarrowTripUpdates:
     """Tests for narrow_trip_updates()."""
 
-    CANONICAL_COLS = {"trip_id", "stop_sequence", "stop_id", "vehicle_id", "predicted_arrival", "route_id", "tu_feed_timestamp"}
+    CANONICAL_COLS = {"trip_id", "stop_sequence", "stop_id", "vehicle_id", "predicted_arrival", "route_id", "start_time", "tu_feed_timestamp"}
 
     def test_output_columns(self):
         df = _make_tu_df(["t1"], [1], ["s1"], ["v1"], [1000], ["r1"], [900])
@@ -885,3 +891,270 @@ class TestCalculateAccuracyByGroup:
     def test_group_by_various_columns(self, cfg, sample_grouped_df, group_cols, expected_rows):
         result = calculate_accuracy_by_group(sample_grouped_df, group_cols, cfg)
         assert result.shape[0] == expected_rows
+
+
+class TestDetectPredictionBias:
+    """Tests for detect_prediction_bias()."""
+
+    @pytest.mark.parametrize(
+        ["trip_id", "errors", "expected_mean", "expected_biased"],
+        [
+            # Consistently late: mean=50, std=1 (small) -> biased
+            ("t1_late", [49, 51, 50], 50.0, True),
+            # Consistently early: mean=-40, std=2 -> biased
+            ("t2_early", [-38, -40, -42], -40.0, True),
+            # Noisy (large std): mean=5, std=25 -> not biased (std too high)
+            ("t3_noisy", [-20, 10, 30], 6.666666, False),
+            # Centered around zero: mean=0, std=5 -> not biased (mean too small)
+            ("t4_centered", [-5, 0, 5], 0.0, False),
+            # Single prediction: mean=100, std=0 -> biased (std < threshold)
+            ("t5_single", [100], 100.0, True),
+            # Boundary: mean=30 (exactly threshold), std=10 -> not biased (mean not > 30)
+            ("t6_boundary", [30, 30, 30], 30.0, False),
+            # Boundary: mean=30.1, std=20 (exactly threshold) -> biased (both conditions met)
+            ("t7_boundary2", [30.1, 30.1, 30.1], 30.1, True),
+        ],
+        ids=[
+            "consistently-late",
+            "consistently-early",
+            "noisy-not-biased",
+            "centered-not-biased",
+            "single-prediction",
+            "boundary-mean-not-exceeded",
+            "boundary-std-at-threshold",
+        ],
+    )
+    def test_bias_detection(self, trip_id, errors, expected_mean, expected_biased):
+        df = pl.DataFrame(
+            {
+                "trip_id": [trip_id] * len(errors),
+                "prediction_error_sec": errors,
+            }
+        )
+        result = detect_prediction_bias(df)
+        assert result.shape[0] == 1
+        assert result["trip_id"][0] == trip_id
+        assert result["mean_error"][0] == pytest.approx(expected_mean, abs=0.01)
+        assert result["is_biased"][0] == expected_biased
+
+    def test_multiple_trips(self):
+        df = pl.DataFrame(
+            {
+                "trip_id": ["t1", "t1", "t2", "t2", "t3", "t3"],
+                "prediction_error_sec": [50, 51, -40, -39, 5, -5],
+            }
+        )
+        result = detect_prediction_bias(df)
+        assert result.shape[0] == 3
+        assert set(result["trip_id"]) == {"t1", "t2", "t3"}
+        # t1: mean=50.5, std=0.7 -> biased
+        # t2: mean=-39.5, std=0.7 -> biased
+        # t3: mean=0, std=7.07 -> not biased
+        assert result.filter(pl.col("trip_id") == "t1")["is_biased"][0] is True
+        assert result.filter(pl.col("trip_id") == "t2")["is_biased"][0] is True
+        assert result.filter(pl.col("trip_id") == "t3")["is_biased"][0] is False
+
+    def test_null_errors_excluded(self):
+        df = pl.DataFrame(
+            {
+                "trip_id": ["t1", "t1", "t1"],
+                "prediction_error_sec": [50, 51, None],
+            },
+            schema={"trip_id": pl.Utf8, "prediction_error_sec": pl.Float64},
+        )
+        result = detect_prediction_bias(df)
+        assert result.shape[0] == 1
+        # Only two non-null values: 50, 51 -> mean=50.5
+        assert result["mean_error"][0] == pytest.approx(50.5, abs=0.01)
+
+    def test_empty_input(self):
+        df = pl.DataFrame(
+            schema={"trip_id": pl.Utf8, "prediction_error_sec": pl.Float64}
+        )
+        result = detect_prediction_bias(df)
+        assert result.shape[0] == 0
+
+    def test_all_null_errors(self):
+        df = pl.DataFrame(
+            {
+                "trip_id": ["t1", "t1"],
+                "prediction_error_sec": [None, None],
+            },
+            schema={"trip_id": pl.Utf8, "prediction_error_sec": pl.Float64},
+        )
+        result = detect_prediction_bias(df)
+        assert result.shape[0] == 0
+
+    @pytest.mark.parametrize(
+        ["bias_thresh", "consistency_thresh", "expected_biased"],
+        [
+            # Default thresholds (30, 20)
+            (30.0, 20.0, True),
+            # Stricter bias threshold -> not biased
+            (40.0, 20.0, False),
+            # Lenient bias threshold -> still biased
+            (20.0, 20.0, True),
+            # Strict consistency threshold -> not biased
+            (30.0, 5.0, False),
+            # Lenient consistency threshold -> biased
+            (30.0, 30.0, True),
+        ],
+        ids=["default", "stricter-bias", "lenient-bias", "strict-consistency", "lenient-consistency"],
+    )
+    def test_threshold_variations(self, bias_thresh, consistency_thresh, expected_biased):
+        # Trip with mean=35, std=15 (biased at defaults, varies with thresholds)
+        df = pl.DataFrame(
+            {
+                "trip_id": ["t1", "t1", "t1"],
+                "prediction_error_sec": [30, 35, 40],
+            }
+        )
+        result = detect_prediction_bias(df, bias_threshold_sec=bias_thresh, consistency_threshold_sec=consistency_thresh)
+        assert result["is_biased"][0] == expected_biased
+
+    def test_sorted_by_trip_id(self):
+        df = pl.DataFrame(
+            {
+                "trip_id": ["t3", "t1", "t2", "t1", "t3"],
+                "prediction_error_sec": [50, 50, 50, 50, 50],
+            }
+        )
+        result = detect_prediction_bias(df)
+        assert result["trip_id"].to_list() == ["t1", "t2", "t3"]
+
+
+class TestRunAnalysis:
+    """Tests for run_analysis() orchestration."""
+
+    @pytest.fixture()
+    def cfg(self):
+        return default_config()
+
+    @pytest.fixture()
+    def sample_tu(self):
+        """Sample trip_updates with raw GTFS-RT column names."""
+        return pl.DataFrame(
+            {
+                "trip_update.trip.trip_id": ["t1", "t1", "t2"],
+                "trip_update.stop_time_update.stop_sequence": [1, 2, 1],
+                "trip_update.stop_time_update.stop_id": ["s1", "s2", "s1"],
+                "trip_update.vehicle.id": ["v1", "v1", "v2"],
+                "trip_update.stop_time_update.arrival.time": [1000, 2000, 1000],
+                "trip_update.trip.route_id": ["r1", "r1", "r2"],
+                "trip_update.trip.start_time": ["06:00:00", "06:00:00", "12:00:00"],
+                "feed_timestamp": [900, 900, 900],
+            }
+        )
+
+    @pytest.fixture()
+    def sample_vp(self):
+        """Sample vehicle_positions with raw GTFS-RT column names."""
+        return pl.DataFrame(
+            {
+                "vehicle.trip.trip_id": ["t1", "t1", "t2"],
+                "vehicle.current_stop_sequence": [1, 2, 1],
+                "vehicle.current_status": ["STOPPED_AT", "STOPPED_AT", "STOPPED_AT"],
+                "vehicle.vehicle.id": ["v1", "v1", "v2"],
+                "vehicle.timestamp": [1010, 2020, 1005],
+                "feed_timestamp": [900, 900, 900],
+            }
+        )
+
+    def test_returns_all_output_keys(self, cfg, sample_tu, sample_vp):
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        expected_keys = {
+            "joined",
+            "ibi_accuracy",
+            "route_accuracy",
+            "time_of_day_accuracy",
+            "bias",
+        }
+        assert set(result.keys()) == expected_keys
+
+    def test_joined_has_computed_columns(self, cfg, sample_tu, sample_vp):
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        joined = result["joined"]
+        expected_cols = {
+            "trip_id",
+            "stop_sequence",
+            "vehicle_id",
+            "actual_timestamp",
+            "vp_feed_timestamp",
+            "predicted_arrival",
+            "route_id",
+            "tu_feed_timestamp",
+            "stop_id",
+            "prediction_error_sec",
+            "prediction_ahead_sec",
+            "ibi_bin",
+            "is_accurate",
+            "time_of_day_bin",
+            "start_time_seconds",
+        }
+        assert expected_cols.issubset(set(joined.columns))
+
+    def test_ibi_accuracy_has_rows(self, cfg, sample_tu, sample_vp):
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        ibi_acc = result["ibi_accuracy"]
+        assert ibi_acc.shape[0] > 0
+        assert "ibi_bin" in ibi_acc.columns
+        assert "accuracy_pct" in ibi_acc.columns
+
+    def test_route_accuracy_groups_by_route(self, cfg, sample_tu, sample_vp):
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        route_acc = result["route_accuracy"]
+        assert "route_id" in route_acc.columns
+        assert "accuracy_pct" in route_acc.columns
+
+    def test_time_of_day_accuracy_has_tod_bins(self, cfg, sample_tu, sample_vp):
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        tod_acc = result["time_of_day_accuracy"]
+        assert "time_of_day_bin" in tod_acc.columns
+        assert "accuracy_pct" in tod_acc.columns
+
+    def test_bias_has_trip_metrics(self, cfg, sample_tu, sample_vp):
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        bias = result["bias"]
+        assert "trip_id" in bias.columns
+        assert "mean_error" in bias.columns
+        assert "std_error" in bias.columns
+        assert "is_biased" in bias.columns
+
+    def test_empty_tu_vp(self, cfg):
+        tu = pl.DataFrame(
+            schema={
+                "trip_update.trip.trip_id": pl.Utf8,
+                "trip_update.stop_time_update.stop_sequence": pl.Int64,
+                "trip_update.stop_time_update.stop_id": pl.Utf8,
+                "trip_update.vehicle.id": pl.Utf8,
+                "trip_update.stop_time_update.arrival.time": pl.Int64,
+                "trip_update.trip.route_id": pl.Utf8,
+                "trip_update.trip.start_time": pl.Utf8,
+                "feed_timestamp": pl.Int64,
+            }
+        )
+        vp = pl.DataFrame(
+            schema={
+                "vehicle.trip.trip_id": pl.Utf8,
+                "vehicle.current_stop_sequence": pl.Int64,
+                "vehicle.current_status": pl.Utf8,
+                "vehicle.vehicle.id": pl.Utf8,
+                "vehicle.timestamp": pl.Int64,
+                "feed_timestamp": pl.Int64,
+            }
+        )
+        result = run_analysis(tu, vp, cfg)
+        assert result["joined"].shape[0] == 0
+        assert result["ibi_accuracy"].shape[0] == 0
+
+    def test_end_to_end_pipeline(self, cfg, sample_tu, sample_vp):
+        """Verify the full pipeline runs without errors and produces sensible output."""
+        result = run_analysis(sample_tu, sample_vp, cfg)
+        joined = result["joined"]
+
+        # All predictions should have been through the pipeline
+        assert joined.shape[0] >= 1
+        assert "ibi_bin" in joined.columns
+        assert "is_accurate" in joined.columns
+        assert "time_of_day_bin" in joined.columns
+        assert "start_time_seconds" in joined.columns
