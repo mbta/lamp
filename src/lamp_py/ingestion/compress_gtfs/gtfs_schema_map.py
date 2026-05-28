@@ -344,7 +344,7 @@ schema_map: Dict[str, Dict] = {
 
 def gtfs_schema(gtfs_table_file: str) -> Dict[str, pl.DataType]:
     """
-    get schema of gtfs table file with polars datatypes
+    Get schema of gtfs table file with polars datatypes
 
     :param gtfs_table_file: (ie. stop_times.txt)
 
@@ -359,7 +359,7 @@ def gtfs_schema(gtfs_table_file: str) -> Dict[str, pl.DataType]:
 
 def gtfs_schema_list() -> List[str]:
     """
-    create list of all expected gtfs table files, with feed_info.txt at the end
+    Create list of all expected gtfs table files, with feed_info.txt at the end
 
     :return List[gtfs table files (ie. stop_times.txt)]
     """
