@@ -504,7 +504,34 @@ class HyperRtVehicleEvents(HyperRtRail):
             **hyper_job_args,
         )
 
-        self.table_query = "SELECT * FROM vehicle_events %s;"
+        self.table_query = """
+        SELECT
+          ve.pm_event_id,
+          date(vt.service_date::text) as service_date,
+          ve.pm_trip_id,
+          ve.stop_id,
+          ve.stop_sequence,
+          ve.canonical_stop_sequence,
+          ve.sync_stop_sequence,
+          ve.parent_station,
+          ve.previous_trip_stop_pm_event_id,
+          ve.vp_move_timestamp,
+          ve.vp_stop_timestamp,
+          ve.tu_stop_timestamp,
+          ve.travel_time_seconds,
+          ve.dwell_time_seconds,
+          ve.headway_trunk_seconds,
+          ve.headway_branch_seconds,
+          ve.updated_on
+        FROM vehicle_events ve
+        INNER JOIN vehicle_trips vt
+        ON
+          ve.pm_trip_id = vt.pm_trip_id
+        WHERE
+          1 = 1
+          %s
+        ;
+        """
 
         self.ds_batch_size = 1024 * 256
 
@@ -551,7 +578,34 @@ class HyperRtVehicleTrips(HyperRtRail):
             **hyper_job_args,
         )
 
-        self.table_query = "SELECT * FROM vehicle_trips %s;"
+        self.table_query = """
+        SELECT
+          pm_trip_id,
+          direction_id,
+          route_id,
+          branch_route_id,
+          trunk_route_id",
+          date(vt.service_date::text) as service_date,
+          start_time,
+          vehicle_id,
+          stop_count,
+          trip_id,
+          vehicle_label,
+          vehicle_consist,
+          direction,
+          direction_destination,
+          static_trip_id_guess,
+          static_start_time,
+          static_stop_count,
+          first_last_station_match,
+          static_version_key,
+          updated_on,
+        FROM vehicle_trips vt
+        WHERE
+          1 = 1
+          %s
+        ;
+        """
 
         self.ds_batch_size = 1024 * 256
 
