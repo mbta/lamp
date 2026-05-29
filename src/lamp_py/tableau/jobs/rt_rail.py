@@ -620,7 +620,7 @@ class HyperRtVehicleTrips(HyperRtRail):
         return pyarrow.schema(
             [
                 ("pm_trip_id", pyarrow.int64()),
-                ("direction_id", pyarrow.int8()),
+                ("direction_id", pyarrow.bool_()),
                 ("route_id", pyarrow.string()),
                 ("branch_route_id", pyarrow.string()),
                 ("trunk_route_id", pyarrow.string()),
