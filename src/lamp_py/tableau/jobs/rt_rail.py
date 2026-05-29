@@ -20,8 +20,8 @@ class HyperRtRail(HyperJob):
 
     def __init__(
         self,
-        route_type_operator: str,
-        route_type_operand: RouteType,
+        route_type_operator: str | None = None,
+        route_type_operand: RouteType | None = None,
         **hyper_job_args: Any,
     ) -> None:
         HyperJob.__init__(
@@ -29,8 +29,12 @@ class HyperRtRail(HyperJob):
             **hyper_job_args,
         )
 
-        operator_set = {">", ">=", "=", "<", "<="}
-        assert route_type_operator in operator_set
+        route_type_filter = "1=1"  # default to no filter if not specified
+
+        if route_type_operand is not None and route_type_operator is not None:
+            operator_set = {">", ">=", "=", "<", "<="}
+            assert route_type_operator in operator_set
+            route_type_filter = f"sr.route_type {route_type_operator} {str(route_type_operand.value)}"
 
         self.table_query = f"""SELECT
                date(vt.service_date::text) as service_date
@@ -105,7 +109,8 @@ class HyperRtRail(HyperJob):
                vt.route_id = sr.route_id
                AND vt.static_version_key = sr.static_version_key
              WHERE 
-               sr.route_type {route_type_operator}{str(route_type_operand.value)}
+               1 = 1
+               AND {route_type_filter}
                AND (
                    ve.canonical_stop_sequence > 1
                    OR ve.canonical_stop_sequence IS NULL
@@ -499,8 +504,6 @@ class HyperRtVehicleEvents(HyperRtRail):
     ) -> None:
         HyperRtRail.__init__(
             self,
-            ">=",
-            RouteType.LIGHT_RAIL,
             **hyper_job_args,
         )
 
@@ -515,6 +518,7 @@ class HyperRtVehicleEvents(HyperRtRail):
           ve.sync_stop_sequence,
           ve.parent_station,
           ve.previous_trip_stop_pm_event_id,
+          ve.next_trip_stop_pm_event_id,
           TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) AS vp_move_timestamp,
           TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_stop_timestamp)) AS vp_stop_timestamp,
           TIMEZONE('America/New_York', TO_TIMESTAMP(ve.tu_stop_timestamp)) AS tu_stop_timestamp,
@@ -573,8 +577,6 @@ class HyperRtVehicleTrips(HyperRtRail):
     ) -> None:
         HyperRtRail.__init__(
             self,
-            ">=",
-            RouteType.LIGHT_RAIL,
             **hyper_job_args,
         )
 
@@ -604,7 +606,7 @@ class HyperRtVehicleTrips(HyperRtRail):
         FROM vehicle_trips vt
         WHERE
           1 = 1
-          %s
+          %s 
         ;
         """
 
@@ -618,7 +620,7 @@ class HyperRtVehicleTrips(HyperRtRail):
         return pyarrow.schema(
             [
                 ("pm_trip_id", pyarrow.int64()),
-                ("direction_id", pyarrow.bool_()),
+                ("direction_id", pyarrow.int8()),
                 ("route_id", pyarrow.string()),
                 ("branch_route_id", pyarrow.string()),
                 ("trunk_route_id", pyarrow.string()),
