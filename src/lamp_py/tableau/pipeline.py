@@ -46,8 +46,6 @@ PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
     HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
     Prod_RailMetrics_Subway_LongTerm,
     Prod_RailMetrics_CommuterRail_LongTerm,
-    Prod_RailMetrics_VehicleEvents_LongTerm,
-    Prod_RailMetrics_VehicleTrips_LongTerm,
     HyperServiceIdByRoute(),
     HyperStaticCalendar(),
     HyperStaticCalendarDates(),
@@ -65,6 +63,8 @@ PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
     DevGreen_TripUpdates_LightRailTerminals_60Day,
     DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
     DevGreen_TripUpdates_HeavyRailTerminals_60Day,
+    Prod_RailMetrics_VehicleEvents_LongTerm,
+    Prod_RailMetrics_VehicleTrips_LongTerm,
 ]
 
 
