@@ -1,6 +1,7 @@
 """Tests for time-based periodic yielding in GtfsRtFullPartitionConverter."""
 
 from datetime import datetime
+from pathlib import Path
 from queue import Queue
 from typing import List, Tuple
 
@@ -11,6 +12,7 @@ from lamp_py.ingestion.convert_gtfs_rt import TableData
 from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.runtime_utils.remote_files import LAMP
 
 
 def make_converter(
@@ -161,3 +163,28 @@ def test_yield_check_periodic_archives_files() -> None:
 
     assert "a.json.gz" in c.archive_files
     assert "b.json.gz" in c.archive_files
+
+
+def test_clean_local_folders_removes_oldest_day(tmp_path: Path) -> None:
+    """clean_local_folders should keep only the two newest day partitions."""
+    c = GtfsRtFullPartitionConverter(
+        config_type=ConfigType.RT_TRIP_UPDATES,
+        metadata_queue=Queue(),
+        local_output_location=tmp_path.as_posix(),
+    )
+
+    root = tmp_path / LAMP / str(ConfigType.RT_TRIP_UPDATES)
+    day_folders = [
+        root / "year=2026" / "month=5" / "day=1",
+        root / "year=2026" / "month=5" / "day=2",
+        root / "year=2026" / "month=5" / "day=3",
+    ]
+    for day_folder in day_folders:
+        day_folder.mkdir(parents=True, exist_ok=True)
+        (day_folder / "part.parquet").write_text("x", encoding="utf-8")
+
+    c.clean_local_folders()
+
+    assert not day_folders[0].exists()
+    assert day_folders[1].exists()
+    assert day_folders[2].exists()
