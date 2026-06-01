@@ -1,6 +1,6 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
 from datetime import datetime
@@ -58,7 +58,10 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 "time_chunk_minutes must be at least 5 to ensure proper partitioning and avoid too many small files"
             )
         self.detail = RtTripDetail()
-        self.tmp_folder = os.path.join(local_output_location, LAMP, str(self.config_type))
+        # Keep tmp_folder as the base temp root to match GtfsRtConverter helpers
+        # (clean_local_folders, continuous_pq_update, etc.), which append
+        # lamp/<config_type> internally.
+        self.tmp_folder = local_output_location
         self.remote_output_location = remote_output_location
         self.data_parts: Dict[datetime, TableData] = {}
         self.filter = polars_filter
@@ -87,7 +90,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         process_logger.log_start()
 
         table_count = 0
-        move_futures: List[Future] = []
         try:
             for table, partition_dt in self.process_files():
                 if table.num_rows == 0:
@@ -100,7 +102,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     f"{partition_dt.isoformat()}.parquet",
                 )
 
-                local_path = os.path.join(self.tmp_folder, path_suffix)
+                local_path = os.path.join(self.tmp_folder, LAMP, str(self.config_type), path_suffix)
 
                 os.makedirs(Path(local_path).parent, exist_ok=True)
 
@@ -123,10 +125,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 pool.release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
-
-            # wait for all background s3 moves to finish
-            for future in move_futures:
-                future.result()
 
         except Exception as exception:
             process_logger.log_failure(exception)
