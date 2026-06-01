@@ -42,12 +42,12 @@ from lamp_py.aws.ecs import check_for_parallel_tasks
 
 
 PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
-    Prod_RailMetrics_VehicleEvents_LongTerm,
-    Prod_RailMetrics_VehicleTrips_LongTerm,
     HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
     HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
     Prod_RailMetrics_Subway_LongTerm,
     Prod_RailMetrics_CommuterRail_LongTerm,
+    Prod_RailMetrics_VehicleEvents_LongTerm,
+    Prod_RailMetrics_VehicleTrips_LongTerm,
     HyperServiceIdByRoute(),
     HyperStaticCalendar(),
     HyperStaticCalendarDates(),
