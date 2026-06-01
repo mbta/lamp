@@ -43,6 +43,7 @@ Performance Manager is an application to measure rail performance on the MBTA tr
 | vehicle_consist | string | true | |
 | direction | string | true | |
 | direction_destination | string | true | |
+| revenue | boolean | false | |
 | static_trip_id_guess | string | true | matched `trip_id` from GTFS [static_trips](#static_trips) table |
 | static_start_time | integer | true | start_time of `static_trip_id_guess` trip |
 | static_stop_count | small integer | true | expected stop count from `static_trip_id_guess` trip |

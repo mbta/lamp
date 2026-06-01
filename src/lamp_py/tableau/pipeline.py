@@ -20,6 +20,8 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     Prod_BusOperatorMapping_Fall2025Rating,
     Prod_RailMetrics_Subway_LongTerm,
     Prod_RailMetrics_CommuterRail_LongTerm,
+    Prod_RailMetrics_VehicleEvents_LongTerm,
+    Prod_RailMetrics_VehicleTrips_LongTerm,
 )
 from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
 from lamp_py.tableau.jobs.gtfs_rail import (
@@ -61,6 +63,8 @@ PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
     DevGreen_TripUpdates_LightRailTerminals_60Day,
     DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
     DevGreen_TripUpdates_HeavyRailTerminals_60Day,
+    Prod_RailMetrics_VehicleEvents_LongTerm,
+    Prod_RailMetrics_VehicleTrips_LongTerm,
 ]
 
 
