@@ -45,6 +45,7 @@ class AnalyzerConfig:
 def default_config() -> AnalyzerConfig:
     """Return the default analyzer config with TransitApp IBI spec bins."""
     return AnalyzerConfig(
+        # bin start, bin end, early threshold, late threshold (all in seconds)
         ibi_bins=(
             IBIBin("0-3min", 0, 180, 30, 90),
             IBIBin("3-6min", 180, 360, 60, 150),
@@ -86,6 +87,7 @@ VP_COLUMN_MAP = {
     "vehicle.timestamp": "actual_timestamp",
     "vehicle.current_status": "current_status",
     "feed_timestamp": "vp_feed_timestamp",
+    "vehicle.timestamp": "vp_timestamp",
 }
 
 
@@ -114,6 +116,7 @@ TU_COLUMN_MAP = {
     "trip_update.stop_time_update.arrival.time": "predicted_arrival",
     "trip_update.trip.route_id": "route_id",
     "trip_update.trip.start_time": "start_time",
+    "trip_update.timestamp": "tu_timestamp",
     "feed_timestamp": "tu_feed_timestamp",
 }
 
@@ -366,6 +369,8 @@ def detect_prediction_bias(
         trips_with_errors.group_by("trip_id")
         .agg(
             mean_error=pl.col("prediction_error_sec").mean(),
+            median_error=pl.col("prediction_error_sec").median(),
+            mode_error=pl.col("prediction_error_sec").mode(),
             std_error=pl.col("prediction_error_sec").std(),
         )
         .with_columns(

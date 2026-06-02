@@ -39,6 +39,7 @@ aiohttp = "^3.13.3"
 dataframely = "^2.7"
 polars = "^1.39"
 plotly = "^6.7.0"
+sqlglot = "^30.8.0"
 
 [tool.poetry.group.tableau]
 optional = false

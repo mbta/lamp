@@ -1,0 +1,398 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.16.5"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "ce4194fff5fe8b0eebb7a09769bc0473",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "f0f3588fcd90ba702ea0cd3ae7511bbc",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "bc44708948ba5114e4497c895887c039",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "281b608464a6d494975655f832414b6d",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "2a580c264e38383e71482687c979ed0c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "fd19f51c8639f77a895bdaaba2f80b1a",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "line 1\n    \"trip_update.trip.trip_id\",\nIndentationError: unexpected indent\n",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "daae19ef47bfacc6b97e728c1bee4ff0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='SFPL-0' random-id='ac0aff3c-7d4b-2153-4fcf-98d2d9d92ac3'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602933&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321693,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:20,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5417&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;10:10:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321693},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75609174&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321803,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;07:45:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321811},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602938&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321614,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:20,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5417&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;08:45:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321620},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602946&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321592,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:18,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5415&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;14:25:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321600},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602937&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321838,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:00:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321841},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75609176&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321737,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:18,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5415&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;05:35:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321739},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602949&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321626,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:55:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321630},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602937&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321603,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:00:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321611},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602949&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321759,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:20,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5417&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:55:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321760},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602938&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321614,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:18,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5415&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;08:45:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321620}]&quot;' data-total-rows='156776288' data-total-columns='10' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;trip_update.trip.trip_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.timestamp&quot;,[&quot;integer&quot;,&quot;u64&quot;]],[&quot;trip_update.stop_time_update.stop_sequence&quot;,[&quot;integer&quot;,&quot;u32&quot;]],[&quot;trip_update.stop_time_update.stop_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.vehicle.id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.stop_time_update.arrival.time&quot;,[&quot;integer&quot;,&quot;i64&quot;]],[&quot;trip_update.stop_time_update.departure.time&quot;,[&quot;integer&quot;,&quot;i64&quot;]],[&quot;trip_update.trip.route_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.trip.start_time&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;feed_timestamp&quot;,[&quot;integer&quot;,&quot;u64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "3cef269ab66eb4d38d137a4022454e3c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "0b289e156b1105193cce08fc04ea4068",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "edc112762dfca720c59359b05028ed82",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "238c0be782fed1ee2e561cd715ad0c04",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "3869b19bd2dd980eea2f0fcbd64f3f68",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "cfe39670aa961814d8aa8c6fe0e6a427",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "5516b542e79be67925f2cb0395c8b5b8",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "5925e769da176b7723439f696b454656",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "b3873d7172e3c1114f472eec529bc425",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "73fc83bab1c133f8252d293f2c19c84a",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "27b69c856c8e523016678625d665ddf6",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Pvdt",
+      "code_hash": "26e359e83860db1d11b6acca57d8ea88",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
+      "code_hash": "6dc6d1d49670357d049acaaed2795569",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "aLJB",
+      "code_hash": "0e594622183782a630d60baddc7760ca",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "nHfw",
+      "code_hash": "808e8192217cf7ebb99f57a0e311962f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "xXTn",
+      "code_hash": "fd203e03241713e9b7925fd5ab5748d4",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "AjVT",
+      "code_hash": "a3b89d13847a6708b572c79d587e484b",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "pHFh",
+      "code_hash": "af0a79c636f142ed01aae662177abff4",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "line 1\n    vp11 = \n           ^\nSyntaxError: invalid syntax\n",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "NCOB",
+      "code_hash": "d9119514dce6b43e79d97965a450f49b",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "unable to find column \"actual_timestamp\"; valid columns: [\"trip_id\", \"stop_sequence\", \"stop_id\", \"vehicle_id\", \"predicted_arrival\", \"route_id\", \"start_time\", \"tu_timestamp\", \"tu_feed_timestamp\", \"vp_timestamp\", \"vp_feed_timestamp\"]",
+          "traceback": []
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/var/folders/qv/rkzpj5d90vjbjnjcxqgcmqhm0000gp/T/marimo_82252/__marimo__cell_NCOB_.py&quot;</span>, line <span class=\"m\">7</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"n\">with_errors</span> <span class=\"o\">=</span> <span class=\"n\">add_error_columns</span><span class=\"p\">(</span><span class=\"n\">joined</span><span class=\"p\">)</span><span class=\"o\">.</span><span class=\"n\">filter</span><span class=\"p\">(</span><span class=\"n\">pl</span><span class=\"o\">.</span><span class=\"n\">col</span><span class=\"p\">(</span><span class=\"s2\">&quot;prediction_ahead_sec&quot;</span><span class=\"p\">)</span><span class=\"o\">&gt;-</span><span class=\"mi\">60</span><span class=\"o\">*</span><span class=\"mi\">15</span><span class=\"p\">)</span><span class=\"o\">.</span><span class=\"n\">filter</span><span class=\"p\">(</span><span class=\"n\">pl</span><span class=\"o\">.</span><span class=\"n\">col</span><span class=\"p\">(</span><span class=\"s2\">&quot;prediction_ahead_sec&quot;</span><span class=\"p\">)</span><span class=\"o\">&lt;</span><span class=\"mi\">0</span><span class=\"p\">)</span>\n<span class=\"w\">                  </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/hhuang/lamp-main/analysis/bus_prediction_analyzer_utils.py&quot;</span>, line <span class=\"m\">150</span>, in <span class=\"n\">add_error_columns</span>\n<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"n\">df</span><span class=\"o\">.</span><span class=\"n\">with_columns</span><span class=\"p\">(</span>\n<span class=\"w\">           </span><span class=\"pm\">^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/hhuang/Library/Caches/pypoetry/virtualenvs/lamp-py-Lp9P8lOl-py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py&quot;</span>, line <span class=\"m\">10507</span>, in <span class=\"n\">with_columns</span>\n<span class=\"w\">    </span><span class=\"o\">.</span><span class=\"n\">collect</span><span class=\"p\">(</span><span class=\"n\">optimizations</span><span class=\"o\">=</span><span class=\"n\">QueryOptFlags</span><span class=\"o\">.</span><span class=\"n\">_eager</span><span class=\"p\">())</span>\n<span class=\"w\">     </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/hhuang/Library/Caches/pypoetry/virtualenvs/lamp-py-Lp9P8lOl-py3.12/lib/python3.12/site-packages/polars/_utils/deprecation.py&quot;</span>, line <span class=\"m\">97</span>, in <span class=\"n\">wrapper</span>\n<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"n\">function</span><span class=\"p\">(</span><span class=\"o\">*</span><span class=\"n\">args</span><span class=\"p\">,</span> <span class=\"o\">**</span><span class=\"n\">kwargs</span><span class=\"p\">)</span>\n<span class=\"w\">           </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/hhuang/Library/Caches/pypoetry/virtualenvs/lamp-py-Lp9P8lOl-py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py&quot;</span>, line <span class=\"m\">326</span>, in <span class=\"n\">wrapper</span>\n<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"n\">function</span><span class=\"p\">(</span><span class=\"o\">*</span><span class=\"n\">args</span><span class=\"p\">,</span> <span class=\"o\">**</span><span class=\"n\">kwargs</span><span class=\"p\">)</span>\n<span class=\"w\">           </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/hhuang/Library/Caches/pypoetry/virtualenvs/lamp-py-Lp9P8lOl-py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py&quot;</span>, line <span class=\"m\">2464</span>, in <span class=\"n\">collect</span>\n<span class=\"w\">    </span><span class=\"k\">return</span> <span class=\"n\">wrap_df</span><span class=\"p\">(</span><span class=\"n\">ldf</span><span class=\"o\">.</span><span class=\"n\">collect</span><span class=\"p\">(</span><span class=\"n\">engine</span><span class=\"p\">,</span> <span class=\"n\">callback</span><span class=\"p\">))</span>\n<span class=\"w\">                   </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n<span class=\"gr\">polars.exceptions.ColumnNotFoundError</span>: <span class=\"n\">unable to find column &quot;actual_timestamp&quot;; valid columns: [&quot;trip_id&quot;, &quot;stop_sequence&quot;, &quot;stop_id&quot;, &quot;vehicle_id&quot;, &quot;predicted_arrival&quot;, &quot;route_id&quot;, &quot;start_time&quot;, &quot;tu_timestamp&quot;, &quot;tu_feed_timestamp&quot;, &quot;vp_timestamp&quot;, &quot;vp_feed_timestamp&quot;]</span>\n</pre></div>\n</span>"
+        }
+      ]
+    },
+    {
+      "id": "aqbW",
+      "code_hash": "808e8192217cf7ebb99f57a0e311962f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TRpd",
+      "code_hash": "91e84bc3b4d0c7b082d59d19f1fecb33",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TXez",
+      "code_hash": "736086a09e0dc3116976579ee5e75217",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "hkra",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='hkra-0' random-id='e66e4f06-732f-43ee-c18a-0852bb5ce33e'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602933&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321693,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:20,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5417&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;10:10:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321693},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75609174&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321803,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;07:45:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321811},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602938&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321614,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:20,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5417&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;08:45:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321620},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602946&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321592,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:18,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5415&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;14:25:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321600},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602937&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321838,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:00:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321841},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75609176&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321737,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:18,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5415&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;05:35:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321739},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602949&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321626,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:55:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321630},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602937&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321603,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:19,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5416&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:00:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321611},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602949&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321759,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:20,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5417&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;17:55:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321760},{&#92;&quot;trip_update.trip.trip_id&#92;&quot;:&#92;&quot;75602938&#92;&quot;,&#92;&quot;trip_update.timestamp&#92;&quot;:1779321614,&#92;&quot;trip_update.stop_time_update.stop_sequence&#92;&quot;:18,&#92;&quot;trip_update.stop_time_update.stop_id&#92;&quot;:&#92;&quot;5415&#92;&quot;,&#92;&quot;trip_update.vehicle.id&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.arrival.time&#92;&quot;:null,&#92;&quot;trip_update.stop_time_update.departure.time&#92;&quot;:null,&#92;&quot;trip_update.trip.route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;trip_update.trip.start_time&#92;&quot;:&#92;&quot;08:45:00&#92;&quot;,&#92;&quot;feed_timestamp&#92;&quot;:1779321620}]&quot;' data-total-rows='156776288' data-total-columns='10' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;trip_update.trip.trip_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.timestamp&quot;,[&quot;integer&quot;,&quot;u64&quot;]],[&quot;trip_update.stop_time_update.stop_sequence&quot;,[&quot;integer&quot;,&quot;u32&quot;]],[&quot;trip_update.stop_time_update.stop_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.vehicle.id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.stop_time_update.arrival.time&quot;,[&quot;integer&quot;,&quot;i64&quot;]],[&quot;trip_update.stop_time_update.departure.time&quot;,[&quot;integer&quot;,&quot;i64&quot;]],[&quot;trip_update.trip.route_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;trip_update.trip.start_time&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;feed_timestamp&quot;,[&quot;integer&quot;,&quot;u64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "dNNg",
+      "code_hash": "913ccf93031138371382f5c462608e67",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "frfF",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='frfF-0' random-id='5d5adeaa-b471-810b-f082-d5edef870673'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:26,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5397&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779355025,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350414},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:22,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5393&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779354830,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350424},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:30,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5401&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779355175,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350414},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:17,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5387&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779354647,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350434},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:35,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5499&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779355363,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350434},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:1,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;53270&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:null,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350404},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:39,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;29001&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779355575,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350434},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:5,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5376&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779354252,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350404},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:24,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5395&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779354928,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350424},{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;stop_sequence&#92;&quot;:5,&#92;&quot;stop_id&#92;&quot;:&#92;&quot;5376&#92;&quot;,&#92;&quot;vehicle_id&#92;&quot;:null,&#92;&quot;predicted_arrival&#92;&quot;:1779354252,&#92;&quot;route_id&#92;&quot;:&#92;&quot;105&#92;&quot;,&#92;&quot;start_time&#92;&quot;:&#92;&quot;05:00:00&#92;&quot;,&#92;&quot;tu_feed_timestamp&#92;&quot;:1779350414}]&quot;' data-total-rows='13980' data-total-columns='8' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;trip_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;stop_sequence&quot;,[&quot;integer&quot;,&quot;u32&quot;]],[&quot;stop_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;vehicle_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;predicted_arrival&quot;,[&quot;integer&quot;,&quot;i64&quot;]],[&quot;route_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;start_time&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;tu_feed_timestamp&quot;,[&quot;integer&quot;,&quot;u64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "yCnT",
+      "code_hash": "c9fcdbbf8065bde3c1acf152d7e7b52f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "wlCL",
+      "code_hash": "1603f79f250bd05d84dcb190bee408bc",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "kqZH",
+      "code_hash": "98f758ec345ba83e0510df24c94b99e1",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "wAgl",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='wAgl-0' random-id='0663ab91-5aeb-c453-fb17-8a4ad7677a5a'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;ibi_bin&#92;&quot;:&#92;&quot;0-3min&#92;&quot;,&#92;&quot;total&#92;&quot;:574,&#92;&quot;accurate&#92;&quot;:483,&#92;&quot;accuracy_pct&#92;&quot;:84.14634146341463},{&#92;&quot;ibi_bin&#92;&quot;:&#92;&quot;10-15min&#92;&quot;,&#92;&quot;total&#92;&quot;:816,&#92;&quot;accurate&#92;&quot;:720,&#92;&quot;accuracy_pct&#92;&quot;:88.23529411764706},{&#92;&quot;ibi_bin&#92;&quot;:&#92;&quot;3-6min&#92;&quot;,&#92;&quot;total&#92;&quot;:532,&#92;&quot;accurate&#92;&quot;:472,&#92;&quot;accuracy_pct&#92;&quot;:88.7218045112782},{&#92;&quot;ibi_bin&#92;&quot;:&#92;&quot;6-10min&#92;&quot;,&#92;&quot;total&#92;&quot;:706,&#92;&quot;accurate&#92;&quot;:650,&#92;&quot;accuracy_pct&#92;&quot;:92.06798866855524},{&#92;&quot;ibi_bin&#92;&quot;:&#92;&quot;overall&#92;&quot;,&#92;&quot;total&#92;&quot;:2628,&#92;&quot;accurate&#92;&quot;:2325,&#92;&quot;accuracy_pct&#92;&quot;:88.29285719022378}]&quot;' data-total-rows='5' data-total-columns='4' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;ibi_bin&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;total&quot;,[&quot;integer&quot;,&quot;u32&quot;]],[&quot;accurate&quot;,[&quot;integer&quot;,&quot;u32&quot;]],[&quot;accuracy_pct&quot;,[&quot;number&quot;,&quot;f64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='false' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "rEll",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='rEll-0' random-id='55ffc84c-7ae4-da10-be4a-73087fe02718'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;trip_id&#92;&quot;:&#92;&quot;75609175&#92;&quot;,&#92;&quot;mean_error&#92;&quot;:68.88973384030419,&#92;&quot;median_error&#92;&quot;:70.0,&#92;&quot;mode_error&#92;&quot;:[114.0],&#92;&quot;std_error&#92;&quot;:56.197567731983206,&#92;&quot;is_biased&#92;&quot;:false}]&quot;' data-total-rows='1' data-total-columns='6' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;trip_id&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;mean_error&quot;,[&quot;number&quot;,&quot;f64&quot;]],[&quot;median_error&quot;,[&quot;number&quot;,&quot;f64&quot;]],[&quot;mode_error&quot;,[&quot;unknown&quot;,&quot;list[f64]&quot;]],[&quot;std_error&quot;,[&quot;number&quot;,&quot;f64&quot;]],[&quot;is_biased&quot;,[&quot;boolean&quot;,&quot;bool&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='false' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "dGlV",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "d21ddcbcc7747cd2bb12bdbdde55b63f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "b6b4ce6df035dcfaa26f3bc32fb89e6a",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "d5e3fad9fa3b842483331f95640a9783",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "3860b64574ef54b10162336db70479b6",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": null,
+      "outputs": [],
+      "console": []
+    }
+  ]
+}
