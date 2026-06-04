@@ -18,8 +18,7 @@ import pytest
 from polars.testing import assert_frame_equal
 from pyarrow import fs
 
-from lamp_py.ingestion.config_busloc_vehicle import BusLocVehicleRecord, GTFSRealtime
-from lamp_py.ingestion.config_rt_alerts import AlertsRecord
+from lamp_py.ingestion.config_busloc_vehicle import GTFSRealtime
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import flatten_table_schema
