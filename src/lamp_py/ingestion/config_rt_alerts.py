@@ -131,18 +131,18 @@ class AlertsTable(dy.Schema):
     alert_recurrence_text = with_alias(translated_string.inner["translation"], "alert.recurrence_text.translation")
 
 
-class RtAlertsDetail(GTFSRTDetail):
+class RtAlertsDetail(GTFSRTDetail[AlertsTable, AlertsRecord]):
     """
     Detail for how to convert RT GTFS Alerts from json entries into parquet
     tables.
     """
 
     @property
-    def table_schema(self) -> dy.Schema:
+    def table_schema(self) -> type[AlertsTable]:
         return AlertsTable
 
     @property
-    def record_schema(self) -> GTFSRealtime:
+    def record_schema(self) -> type[AlertsRecord]:
         return AlertsRecord
 
     @property

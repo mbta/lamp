@@ -110,18 +110,18 @@ class BusLocVehicleTable(dy.Schema):
     state_of_charge_timestamp = dy.UInt64(nullable=True, alias="vehicle.state_of_charge_timestamp")
 
 
-class RtBusVehicleDetail(GTFSRTDetail):
+class RtBusVehicleDetail(GTFSRTDetail[BusLocVehicleTable, BusLocVehicleRecord]):
     """
     Detail for how to convert RT GTFS Bus Vehicle Positions from json
     entries into parquet tables.
     """
 
     @property
-    def table_schema(self) -> dy.Schema:
+    def table_schema(self) -> type[BusLocVehicleTable]:
         return BusLocVehicleTable
 
     @property
-    def record_schema(self) -> GTFSRealtime:
+    def record_schema(self) -> type[BusLocVehicleRecord]:
         return BusLocVehicleRecord
 
     @property

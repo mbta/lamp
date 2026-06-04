@@ -1,6 +1,6 @@
 from abc import ABC
 from abc import abstractmethod
-from typing import Optional, List, Tuple
+from typing import Generic, Optional, List, Tuple, TypeVar
 
 import dataframely as dy
 import pyarrow
@@ -8,7 +8,11 @@ import pyarrow
 from lamp_py.ingestion.utils import flatten_table_schema
 
 
-class GTFSRTDetail(ABC):
+TableSchemaT = TypeVar("TableSchemaT", bound=dy.Schema)
+RecordSchemaT = TypeVar("RecordSchemaT", bound="GTFSRealtime")
+
+
+class GTFSRTDetail(ABC, Generic[TableSchemaT, RecordSchemaT]):
     """
     Abstract Base Class for all GTFSRTDetail implementations.
 
@@ -21,12 +25,12 @@ class GTFSRTDetail(ABC):
         return flatten_table_schema(table)
 
     @property
-    def table_schema(self) -> Optional[type[dy.Schema]]:
+    def table_schema(self) -> Optional[type[TableSchemaT]]:
         """Schema for the flattened table representation of this GTFS-RT data."""
         return None
 
     @property
-    def record_schema(self) -> Optional[type["GTFSRealtime"]]:
+    def record_schema(self) -> Optional[type[RecordSchemaT]]:
         """Schema for the raw GTFS-RT record structure."""
         return None
 
