@@ -117,12 +117,20 @@ class RtBusVehicleDetail(GTFSRTDetail):
     """
 
     @property
+    def table_schema(self) -> dy.Schema:
+        return BusLocVehicleTable
+
+    @property
+    def record_schema(self) -> GTFSRealtime:
+        return BusLocVehicleRecord
+
+    @property
     def partition_column(self) -> str:
         return "vehicle.vehicle.id"
 
     @property
     def import_schema(self) -> pyarrow.schema:
-        return pyarrow.schema([v.pyarrow_field(k) for k, v in BusLocVehicleRecord.entity.inner.inner.items()])  # type: ignore[attr-defined]
+        return pyarrow.schema([v.pyarrow_field(k) for k, v in self.record_schema.entity.inner.inner.items()])  # type: ignore[attr-defined]
 
     @property
     def table_sort_order(self) -> List[Tuple[str, str]]:

@@ -1,11 +1,14 @@
 from typing import List, Tuple
+
 import dataframely as dy
 import pyarrow
 
-from .gtfs_rt_detail import GTFSRTDetail, GTFSRealtime
+from lamp_py.utils.dataframely import with_alias, with_nullable
+
+from .gtfs_rt_detail import GTFSRealtime, GTFSRTDetail
 from .gtfs_rt_structs import (
-    trip_descriptor,
     translated_string,
+    trip_descriptor,
 )
 
 
@@ -16,7 +19,6 @@ class AlertsRecord(GTFSRealtime):
         inner=dy.Struct(
             inner={
                 "id": dy.String(min_length=1),
-                "is_deleted": dy.Bool(nullable=True),
                 "alert": dy.Struct(
                     inner={
                         "active_period": dy.List(
@@ -43,7 +45,7 @@ class AlertsRecord(GTFSRealtime):
                             ),
                             nullable=True,
                         ),
-                        "cause": dy.String(nullable=True),
+                        "cause": dy.String(nullable=False),
                         "cause_detail": dy.String(nullable=True),  # type does not match spec type of <TranslatedString>
                         "effect": dy.String(nullable=True),
                         "effect_detail": dy.String(
@@ -66,7 +68,7 @@ class AlertsRecord(GTFSRealtime):
                         "timeframe_text": translated_string,  # MBTA Enhanced field
                         "recurrence_text": translated_string,  # MBTA Enhanced field
                     },
-                    nullable=True,
+                    nullable=False,
                 ),
             }
         ),
@@ -79,8 +81,7 @@ class AlertsTable(dy.Schema):
 
     id = dy.String(primary_key=True)
     feed_timestamp = dy.UInt64(primary_key=True)
-    is_deleted = dy.Bool(nullable=True)
-    alert_cause = dy.String(nullable=True, alias="alert.cause")
+    alert_cause = dy.String(alias="alert.cause")
     alert_cause_detail = dy.String(nullable=True, alias="alert.cause_detail")
     alert_effect = dy.String(nullable=True, alias="alert.effect")
     alert_effect_detail = dy.String(nullable=True, alias="alert.effect_detail")
@@ -92,7 +93,6 @@ class AlertsTable(dy.Schema):
     alert_closed_timestamp = dy.Int64(nullable=True, alias="alert.closed_timestamp")
     alert_alert_lifecycle = dy.String(nullable=True, alias="alert.alert_lifecycle")
     alert_duration_certainty = dy.String(nullable=True, alias="alert.duration_certainty")
-    # Nested structures remain nested for now
     alert_active_period = dy.List(
         dy.Struct(
             inner={
@@ -110,7 +110,7 @@ class AlertsTable(dy.Schema):
                 "route_id": dy.String(nullable=True),
                 "route_type": dy.Int32(nullable=True),
                 "direction_id": dy.UInt8(nullable=True),
-                "trip": trip_descriptor,
+                "trip": with_nullable(trip_descriptor, True),
                 "stop_id": dy.String(nullable=True),
                 "facility_id": dy.String(nullable=True),
                 "activities": dy.List(dy.String(), nullable=True),
@@ -119,14 +119,16 @@ class AlertsTable(dy.Schema):
         nullable=True,
         alias="alert.informed_entity",
     )
-    alert_url = translated_string
-    alert_header_text = translated_string
-    alert_description_text = translated_string
+    alert_url = with_alias(translated_string.inner["translation"], "alert.url.translation")
+    alert_header_text = with_alias(translated_string.inner["translation"], "alert.header_text.translation")
+    alert_description_text = with_alias(translated_string.inner["translation"], "alert.description_text.translation")
     alert_reminder_times = dy.List(dy.UInt64(), nullable=True, alias="alert.reminder_times")
-    alert_short_header_text = translated_string
-    alert_service_effect_text = translated_string
-    alert_timeframe_text = translated_string
-    alert_recurrence_text = translated_string
+    alert_short_header_text = with_alias(translated_string.inner["translation"], "alert.short_header_text.translation")
+    alert_service_effect_text = with_alias(
+        translated_string.inner["translation"], "alert.service_effect_text.translation"
+    )
+    alert_timeframe_text = with_alias(translated_string.inner["translation"], "alert.timeframe_text.translation")
+    alert_recurrence_text = with_alias(translated_string.inner["translation"], "alert.recurrence_text.translation")
 
 
 class RtAlertsDetail(GTFSRTDetail):
@@ -136,12 +138,20 @@ class RtAlertsDetail(GTFSRTDetail):
     """
 
     @property
+    def table_schema(self) -> dy.Schema:
+        return AlertsTable
+
+    @property
+    def record_schema(self) -> GTFSRealtime:
+        return AlertsRecord
+
+    @property
     def partition_column(self) -> str:
         return "alert.cause"
 
     @property
     def import_schema(self) -> pyarrow.schema:
-        return pyarrow.schema([v.pyarrow_field(k) for k, v in AlertsRecord.entity.inner.inner.items()])  # type: ignore[attr-defined]
+        return pyarrow.schema([v.pyarrow_field(k) for k, v in self.record_schema.entity.inner.inner.items()])  # type: ignore[attr-defined]
 
     @property
     def table_sort_order(self) -> List[Tuple[str, str]]:

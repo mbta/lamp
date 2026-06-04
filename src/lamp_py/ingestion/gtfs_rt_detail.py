@@ -21,6 +21,16 @@ class GTFSRTDetail(ABC):
         return flatten_table_schema(table)
 
     @property
+    def table_schema(self) -> Optional[type[dy.Schema]]:
+        """Schema for the flattened table representation of this GTFS-RT data."""
+        return None
+
+    @property
+    def record_schema(self) -> Optional[type["GTFSRealtime"]]:
+        """Schema for the raw GTFS-RT record structure."""
+        return None
+
+    @property
     @abstractmethod
     def partition_column(self) -> str:
         """Column used to partition parquet files for this config"""
