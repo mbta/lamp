@@ -2,25 +2,12 @@ from typing import List, Tuple
 import dataframely as dy
 import pyarrow
 
-from .gtfs_rt_detail import GTFSRTDetail
+from .gtfs_rt_detail import GTFSRTDetail, GTFSRealtime
 from .gtfs_rt_structs import (
     position,
     vehicle_descriptor,
     trip_descriptor,
 )
-
-
-class GTFSRealtime(dy.Schema):
-    """Abstract GTFS-RT schema. Each feed message contains a header and a list of entities, which can be either TripUpdates, VehiclePositions, or Alerts."""
-
-    header = dy.Struct(
-        inner={
-            "gtfs_realtime_version": dy.String(),
-            "incrementality": dy.String(),
-            "timestamp": dy.UInt64(),
-        }
-    )
-    entity = dy.List(inner=dy.Any())
 
 
 class BusLocVehicleRecord(GTFSRealtime):

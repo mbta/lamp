@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Optional, List, Tuple
 
+import dataframely as dy
 import pyarrow
 
 from lamp_py.ingestion.utils import flatten_table_schema
@@ -42,3 +43,16 @@ class GTFSRTDetail(ABC):
         TODO: perform additional experiments to optimize sort order of all parquet file types  # pylint: disable=fixme
         """
         return None
+
+
+class GTFSRealtime(dy.Schema):
+    """Abstract GTFS-RT schema. Each feed message contains a header and a list of entities, which can be either TripUpdates, VehiclePositions, or Alerts."""
+
+    header = dy.Struct(
+        inner={
+            "gtfs_realtime_version": dy.String(),
+            "incrementality": dy.String(),
+            "timestamp": dy.UInt64(),
+        }
+    )
+    entity = dy.List(inner=dy.Any())
