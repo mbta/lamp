@@ -1,6 +1,6 @@
 from abc import ABC
 from abc import abstractmethod
-from typing import Generic, Optional, List, Tuple, TypeVar
+from typing import Optional, List, Tuple
 
 import dataframely as dy
 import pyarrow
@@ -8,11 +8,27 @@ import pyarrow
 from lamp_py.ingestion.utils import flatten_table_schema
 
 
-TableSchemaT = TypeVar("TableSchemaT", bound=dy.Schema)
-RecordSchemaT = TypeVar("RecordSchemaT", bound="GTFSRealtime")
+class FeedMessage(dy.Schema):
+    """GTFS Realtime message containing aheader and entity list: one of TripUpdates, VehiclePositions, or Alerts."""
+
+    header = dy.Struct(
+        inner={
+            "gtfs_realtime_version": dy.String(),
+            "incrementality": dy.String(),
+            "timestamp": dy.UInt64(),
+        }
+    )
+    entity = dy.List(inner=dy.Any())
 
 
-class GTFSRTDetail(ABC, Generic[TableSchemaT, RecordSchemaT]):
+class FeedEntityTable(dy.Schema):
+    """Flattened entity list from GTFS Realtime feed messages."""
+
+    id = dy.String(primary_key=True)
+    feed_timestamp = dy.UInt64(primary_key=True)
+
+
+class GTFSRTDetail[T: FeedEntityTable, M: FeedMessage](ABC):
     """
     Abstract Base Class for all GTFSRTDetail implementations.
 
@@ -25,12 +41,12 @@ class GTFSRTDetail(ABC, Generic[TableSchemaT, RecordSchemaT]):
         return flatten_table_schema(table)
 
     @property
-    def table_schema(self) -> Optional[type[TableSchemaT]]:
+    def table_schema(self) -> Optional[type[T]]:
         """Schema for the flattened table representation of this GTFS-RT data."""
         return None
 
     @property
-    def record_schema(self) -> Optional[type[RecordSchemaT]]:
+    def record_schema(self) -> Optional[type[M]]:
         """Schema for the raw GTFS-RT record structure."""
         return None
 
@@ -57,16 +73,3 @@ class GTFSRTDetail(ABC, Generic[TableSchemaT, RecordSchemaT]):
         TODO: perform additional experiments to optimize sort order of all parquet file types  # pylint: disable=fixme
         """
         return None
-
-
-class GTFSRealtime(dy.Schema):
-    """Abstract GTFS-RT schema. Each feed message contains a header and a list of entities, which can be either TripUpdates, VehiclePositions, or Alerts."""
-
-    header = dy.Struct(
-        inner={
-            "gtfs_realtime_version": dy.String(),
-            "incrementality": dy.String(),
-            "timestamp": dy.UInt64(),
-        }
-    )
-    entity = dy.List(inner=dy.Any())

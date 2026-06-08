@@ -5,14 +5,14 @@ import pyarrow
 
 from lamp_py.utils.dataframely import with_alias, with_nullable
 
-from .gtfs_rt_detail import GTFSRealtime, GTFSRTDetail
+from .gtfs_rt_detail import FeedMessage, FeedEntityTable, GTFSRTDetail
 from .gtfs_rt_structs import (
     translated_string,
     trip_descriptor,
 )
 
 
-class AlertsRecord(GTFSRealtime):
+class AlertsRecord(FeedMessage):
     """Each Alert message from GTFS-RT."""
 
     entity = dy.List(
@@ -76,11 +76,9 @@ class AlertsRecord(GTFSRealtime):
     )
 
 
-class AlertsTable(dy.Schema):
+class AlertsTable(FeedEntityTable):
     """Flattened Alerts data."""
 
-    id = dy.String(primary_key=True)
-    feed_timestamp = dy.UInt64(primary_key=True)
     alert_cause = dy.String(alias="alert.cause")
     alert_cause_detail = dy.String(nullable=True, alias="alert.cause_detail")
     alert_effect = dy.String(nullable=True, alias="alert.effect")

@@ -18,7 +18,7 @@ import pytest
 from polars.testing import assert_frame_equal
 from pyarrow import fs
 
-from lamp_py.ingestion.config_busloc_vehicle import GTFSRealtime
+from lamp_py.ingestion.gtfs_rt_detail import FeedMessage
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import flatten_table_schema
@@ -44,8 +44,8 @@ def create_mock_upload_file(tmp_path: Path) -> Callable[[str, str, Optional[dict
 
 
 def gtfs_rt_factory(
-    schema: type[GTFSRealtime], dy_gen: dy.random.Generator, timestamp: datetime
-) -> dy.DataFrame[GTFSRealtime]:
+    schema: type[FeedMessage], dy_gen: dy.random.Generator, timestamp: datetime
+) -> dy.DataFrame[FeedMessage]:
     """Generate an infinite stream of GTFS-RT dataframes that conform to the provided schema."""
     df = schema.sample(
         overrides={
@@ -390,6 +390,7 @@ def test_convert(
     dfs = []
     for ts in timestamp:
         converter = GtfsRtConverter(config_type, Queue())
+        assert converter.detail.record_schema is not None
         df = gtfs_rt_factory(converter.detail.record_schema, dy_gen, ts)
 
         incoming_file = tmp_path / f"{ts.isoformat()}.json.gz"
