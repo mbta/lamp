@@ -37,7 +37,7 @@ class AlertsRecord(FeedMessage):
                                     "route_id": dy.String(nullable=True),
                                     "route_type": dy.Int32(nullable=True),
                                     "direction_id": dy.UInt8(nullable=True),
-                                    "trip": trip_descriptor,
+                                    "trip": with_nullable(trip_descriptor, nullable=True),
                                     "stop_id": dy.String(nullable=True),
                                     "facility_id": dy.String(nullable=True),
                                     "activities": dy.List(dy.String(), nullable=True),  # MBTA Enhanced field
