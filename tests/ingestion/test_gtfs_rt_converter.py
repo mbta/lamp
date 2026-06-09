@@ -1,5 +1,6 @@
 # pylint: disable=[R0913, R0917]
 import os
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
@@ -18,12 +19,14 @@ import pytest
 from polars.testing import assert_frame_equal
 from pyarrow import fs
 
-from lamp_py.ingestion.gtfs_rt_detail import FeedMessage
+from lamp_py.ingestion.config_busloc_vehicle import BusLocVehicleRecord
+from lamp_py.ingestion.config_rt_alerts import AlertsRecord
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
+from lamp_py.ingestion.gtfs_rt_detail import FeedMessage
+from lamp_py.ingestion.gtfs_rt_structs import translated_string
 from lamp_py.ingestion.utils import flatten_table_schema
 from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
-
 from tests.test_resources import (
     incoming_dir,
     test_files_dir,
@@ -366,11 +369,22 @@ def test_bus_trip_updates_file_conversion() -> None:
     assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
+class TestAlertsRecord(AlertsRecord):
+    """AlertsRecord with a different effect_detail and cause_detail."""
+
+    entity_inner = deepcopy(AlertsRecord.entity.inner.inner)  # type: ignore[attr-defined]
+    entity_inner["alert"].inner["cause_detail"] = translated_string
+    entity_inner["alert"].inner["effect_detail"] = translated_string
+
+    entity = dy.List(inner=dy.Struct(inner=entity_inner), min_length=1)
+
+
 @pytest.mark.parametrize(
-    "config_type",
+    ["config_type", "input_schemas"],
     [
-        ConfigType.BUS_VEHICLE_POSITIONS,
-        ConfigType.RT_ALERTS,
+        (ConfigType.BUS_VEHICLE_POSITIONS, [BusLocVehicleRecord, BusLocVehicleRecord]),
+        (ConfigType.RT_ALERTS, [AlertsRecord, AlertsRecord]),
+        (ConfigType.RT_ALERTS, [AlertsRecord, TestAlertsRecord]),
     ],
 )
 @pytest.mark.parametrize(
@@ -379,6 +393,7 @@ def test_bus_trip_updates_file_conversion() -> None:
 )
 def test_convert(
     config_type: ConfigType,
+    input_schemas: list[type[FeedMessage]],
     timestamp: list[datetime],
     dy_gen: dy.random.Generator,
     monkeypatch: pytest.MonkeyPatch,
@@ -388,10 +403,9 @@ def test_convert(
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.move_s3_objects", lambda files, __: files)
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.upload_file", create_mock_upload_file(tmp_path))
     dfs = []
-    for ts in timestamp:
+    for i, ts in enumerate(timestamp):
         converter = GtfsRtConverter(config_type, Queue())
-        assert converter.detail.record_schema is not None
-        df = gtfs_rt_factory(converter.detail.record_schema, dy_gen, ts)
+        df = gtfs_rt_factory(input_schemas[i], dy_gen, ts)
 
         incoming_file = tmp_path / f"{ts.isoformat()}.json.gz"
 
@@ -414,11 +428,16 @@ def test_convert(
         ]
     )
 
-    expected_records = unnest_all_structs(
-        pl.union(dfs)
-        .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
-        .explode("entity")
-        .unnest("entity")
+    expected_records = pl.concat(
+        [
+            unnest_all_structs(
+                df.select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
+                .explode("entity")
+                .unnest("entity")
+            )
+            for df in dfs
+        ],
+        how="diagonal",
     )
 
     assert_frame_equal(converted_records, expected_records, check_row_order=False, check_column_order=False)
