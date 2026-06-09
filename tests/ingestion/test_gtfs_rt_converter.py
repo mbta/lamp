@@ -24,7 +24,7 @@ from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import flatten_table_schema
 from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
 
-from ..test_resources import (
+from tests.test_resources import (
     incoming_dir,
     test_files_dir,
 )
@@ -46,7 +46,7 @@ def create_mock_upload_file(tmp_path: Path) -> Callable[[str, str, Optional[dict
 def gtfs_rt_factory(
     schema: type[FeedMessage], dy_gen: dy.random.Generator, timestamp: datetime
 ) -> dy.DataFrame[FeedMessage]:
-    """Generate an infinite stream of GTFS-RT dataframes that conform to the provided schema."""
+    """Generate a GTFS-RT dataframe with a specified timestamp."""
     df = schema.sample(
         overrides={
             "header": {"timestamp": timestamp.timestamp(), "gtfs_realtime_version": "2.0", "incrementality": 0},
