@@ -307,12 +307,11 @@ def all_table_attributes() -> Dict:
 @pytest.fixture(name="_s3_patch")
 def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     """
-    insert a monkeypatch over the s3 functions used by the gtfs converter.
+    Insert a monkeypatch over the s3 functions used by the gtfs converter.
 
     * write parquet file function patched to check the table rather than write it
     * move s3 objects asserts that all moves are to archive and not error
     """
-
     # keep track of what tables are written to check against after converting
     tables_written: List[str] = []
 
@@ -324,7 +323,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
         visitor_func: Optional[Callable[..., None]] = None,
     ) -> None:
         """
-        instead of writing the parquet file to s3, inspect the contents of the
+        Instead of writing the parquet file to s3, inspect the contents of the
         table. call the visitor function on a dummy s3 path.
         """
         # pull the name out of the s3 path and check that we are expecting this table
@@ -352,7 +351,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
     )
 
     def mock_gtfs_files_to_convert() -> List[Tuple[str, int]]:
-        """provide list of gtfs paths to convert"""
+        """Provide list of gtfs paths to convert"""
         return [(os.path.join(incoming_dir, "MBTA_GTFS.zip"), 1655517536)]
 
     monkeypatch.setattr(
@@ -373,7 +372,7 @@ def fixture_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
 
 def test_schedule_conversion(_s3_patch: Callable[..., None]) -> None:
     """
-    test that a schedule zip file can be processed correctly, checking for files
+    Test that a schedule zip file can be processed correctly, checking for files
     table names, table column names, and table lengths
     """
     # generate a schedule converter with an empty queue to inspect later
