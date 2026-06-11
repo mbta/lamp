@@ -258,7 +258,7 @@ class GtfsRtConverter(Converter):
                             self.data_parts[dt_part].table,
                             table,
                         ],
-                        promote_options="default",
+                        promote_options="default",  # union columns
                     )
 
                 self.data_parts[dt_part].files.append(result_filename)
@@ -432,21 +432,17 @@ class GtfsRtConverter(Converter):
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
-            # RT_ALERTS parquet files contain columns with nested structure types
-            # if a new nested field is ingested, combining of the new and existing nested column is not possible
-            # this try/except is meant to catch that error and reset the schema for the sevice day to the new nested structure
-            # RT_ALERTS updates are essentially the same throughout a service day so resetting the
-            # dataset will have minimal impact on archived data
-            try:
-                out_ds = pd.dataset(
-                    [
-                        pd.dataset(table),
-                        pd.dataset(local_path),
-                    ],
-                )
-            except pyarrow.ArrowTypeError as exception:
-                if self.config_type != ConfigType.RT_ALERTS:
-                    raise exception
+            remote_table_schema = pq.read_schema(local_path)
+
+            out_ds = pd.dataset(
+                [
+                    pd.dataset(table),
+                    pd.dataset(
+                        local_path,
+                        schema=override_schema(remote_table_schema, self.detail.table_schema.to_pyarrow_schema()),
+                    ),
+                ],
+            )
         log.log_complete()
         return out_ds
 
