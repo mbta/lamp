@@ -1,4 +1,5 @@
 # pylint: disable=[R0913, R0917]
+from lamp_py.ingestion.utils import override_schema
 import os
 from copy import deepcopy
 from datetime import datetime
@@ -319,7 +320,10 @@ def test_file_conversion(
     assert filename == str(incoming_file)
 
     assert table
-    table = pl.DataFrame(flatten_table_schema(table))
+    table = flatten_table_schema(table)
+    table = pl.DataFrame(
+        table.cast(override_schema(table.schema, actual_converter.detail.table_schema.to_pyarrow_schema()))
+    )
     assert (
         df.select(pl.col("entity").explode().struct.field("id").alias("id"))
         .unique()
@@ -373,8 +377,8 @@ class TestAlertsRecord(AlertsRecord):
     """AlertsRecord with a different effect_detail and cause_detail."""
 
     entity_inner = deepcopy(AlertsRecord.entity.inner.inner)  # type: ignore[attr-defined]
-    entity_inner["alert"].inner["cause_detail"] = translated_string
-    entity_inner["alert"].inner["effect_detail"] = translated_string
+    entity_inner["alert"].inner["cause_detail"] = dy.String(nullable=True)
+    entity_inner["alert"].inner["effect_detail"] = dy.String(nullable=True)
 
     entity = dy.List(inner=dy.Struct(inner=entity_inner), min_length=1)
 
@@ -384,7 +388,7 @@ class TestAlertsRecord(AlertsRecord):
     [
         (ConfigType.BUS_VEHICLE_POSITIONS, [BusLocVehicleRecord, BusLocVehicleRecord]),
         (ConfigType.RT_ALERTS, [AlertsRecord, AlertsRecord]),
-        (ConfigType.RT_ALERTS, [AlertsRecord, TestAlertsRecord]),
+        (ConfigType.RT_ALERTS, [TestAlertsRecord, AlertsRecord]),
     ],
 )
 @pytest.mark.parametrize(
