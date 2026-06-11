@@ -2,12 +2,8 @@ from typing import List, Tuple
 import dataframely as dy
 import pyarrow
 
-from .gtfs_rt_detail import GTFSRTDetail, FeedMessage, FeedEntityTable
-from .gtfs_rt_structs import (
-    position,
-    vehicle_descriptor,
-    trip_descriptor,
-)
+from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail, FeedMessage, FeedEntityTable
+from lamp_py.ingestion.gtfs_rt_structs import position
 
 
 class BusLocVehicleRecord(FeedMessage):
@@ -23,8 +19,30 @@ class BusLocVehicleRecord(FeedMessage):
                         "position": position,
                         "location_source": dy.String(nullable=True),
                         "timestamp": dy.UInt64(nullable=True),
-                        "trip": trip_descriptor,
-                        "vehicle": vehicle_descriptor,
+                        "trip": dy.Struct(
+                            inner={
+                                "trip_id": dy.String(nullable=True),
+                                "route_id": dy.String(nullable=True),
+                                "direction_id": dy.UInt8(nullable=True),
+                                "start_time": dy.String(nullable=True),
+                                "start_date": dy.String(nullable=True),
+                                "schedule_relationship": dy.String(nullable=True),
+                                "route_pattern_id": dy.String(nullable=True),  # MBTA Enhanced Field
+                                "tm_trip_id": dy.String(nullable=True),  # Only used by Busloc
+                                "overload_id": dy.Int64(nullable=True),  # Only used by Busloc
+                                "overload_offset": dy.Int64(nullable=True),  # Only used by Busloc
+                                "revenue": dy.Bool(nullable=True),  # MBTA Enhanced Field
+                                "last_trip": dy.Bool(nullable=True),  # MBTA Enhanced Field
+                            }
+                        ),
+                        "vehicle": dy.Struct(
+                            inner={
+                                "id": dy.String(nullable=False),
+                                "label": dy.String(nullable=True),
+                                "license_plate": dy.String(nullable=True),
+                                "assignment_status": dy.String(nullable=True),  # Only used by Busloc
+                            }
+                        ),
                         "operator": dy.Struct(
                             inner={
                                 "id": dy.String(nullable=True),
@@ -81,9 +99,6 @@ class BusLocVehicleTable(FeedEntityTable):
     vehicle_id = dy.String(nullable=True, alias="vehicle.vehicle.id")
     vehicle_label = dy.String(nullable=True, alias="vehicle.vehicle.label")
     vehicle_license_plate = dy.String(nullable=True, alias="vehicle.vehicle.license_plate")
-    vehicle_consist = dy.List(
-        dy.Struct(inner={"label": dy.String(nullable=True)}), nullable=True, alias="vehicle.vehicle.consist"
-    )
     vehicle_assignment_status = dy.String(nullable=True, alias="vehicle.vehicle.assignment_status")
     operator_id = dy.String(nullable=True, alias="vehicle.operator.id")
     operator_first_name = dy.String(

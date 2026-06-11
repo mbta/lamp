@@ -274,3 +274,25 @@ def gzip_file(path: str, keep_original: bool = False) -> None:
         os.remove(path)
 
     logger.log_complete()
+
+
+def override_schema(schema: pyarrow.Schema, expected_schema: pyarrow.Schema) -> pyarrow.Schema:
+    """
+    Override the schema of a pyarrow table where it disagrees with an expected schema.
+
+    - If the input table has extra columns that are not in the expected schema, they will be kept as inferred by pyarrow.
+    - If the input table shares column names with the expected schema, they will be cast to the types defined in the expected schema. This behavior differs from `pyarrow.unify_schemas`, which promotes overlapping columns to the least common supertype.
+    - No columns will be added.
+
+    This allows us to evolve the schema over time without breaking existing data or losing new data.
+    """
+    # Select only the columns that are in the expected schema and cast them to the correct types
+    output_fields = []
+    for col in schema:
+        if col.name in expected_schema.names:
+            output_fields.append(pyarrow.field(col.name, expected_schema.field(col.name).type))
+        else:
+            # If a column from the expected schema is missing in the input table, create an empty column with the correct type
+            output_fields.append(col)
+
+    return pyarrow.schema(output_fields)
