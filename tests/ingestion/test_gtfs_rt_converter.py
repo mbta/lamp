@@ -108,6 +108,8 @@ def test_bad_conversion_s3() -> None:
         ConfigType.RT_VEHICLE_POSITIONS,
         ConfigType.RT_ALERTS,
         ConfigType.RT_TRIP_UPDATES,
+        ConfigType.BUS_VEHICLE_POSITIONS,
+        ConfigType.BUS_TRIP_UPDATES,
     ],
 )
 @pytest.mark.parametrize(
