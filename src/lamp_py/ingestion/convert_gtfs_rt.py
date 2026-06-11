@@ -336,6 +336,14 @@ class GtfsRtConverter(Converter):
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
 
             table = pyarrow.Table.from_pylist(json_data["entity"])
+            if table.num_columns == 0:
+                table = (
+                    self.detail.record_schema.create_empty()
+                    .select("entity")
+                    .explode("entity")
+                    .unnest("entity")
+                    .to_arrow()
+                )
 
             table = table.append_column(
                 "year",

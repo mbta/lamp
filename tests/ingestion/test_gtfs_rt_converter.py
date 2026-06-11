@@ -102,33 +102,33 @@ def test_bad_conversion_s3() -> None:
         assert converter.error_files == ["badfile"]
 
 
-def test_empty_files() -> None:
-    """Test that empty files produce empty tables"""
-    configs_to_test = (
+@pytest.mark.parametrize(
+    "config_type",
+    [
         ConfigType.RT_VEHICLE_POSITIONS,
         ConfigType.RT_ALERTS,
         ConfigType.RT_TRIP_UPDATES,
+    ],
+)
+@pytest.mark.parametrize(
+    "input_file",
+    [
+        "empty.json.gz",
+        "one_blank_record.json.gz",
+    ],
+)
+def test_empty_files(config_type: ConfigType, input_file: str) -> None:
+    """Test that empty files produce empty tables"""
+    converter = GtfsRtConverter(config_type=config_type, metadata_queue=Queue())
+    converter.thread_init()
+
+    empty_file = os.path.join(incoming_dir, input_file)
+    _, filename, table = converter.gz_to_pyarrow(empty_file)
+    assert filename == empty_file
+    assert table.shape == (
+        0,
+        len(converter.detail.import_schema) + 4,  # add 4 for hive & timestamp columns
     )
-
-    for config_type in configs_to_test:
-        converter = GtfsRtConverter(config_type=config_type, metadata_queue=Queue())
-        converter.thread_init()
-
-        empty_file = os.path.join(incoming_dir, "empty.json.gz")
-        _, filename, table = converter.gz_to_pyarrow(empty_file)
-        assert filename == empty_file
-        assert table.to_pandas().shape == (
-            0,
-            len(converter.detail.import_schema) + 4,  # add 4 for header timestamp columns
-        )
-
-        one_blank_file = os.path.join(incoming_dir, "one_blank_record.json.gz")
-        _, filename, table = converter.gz_to_pyarrow(one_blank_file)
-        assert filename == one_blank_file
-        assert table.to_pandas().shape == (
-            1,
-            len(converter.detail.import_schema) + 4,  # add 4 for header timestamp columns
-        )
 
 
 @pytest.mark.parametrize(
