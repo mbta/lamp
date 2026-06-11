@@ -20,9 +20,6 @@ trip_descriptor = dy.Struct(
         "start_date": dy.String(nullable=True),
         "schedule_relationship": dy.String(nullable=True),
         "route_pattern_id": dy.String(nullable=True),  # MBTA Enhanced Field
-        "tm_trip_id": dy.String(nullable=True),  # Only used by Busloc
-        "overload_id": dy.Int64(nullable=True),  # Only used by Busloc
-        "overload_offset": dy.Int64(nullable=True),  # Only used by Busloc
         "revenue": dy.Bool(nullable=True),  # MBTA Enhanced Field
         "last_trip": dy.Bool(nullable=True),  # MBTA Enhanced Field
     }
@@ -33,15 +30,6 @@ vehicle_descriptor = dy.Struct(
         "id": dy.String(nullable=False),
         "label": dy.String(nullable=True),
         "license_plate": dy.String(nullable=True),
-        "consist": dy.List(
-            dy.Struct(
-                inner={
-                    "label": dy.String(nullable=True),
-                }
-            ),
-            nullable=True,
-        ),  # MBTA Enhanced Field
-        "assignment_status": dy.String(nullable=True),  # Only used by Busloc
     }
 )
 

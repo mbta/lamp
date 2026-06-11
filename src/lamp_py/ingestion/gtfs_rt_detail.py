@@ -28,6 +28,41 @@ class FeedEntityTable(dy.Schema):
     feed_timestamp = dy.UInt64(primary_key=True)
 
 
+class TripUpdateTable(FeedEntityTable):
+    """Base class for pre- and post-Concentrate/Swiftly TripUpdates."""
+
+    # trip_update fields
+    trip_update_timestamp = dy.UInt64(nullable=True, alias="trip_update.timestamp")
+    trip_update_delay = dy.Int32(nullable=True, alias="trip_update.delay")
+
+    # trip fields
+    trip_id = dy.String(nullable=True, alias="trip_update.trip.trip_id")
+    route_id = dy.String(nullable=True, alias="trip_update.trip.route_id")
+    direction_id = dy.UInt8(nullable=True, alias="trip_update.trip.direction_id")
+    trip_start_time = dy.String(nullable=True, alias="trip_update.trip.start_time")
+    trip_start_date = dy.String(nullable=True, alias="trip_update.trip.start_date")
+    trip_schedule_relationship = dy.String(nullable=True, alias="trip_update.trip.schedule_relationship")
+    trip_route_pattern_id = dy.String(nullable=True, alias="trip_update.trip.route_pattern_id")
+    trip_revenue = dy.Bool(nullable=True, alias="trip_update.trip.revenue")
+    trip_last_trip = dy.Bool(nullable=True, alias="trip_update.trip.last_trip")
+
+    # vehicle fields
+    vehicle_id = dy.String(nullable=True, alias="trip_update.vehicle.id")
+    vehicle_label = dy.String(nullable=True, alias="trip_update.vehicle.label")
+    vehicle_license_plate = dy.String(nullable=True, alias="trip_update.vehicle.license_plate")
+
+    # stop_time_update fields (exploded from list)
+    stop_sequence = dy.UInt32(primary_key=True, alias="trip_update.stop_time_update.stop_sequence")
+    stop_id = dy.String(nullable=True, alias="trip_update.stop_time_update.stop_id")
+    arrival_delay = dy.Int32(nullable=True, alias="trip_update.stop_time_update.arrival.delay")
+    arrival_time = dy.Int64(nullable=True, alias="trip_update.stop_time_update.arrival.time")
+    arrival_uncertainty = dy.Int32(nullable=True, alias="trip_update.stop_time_update.arrival.uncertainty")
+    departure_delay = dy.Int32(nullable=True, alias="trip_update.stop_time_update.departure.delay")
+    departure_time = dy.Int64(nullable=True, alias="trip_update.stop_time_update.departure.time")
+    departure_uncertainty = dy.Int32(nullable=True, alias="trip_update.stop_time_update.departure.uncertainty")
+    stop_schedule_relationship = dy.String(nullable=True, alias="trip_update.stop_time_update.schedule_relationship")
+
+
 class GTFSRTDetail[T: FeedEntityTable, M: FeedMessage](ABC):
     """
     Abstract Base Class for all GTFSRTDetail implementations.
@@ -41,14 +76,14 @@ class GTFSRTDetail[T: FeedEntityTable, M: FeedMessage](ABC):
         return flatten_table_schema(table)
 
     @property
-    def table_schema(self) -> Optional[type[T]]:
+    @abstractmethod
+    def table_schema(self) -> type[T]:
         """Schema for the flattened table representation of this GTFS-RT data."""
-        return None
 
     @property
-    def record_schema(self) -> Optional[type[M]]:
+    @abstractmethod
+    def record_schema(self) -> type[M]:
         """Schema for the raw GTFS-RT record structure."""
-        return None
 
     @property
     @abstractmethod
