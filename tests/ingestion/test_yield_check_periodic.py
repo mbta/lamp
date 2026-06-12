@@ -146,9 +146,10 @@ def test_yield_check_periodic_skips_none_table(flush: bool) -> None:
     assert len(tables) == 0 if flush else 1
 
 
-def test_yield_check_periodic_archives_files() -> None:
+@pytest.parametrize("move", [True, False])
+def test_yield_check_periodic_archives_files(move: bool) -> None:
     """Yielded intervals should move their files to archive_files."""
-    c = make_converter(15, move_source_on_completion=True)
+    c = make_converter(15, move_source_on_completion=move)
     logger = ProcessLogger("test")
     logger.log_start()
 
@@ -159,8 +160,8 @@ def test_yield_check_periodic_archives_files() -> None:
 
     list(c.yield_check_periodic(logger, datetime(2026, 5, 4, 1, 40)))
 
-    assert "a.json.gz" in c.archive_files
-    assert "b.json.gz" in c.archive_files
+    assert ("a.json.gz" in c.archive_files) == move
+    assert ("b.json.gz" in c.archive_files) == move
 
 
 def test_clean_local_folders_removes_oldest_day(tmp_path: Path) -> None:
