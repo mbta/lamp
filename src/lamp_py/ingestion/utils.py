@@ -3,7 +3,7 @@ import re
 import gzip
 import shutil
 import pathlib
-import datetime
+from datetime import datetime, timezone
 import zoneinfo
 import tempfile
 from typing import Dict, List
@@ -71,7 +71,7 @@ def group_sort_file_list(filepaths: List[str]) -> Dict[str, List[str]]:
     return grouped_files
 
 
-def date_from_feed_version(feed_version: str) -> datetime.datetime:
+def date_from_feed_version(feed_version: str) -> datetime:
     """
     Extract date from feed_version text. Raise LookupError if no date found.
 
@@ -84,7 +84,7 @@ def date_from_feed_version(feed_version: str) -> datetime.datetime:
 
     :return: datetime extracted from feed_version text
     """
-    utc_tz = datetime.timezone.utc
+    utc_tz = timezone.utc
     local_tz = zoneinfo.ZoneInfo("US/Eastern")
 
     pattern_1 = r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
@@ -95,11 +95,11 @@ def date_from_feed_version(feed_version: str) -> datetime.datetime:
 
     if pattern_1_result is not None:
         date_str = pattern_1_result.group(0)
-        date_dt = datetime.datetime.fromisoformat(date_str).replace(tzinfo=utc_tz)
+        date_dt = datetime.fromisoformat(date_str).replace(tzinfo=utc_tz)
         date_dt = date_dt.astimezone(local_tz).replace(tzinfo=None)
     elif pattern_2_result is not None:
         date_str = pattern_2_result.group(0)
-        date_dt = datetime.datetime.strptime(date_str, "%m/%d/%y")
+        date_dt = datetime.strptime(date_str, "%m/%d/%y")
     else:
         raise LookupError(f"No date found in feed_version: '{feed_version}'")
 
@@ -274,3 +274,23 @@ def gzip_file(path: str, keep_original: bool = False) -> None:
         os.remove(path)
 
     logger.log_complete()
+
+
+def assign_datetime_to_binned_interval(ts: datetime, interval_mins: int) -> datetime:
+    """
+    Truncate a UTC datetime to its wall-clock-aligned interval start.
+
+    For time_chunk_minutes=15:
+        01:07 -> 01:00,  01:15 -> 01:15,  01:29 -> 01:15,  23:59 -> 23:45
+
+    Returns a naive datetime (no timezone) matching the existing data_parts key convention.
+    """
+    total_minutes = ts.hour * 60 + ts.minute
+    aligned_minutes = (total_minutes // interval_mins) * interval_mins
+    return datetime(
+        year=ts.year,
+        month=ts.month,
+        day=ts.day,
+        hour=aligned_minutes // 60,
+        minute=aligned_minutes % 60,
+    )
