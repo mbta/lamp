@@ -1,7 +1,6 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
 from concurrent.futures import ThreadPoolExecutor
-import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -10,13 +9,12 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import pyarrow
 import polars as pl
 
-from lamp_py.aws.s3 import move_s3_objects, upload_file
-from lamp_py.ingestion.config_rt_trip import RtTripDetail
+from lamp_py.aws.s3 import upload_file
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ARCHIVE, S3_ERROR, S3Location
+from lamp_py.runtime_utils.remote_files import LAMP, S3Location
 
 
 # pylint: disable=too-many-arguments,too-many-instance-attributes
@@ -49,11 +47,11 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             polars_filter: Polars expression to filter data at conversion time; defaults to no filtering.
             max_workers: Number of worker threads for parallel processing.
             time_chunk_minutes: Minutes for time-based partitioning (e.g., 15 min intervals).
-            move_source_on_completion: If True, move source files to archive after completion. 
-                For the LAMP usecase, `source` in this context refers to the `delta` or `archive` 
-                bucket, for ingestion or backfill respectively. The output is uploaded regardless, 
-                but the `source` is only conditionally moved. 
-                    `delta` -> `archive` True, do this, 
+            move_source_on_completion: If True, move source files to archive after completion.
+                For the LAMP usecase, `source` in this context refers to the `delta` or `archive`
+                bucket, for ingestion or backfill respectively. The output is uploaded regardless,
+                but the `source` is only conditionally moved.
+                    `delta` -> `archive` True, do this,
                     `archive` -> `archive` False, don't do this
         """
         GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
@@ -126,10 +124,10 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     s3_path = os.path.join(self.remote_output_location.s3_uri, path_suffix)
                     upload_file(local_path, s3_path)
 
-                # try to get pyarrow to limit memory usage after each loop. 
+                # try to get pyarrow to limit memory usage after each loop.
                 # this is a "ask nicely and pray" move...we can't manage memory directly in python.
-                pyarrow.default_memory_pool().release_unused() 
-                
+                pyarrow.default_memory_pool().release_unused()
+
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
 
@@ -181,10 +179,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 # the error and move on to the next file.
 
                 if result_dt is None:
-                    process_logger.log_failure(
-                        "skipping processing: %s",
-                        result_filename,
-                    )
+                    process_logger.add_metadata(result=result_dt, file=result_filename)
                     continue
 
                 # create key for self.data_parts dictionary that bins based on the chunk interval
@@ -263,7 +258,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         current_interval = self._interval_key(current_ts)
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
-
 
             # yield if we've moved past this interval
             # or if flushing all remaining data

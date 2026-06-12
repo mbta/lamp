@@ -190,10 +190,10 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
-                
-                # try to get pyarrow to limit memory usage after each loop. 
+
+                # try to get pyarrow to limit memory usage after each loop.
                 # this is a "ask nicely and pray" move...we can't manage memory directly in python.
-                pyarrow.default_memory_pool().release_unused() 
+                pyarrow.default_memory_pool().release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
