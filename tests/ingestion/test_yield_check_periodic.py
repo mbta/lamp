@@ -132,7 +132,8 @@ def test_yield_check_periodic(
     assert list(c.data_parts.keys()) == expected_remaining_keys
 
 
-def test_yield_check_periodic_skips_none_table() -> None:
+@pytest.parametrize("flush", [True, False])
+def test_yield_check_periodic_skips_none_table(flush: bool) -> None:
     """Intervals with None table should not be yielded even when flush=True."""
     c = make_converter(15)
     logger = ProcessLogger("test")
@@ -141,8 +142,8 @@ def test_yield_check_periodic_skips_none_table() -> None:
     key = datetime(2026, 5, 4, 1, 15)
     c.data_parts[key] = TableData()  # table is None by default
 
-    tables = list(c.yield_check_periodic(logger, datetime(2026, 5, 4, 0, 50), flush=True))
-    assert len(tables) == 0
+    tables = list(c.yield_check_periodic(logger, datetime(2026, 5, 4, 0, 50), flush=flush))
+    assert len(tables) == 0 if flush else 1
 
 
 def test_yield_check_periodic_archives_files() -> None:
