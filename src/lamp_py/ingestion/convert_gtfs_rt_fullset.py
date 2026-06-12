@@ -13,6 +13,7 @@ from lamp_py.aws.s3 import upload_file
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
+from lamp_py.ingestion.utils import assign_datetime_to_binned_interval
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP, S3Location
 
@@ -183,7 +184,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     continue
 
                 # create key for self.data_parts dictionary that bins based on the chunk interval
-                dt_part = self._interval_key(result_dt)
+                dt_part = assign_datetime_to_binned_interval(result_dt, self.time_chunk_minutes)
 
                 # create new self.table_groups entry for key if it doesn't exist
                 if dt_part not in self.data_parts:
@@ -222,25 +223,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             ("trip_update.vehicle.id", "ascending"),
         ]
 
-    def _interval_key(self, ts: datetime) -> datetime:
-        """
-        Truncate a UTC datetime to its wall-clock-aligned interval start.
-
-        For time_chunk_minutes=15:
-            01:07 -> 01:00,  01:15 -> 01:15,  01:29 -> 01:15,  23:59 -> 23:45
-
-        Returns a naive datetime (no timezone) matching the existing data_parts key convention.
-        """
-        total_minutes = ts.hour * 60 + ts.minute
-        aligned_minutes = (total_minutes // self.time_chunk_minutes) * self.time_chunk_minutes
-        return datetime(
-            year=ts.year,
-            month=ts.month,
-            day=ts.day,
-            hour=aligned_minutes // 60,
-            minute=aligned_minutes % 60,
-        )
-
     def yield_check_periodic(
         self,
         process_logger: ProcessLogger,
@@ -255,7 +237,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         @current_ts - the feed timestamp of the file just processed
         @flush - if True, yield everything remaining
         """
-        current_interval = self._interval_key(current_ts)
+        current_interval = assign_datetime_to_binned_interval(current_ts, self.time_chunk_minutes)
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
 

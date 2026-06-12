@@ -1,5 +1,3 @@
-"""Tests for time-based periodic yielding in GtfsRtFullPartitionConverter."""
-
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
@@ -11,6 +9,7 @@ import pytest
 from lamp_py.ingestion.convert_gtfs_rt import TableData
 from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from lamp_py.ingestion.converter import ConfigType
+from lamp_py.ingestion.utils import assign_datetime_to_binned_interval
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import LAMP
 
@@ -54,11 +53,9 @@ def make_dummy_table(num_rows: int = 10) -> pyarrow.Table:
         pytest.param(60, datetime(2026, 5, 4, 2, 0), datetime(2026, 5, 4, 2, 0), id="60m-on-boundary"),
     ],
 )
-def test_interval_key(chunk_minutes: int, input_ts: datetime, expected_ts: datetime) -> None:
-    """_interval_key truncates timestamps to wall-clock-aligned interval starts."""
-    c = make_converter(chunk_minutes)
-    # pylint: disable=protected-access
-    assert c._interval_key(input_ts) == expected_ts
+def test_assign_datetime_to_binned_interval(chunk_minutes: int, input_ts: datetime, expected_ts: datetime) -> None:
+    """assign_datetime_to_binned_interval truncates timestamps to wall-clock-aligned interval starts."""
+    assert assign_datetime_to_binned_interval(input_ts, chunk_minutes) == expected_ts
 
 
 @pytest.mark.parametrize(
