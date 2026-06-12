@@ -42,14 +42,19 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         Initialize GTFS-RT fullset converter with time-chunked partitioning.
 
         Args:
-            config_type: Type of GTFS-RT configuration (trip updates, vehicle positions, alerts).
+            config_type: Type of GTFS-RT configuration (trip updates, vehicle positions).
             metadata_queue: Queue for metadata communication.
             local_output_location: Local directory for temporary parquet files.
             remote_output_location: S3 location for final output; if None, files stay local.
             polars_filter: Polars expression to filter data at conversion time; defaults to no filtering.
             max_workers: Number of worker threads for parallel processing.
             time_chunk_minutes: Minutes for time-based partitioning (e.g., 15 min intervals).
-            move_source_on_completion: If True, move source files to archive after completion.
+            move_source_on_completion: If True, move source files to archive after completion. 
+                For the LAMP usecase, `source` in this context refers to the `delta` or `archive` 
+                bucket, for ingestion or backfill respectively. The output is uploaded regardless, 
+                but the `source` is only conditionally moved. 
+                    `delta` -> `archive` True, do this, 
+                    `archive` -> `archive` False, don't do this
         """
         GtfsRtConverter.__init__(self, config_type, metadata_queue, max_workers=max_workers)
 
@@ -57,7 +62,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             raise ValueError(
                 "time_chunk_minutes must be at least 5 to ensure proper partitioning and avoid too many small files"
             )
-        self.detail = RtTripDetail()
+
         # Keep tmp_folder as the base temp root to match GtfsRtConverter helpers
         # (clean_local_folders, continuous_pq_update, etc.), which append
         # lamp/<config_type> internally.
@@ -78,7 +83,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         time_chunk_minutes parameter. It will also apply a polars filter to the
         data at the point of conversion from json.gz to pyarrow table, which
         should help reduce the amount of data being written out and speed up the
-        conversion process. This converter is applicable for live ingestion and
+        conversion process. This converter is suitable for live ingestion and
         backfill tasks.
         """
         process_logger = ProcessLogger(
@@ -121,8 +126,10 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                     s3_path = os.path.join(self.remote_output_location.s3_uri, path_suffix)
                     upload_file(local_path, s3_path)
 
-                pool = pyarrow.default_memory_pool()
-                pool.release_unused()
+                # try to get pyarrow to limit memory usage after each loop. 
+                # this is a "ask nicely and pray" move...we can't manage memory directly in python.
+                pyarrow.default_memory_pool().release_unused() 
+                
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
 
@@ -135,14 +142,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             if self.move_source_on_completion:
                 self.move_s3_files()
             self.clean_local_folders()
-
-    @staticmethod
-    def _move_s3_files_async(archive_files: List[str], error_files: List[str]) -> None:
-        """Move archive and error files to S3 in a background thread."""
-        if error_files:
-            move_s3_objects(error_files, os.path.join(S3_ERROR, LAMP))
-        if archive_files:
-            move_s3_objects(archive_files, os.path.join(S3_ARCHIVE, LAMP))
 
     def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
@@ -157,12 +156,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         # and we are now filling in the remaining record that is part of that chunk
         if os.path.exists(local_path):
             existing_table: pl.DataFrame = pl.read_parquet(local_path)
-            df = pl.concat([existing_table, df])
+            df = pl.concat([existing_table, df], how="diagonal")
 
-        if not self.move_source_on_completion:
-            df = (
-                df.unique()
-            )  # unique is appropriate here to ensure we don't write duplicates when files are NOT moved for backfill usecase
         df.write_parquet(local_path, compression="zstd", compression_level=3)
 
     def process_files(self) -> Iterable[pyarrow.table]:
@@ -180,16 +175,13 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         process_logger.log_start()
 
         with ThreadPoolExecutor(max_workers=self.max_workers, initializer=self.thread_init) as pool:
-            # for file in self.files:
-            #     result_dt, result_filename, rt_data = self.gz_to_pyarrow(file)
-
             for result_dt, result_filename, rt_data in pool.map(self.gz_to_pyarrow, self.files):
                 # errors in gtfs_rt conversions are handled in the gz_to_pyarrow
                 # function. if one is encountered, the datetime will be none. log
                 # the error and move on to the next file.
 
                 if result_dt is None:
-                    logging.error(
+                    process_logger.log_failure(
                         "skipping processing: %s",
                         result_filename,
                     )
@@ -271,8 +263,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         current_interval = self._interval_key(current_ts)
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
-            if table is None:
-                continue
+
 
             # yield if we've moved past this interval
             # or if flushing all remaining data
