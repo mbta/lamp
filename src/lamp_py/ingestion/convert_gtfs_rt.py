@@ -485,9 +485,8 @@ class GtfsRtConverter(Converter):
                     )
                     rail_full_set_writer.write_batch(filtered_batch)
 
-                process_logger.add_metadata(batch_count=batch_count)
                 batch_count += 1
-
+            process_logger.add_metadata(total_batches=batch_count)
             upload_writer.close()
             rail_full_set_writer.close()
 
