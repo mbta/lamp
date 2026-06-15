@@ -75,11 +75,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     logger.log_start()
 
     try:
-        files = [
-            f
-            for f in file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=10000)
-            if "com_prod_TripUpdates_enhanced" in f or "mbta.com_realtime_TripUpdates_enhanced" in f
-        ]
+        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=10000)
 
         grouped_files = group_sort_file_list(files)
 
