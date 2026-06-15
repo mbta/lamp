@@ -426,7 +426,7 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
+    def union_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
         Create dataset, with hash column, that will be written to parquet file
 
@@ -435,11 +435,9 @@ class GtfsRtConverter(Converter):
         """
         log = ProcessLogger("make_hash_datset")
         log.log_start()
-        table = hash_gtfs_rt_table(table)
         out_ds = pd.dataset(table)
 
         if self.sync_with_s3(local_path):
-            hash_gtfs_rt_parquet(local_path)
             remote_table_schema = pq.read_schema(local_path)
 
             out_ds = pd.dataset(
@@ -465,97 +463,33 @@ class GtfsRtConverter(Converter):
         """
         process_logger = ProcessLogger("write_local_pq")
         process_logger.log_start()
-        out_ds = self.make_hash_dataset(table, local_path)
-        process_logger.add_metadata(make_hash_dataset=True)
-        unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
-        process_logger.add_metadata(unique_ts_min=unique_ts_min)
-        no_hash_schema = out_ds.schema.remove(out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
-        process_logger.add_metadata(no_hash_schema=True)
+        out_ds = self.union_dataset(table, local_path)
         with tempfile.TemporaryDirectory() as temp_dir:
-            hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
             rail_full_set_path = os.path.join(temp_dir, "rail_full_set.parquet")
 
-            hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
-            upload_writer = pq.ParquetWriter(
-                upload_path, schema=no_hash_schema, compression="zstd", compression_level=3
-            )
+            upload_writer = pq.ParquetWriter(upload_path, schema=out_ds.schema, compression="zstd", compression_level=3)
 
             # include the hash column for debug
             rail_full_set_writer = pq.ParquetWriter(
                 rail_full_set_path, schema=out_ds.schema, compression="zstd", compression_level=3
             )
             process_logger.add_metadata(parquet_writers=True)
-            partitions = pc.unique(
-                out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
-            )
-            process_logger.add_metadata(partitions=True)
-            partition_count = 0
-            for part in partitions:
-                write_table = out_ds.to_table(
-                    filter=(
-                        (pc.field(self.detail.partition_column) == part) & (pc.field("feed_timestamp") < unique_ts_min)
-                    )
-                )
-
-                hash_writer.write_table(write_table)
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                write_table = (
-                    pl.from_arrow(
-                        out_ds.to_table(
-                            filter=(
-                                (pc.field(self.detail.partition_column) == part)
-                                & (pc.field("feed_timestamp") >= unique_ts_min)
-                            )
-                        )
-                    )
-                    .sort(by=["feed_timestamp"])  # type: ignore
-                    .unique(subset=GTFS_RT_HASH_COL, keep="first")
-                    .to_arrow()
-                    .cast(out_ds.schema)
-                )
+            batch_count = 0
+            for batch in out_ds.to_batches():
+                upload_writer.write_batch(batch)
                 if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
-                    lr_write_table = out_ds.to_table(
-                        filter=(
-                            (pc.field(self.detail.partition_column) == part)
-                            & (pc.field("feed_timestamp") < unique_ts_min)
-                            & (
-                                FilterBankRtTripUpdates.ParquetFilter.light_rail
-                                | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
-                            )
-                        )
+                    filtered_batch = batch.filter(
+                        FilterBankRtTripUpdates.ParquetFilter.light_rail
+                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
                     )
-                    rail_full_set_writer.write_table(lr_write_table)
+                    rail_full_set_writer.write_batch(filtered_batch)
 
-                    lr_write_table = (
-                        pl.from_arrow(
-                            out_ds.to_table(
-                                filter=(
-                                    (pc.field(self.detail.partition_column) == part)
-                                    & (pc.field("feed_timestamp") >= unique_ts_min)
-                                    & (
-                                        FilterBankRtTripUpdates.ParquetFilter.light_rail
-                                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
-                                    )
-                                )
-                            )
-                        )
-                        .sort(by=["feed_timestamp"])  # type: ignore
-                        .to_arrow()
-                        .cast(out_ds.schema)
-                    )
-                    rail_full_set_writer.write_table(lr_write_table)
+                process_logger.add_metadata(batch_count=batch_count)
+                batch_count += 1
 
-                hash_writer.write_table(write_table)
-                upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-                partition_count += 1
-                process_logger.add_metadata(partition_count=partition_count)
-            hash_writer.close()
             upload_writer.close()
             rail_full_set_writer.close()
-
-            # overwrite existing hashed parquet path
-            os.replace(hash_pq_path, local_path)
 
             # upload the upload_path file (without hash) to s3
             # replace the first part of the path with the s3 path
@@ -563,6 +497,8 @@ class GtfsRtConverter(Converter):
                 upload_path,
                 local_path.replace(self.tmp_folder, S3_SPRINGBOARD),
             )
+            # overwrite existing parquet data
+            os.replace(upload_path, local_path)
             if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
                 upload_file(
                     rail_full_set_path,
