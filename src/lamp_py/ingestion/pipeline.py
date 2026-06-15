@@ -47,7 +47,7 @@ def main() -> None:
         bucket_filter = LAMP
         check_for_sigterm(metadata_queue, rds_process)
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
-        ingest_glides_events(glides_reader, metadata_queue, upload=True)
+        # ingest_glides_events(glides_reader, metadata_queue, upload=True)
         check_for_sigterm(metadata_queue, rds_process)
 
         process_logger.log_complete()
