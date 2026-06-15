@@ -258,7 +258,7 @@ class GtfsRtConverter(Converter):
                             self.data_parts[dt_part].table,
                             table,
                         ],
-                        promote_options="default",  # union columns
+                        promote_options="permissive",  # union columns
                     )
 
                 self.data_parts[dt_part].files.append(result_filename)
@@ -435,20 +435,17 @@ class GtfsRtConverter(Converter):
         """
         log = ProcessLogger("make_hash_datset")
         log.log_start()
-        out_ds = pd.dataset(table)
-
-        if self.sync_with_s3(local_path):
-            remote_table_schema = pq.read_schema(local_path)
-
-            out_ds = pd.dataset(
-                [
-                    pd.dataset(table),
-                    pd.dataset(
-                        local_path,
-                        schema=override_schema(remote_table_schema, self.detail.table_schema.to_pyarrow_schema()),
-                    ),
-                ],
-            )
+        local_path_schema = pq.read_schema(local_path)
+        unioned_schema = override_schema(
+            pyarrow.unify_schemas([table.schema, local_path_schema], promote_options="permissive"),
+            self.detail.table_schema.to_pyarrow_schema(),
+        )
+        out_ds = pd.dataset(
+            [
+                pd.dataset(table.cast(override_schema(table.schema, unioned_schema))),
+                pd.dataset(local_path, schema=override_schema(local_path_schema, unioned_schema)),
+            ]
+        )
         log.log_complete()
         return out_ds
 
@@ -463,7 +460,9 @@ class GtfsRtConverter(Converter):
         """
         process_logger = ProcessLogger("write_local_pq")
         process_logger.log_start()
-        out_ds = self.union_dataset(table, local_path)
+        out_ds = pd.dataset(table)
+        if self.sync_with_s3(local_path):
+            out_ds = self.union_dataset(table, local_path)
         with tempfile.TemporaryDirectory() as temp_dir:
             upload_path = os.path.join(temp_dir, "upload.parquet")
             rail_full_set_path = os.path.join(temp_dir, "rail_full_set.parquet")
