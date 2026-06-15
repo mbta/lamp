@@ -463,12 +463,14 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+        process_logger = ProcessLogger("write_local_pq")
+        process_logger.log_start()
         out_ds = self.make_hash_dataset(table, local_path)
-
+        process_logger.add_metadata(make_hash_dataset=True)
         unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
-
+        process_logger.add_metadata(unique_ts_min=unique_ts_min)
         no_hash_schema = out_ds.schema.remove(out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
-
+        process_logger.add_metadata(no_hash_schema=True)
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
@@ -483,10 +485,12 @@ class GtfsRtConverter(Converter):
             rail_full_set_writer = pq.ParquetWriter(
                 rail_full_set_path, schema=out_ds.schema, compression="zstd", compression_level=3
             )
-
+            process_logger.add_metadata(parquet_writers=True)
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
+            process_logger.add_metadata(partitions=True)
+            partition_count = 0
             for part in partitions:
                 write_table = out_ds.to_table(
                     filter=(
@@ -544,7 +548,8 @@ class GtfsRtConverter(Converter):
 
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-
+                partition_count += 1
+                process_logger.add_metadata(partition_count=partition_count)
             hash_writer.close()
             upload_writer.close()
             rail_full_set_writer.close()
@@ -565,6 +570,7 @@ class GtfsRtConverter(Converter):
                         "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
                     ),
                 )
+        process_logger.log_complete()
 
     # pylint: enable=R0914
 
