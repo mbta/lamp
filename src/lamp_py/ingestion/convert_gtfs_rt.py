@@ -48,6 +48,7 @@ from lamp_py.ingestion.utils import (
     hash_gtfs_rt_parquet,
     hash_gtfs_rt_table,
     override_schema,
+    union_datasets,
 )
 from lamp_py.runtime_utils.lamp_exception import NoImplException
 from lamp_py.runtime_utils.process_logger import ProcessLogger
@@ -440,17 +441,8 @@ class GtfsRtConverter(Converter):
 
         if self.sync_with_s3(local_path):
             hash_gtfs_rt_parquet(local_path)
-            remote_table_schema = pq.read_schema(local_path)
-
-            out_ds = pd.dataset(
-                [
-                    pd.dataset(table),
-                    pd.dataset(
-                        local_path,
-                        schema=override_schema(remote_table_schema, self.detail.table_schema.to_pyarrow_schema()),
-                    ),
-                ],
-            )
+            local_ds = pd.dataset(local_path)
+            out_ds = union_datasets([out_ds, local_ds], expected_schema=self.detail.table_schema.to_pyarrow_schema())
         log.log_complete()
         return out_ds
 
@@ -463,10 +455,12 @@ class GtfsRtConverter(Converter):
         :param table: pyarrow Table
         :param local_path: path to local parquet file
         """
+        process_logger = ProcessLogger("write_local_pq", local_path=local_path)
+        process_logger.log_start()
         out_ds = self.make_hash_dataset(table, local_path)
 
         unique_ts_min = pc.min(table.column("feed_timestamp")).as_py() - (60 * 45)
-
+        process_logger.add_metadata(unique_ts_min=unique_ts_min)
         no_hash_schema = out_ds.schema.remove(out_ds.schema.get_field_index(GTFS_RT_HASH_COL))
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -487,6 +481,7 @@ class GtfsRtConverter(Converter):
             partitions = pc.unique(
                 out_ds.to_table(columns=[self.detail.partition_column]).column(self.detail.partition_column)
             )
+            partition_count = 1
             for part in partitions:
                 write_table = out_ds.to_table(
                     filter=(
@@ -544,6 +539,9 @@ class GtfsRtConverter(Converter):
 
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
+                partition_count += 1
+
+            process_logger.add_metadata(total_partitions=partition_count)
 
             hash_writer.close()
             upload_writer.close()
@@ -565,6 +563,7 @@ class GtfsRtConverter(Converter):
                         "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
                     ),
                 )
+            process_logger.log_complete()
 
     # pylint: enable=R0914
 

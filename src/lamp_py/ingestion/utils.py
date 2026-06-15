@@ -1,19 +1,20 @@
-import os
-import re
-import gzip
-import shutil
-import pathlib
 import datetime
-import zoneinfo
+import gzip
+import os
+import pathlib
+import re
+import shutil
 import tempfile
+import zoneinfo
+from io import BytesIO
 from typing import Dict, List
 from urllib import request
-from io import BytesIO
 
-import pyarrow
-import pyarrow.parquet as pq
-import pyarrow.compute as pc
 import polars as pl
+import pyarrow
+import pyarrow.compute as pc
+import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -296,3 +297,19 @@ def override_schema(schema: pyarrow.Schema, expected_schema: pyarrow.Schema) -> 
             output_fields.append(col)
 
     return pyarrow.schema(output_fields)
+
+
+def union_datasets(datasets: List[pd.Dataset], expected_schema: pyarrow.Schema) -> pd.Dataset:
+    """
+    Union multiple pyarrow datasets together, overriding the schema of each dataset to match the expected schema.
+
+    When the dataset contains columns that are not in the expected schema, find common types for those columns.
+    """
+    common_schema = override_schema(
+        pyarrow.unify_schemas([ds.schema for ds in datasets], promote_options="permissive"),
+        expected_schema,
+    )
+    ds = pd.dataset(
+        [ds.replace_schema(override_schema(ds.schema, common_schema)) for ds in datasets], schema=common_schema
+    )
+    return ds
