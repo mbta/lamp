@@ -386,7 +386,7 @@ def test_convert(
 ) -> None:
     """It ingests correctly with and without existing files."""
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.move_s3_objects", lambda files, __: files)
-    monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.upload_file", create_mock_upload_file(tmp_path))
+    monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.replace_remote_parquet", create_mock_upload_file(tmp_path))
     dfs = []
     for ts in timestamp:
         converter = GtfsRtConverter(config_type, Queue())
