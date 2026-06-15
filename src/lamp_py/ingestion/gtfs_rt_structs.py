@@ -14,7 +14,7 @@ position = dy.Struct(
 trip_descriptor = dy.Struct(
     inner={
         "trip_id": dy.String(nullable=True),
-        "route_id": dy.String(nullable=True),
+        "route_id": dy.String(),
         "direction_id": dy.UInt8(nullable=True),
         "start_time": dy.String(nullable=True),
         "start_date": dy.String(nullable=True),

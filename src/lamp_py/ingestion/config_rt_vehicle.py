@@ -20,8 +20,8 @@ class VehicleRecord(FeedMessage):
                 "id": dy.String(min_length=1),
                 "vehicle": dy.Struct(
                     inner={
-                        "trip": with_nullable(trip_descriptor, nullable=True),
-                        "vehicle": with_nullable(vehicle_descriptor, nullable=True),
+                        "trip": trip_descriptor,
+                        "vehicle": vehicle_descriptor,
                         "position": with_nullable(position, nullable=True),
                         "current_stop_sequence": dy.UInt32(nullable=True),
                         "stop_id": dy.String(nullable=True),
@@ -105,7 +105,7 @@ class RtVehicleDetail(GTFSRTDetail[VehicleTable, VehicleRecord]):
 
     @property
     def partition_column(self) -> str:
-        return "id"
+        return "vehicle.trip.route_id"
 
     @property
     def import_schema(self) -> pyarrow.schema:

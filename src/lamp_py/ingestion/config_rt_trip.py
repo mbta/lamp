@@ -71,7 +71,7 @@ class RtTripDetail(GTFSRTDetail[ConcentrateTripUpdateTable, TripUpdateRecord]):
 
     @property
     def partition_column(self) -> str:
-        return "id"
+        return "trip_update.trip.route_id"
 
     @property
     def import_schema(self) -> pyarrow.schema:

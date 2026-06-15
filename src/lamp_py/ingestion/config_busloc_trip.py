@@ -9,6 +9,7 @@ from lamp_py.ingestion.gtfs_rt_structs import (
     stop_time_event,
 )
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
+from lamp_py.utils.dataframely import with_nullable
 
 
 class BusLocTripUpdateRecord(FeedMessage):
@@ -23,7 +24,9 @@ class BusLocTripUpdateRecord(FeedMessage):
                         "timestamp": dy.UInt64(nullable=True),  # Not currently provided by Busloc
                         "delay": dy.Int32(nullable=True),  # Not currently provided by Busloc
                         "trip": trip_descriptor,  # Busloc currently only provides trip_id, route_id and schedule_relationship
-                        "vehicle": vehicle_descriptor,  # Busloc currently only provides id and label
+                        "vehicle": with_nullable(
+                            vehicle_descriptor, nullable=True
+                        ),  # Busloc currently only provides id and label
                         "stop_time_update": dy.List(
                             dy.Struct(
                                 inner={
@@ -75,7 +78,7 @@ class RtBusTripDetail(GTFSRTDetail[BusLocTripUpdateTable, BusLocTripUpdateRecord
 
     @property
     def partition_column(self) -> str:
-        return "id"
+        return "trip_update.trip.route_id"
 
     @property
     def import_schema(self) -> pyarrow.schema:
