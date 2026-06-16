@@ -220,6 +220,15 @@ class TestAlertsRecord(AlertsRecord):
     entity = dy.List(inner=dy.Struct(inner=entity_inner), min_length=1)
 
 
+class TestVehicleRecord(VehicleRecord):
+    """With a null route pattern."""
+
+    entity_inner = deepcopy(VehicleRecord.entity.inner.inner)  # type: ignore[attr-defined]
+    entity_inner["vehicle"].inner["trip"].inner["route_pattern_id"] = dy.Any()
+
+    entity = dy.List(inner=dy.Struct(inner=entity_inner), min_length=1)
+
+
 @pytest.mark.parametrize(
     ["config_type", "input_schemas"],
     [
@@ -227,6 +236,7 @@ class TestAlertsRecord(AlertsRecord):
         (ConfigType.RT_ALERTS, [AlertsRecord, AlertsRecord]),
         (ConfigType.RT_ALERTS, [TestAlertsRecord, AlertsRecord]),
         (ConfigType.RT_VEHICLE_POSITIONS, [VehicleRecord, VehicleRecord]),
+        (ConfigType.RT_VEHICLE_POSITIONS, [VehicleRecord, TestVehicleRecord]),
         (ConfigType.RT_TRIP_UPDATES, [TripUpdateRecord, TripUpdateRecord]),
         (ConfigType.BUS_TRIP_UPDATES, [BusLocTripUpdateRecord, BusLocTripUpdateRecord]),
     ],
