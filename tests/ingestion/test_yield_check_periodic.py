@@ -132,7 +132,7 @@ def test_yield_check_periodic(
     assert list(c.data_parts.keys()) == expected_remaining_keys
 
 
-@pytest.parametrize("flush", [True, False])
+@pytest.mark.parametrize("flush", [True, False])
 def test_yield_check_periodic_skips_none_table(flush: bool) -> None:
     """Intervals with None table should not be yielded even when flush=True."""
     c = make_converter(15)
@@ -146,7 +146,7 @@ def test_yield_check_periodic_skips_none_table(flush: bool) -> None:
     assert len(tables) == 0 if flush else 1
 
 
-@pytest.parametrize("move", [True, False])
+@pytest.mark.parametrize("move", [True, False])
 def test_yield_check_periodic_archives_files(move: bool) -> None:
     """Yielded intervals should move their files to archive_files."""
     c = make_converter(15, move_source_on_completion=move)
@@ -165,7 +165,10 @@ def test_yield_check_periodic_archives_files(move: bool) -> None:
 
 
 def test_clean_local_folders_removes_oldest_day(tmp_path: Path) -> None:
-    """clean_local_folders should keep only the two newest day partitions."""
+    """
+    clean_local_folders should keep only the two newest day partitions.
+    Handles case when ingestion is down for a duration exceeding a couple days
+    """
     c = GtfsRtFullPartitionConverter(
         config_type=ConfigType.RT_TRIP_UPDATES,
         metadata_queue=Queue(),
