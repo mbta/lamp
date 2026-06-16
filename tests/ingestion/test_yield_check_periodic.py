@@ -131,6 +131,7 @@ def test_yield_check_periodic(
     assert len(tables) == expected_yield_count
     assert list(c.data_parts.keys()) == expected_remaining_keys
 
+
 @pytest.mark.parametrize("move", [True, False])
 def test_yield_check_periodic_archives_files(move: bool) -> None:
     """Yielded intervals should move their files to archive_files."""
