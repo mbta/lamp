@@ -15,7 +15,7 @@ from lamp_py.ingestion.converter import ConfigType
 
 from lamp_py.ingestion.utils import assign_datetime_to_binned_interval
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD, S3Location
+from lamp_py.runtime_utils.remote_files import LAMP, S3Location
 
 
 # pylint: disable=too-many-arguments,too-many-instance-attributes
