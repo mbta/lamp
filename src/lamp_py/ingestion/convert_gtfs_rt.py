@@ -341,7 +341,7 @@ class GtfsRtConverter(Converter):
                     table = pyarrow.Table.from_pylist(
                         json_data["entity"],
                         schema=pyarrow.schema(
-                            [v.pyarrow_field(k) for k, v in ProposedAlertsRecord.entity.inner.inner.items()]
+                            [v.pyarrow_field(k) for k, v in ProposedAlertsRecord.entity.inner.inner.items()]  # type: ignore[attr-defined]
                         ),
                     )
                 else:

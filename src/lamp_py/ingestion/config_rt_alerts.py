@@ -75,6 +75,7 @@ class AlertsRecord(FeedMessage):
         min_length=1,
     )
 
+
 class ProposedAlertsRecord(FeedMessage):
     """Each Alert message from GTFS-RT."""
 
@@ -142,10 +143,14 @@ class AlertsTable(FeedEntityTable):
 
     alert_cause = dy.String(alias="alert.cause")
     alert_cause_detail = dy.String(nullable=True, alias="alert.cause_detail")
-    alert_cause_detail_translation = with_alias(translated_string.inner["translation"], "alert.cause_detail.translation")
+    alert_cause_detail_translation = with_alias(
+        translated_string.inner["translation"], "alert.cause_detail.translation"
+    )
     alert_effect = dy.String(nullable=True, alias="alert.effect")
     alert_effect_detail = dy.String(nullable=True, alias="alert.effect_detail")
-    alert_effect_detail_translation = with_alias(translated_string.inner["translation"], "alert.effect_detail.translation")
+    alert_effect_detail_translation = with_alias(
+        translated_string.inner["translation"], "alert.effect_detail.translation"
+    )
     alert_severity_level = dy.String(nullable=True, alias="alert.severity_level")
     alert_severity = dy.UInt16(nullable=True, alias="alert.severity")
     alert_created_timestamp = dy.UInt64(nullable=True, alias="alert.created_timestamp")

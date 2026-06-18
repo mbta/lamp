@@ -428,7 +428,8 @@ def test_convert(
                 .unnest("entity")
             )
             for df in dfs
-        ] + [converter.detail.table_schema.create_empty()],
+        ]
+        + [converter.detail.table_schema.create_empty()],
         how="diagonal_relaxed",
     )
 
