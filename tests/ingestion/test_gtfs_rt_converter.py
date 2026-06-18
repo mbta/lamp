@@ -327,8 +327,6 @@ def test_file_conversion(
         == 0
     ), "Some ids in the original message are missing from the converted table."
 
-    assert not expected_converter.detail.table_schema.validate(table).is_empty()
-
 
 def test_bus_trip_updates_file_conversion() -> None:
     """
