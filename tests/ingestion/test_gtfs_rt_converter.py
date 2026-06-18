@@ -19,6 +19,8 @@ from polars.testing import assert_frame_equal
 from pyarrow import fs
 
 from lamp_py.ingestion.gtfs_rt_detail import FeedMessage
+from lamp_py.ingestion.config_busloc_vehicle import BusLocVehicleRecord
+from lamp_py.ingestion.config_rt_alerts import AlertsRecord, ProposedAlertsRecord
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import flatten_table_schema
@@ -367,10 +369,14 @@ def test_bus_trip_updates_file_conversion() -> None:
 
 
 @pytest.mark.parametrize(
-    "config_type",
     [
-        ConfigType.BUS_VEHICLE_POSITIONS,
-        ConfigType.RT_ALERTS,
+        "config_type",
+        "input_schemas",
+    ],
+    [
+        (ConfigType.BUS_VEHICLE_POSITIONS, [BusLocVehicleRecord, BusLocVehicleRecord]),
+        (ConfigType.RT_ALERTS, [AlertsRecord, AlertsRecord]),
+        (ConfigType.RT_ALERTS, [AlertsRecord, ProposedAlertsRecord]),
     ],
 )
 @pytest.mark.parametrize(
@@ -379,6 +385,7 @@ def test_bus_trip_updates_file_conversion() -> None:
 )
 def test_convert(
     config_type: ConfigType,
+    input_schemas: list[type[FeedMessage]],
     timestamp: list[datetime],
     dy_gen: dy.random.Generator,
     monkeypatch: pytest.MonkeyPatch,
@@ -388,10 +395,9 @@ def test_convert(
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.move_s3_objects", lambda files, __: files)
     monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.upload_file", create_mock_upload_file(tmp_path))
     dfs = []
-    for ts in timestamp:
+    for i, ts in enumerate(timestamp):
         converter = GtfsRtConverter(config_type, Queue())
-        assert converter.detail.record_schema is not None
-        df = gtfs_rt_factory(converter.detail.record_schema, dy_gen, ts)
+        df = gtfs_rt_factory(input_schemas[i], dy_gen, ts)
 
         incoming_file = tmp_path / f"{ts.isoformat()}.json.gz"
 
@@ -414,11 +420,16 @@ def test_convert(
         ]
     )
 
-    expected_records = unnest_all_structs(
-        pl.union(dfs)
-        .select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
-        .explode("entity")
-        .unnest("entity")
+    expected_records = pl.concat(
+        [
+            unnest_all_structs(
+                df.select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
+                .explode("entity")
+                .unnest("entity")
+            )
+            for df in dfs
+        ] + [converter.detail.table_schema.create_empty()],
+        how="diagonal_relaxed",
     )
 
     assert_frame_equal(converted_records, expected_records, check_row_order=False, check_column_order=False)
