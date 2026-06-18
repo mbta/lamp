@@ -1,7 +1,7 @@
 import polars as pl
 import dataframely as dy
 
-from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions
+from lamp_py.utils.filter_bank import FilterBankRtVehiclePositions, LightRailFilter
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -46,21 +46,20 @@ class VehiclePositions(dy.Schema):
 class LightRailTerminalVehiclePositions(dy.Schema):
     "Analytical VehiclePositions dataset for light rail terminal predictions."
     id = VehiclePositions.id
-    trip_id = VehiclePositions.trip_id
     route_id = VehiclePositions.route_id
     direction_id = VehiclePositions.direction_id
     start_time = VehiclePositions.start_time
     start_date = VehiclePositions.start_date
-    revenue = VehiclePositions.revenue
     vehicle_id = VehiclePositions.vehicle_id
     vehicle_label = VehiclePositions.vehicle_label
     timestamp = VehiclePositions.timestamp
-    feed_timestamp = VehiclePositions.feed_timestamp
-    stop_id = VehiclePositions.stop_id
     stop_id = dy.String(
         nullable=True,
         alias="vehicle.stop_id",
-        check=lambda x: x.is_in(FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list),
+        check=lambda x: x.is_in(
+            FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list
+            + LightRailFilter.terminal_stop_ids
+        ),
     )
     trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id", check=lambda x: x.is_not_null())
     revenue = dy.Bool(nullable=True, alias="vehicle.trip.revenue", check=lambda x: x)
@@ -100,12 +99,14 @@ def lrtp(polars_df: pl.DataFrame) -> dy.DataFrame[LightRailTerminalVehiclePositi
     process_logger.log_start()
 
     polars_df = restrict_vp_to_only_terminal_stop_ids(
-        polars_df, FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_stop_list
+        polars_df,
+        FilterBankRtVehiclePositions.ParquetFilter.light_rail_terminal_adjacent_stop_list
+        + LightRailFilter.terminal_stop_ids,
     )
     polars_df = apply_gtfs_rt_vehicle_positions_timezone_conversions(polars_df)
     valid = LightRailTerminalVehiclePositions.validate(polars_df)
 
-    process_logger.log_start()
+    process_logger.log_complete()
 
     return valid
 
