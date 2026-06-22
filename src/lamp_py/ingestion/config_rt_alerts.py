@@ -55,7 +55,7 @@ class AlertsRecord(FeedMessage):
                         "header_text": translated_string,
                         "description_text": translated_string,
                         "severity_level": dy.String(nullable=True),
-                        "severity": dy.UInt16(nullable=True),  # MBTA Enhanced field
+                        "severity": dy.UInt16(min=0, max=10),  # MBTA Enhanced field
                         "created_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field
                         "last_modified_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field
                         "last_push_notification_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field
@@ -117,7 +117,7 @@ class ProposedAlertsRecord(FeedMessage):
                         "header_text": with_nullable(translated_string, nullable=False),
                         "description_text": with_nullable(translated_string, nullable=False),
                         "severity_level": dy.String(nullable=True),
-                        "severity": dy.UInt16(nullable=True),  # MBTA Enhanced field
+                        "severity": dy.UInt16(min=0, max=10),  # MBTA Enhanced field
                         "created_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field
                         "last_modified_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field
                         "last_push_notification_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field
@@ -152,7 +152,7 @@ class AlertsTable(FeedEntityTable):
         translated_string.inner["translation"], "alert.effect_detail.translation"
     )
     alert_severity_level = dy.String(nullable=True, alias="alert.severity_level")
-    alert_severity = dy.UInt16(nullable=True, alias="alert.severity")
+    alert_severity = dy.UInt16(min=0, max=10, alias="alert.severity")
     alert_created_timestamp = dy.UInt64(nullable=True, alias="alert.created_timestamp")
     alert_last_modified_timestamp = dy.UInt64(nullable=True, alias="alert.last_modified_timestamp")
     alert_last_push_notification_timestamp = dy.UInt64(nullable=True, alias="alert.last_push_notification_timestamp")
