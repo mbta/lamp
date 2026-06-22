@@ -1,103 +1,108 @@
-import random
-import json
 import datetime
 import os
-
+import random
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+import dataframely as dy
 import pandas
 import polars as pl
+import pytest
 
 from lamp_py.ingestion.config_rt_alerts import AlertsTable
+from lamp_py.ingestion.gtfs_rt_structs import translated_string
 from lamp_py.performance_manager.alerts import (
-    extract_alerts,
-    transform_translations,
-    transform_timestamps,
     explode_active_periods,
     explode_informed_entity,
+    extract_alerts,
+    transform_timestamps,
+    transform_translations,
 )
 from lamp_py.performance_manager.gtfs_utils import BOSTON_TZ_ZONEINFO
-
 from tests.test_resources import springboard_dir
 
 
-def generate_sample_translations(columns: List[str]) -> pandas.DataFrame:
+def realistic_alerts(dy_gen: dy.random.Generator, n: int = 2) -> pl.DataFrame:
+    """Override the random generator to produce realistic `TranslatedString`s."""
+    translation_sample = dy.List(
+        dy.Struct(
+            inner={
+                "text": dy.String(min_length=1),
+                "language": dy.Enum(categories=["en", "es", "fr"]),
+            },
+        ),
+        nullable=True,
+    ).sample(dy_gen, n)
+    id_sample = dy.UInt32(primary_key=True).sample(dy_gen, n).cast(pl.String)
+
+    df = AlertsTable.sample(
+        generator=dy_gen,
+        overrides={
+            "id": id_sample,
+            "alert.header_text.translation": translation_sample,
+            "alert.description_text.translation": translation_sample,
+            "alert.service_effect_text.translation": translation_sample,
+            "alert.timeframe_text.translation": translation_sample,
+            "alert.recurrence_text.translation": translation_sample,
+            "alert.cause_detail.translation": translation_sample,
+            "alert.effect_detail.translation": translation_sample,
+        },
+    )
+
+    return df
+
+
+@pytest.mark.parametrize(
+    ["old_column", "new_column"],
+    [
+        ("header_text.translation", "header_text.translation.text"),
+        ("description_text.translation", "description_text.translation.text"),
+        ("service_effect_text.translation", "service_effect_text.translation.text"),
+        ("timeframe_text.translation", "timeframe_text.translation.text"),
+        ("recurrence_text.translation", "recurrence_text.translation.text"),
+        ("cause_detail.translation", "cause_detail"),
+        ("effect_detail.translation", "effect_detail"),
+    ],
+)
+def test_transform_translations(dy_gen: dy.random.Generator, tmp_path: Path, old_column: str, new_column: str) -> None:
     """
-    generate sample data for translations tests
+    Test that translation transformations work as expected
     """
-    # create sample list of translation data
-    entry_map = {
-        "es": "Texto de muestra en español",
-        "fr": "Texte d'exemple en français",
-        "en": "Sample text in English",
-    }
+    # arrange
+    alerts_path = tmp_path / "alerts.parquet"
+    realistic_alerts(dy_gen).write_parquet(alerts_path)
+    extracted_alerts = extract_alerts(
+        [alerts_path.as_posix()],
+        existing_id_timestamp_pairs=pandas.DataFrame(columns=["id", "last_modified_timestamp"]),
+    )
 
-    # create a 200 record sample data
-    sample_data: List[Dict[str, Optional[List[Dict[str, str]]]]] = []
-    for _ in range(200):
-        record: Dict[str, Optional[List[Dict[str, str]]]] = {}
+    # act
+    alerts_processed = transform_translations(extracted_alerts)
 
-        for col in columns:
-            translations: List[Dict[str, str]] = []
-            for __ in range(random.choice([0, 1, 2])):
-                language = random.choice(list(entry_map.keys()))
-                entry: Dict[str, str] = {
-                    "language": language,
-                    "text": entry_map[language],
-                }
-                translations.append(entry)
+    # assert that column names have been updated as expected
+    assert old_column not in alerts_processed.columns
+    assert new_column in alerts_processed.columns
 
-            record[col] = translations
+    # assert that all of the english text is processed as a translation
+    raw_en_translations = (
+        pl.from_pandas(extracted_alerts)
+        .select(
+            "id",
+            translation=pl.col(old_column)
+            .list.filter(pl.element().struct.field("language") == "en")
+            .list.first()
+            .struct.field("text"),
+        )
+        .filter(pl.col("translation").is_not_null())
+    )
+    processed_translations = pl.from_pandas(alerts_processed).select("id", translation=pl.col(new_column))
 
-            if not record[col]:
-                if random.choice([True, False]):
-                    record[col] = None
-
-        sample_data.append(record)
-
-    return pandas.DataFrame(sample_data)
-
-
-def test_transform_translations() -> None:
-    """
-    test that translation transformations work as expected
-    """
-    # Define the translation columns
-    columns = [
-        "header_text.translation",
-        "description_text.translation",
-        "service_effect_text.translation",
-        "timeframe_text.translation",
-        "recurrence_text.translation",
-    ]
-
-    alerts_raw = generate_sample_translations(columns)
-    alerts_processed = transform_translations(alerts_raw)
-
-    for old_name in columns:
-        new_name = f"{old_name}.text"
-
-        # check that column names have been updated as expected
-        assert old_name not in alerts_processed.columns
-        assert new_name in alerts_processed.columns
-
-        # check that the number of records that have english translations is
-        # the same as the number of transformed translations.
-        raw_en_translation_count = alerts_raw[old_name].apply(lambda x: '"en"' in json.dumps(x)).sum()
-        processed_translation_count = alerts_processed[new_name].notna().sum()
-
-        assert raw_en_translation_count == processed_translation_count
-
-        # check that all of the translations are the english one
-        unique_translations = alerts_processed[new_name].dropna().unique()
-        assert len(unique_translations) == 1
-        assert unique_translations[0] == "Sample text in English"
+    assert 0 == raw_en_translations.join(processed_translations, how="anti", on=["id", "translation"]).height
 
 
 def generate_sample_timestamps(start_ts: int, end_ts: int) -> pandas.DataFrame:
     """
-    generate a sample dataframe for timestamp conversion testing
+    Generate a sample dataframe for timestamp conversion testing
     """
     sample_data = []
 
@@ -135,7 +140,7 @@ def generate_sample_timestamps(start_ts: int, end_ts: int) -> pandas.DataFrame:
 
 def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
     """
-    test timestamp conversions for a sample data generated between the start_ts and end_ts
+    Test timestamp conversions for a sample data generated between the start_ts and end_ts
     """
     alerts_raw = generate_sample_timestamps(start_ts, end_ts)
     # process sample data and inspect
@@ -169,7 +174,7 @@ def ranged_timestamp_test(start_ts: int, end_ts: int) -> None:
 
 def test_transform_timestamps() -> None:
     """
-    test that timestamp transformations work as expected around new years, the
+    Test that timestamp transformations work as expected around new years, the
     start of DST and the end of DST
     """
     ranged_timestamp_test(
@@ -237,7 +242,7 @@ def generate_sample_active_periods(
 
 def test_explode_active_period() -> None:
     """
-    test that active periods can be exploded without losing information
+    Test that active periods can be exploded without losing information
     """
     start_dt = datetime.datetime(2023, 1, 1, tzinfo=BOSTON_TZ_ZONEINFO)
     end_dt = datetime.datetime(2023, 1, 2, tzinfo=BOSTON_TZ_ZONEINFO)
@@ -283,7 +288,7 @@ def generate_sample_informed_entity(
     choices: Dict,
 ) -> Tuple[pandas.DataFrame, int]:
     """
-    generate sample data for testing explode_informed_entity transformation
+    Generate sample data for testing explode_informed_entity transformation
     @return a tuple of the data and an expected rowcount post explosion
     """
     sample_data = []
@@ -318,7 +323,7 @@ def generate_sample_informed_entity(
 
 def test_explode_informed_entity() -> None:
     """
-    test that exploding around the informed entity column works as expected
+    Test that exploding around the informed entity column works as expected
     """
     choices: Dict[str, Union[List[str | None], List[float | None], List[str]]] = {
         "route_id": [

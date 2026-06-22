@@ -195,8 +195,10 @@ def extract_alerts(alert_files: List[str], existing_id_timestamp_pairs: pandas.D
         "id",
         "alert.cause",
         "alert.cause_detail",
+        "alert.cause_detail.translation",
         "alert.effect",
         "alert.effect_detail",
+        "alert.effect_detail.translation",
         "alert.header_text.translation",
         "alert.description_text.translation",
         "alert.severity_level",
@@ -217,8 +219,10 @@ def extract_alerts(alert_files: List[str], existing_id_timestamp_pairs: pandas.D
     rename_map = {
         "alert.cause": "cause",
         "alert.cause_detail": "cause_detail",
+        "alert.cause_detail.translation": "cause_detail.translation",
         "alert.effect": "effect",
         "alert.effect_detail": "effect_detail",
+        "alert.effect_detail.translation": "effect_detail.translation",
         "alert.header_text.translation": "header_text.translation",
         "alert.description_text.translation": "description_text.translation",
         "alert.severity_level": "severity_level",
@@ -289,12 +293,18 @@ def transform_translations(alerts: pandas.DataFrame) -> pandas.DataFrame:
         "service_effect_text",
         "timeframe_text",
         "recurrence_text",
+        "cause_detail",
+        "effect_detail",
     ]
 
     drop_columns = []
     for key in translation_columns:
         translation_key = f"{key}.translation"
-        alerts[f"{translation_key}.text"] = alerts[translation_key].apply(process_translation)
+        text = alerts[translation_key].apply(process_translation)
+        if key in ["cause_detail", "effect_detail"]:
+            alerts[key] = text.fillna(alerts[key])
+        else:
+            alerts[f"{translation_key}.text"] = text
         drop_columns.append(translation_key)
 
     alerts = alerts.drop(columns=drop_columns)
