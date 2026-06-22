@@ -3,10 +3,13 @@ import json
 import datetime
 import os
 
+from pathlib import Path
 from typing import List, Tuple, Dict, Optional, Union
 
 import pandas
+import polars as pl
 
+from lamp_py.ingestion.config_rt_alerts import AlertsTable
 from lamp_py.performance_manager.alerts import (
     extract_alerts,
     transform_translations,
@@ -16,7 +19,7 @@ from lamp_py.performance_manager.alerts import (
 )
 from lamp_py.performance_manager.gtfs_utils import BOSTON_TZ_ZONEINFO
 
-from ..test_resources import springboard_dir
+from tests.test_resources import springboard_dir
 
 
 def generate_sample_translations(columns: List[str]) -> pandas.DataFrame:
@@ -363,7 +366,7 @@ def test_explode_informed_entity() -> None:
             assert set(values) == set(options), f"{column} has different values"
 
 
-def test_etl() -> None:
+def test_etl(tmp_path: Path) -> None:
     """
     Test that the entire ETL pipeline can be used without throwing and that it
     will be impacted by existing alerts that are passed into the extract_alerts
@@ -379,10 +382,17 @@ def test_etl() -> None:
         "6ef6922c20064cb9a8f09a3b3b1d2783-0.parquet",
     )
 
+    temp_path = tmp_path.joinpath("test_alerts.parquet").as_posix()
+    (
+        pl.read_parquet(test_file)
+        .match_to_schema(AlertsTable.to_polars_schema(), missing_struct_fields="insert", missing_columns="insert")
+        .write_parquet(temp_path)
+    )
+
     key_columns = ["id", "last_modified_timestamp"]
     existing = pandas.DataFrame(columns=key_columns)
 
-    alerts = extract_alerts(alert_files=[test_file], existing_id_timestamp_pairs=existing)
+    alerts = extract_alerts(alert_files=[temp_path], existing_id_timestamp_pairs=existing)
     alerts = transform_translations(alerts)
     alerts = transform_timestamps(alerts)
     alerts = explode_active_periods(alerts)
@@ -390,7 +400,7 @@ def test_etl() -> None:
 
     # process it a second time with some of the id / lm timestamp pairs to filter against.
     existing = alerts[key_columns].drop_duplicates().head(5)
-    alerts_2 = extract_alerts(alert_files=[test_file], existing_id_timestamp_pairs=existing)
+    alerts_2 = extract_alerts(alert_files=[temp_path], existing_id_timestamp_pairs=existing)
     alerts_2 = transform_translations(alerts_2)
     alerts_2 = transform_timestamps(alerts_2)
     alerts_2 = explode_active_periods(alerts_2)

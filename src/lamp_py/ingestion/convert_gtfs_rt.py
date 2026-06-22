@@ -39,7 +39,7 @@ from lamp_py.aws.s3 import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
+from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail, ProposedAlertsRecord
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
 from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
@@ -334,7 +334,18 @@ class GtfsRtConverter(Converter):
             feed_timestamp = json_data["header"]["timestamp"]
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
 
-            table = pyarrow.Table.from_pylist(json_data["entity"], schema=self.detail.import_schema)
+            try:
+                table = pyarrow.Table.from_pylist(json_data["entity"], schema=self.detail.import_schema)
+            except pyarrow.ArrowTypeError as e:
+                if self.config_type == ConfigType.RT_ALERTS:
+                    table = pyarrow.Table.from_pylist(
+                        json_data["entity"],
+                        schema=pyarrow.schema(
+                            [v.pyarrow_field(k) for k, v in ProposedAlertsRecord.entity.inner.inner.items()]  # type: ignore[attr-defined]
+                        ),
+                    )
+                else:
+                    raise e
 
             table = table.append_column(
                 "year",
