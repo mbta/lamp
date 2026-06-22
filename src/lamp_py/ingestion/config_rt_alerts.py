@@ -114,8 +114,8 @@ class ProposedAlertsRecord(FeedMessage):
                         "effect": dy.String(nullable=True),
                         "effect_detail": translated_string,
                         "url": translated_string,
-                        "header_text": translated_string,
-                        "description_text": translated_string,
+                        "header_text": with_nullable(translated_string, nullable=False),
+                        "description_text": with_nullable(translated_string, nullable=False),
                         "severity_level": dy.String(nullable=True),
                         "severity": dy.UInt16(nullable=True),  # MBTA Enhanced field
                         "created_timestamp": dy.UInt64(nullable=True),  # MBTA Enhanced field

@@ -50,7 +50,7 @@ translated_string = dy.Struct(
         "translation": dy.List(
             dy.Struct(
                 inner={
-                    "text": dy.String(nullable=True),
+                    "text": dy.String(),
                     "language": dy.String(nullable=True),
                 }
             ),
