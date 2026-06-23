@@ -29,7 +29,7 @@ class TransitMasterSchedule(BusBaseSchema):
     tm_planned_sequence_end = dy.Int64(nullable=True)
     tm_planned_sequence_start = dy.Int64(nullable=True)
     service_date = dy.Date(nullable=True)
-    tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
+    tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone="UTC")
     timepoint_order = dy.UInt32(nullable=True)
     waiver_remark = dy.String(nullable=True, regex=r"^([[:alpha:]]{1,5}|Unrecognized Code)$")
     STOP_CROSSING_ID = dy.Int64(nullable=False)
@@ -151,7 +151,9 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
                 (
                     pl.col("CALENDAR_ID").cast(pl.String).str.to_datetime("1%Y%m%d", time_unit="us")
                     + pl.duration(seconds=pl.col("SCHEDULED_TIME"))
-                ).alias("tm_stop_departure_dt"),
+                )
+                .dt.replace_time_zone("UTC")
+                .alias("tm_stop_departure_dt"),
                 pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
                 pl.col("ROUTE_ABBR").str.strip_chars_start(pl.lit("0")).alias("route_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").max().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_end"),
