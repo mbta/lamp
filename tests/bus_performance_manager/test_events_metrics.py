@@ -1,11 +1,13 @@
-# pylint: disable=too-many-positional-arguments,too-many-arguments
+# pylint: disable=too-many-positional-arguments,too-many-arguments,too-many-ancestors
 from contextlib import nullcontext
-from datetime import datetime, date
+from datetime import date, datetime
 
+import dataframely as dy
 import polars as pl
 import pytest
-from dataframely.random import Generator
 from dataframely.exc import ValidationError
+from dataframely.random import Generator
+
 from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
 
 
@@ -40,7 +42,7 @@ def test_dy_departure_after_arrival(
     stopped_duration_seconds: int | None,
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if the departure dt is earlier than the arrival dt."
+    """It returns false if the departure dt is earlier than the arrival dt."""
     df = BusPerformanceMetrics.sample(num_rows=1, generator=dy_gen).with_columns(
         stop_arrival_dt=stop_arrival_dt,
         stop_departure_dt=stop_departure_dt,
@@ -111,7 +113,7 @@ def test_dy_stop_sequence_implies_time_order(
     stopped_duration_seconds: list[int],
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if any departure or arrival time is earlier than the preceding record."
+    """It returns false if any departure or arrival time is earlier than the preceding record."""
     df = BusPerformanceMetrics.sample(
         num_rows=2,
         generator=dy_gen,
@@ -177,7 +179,7 @@ def test_dy_travel_time_plus_stopped_duration_equals_total_trip(
     stopped_duration_seconds: list[int],
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if the travel times and stopped durations don't add up to the total trip duration."
+    """It returns false if the travel times and stopped durations don't add up to the total trip duration."""
     df = BusPerformanceMetrics.sample(num_rows=3, generator=dy_gen).with_columns(
         trip_id=pl.lit("1"),
         vehicle_label=pl.lit("x"),
@@ -191,3 +193,71 @@ def test_dy_travel_time_plus_stopped_duration_equals_total_trip(
 
     with num_rows:
         assert BusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
+
+
+class TestBusPerformanceMetrics(BusPerformanceMetrics):
+    """Production schema plus test-only rules."""
+
+    @dy.rule()
+    def headways_if_planned_or_actual_departure(cls) -> pl.Expr:
+        """Headways aren't null if there is a planned or actual departure time."""
+        return pl.all_horizontal(
+            pl.coalesce("stop_departure_dt", "plan_stop_departure_dt").is_not_null(),
+            pl.coalesce("stop_departure_dt", "plan_stop_departure_dt").shift().is_not_null(),
+        ) == pl.all_horizontal(pl.selectors.contains("headway").is_not_null())
+
+
+@pytest.mark.parametrize(
+    [
+        "stop_departure_dt",
+        "plan_stop_departure_dt",
+        "route_direction_headway_seconds",
+        "direction_destination_headway_seconds",
+        "num_rows",
+    ],
+    [
+        (
+            [None, None],
+            [datetime(2000, 1, 1), datetime(2000, 1, 1, 1)],
+            [None, None],
+            [None, None],
+            pytest.raises(ValidationError, match="headways_if_planned_or_actual_departure"),
+        ),
+        (
+            [None, None],
+            [datetime(2000, 1, 1), datetime(2000, 1, 1, 1)],
+            [None, 60 * 60],
+            [None, 60 * 60],
+            nullcontext(2),
+        ),
+    ],
+    ids=[
+        "planned_departure_no_headways",
+        "departure_with_headways",
+    ],
+)
+def test_dy_headways_if_planned_or_actual_departure(
+    dy_gen: Generator,
+    stop_departure_dt: list[datetime],
+    plan_stop_departure_dt: list[datetime],
+    route_direction_headway_seconds: list[int],
+    direction_destination_headway_seconds: list[int],
+    num_rows: pytest.RaisesExc,
+) -> None:
+    """It returns false if there is a planned or actual departure time, but the route_direction_headway_seconds or direction_destination_headway_seconds are null."""
+    df = TestBusPerformanceMetrics.sample(num_rows=2, generator=dy_gen).with_columns(
+        route_id=pl.lit("1"),
+        service_date=pl.lit(date(2000, 1, 1)),
+        stop_id=pl.lit("a"),
+        direction_id=pl.lit(0),
+        direction_destination=pl.lit("b"),
+        travel_time_seconds=pl.lit(None),
+        stopped_duration_seconds=pl.lit(None),
+        stop_departure_dt=pl.Series(values=stop_departure_dt),
+        plan_stop_departure_dt=pl.Series(values=plan_stop_departure_dt),
+        route_direction_headway_seconds=pl.Series(values=route_direction_headway_seconds),
+        direction_destination_headway_seconds=pl.Series(values=direction_destination_headway_seconds),
+    )
+
+    with num_rows:
+        assert TestBusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
