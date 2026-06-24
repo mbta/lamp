@@ -10,7 +10,6 @@ import polars as pl
 import pytest
 
 from lamp_py.ingestion.config_rt_alerts import AlertsTable
-from lamp_py.ingestion.gtfs_rt_structs import translated_string
 from lamp_py.performance_manager.alerts import (
     explode_active_periods,
     explode_informed_entity,
