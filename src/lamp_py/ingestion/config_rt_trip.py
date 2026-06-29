@@ -57,7 +57,7 @@ class RtTripDetail(GTFSRTDetail):
                                     )
                                 ),
                             ),
-                            ("trip_properties", trip_properties),
+                            ("trip_properties", trip_properties.pyarrow_dtype),
                             ("timestamp", pyarrow.uint64()),
                             ("delay", pyarrow.int32()),
                         ]
