@@ -145,7 +145,7 @@ def join_tm_schedule_to_gtfs_schedule(
         )
         .with_columns(
             pl.col("plan_stop_departure_dt")
-            .sub(pl.col("service_date").cast(pl.Datetime))
+            .sub(pl.col("service_date").cast(pl.Datetime(time_zone="UTC")))
             .dt.total_seconds()
             .alias("plan_stop_departure_sam"),
             pl.struct("plan_stop_departure_dt", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")
