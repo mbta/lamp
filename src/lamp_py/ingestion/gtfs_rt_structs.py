@@ -66,3 +66,5 @@ stop_time_event = dy.Struct(
         "uncertainty": dy.Int32(nullable=True),
     },
 )
+
+trip_properties = dy.Struct(inner={"trip_headsign": dy.String(nullable=True)})
