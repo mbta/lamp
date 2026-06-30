@@ -11,10 +11,10 @@ from lamp_py.aws.s3 import (
     move_s3_objects,
     file_list_from_s3,
 )
+from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 from lamp_py.ingestion.convert_gtfs import GtfsConverter
-from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import (
     ConfigType,
     Converter,
@@ -24,7 +24,7 @@ from lamp_py.runtime_utils.lamp_exception import (
     NoImplException,
     IgnoreIngestion,
 )
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING, S3_SPRINGBOARD, S3Location
 from lamp_py.ingestion.utils import group_sort_file_list
 from lamp_py.ingestion.compress_gtfs.gtfs_to_parquet import gtfs_to_parquet
 
@@ -52,7 +52,7 @@ def run_converter(converter: Converter) -> None:
 
 def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
     """
-    ingest gtfs schedules from MBTA GTFS schedule archive
+    Ingest gtfs schedules from MBTA GTFS schedule archive
     """
     logger = ProcessLogger(process_name="ingest_gtfs")
     logger.log_start()
@@ -65,7 +65,7 @@ def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
 
 def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
     """
-    get all of the filepaths currently in the incoming bucket, sort them into
+    Get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
     tables to parquet files in the springboard bucket, add the parquet
     filepaths to the metadata table as unprocessed, and move gtfs files to the
@@ -75,7 +75,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     logger.log_start()
 
     try:
-        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=10000)
+        files = file_list_from_s3(bucket_name=S3_INCOMING, file_prefix=bucket_filter, max_list_size=50000)
 
         grouped_files = group_sort_file_list(files)
 
@@ -94,7 +94,17 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
             try:
                 config_type = ConfigType.from_filename(file_group[0])
                 if config_type not in converters:
-                    converters[config_type] = GtfsRtConverter(config_type, metadata_queue)
+                    if config_type in (ConfigType.RT_ALERTS, ConfigType.VEHICLE_COUNT, ConfigType.SCHEDULE):
+                        converters[config_type] = GtfsConverter(config_type, metadata_queue)
+                    else:  # all TripUpdates, VehiclePositions
+                        converters[config_type] = GtfsRtFullPartitionConverter(
+                            config_type,
+                            metadata_queue,
+                            remote_output_location=S3Location(
+                                S3_SPRINGBOARD, os.path.join(LAMP, "FULLSET", str(config_type))
+                            ),
+                            move_source_on_completion=True,
+                        )
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:
                 continue
@@ -123,6 +133,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     process_count = os.cpu_count()
     if process_count is None:
         process_count = 4
+
     if len(converters) > 0:
         with get_context("spawn").Pool(processes=process_count, maxtasksperchild=1) as pool:
             pool.map_async(run_converter, converters.values())
@@ -134,7 +145,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
 
 def ingest_gtfs(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
     """
-    ingest all gtfs file types
+    Ingest all gtfs file types
 
     static schedule files should be ingested first
     """
