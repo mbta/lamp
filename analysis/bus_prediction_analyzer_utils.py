@@ -84,14 +84,15 @@ VP_COLUMN_MAP = {
     "vehicle.trip.trip_id": "trip_id",
     "vehicle.current_stop_sequence": "stop_sequence",
     "vehicle.vehicle.id": "vehicle_id",
-    "vehicle.timestamp": "actual_timestamp",
+    "vehicle.timestamp": "vp_last_update_timestamp",
     "vehicle.current_status": "current_status",
+    "vehicle.position.longitude": "longitude",
+    "vehicle.position.latitude": "latitude",
     "feed_timestamp": "vp_feed_timestamp",
-    "vehicle.timestamp": "vp_timestamp",
 }
 
 
-def narrow_vehicle_positions(df: pl.DataFrame) -> pl.DataFrame:
+def narrow_vehicle_positions(df: pl.LazyFrame) -> pl.LazyFrame:
     """Filter and deduplicate vehicle positions to one row per stop visit.
 
     Filters to STOPPED_AT status, deduplicates by (trip_id, stop_sequence)
@@ -100,11 +101,14 @@ def narrow_vehicle_positions(df: pl.DataFrame) -> pl.DataFrame:
     required = list(VP_COLUMN_MAP.keys())
     return (
         df.select(required)
+        # grabbing all current_status is not useful - even if to look at the inbetween behavior. 
+        # this might be something for single trip analysis
         .filter(pl.col("vehicle.current_status") == "STOPPED_AT")
-        .unique(subset=["vehicle.trip.trip_id", "vehicle.current_stop_sequence"], keep="first")
+        # median here? agg it? get median vehicle position stoppped at. 
+        .unique(subset=["vehicle.trip.trip_id", "vehicle.current_stop_sequence"], keep="last")
         .sort("vehicle.trip.trip_id", "vehicle.current_stop_sequence")
         .rename(VP_COLUMN_MAP)
-        .drop("current_status")
+        # .drop("current_status")
     )
 
 
@@ -113,21 +117,22 @@ TU_COLUMN_MAP = {
     "trip_update.stop_time_update.stop_sequence": "stop_sequence",
     "trip_update.stop_time_update.stop_id": "stop_id",
     "trip_update.vehicle.id": "vehicle_id",
-    "trip_update.stop_time_update.arrival.time": "predicted_arrival",
+    "trip_update.stop_time_update.arrival.time": "predicted_arrival_time",
+    "trip_update.stop_time_update.departure.time": "predicted_departure_time",
     "trip_update.trip.route_id": "route_id",
     "trip_update.trip.start_time": "start_time",
-    "trip_update.timestamp": "tu_timestamp",
+    "trip_update.timestamp": "tu_last_update_timestamp",
     "feed_timestamp": "tu_feed_timestamp",
 }
 
 
-def narrow_trip_updates(df: pl.DataFrame) -> pl.DataFrame:
+def narrow_trip_updates(df: pl.LazyFrame) -> pl.LazyFrame:
     """Select and rename trip_update columns to canonical names."""
     required = list(TU_COLUMN_MAP.keys())
-    return df.select(required).rename(TU_COLUMN_MAP)
+    return df.select(required).rename(TU_COLUMN_MAP).filter(pl.col("vehicle_id").is_not_null()).with_columns(vehicle_id = pl.col("vehicle_id").str.replace(pattern = "y|d", value = ""),)
 
 
-def join_tu_vp(tu_df: pl.DataFrame, vp_df: pl.DataFrame) -> pl.DataFrame:
+def join_tu_vp(tu_df: pl.LazyFrame, vp_df: pl.LazyFrame) -> pl.LazyFrame:
     """Left join narrowed trip_updates onto narrowed vehicle_positions.
 
     Join keys: trip_id, vehicle_id, stop_sequence.
@@ -139,21 +144,23 @@ def join_tu_vp(tu_df: pl.DataFrame, vp_df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def add_error_columns(df: pl.DataFrame) -> pl.DataFrame:
+def add_error_columns(df: pl.LazyFrame) -> pl.LazyFrame:
     """Add prediction error and prediction-ahead columns.
 
-    prediction_error_sec: predicted_arrival - actual_timestamp
+    prediction_error_sec: predicted_arrival_time - last_update_timestamp
         positive = predicted too late, negative = predicted too early
-    prediction_ahead_sec: tu_feed_timestamp - predicted_arrival
+    prediction_ahead_sec: tu_feed_timestamp - predicted_arrival_time
         negative = prediction was made before the predicted arrival
     """
     return df.with_columns(
-        prediction_error_sec=pl.col("predicted_arrival") - pl.col("actual_timestamp"),
-        prediction_ahead_sec=pl.col("tu_feed_timestamp") - pl.col("predicted_arrival"),
+        prediction_error_meas_sec=pl.col("predicted_arrival_time") - pl.col("vp_last_update_timestamp"),
+        # prediction_error_feed_sec=pl.col("predicted_arrival_time") - pl.col("vp_feed_timestamp"),
+        prediction_ahead_meas_sec=pl.col("tu_last_update_timestamp") - pl.col("predicted_arrival_time"),
+        # prediction_ahead_feed_sec=pl.col("tu_feed_timestamp") - pl.col("predicted_arrival_time"),
     )
 
 
-def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
+def assign_ibi_bin(df: pl.LazyFrame, config: AnalyzerConfig = default_config(), prediction_ahead_column: str = "prediction_ahead_meas_sec") -> pl.LazyFrame:
     """Add an ``ibi_bin`` column based on ``prediction_ahead_sec``.
 
     Only predictions made *before* the predicted arrival are binned
@@ -164,7 +171,7 @@ def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig = default_config()) 
 
     Bin ranges are ``[min_seconds_away, max_seconds_away)``.
     """
-    seconds_until = -pl.col("prediction_ahead_sec")
+    seconds_until = -pl.col(prediction_ahead_column)
     expr = pl.lit(None, dtype=pl.Utf8)
     for b in reversed(config.ibi_bins):
         expr = (
@@ -175,7 +182,7 @@ def assign_ibi_bin(df: pl.DataFrame, config: AnalyzerConfig = default_config()) 
     return df.with_columns(ibi_bin=expr)
 
 
-def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
+def is_prediction_accurate(df: pl.LazyFrame, config: AnalyzerConfig = default_config(), error_column: str = "prediction_error_meas_sec") -> pl.LazyFrame:
     """Add boolean ``is_accurate`` column using IBI bin thresholds.
 
     A prediction is accurate when:
@@ -184,7 +191,7 @@ def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig = default_co
     Rows with null ``ibi_bin`` receive null ``is_accurate``.
     Thresholds are inclusive at both boundaries per TransitApp spec.
     """
-    error = pl.col("prediction_error_sec")
+    error = pl.col(error_column)
     expr = pl.lit(None, dtype=pl.Boolean)
     for b in reversed(config.ibi_bins):
         expr = (
@@ -195,18 +202,14 @@ def is_prediction_accurate(df: pl.DataFrame, config: AnalyzerConfig = default_co
     return df.with_columns(is_accurate=expr)
 
 
-def calculate_ibi_accuracy(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
+def calculate_ibi_accuracy(df: pl.LazyFrame, config: AnalyzerConfig = default_config()) -> pl.LazyFrame:
     """Calculate per-bin and overall IBI accuracy.
 
-    Returns a DataFrame with columns: ibi_bin, total, accurate, accuracy_pct.
+    Returns a LazyFrame with columns: ibi_bin, total, accurate, accuracy_pct.
     The overall row is the equal-weighted average of per-bin accuracies.
     Bins with no data are excluded from the overall average.
     """
     binned = df.filter(pl.col("ibi_bin").is_not_null())
-    if binned.is_empty():
-        return pl.DataFrame(
-            schema={"ibi_bin": pl.Utf8, "total": pl.UInt32, "accurate": pl.UInt32, "accuracy_pct": pl.Float64}
-        )
 
     per_bin = (
         binned.group_by("ibi_bin")
@@ -218,20 +221,18 @@ def calculate_ibi_accuracy(df: pl.DataFrame, config: AnalyzerConfig = default_co
         .sort("ibi_bin")
     )
 
-    overall_acc = per_bin["accuracy_pct"].mean()
-    overall_row = pl.DataFrame(
-        {
-            "ibi_bin": ["overall"],
-            "total": [per_bin["total"].sum()],
-            "accurate": [per_bin["accurate"].sum()],
-            "accuracy_pct": [overall_acc],
-        },
-        schema={"ibi_bin": pl.Utf8, "total": pl.UInt32, "accurate": pl.UInt32, "accuracy_pct": pl.Float64},
+    # Calculate overall as equal-weighted average of per-bin accuracies (lazy)
+    overall_row = per_bin.select(
+        ibi_bin=pl.lit("overall"),
+        total=pl.col("total").sum().cast(pl.UInt32),
+        accurate=pl.col("accurate").sum().cast(pl.UInt32),
+        accuracy_pct=pl.col("accuracy_pct").mean(),
     )
+
     return pl.concat([per_bin, overall_row])
 
 
-def assign_time_of_day_bin(df: pl.DataFrame, config: AnalyzerConfig = default_config()) -> pl.DataFrame:
+def assign_time_of_day_bin(df: pl.LazyFrame, config: AnalyzerConfig = default_config()) -> pl.LazyFrame:
     """Add a ``time_of_day_bin`` column based on trip ``start_time``.
 
     ``start_time`` is expected in GTFS ``HH:MM:SS`` format where hours may
@@ -261,7 +262,7 @@ def assign_time_of_day_bin(df: pl.DataFrame, config: AnalyzerConfig = default_co
     return df.with_columns(time_of_day_bin=expr)
 
 
-def parse_start_time_seconds(df: pl.DataFrame) -> pl.DataFrame:
+def parse_start_time_seconds(df: pl.LazyFrame) -> pl.LazyFrame:
     """Add a ``start_time_seconds`` column: seconds after midnight from ``start_time``.
 
     Parses GTFS ``start_time`` (HH:MM:SS, allowing HH > 24) to integer seconds.
@@ -279,15 +280,15 @@ def parse_start_time_seconds(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def filter_predictions(
-    df: pl.DataFrame,
+    df: pl.LazyFrame,
     route_id: str | None = None,
     trip_id: str | None = None,
     stop_id: str | None = None,
     service_date: str | None = None,
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     """Filter predictions by optional route, trip, stop, or service_date.
 
-    Each filter is applied only if not None. Returns input DataFrame if all filters are None.
+    Each filter is applied only if not None. Returns input LazyFrame if all filters are None.
     """
     result = df
     if route_id is not None:
@@ -302,26 +303,16 @@ def filter_predictions(
 
 
 def calculate_accuracy_by_group(
-    df: pl.DataFrame,
+    df: pl.LazyFrame,
     group_cols: list[str],
     config: AnalyzerConfig = default_config(),
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     """Calculate per-group IBI accuracy for arbitrary grouping columns.
 
     Groups by ``group_cols``, calculates per-group IBI accuracy (total, accurate, accuracy_pct).
-    Only rows with non-null ``ibi_bin`` are included. Returns sorted dataframe by group_cols.
+    Only rows with non-null ``ibi_bin`` are included. Returns sorted LazyFrame by group_cols.
     """
     binned = df.filter(pl.col("ibi_bin").is_not_null())
-    if binned.is_empty():
-        # Return empty dataframe with expected schema
-        return pl.DataFrame(
-            schema={
-                **{col: pl.Utf8 for col in group_cols},
-                "total": pl.UInt32,
-                "accurate": pl.UInt32,
-                "accuracy_pct": pl.Float64,
-            }
-        )
 
     grouped = (
         binned.group_by(group_cols)
@@ -336,10 +327,10 @@ def calculate_accuracy_by_group(
 
 
 def detect_prediction_bias(
-    df: pl.DataFrame,
+    df: pl.LazyFrame,
     bias_threshold_sec: float = 30.0,
     consistency_threshold_sec: float = 20.0,
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     """Detect consistent directional bias per trip.
 
     Computes per-trip mean and std of ``prediction_error_sec``. Flags trips as biased
@@ -347,23 +338,14 @@ def detect_prediction_bias(
     (indicating consistent direction without adjustment).
 
     Args:
-        df: DataFrame with trip_id and prediction_error_sec columns.
+        df: LazyFrame with trip_id and prediction_error_sec columns.
         bias_threshold_sec: Minimum |mean_error| to consider as biased (default 30.0).
         consistency_threshold_sec: Maximum std for consistent behavior (default 20.0).
 
     Returns:
-        DataFrame with columns: trip_id, mean_error, std_error, is_biased.
+        LazyFrame with columns: trip_id, mean_error, std_error, is_biased.
     """
     trips_with_errors = df.filter(pl.col("prediction_error_sec").is_not_null())
-    if trips_with_errors.is_empty():
-        return pl.DataFrame(
-            schema={
-                "trip_id": pl.Utf8,
-                "mean_error": pl.Float64,
-                "std_error": pl.Float64,
-                "is_biased": pl.Boolean,
-            }
-        )
 
     result = (
         trips_with_errors.group_by("trip_id")
@@ -388,10 +370,10 @@ def detect_prediction_bias(
 
 
 def run_analysis(
-    tu_df: pl.DataFrame,
-    vp_df: pl.DataFrame,
+    tu_df: pl.LazyFrame,
+    vp_df: pl.LazyFrame,
     config: AnalyzerConfig = default_config(),
-) -> dict[str, pl.DataFrame]:
+) -> dict[str, pl.LazyFrame]:
     """Orchestrate the full bus prediction analysis pipeline.
 
     Runs all processing steps in sequence:
@@ -407,13 +389,13 @@ def run_analysis(
     10. Detect prediction bias per trip
 
     Args:
-        tu_df: Raw trip_updates DataFrame
-        vp_df: Raw vehicle_positions DataFrame
+        tu_df: Raw trip_updates LazyFrame
+        vp_df: Raw vehicle_positions LazyFrame
         config: AnalyzerConfig with bins and thresholds
 
     Returns:
         Dict with keys:
-        - 'joined': Full joined dataframe with all computed columns
+        - 'joined': Full joined LazyFrame with all computed columns
         - 'ibi_accuracy': Overall IBI accuracy by bin
         - 'route_accuracy': Accuracy grouped by route_id
         - 'time_of_day_accuracy': Accuracy grouped by time_of_day_bin
@@ -429,7 +411,7 @@ def run_analysis(
 
     # Step 4-5: IBI binning and accuracy
     with_ibi_bin = assign_ibi_bin(with_errors, config)
-    with_accuracy = is_prediction_accurate(with_ibi_bin, config)
+    with_accuracy = is_prediction_accurate(with_ibi_bin, config, error_column="prediction_error_meas_sec")
 
     # Step 6: Overall IBI accuracy
     ibi_accuracy = calculate_ibi_accuracy(with_accuracy, config)

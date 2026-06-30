@@ -40,6 +40,7 @@ dataframely = "^2.7"
 polars = "^1.39"
 plotly = "^6.7.0"
 sqlglot = "^30.8.0"
+altair = "^6.1.0"
 
 [tool.poetry.group.tableau]
 optional = false
