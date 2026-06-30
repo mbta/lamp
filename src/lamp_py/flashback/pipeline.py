@@ -13,7 +13,11 @@ from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-async def flashback(remote_events: dy.DataFrame[StopEvents], publication_timestamp: datetime = datetime.now(ZoneInfo("America/New_York")), max_record_age: timedelta = timedelta(hours=2)) -> None:
+async def flashback(
+    remote_events: dy.DataFrame[StopEvents],
+    publication_timestamp: datetime = datetime.now(ZoneInfo("America/New_York")),
+    max_record_age: timedelta = timedelta(hours=2),
+) -> None:
     """Fetch, process, and store stop events."""
     existing_events = remote_events
     while True:
@@ -21,7 +25,9 @@ async def flashback(remote_events: dy.DataFrame[StopEvents], publication_timesta
         process_logger.log_start()
         new_records = await get_vehicle_positions()
 
-        stop_events = update_records(existing_events, unnest_vehicle_positions(new_records), publication_timestamp, max_record_age)
+        stop_events = update_records(
+            existing_events, unnest_vehicle_positions(new_records), publication_timestamp, max_record_age
+        )
 
         existing_events = stop_events
 
