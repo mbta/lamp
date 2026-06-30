@@ -1,5 +1,6 @@
 import time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import dataframely as dy
 import polars as pl
@@ -252,7 +253,12 @@ def test_update_records(
         generator=dy_gen,
         overrides=new_record_overrides,
     )
-    updated = update_records(existing_records, new_records, timedelta(hours=2))
+    updated = update_records(
+        existing_records,
+        new_records,
+        datetime.fromtimestamp(2_000_000_003, tz=ZoneInfo("America/New_York")),
+        timedelta(hours=2),
+    )
     updated_set = set(
         tuple(i.values())
         for i in updated.select("stop_sequence", "timestamp", "arrived", "departed").to_struct().to_list()
@@ -283,6 +289,6 @@ def test_performance_update_records(dy_gen: dy.random.Generator, num_rows: int =
     )
 
     start = time.time()
-    _ = update_records(existing_records, new_records, timedelta(hours=2))
+    _ = update_records(existing_records, new_records, datetime.now(ZoneInfo("America/New_York")), timedelta(hours=2))
     duration = time.time() - start
     assert duration < 1.0

@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import dataframely as dy
 import polars as pl
@@ -73,6 +72,7 @@ def unnest_vehicle_positions(vp: dy.DataFrame[VehiclePositions]) -> dy.DataFrame
 def update_records(
     existing_records: dy.DataFrame[StopEvents],
     new_records: dy.DataFrame[StopEvents],
+    publication_timestamp: datetime,
     max_record_age: timedelta,
 ) -> dy.DataFrame[StopEvents]:
     """Return a DataFrame of recent stops using VehiclePositions."""
@@ -83,7 +83,7 @@ def update_records(
 
     combined = (
         existing_records.filter(  # remove old records
-            datetime.now(tz=ZoneInfo("America/New_York"))
+            publication_timestamp
             - pl.from_epoch("timestamp").dt.replace_time_zone(
                 "America/New_York", ambiguous="latest", non_existent="null"
             )
@@ -119,9 +119,9 @@ def update_records(
                     .over(["start_date", "route_id", "trip_id", "vehicle_id"])
                     .gt(pl.col("stop_sequence")),
                     pl.col("departed").is_null(),
-                ).then(pl.col("timestamp_right").max().over(["start_date", "route_id", "trip_id", "vehicle_id"])),
+                ).then(publication_timestamp.timestamp()),
                 "timestamp",
-                "timestamp_right",
+                publication_timestamp.timestamp(),
             ).alias("timestamp"),
             pl.coalesce("latest_stopped_timestamp_right", "latest_stopped_timestamp").alias(
                 "latest_stopped_timestamp"
