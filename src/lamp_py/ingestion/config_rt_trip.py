@@ -2,12 +2,7 @@ from typing import List, Tuple
 import pyarrow
 
 from lamp_py.ingestion.gtfs_rt_detail import GTFSRTDetail
-from lamp_py.ingestion.gtfs_rt_structs import (
-    trip_descriptor,
-    vehicle_descriptor,
-    stop_time_event,
-    trip_properties
-)
+from lamp_py.ingestion.gtfs_rt_structs import trip_descriptor, vehicle_descriptor, stop_time_event, trip_properties
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
 
 
