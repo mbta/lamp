@@ -22,10 +22,12 @@ def _():
     import marimo as mo
     import polars as pl
     import altair as alt
+
     alt.data_transformers.enable("vegafusion")
 
     from lamp_py.flashback.events import StopEvents
     from lamp_py.aws.s3 import file_list_from_s3_with_details
+
     return StopEvents, alt, datetime, mo, pl, timedelta
 
 
@@ -43,7 +45,7 @@ def _(refresher):
 
 @app.cell
 def _(mo):
-    env = mo.ui.dropdown(options={"staging": "staging-", "dev": "dev-", "prod":""}, value="staging")
+    env = mo.ui.dropdown(options={"staging": "staging-", "dev": "dev-", "prod": ""}, value="staging")
     return (env,)
 
 
