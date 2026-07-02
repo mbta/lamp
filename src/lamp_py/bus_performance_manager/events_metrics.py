@@ -220,8 +220,18 @@ def calculate_derived_bus_performance_metrics(
             .alias("travel_time_seconds"),
             (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
-                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds",])
-                - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds",])
+                pl.coalesce(
+                    [
+                        "stop_departure_seconds",
+                        "stop_arrival_seconds",
+                    ]
+                )
+                - pl.coalesce(
+                    [
+                        "stop_departure_seconds",
+                        "stop_arrival_seconds",
+                    ]
+                )
                 .shift()
                 .over(
                     ["service_date", "stop_id", "direction_id", "route_id"],
