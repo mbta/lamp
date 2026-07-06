@@ -113,14 +113,16 @@ def update_records(
                 "departed",
             ).alias("departed"),
             pl.coalesce(
-                pl.when(  # if departure is updated, then also update timestamp
+                pl.when(  # if trip advances to later stop
                     pl.col("stop_sequence")
                     .max()
                     .over(["start_date", "route_id", "trip_id", "vehicle_id"])
                     .gt(pl.col("stop_sequence")),
                     pl.col("departed").is_null(),
                 ).then(publication_timestamp.timestamp()),
+                # if trip hasn't advanced
                 "timestamp",
+                # else (if trip is new)
                 publication_timestamp.timestamp(),
             ).alias("timestamp"),
             pl.coalesce("latest_stopped_timestamp_right", "latest_stopped_timestamp").alias(
