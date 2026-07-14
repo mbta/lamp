@@ -206,6 +206,9 @@ def calculate_derived_bus_performance_metrics(
             .alias("gtfs_first_in_transit_seconds"),
             (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
             (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
+            (pl.col("plan_stop_departure_dt") - pl.col("service_date"))
+            .dt.total_seconds()
+            .alias("plan_stop_departure_seconds"),
         )
         # add metrics columns to events
         .with_columns(
@@ -224,12 +227,14 @@ def calculate_derived_bus_performance_metrics(
                     [
                         "stop_departure_seconds",
                         "stop_arrival_seconds",
+                        "plan_stop_departure_seconds",
                     ]
                 )
                 - pl.coalesce(
                     [
                         "stop_departure_seconds",
                         "stop_arrival_seconds",
+                        "plan_stop_departure_seconds",
                     ]
                 )
                 .shift()
@@ -238,21 +243,21 @@ def calculate_derived_bus_performance_metrics(
                     order_by=pl.coalesce(
                         "stop_departure_dt",
                         "stop_arrival_dt",
-                        "gtfs_last_in_transit_dt",
+                        "plan_stop_departure_dt",
                     ),
                 )
             ).alias("route_direction_headway_seconds"),
             (
-                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
+                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds", "plan_stop_departure_seconds"])
                 - (
-                    pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
+                    pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds", "plan_stop_departure_seconds"])
                     .shift()
                     .over(
                         ["service_date", "stop_id", "direction_destination"],
                         order_by=pl.coalesce(
                             "stop_departure_dt",
                             "stop_arrival_dt",
-                            "gtfs_last_in_transit_dt",
+                            "plan_stop_departure_dt",
                         ),
                     )
                 )
