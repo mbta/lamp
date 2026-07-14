@@ -128,7 +128,7 @@ jobs:
       - name: Deploy TransitMaster Ingestion Application
         id: deploy-tm-ingestion
         if: ${{ inputs.deploy-tm-ingestion && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@2c88be6542aa1b129d6a273cae070af9b1e7c076  # v2.22
+        uses: mbta/actions/deploy-scheduled-ecs@f3f7205f8e73dddf983ee234dd93e2b45d3c8a9a  # v2.23
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -138,7 +138,7 @@ jobs:
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
         if: ${{ inputs.deploy-tableau-publisher && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@2c88be6542aa1b129d6a273cae070af9b1e7c076  # v2.22
+        uses: mbta/actions/deploy-scheduled-ecs@f3f7205f8e73dddf983ee234dd93e2b45d3c8a9a  # v2.23
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
