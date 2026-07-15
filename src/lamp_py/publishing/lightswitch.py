@@ -56,7 +56,7 @@ HIVE_VIEWS = {
 
 
 def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
-    "Register IAM credentials with duckdb."
+    """Register IAM credentials with duckdb."""
     connection.install_extension("aws")
     connection.load_extension("aws")
     return connection.sql(  # type: ignore[index]
@@ -199,8 +199,7 @@ def register_effective_gtfs_timestamps(
 def add_views_to_local_metastore(
     connection: duckdb.DuckDBPyConnection, views: dict[str, List[rf.S3Location]]
 ) -> List[str]:
-    "Add views of remote Parquet files to duckdb database."
-
+    """Add views of remote Parquet files to duckdb database."""
     built_views: List[str] = []
     for k in views.keys():
         for item in views[k]:
@@ -214,6 +213,24 @@ def add_views_to_local_metastore(
 
     return built_views
 
+def alter_columns(conn, table):
+    statement = ""
+    for column_name in table.column_names:
+        statement += f"ALTER TABLE {table['name']} RENAME COLUMN {column_name} {column_name.replace('.', '_')};"
+
+    conn.sql(statement)
+
+# rename columns to replace period with underscore.
+# Period is a reserved character in SQL, which would force users to quote column names
+def rename_tables(conn: duckdb.DuckDBPyConnection):
+    pl = ProcessLogger("rename_tables")
+    pl.log_start()
+    try:
+        all_tables = conn.sql("SHOW ALL TABLES").to_df()
+        all_tables.apply(lambda table: alter_columns(conn, table), axis=1, result_type=None)
+    except duckdb.Error as e:
+        pl.log_failure(e)
+    pl.log_complete()
 
 def pipeline(  # pylint: disable=dangerous-default-value
     views: dict[str, List[rf.S3Location]] = HIVE_VIEWS,
@@ -240,6 +257,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
         register_effective_gtfs_timestamps(con)
+        rename_tables(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)
