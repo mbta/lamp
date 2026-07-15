@@ -213,7 +213,7 @@ def add_views_to_local_metastore(
 
     return built_views
 
-def alter_columns(conn, table):
+def alter_columns_with_periods(conn, table):
     statement = ""
     for column_name in table.column_names:
         statement += f"ALTER TABLE {table['name']} RENAME COLUMN {column_name} {column_name.replace('.', '_')};"
@@ -222,12 +222,12 @@ def alter_columns(conn, table):
 
 # rename columns to replace period with underscore.
 # Period is a reserved character in SQL, which would force users to quote column names
-def rename_tables(conn: duckdb.DuckDBPyConnection):
-    pl = ProcessLogger("rename_tables")
+def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection):
+    pl = ProcessLogger("rename_columns_with_periods")
     pl.log_start()
     try:
         all_tables = conn.sql("SHOW ALL TABLES").to_df()
-        all_tables.apply(lambda table: alter_columns(conn, table), axis=1, result_type=None)
+        all_tables.apply(lambda table: alter_columns_with_periods(conn, table), axis=1, result_type=None)
     except duckdb.Error as e:
         pl.log_failure(e)
     pl.log_complete()
