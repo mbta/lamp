@@ -211,8 +211,8 @@ class TestBusPerformanceMetrics(BusPerformanceMetrics):
     [
         "stop_departure_dt",
         "plan_stop_departure_dt",
-        "route_direction_headway_seconds",
-        "direction_destination_headway_seconds",
+        "imputed_route_direction_headway_seconds",
+        "imputed_direction_destination_headway_seconds",
         "num_rows",
     ],
     [
@@ -240,8 +240,8 @@ def test_dy_headways_if_planned_or_actual_departure(
     dy_gen: Generator,
     stop_departure_dt: list[datetime],
     plan_stop_departure_dt: list[datetime],
-    route_direction_headway_seconds: list[int],
-    direction_destination_headway_seconds: list[int],
+    imputed_route_direction_headway_seconds: list[int],
+    imputed_direction_destination_headway_seconds: list[int],
     num_rows: pytest.RaisesExc,
 ) -> None:
     """It returns false if there is a planned or actual departure time, but the route_direction_headway_seconds or direction_destination_headway_seconds are null."""
@@ -255,8 +255,8 @@ def test_dy_headways_if_planned_or_actual_departure(
         stopped_duration_seconds=pl.lit(None),
         stop_departure_dt=pl.Series(values=stop_departure_dt),
         plan_stop_departure_dt=pl.Series(values=plan_stop_departure_dt),
-        route_direction_headway_seconds=pl.Series(values=route_direction_headway_seconds),
-        direction_destination_headway_seconds=pl.Series(values=direction_destination_headway_seconds),
+        imputed_route_direction_headway_seconds=pl.Series(values=imputed_route_direction_headway_seconds),
+        imputed_direction_destination_headway_seconds=pl.Series(values=imputed_direction_destination_headway_seconds),
     )
 
     with num_rows:
