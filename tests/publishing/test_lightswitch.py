@@ -146,7 +146,7 @@ def test_create_schemas(
     assert resultant_schemas == output_schemas
 
 
-def test_rename_columns_with_periods(duckdb_con: duckdb.DuckDBPyConnection):
+def test_rename_columns_with_periods(duckdb_con: duckdb.DuckDBPyConnection) -> None:
     with duckdb_con:
         duckdb_con.sql('CREATE TABLE foo ("col.with.dots" INT, "other.col.with.dots" INT, no_dots INT)')
         rename_columns_with_periods(duckdb_con)

@@ -225,7 +225,7 @@ def add_views_to_local_metastore(
     return built_views
 
 
-def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table: pd.DataFrame):
+def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table: pd.DataFrame) -> None:
     """Alters columns in the views to replace periods with underscores"""
     statement = ""
     for column_name in table.column_names:
@@ -239,7 +239,7 @@ def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogge
         pl.log_failure(e)
 
 
-def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection):
+def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection) -> None:
     """
     Rename columns to replace period with underscore.
     Period is a reserved character in SQL, which would force users to quote column names
