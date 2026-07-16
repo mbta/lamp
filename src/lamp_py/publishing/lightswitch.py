@@ -116,12 +116,22 @@ def register_read_ymd(
     """Register function in DuckDB using SQL text."""
     pl = ProcessLogger("register_read_ymd")
     pl.log_start()
+
+    # WARNING: The dynamic column aliasing here replaces periods (.) with underscores (_) in field names.
+    # There's a limitation in the COLUMNS function where you can't run REPLACE (or any function) on the
+    # column alias (the "AS clause"), so I had to hardcode each case of columns with no periods (foo),
+    # columns with one period (foo.bar) and columns with 2 or more periods (foo.bar.baz, foo.bar.baz.bop).
+    # Because of how binding works in DuckDB, this function will also blow up if there is any parquet dataset
+    # that doesn't have columns with zero periods, one period, and 2 or more periods.
     connection.sql(
         """
         CREATE OR REPLACE MACRO read_ymd
 
             (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
-             SELECT *
+             SELECT 
+                COLUMNS('^.*?(\\w+)\\.(\\w+)\\.(\\w+)$') AS '\\1_\\2_\\3',
+                COLUMNS('^(\\w+)\\.(\\w+)$') AS '\\1_\\2',
+                COLUMNS('^[^.]*$') AS '\\1'
              FROM read_parquet(
                 list_transform(
                     range(
@@ -213,24 +223,35 @@ def add_views_to_local_metastore(
 
     return built_views
 
-def alter_columns_with_periods(conn, table):
+
+def alter_columns_with_periods(conn, pl, table):
+    """Alters columns in the views to replace periods with underscores"""
     statement = ""
     for column_name in table.column_names:
-        statement += f"ALTER TABLE {table['name']} RENAME COLUMN {column_name} {column_name.replace('.', '_')};"
+        statement += (
+            f"ALTER TABLE {table['name']} RENAME COLUMN \"{column_name}\" TO \"{column_name.replace('.', '_')}\"; "
+        )
 
-    conn.sql(statement)
+    try:
+        conn.sql(statement)
+    except duckdb.Error as e:
+        pl.log_failure(e)
 
-# rename columns to replace period with underscore.
-# Period is a reserved character in SQL, which would force users to quote column names
+
 def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection):
+    """
+    Rename columns to replace period with underscore.
+    Period is a reserved character in SQL, which would force users to quote column names
+    """
     pl = ProcessLogger("rename_columns_with_periods")
     pl.log_start()
     try:
         all_tables = conn.sql("SHOW ALL TABLES").to_df()
-        all_tables.apply(lambda table: alter_columns_with_periods(conn, table), axis=1, result_type=None)
+        all_tables.apply(lambda table: alter_columns_with_periods(conn, pl, table), axis=1, result_type=None)
     except duckdb.Error as e:
         pl.log_failure(e)
     pl.log_complete()
+
 
 def pipeline(  # pylint: disable=dangerous-default-value
     views: dict[str, List[rf.S3Location]] = HIVE_VIEWS,
@@ -257,7 +278,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
         register_effective_gtfs_timestamps(con)
-        rename_tables(con)
+        rename_columns_with_periods(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)

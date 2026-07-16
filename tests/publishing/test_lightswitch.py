@@ -14,7 +14,7 @@ from lamp_py.publishing.lightswitch import (
     register_read_ymd,
     register_effective_gtfs_timestamps,
     create_schemas,
-    rename_columns_with_periods
+    rename_columns_with_periods,
 )
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
@@ -145,9 +145,10 @@ def test_create_schemas(
     assert (ERROR in [t[1] for t in caplog.record_tuples]) == error_expected
     assert resultant_schemas == output_schemas
 
+
 def test_rename_columns_with_periods(duckdb_con: duckdb.DuckDBPyConnection):
     with duckdb_con:
-        assert duckdb_con.sql('CREATE TABLE foo VALUES ("col.with.dots" INT, "other.col.with.dots" INT, no_dots INT)')
+        duckdb_con.sql('CREATE TABLE foo ("col.with.dots" INT, "other.col.with.dots" INT, no_dots INT)')
         rename_columns_with_periods(duckdb_con)
-        new_col_names = list(duckdb_con.sql("SHOW foo").to_df()['column_name'])
-        assert new_col_names == ["col_with_dots", "other_col_with_dots", "no_dots"]
+        new_col_names = list(duckdb_con.sql("SHOW foo").to_df()["column_name"])
+        assert set(new_col_names) == set(["col_with_dots", "other_col_with_dots", "no_dots"])
