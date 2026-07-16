@@ -320,8 +320,8 @@ The bus data incorporates an additional data source: TransitMaster. Buses have T
 | stop_departure_seconds | int64 | `stop_departure_dt` as seconds after midnight | LAMP Calculated |
 | travel_time_seconds | int64 | seconds the vehicle spent traveling to the `stop_id` of trip-stop pair from previous `stop_id` on trip | LAMP Calculated |
 | stopped_duration_seconds | int64 | seconds the vehicle spent stopped at `stop_id` of trip-stop pair | LAMP Calculated |
-| route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id` | LAMP Calculated |
-| direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination` | LAMP Calculated |
+| imputed_route_direction_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `route_id` and `direction_id`; `plan_stop_departure_dt` is considered a departure if `stop_departure_dt` and `stop_arrival_dt` are missing. | LAMP Calculated |
+| imputed_direction_destination_headway_seconds	| int64 | seconds between consecutive vehicles departing `stop_id` on trips with same `direction_destination`; `plan_stop_departure_dt` is considered a departure if `stop_departure_dt` and `stop_arrival_dt` are missing. | LAMP Calculated |
 | tm_scheduled_time_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `service_date`  | TransitMaster |
 | tm_actual_arrival_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY - DO NOT USE - see `stop_arrival_dt` | TransitMaster |
 | tm_actual_departure_dt	| Datetime | Date calculated from seconds after midnight measured from TransitMaster service_date (Eastern time zone) - FOR VALIDATION ONLY == DO NOT USE - see `stop_departure_dt` | TransitMaster |
