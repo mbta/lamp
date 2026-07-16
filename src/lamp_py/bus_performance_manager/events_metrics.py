@@ -26,8 +26,8 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
     stopped_duration_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
-    direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
+    imputed_route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
+    imputed_direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
     is_full_trip = dy.Bool(nullable=True)
 
     @dy.rule()
@@ -246,7 +246,7 @@ def calculate_derived_bus_performance_metrics(
                         "plan_stop_departure_dt",
                     ),
                 )
-            ).alias("route_direction_headway_seconds"),
+            ).alias("imputed_route_direction_headway_seconds"),
             (
                 pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds", "plan_stop_departure_seconds"])
                 - (
@@ -261,7 +261,7 @@ def calculate_derived_bus_performance_metrics(
                         ),
                     )
                 )
-            ).alias("direction_destination_headway_seconds"),
+            ).alias("imputed_direction_destination_headway_seconds"),
         )
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "stop_sequence"])
