@@ -2,6 +2,7 @@ import os
 from typing import List
 
 import duckdb
+import pandas as pd
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
@@ -224,7 +225,7 @@ def add_views_to_local_metastore(
     return built_views
 
 
-def alter_columns_with_periods(conn, pl, table):
+def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table: pd.DataFrame):
     """Alters columns in the views to replace periods with underscores"""
     statement = ""
     for column_name in table.column_names:
