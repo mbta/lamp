@@ -2,7 +2,7 @@ import os
 from typing import List
 
 import duckdb
-import pandas as pd
+import polars as plr
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
@@ -225,12 +225,12 @@ def add_views_to_local_metastore(
     return built_views
 
 
-def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table: pd.DataFrame) -> None:
+def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table_name: str, column_names: plr.Series) -> None:
     """Alters columns in the views to replace periods with underscores"""
     statement = ""
-    for column_name in table.column_names:
+    for column_name in column_names:
         statement += (
-            f"ALTER TABLE {table['name']} RENAME COLUMN \"{column_name}\" TO \"{column_name.replace('.', '_')}\"; "
+            f"ALTER TABLE {table_name} RENAME COLUMN \"{column_name}\" TO \"{column_name.replace('.', '_')}\"; "
         )
 
     try:
@@ -247,8 +247,10 @@ def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection) -> None:
     pl = ProcessLogger("rename_columns_with_periods")
     pl.log_start()
     try:
-        all_tables = conn.sql("SHOW ALL TABLES").to_df()
-        all_tables.apply(lambda table: alter_columns_with_periods(conn, pl, table), axis=1, result_type=None)
+        all_tables = conn.sql("SELECT name, column_names FROM (SHOW ALL TABLES)").pl()
+
+        for row in all_tables.iter_rows():
+            alter_columns_with_periods(conn, pl, row[0], row[1])
     except duckdb.Error as e:
         pl.log_failure(e)
     pl.log_complete()
