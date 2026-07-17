@@ -225,7 +225,9 @@ def add_views_to_local_metastore(
     return built_views
 
 
-def alter_columns_with_periods(conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table_name: str, column_names: plr.Series) -> None:
+def alter_columns_with_periods(
+    conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table_name: str, column_names: plr.Series
+) -> None:
     """Alters columns in the views to replace periods with underscores"""
     statement = ""
     for column_name in column_names:
