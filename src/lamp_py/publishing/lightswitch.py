@@ -2,7 +2,6 @@ import os
 from typing import List
 
 import duckdb
-import polars as plr
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
@@ -83,7 +82,21 @@ def build_view(
     pl.add_metadata(view_name=view_name, view_target=view_target)
 
     try:
-        connection.from_parquet(view_target, hive_partitioning=True).create_view(view_name)
+
+        connection.execute(
+            # Rename columns to replace period with underscore.
+            # Period is a reserved character in SQL, which would force users to quote column names
+            # See comment in register_read_ymd.
+            f"""
+            CREATE VIEW {view_name} AS
+            SELECT
+                COLUMNS('^.*?(\\w+)\\.(\\w+)\\.(\\w+)$') AS '\\1_\\2_\\3',
+                COLUMNS('^(\\w+)\\.(\\w+)$') AS '\\1_\\2',
+                COLUMNS('^[^.]*$') AS '\\1'
+            FROM read_parquet('{view_target}', hive_partitioning=True)
+            """
+        )
+
         return True
     except Exception as e:
         pl.log_failure(e)
@@ -225,37 +238,7 @@ def add_views_to_local_metastore(
     return built_views
 
 
-def alter_columns_with_periods(
-    conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table_name: str, column_names: plr.Series
-) -> None:
-    """Alters columns in the views to replace periods with underscores"""
-    statement = ""
-    for column_name in column_names:
-        statement += (
-            f"ALTER TABLE {table_name} RENAME COLUMN \"{column_name}\" TO \"{column_name.replace('.', '_')}\"; "
-        )
 
-    try:
-        conn.sql(statement)
-    except duckdb.Error as e:
-        pl.log_failure(e)
-
-
-def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection) -> None:
-    """
-    Rename columns to replace period with underscore.
-    Period is a reserved character in SQL, which would force users to quote column names
-    """
-    pl = ProcessLogger("rename_columns_with_periods")
-    pl.log_start()
-    try:
-        all_tables = conn.sql("SELECT name, column_names FROM (SHOW ALL TABLES)").pl()
-
-        for row in all_tables.iter_rows():
-            alter_columns_with_periods(conn, pl, row[0], row[1])
-    except duckdb.Error as e:
-        pl.log_failure(e)
-    pl.log_complete()
 
 
 def pipeline(  # pylint: disable=dangerous-default-value
@@ -283,7 +266,6 @@ def pipeline(  # pylint: disable=dangerous-default-value
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
         register_effective_gtfs_timestamps(con)
-        rename_columns_with_periods(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)
