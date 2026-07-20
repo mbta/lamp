@@ -238,9 +238,6 @@ def add_views_to_local_metastore(
     return built_views
 
 
-
-
-
 def pipeline(  # pylint: disable=dangerous-default-value
     views: dict[str, List[rf.S3Location]] = HIVE_VIEWS,
     local_location: str = "/tmp/lamp.db",

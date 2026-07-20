@@ -143,4 +143,3 @@ def test_create_schemas(
     resultant_schemas = create_schemas(duckdb_con, schema_list)
     assert (ERROR in [t[1] for t in caplog.record_tuples]) == error_expected
     assert resultant_schemas == output_schemas
-
