@@ -68,7 +68,7 @@ class ScheduleDetails:
 
     def headers_from_file(self, gtfs_table_file: str) -> List[str]:
         """
-        extract header columns from gtfs_table_file
+        Extract header columns from gtfs_table_file
 
         :param gtfs_table_file (ie. stop_times.txt)
 
@@ -85,7 +85,7 @@ class ScheduleDetails:
 
     def gtfs_to_frame(self, gtfs_table_file: str) -> pl.DataFrame:
         """
-        create frame from .txt gtfs table
+        Create frame from .txt gtfs table
 
         dataframe will include all columns that are defined in polars_schema_map for gtfs_table_file
         if defined columns are missing from .txt table they are added with all NULL values
@@ -183,7 +183,7 @@ class ScheduleDetails:
 
 def schedules_to_compress(tmp_folder: str) -> pl.DataFrame:
     """
-    compare already compressed schedule files to schedules available in the MBTA
+    Compare already compressed schedule files to schedules available in the MBTA
     feed archive (https://cdn.mbta.com/archive/archived_feeds.txt) to determine
     which schedules need to be compressed
 
