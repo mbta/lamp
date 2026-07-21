@@ -82,10 +82,18 @@ def build_view(
     pl.add_metadata(view_name=view_name, view_target=view_target)
 
     try:
-        column_aliases = connection.sql(f"""
-            SELECT DISTINCT string_agg('"' || STR_SPLIT(path_in_schema, ',')[1] || '" AS ' || REPLACE(STR_SPLIT(path_in_schema, ',')[1], '.', '_'), ', ') 
-            FROM parquet_metadata('{view_target}')
-        """).pl().item(0, 0)
+        column_aliases = (
+            connection.sql(
+                f"""
+            SELECT DISTINCT string_agg('"' || column_name || '" AS ' || REPLACE(column_name, '.', '_'), ', ') 
+            FROM (
+                DESCRIBE SELECT * FROM read_parquet('{view_target}')
+            )
+        """
+            )
+            .pl()
+            .item(0, 0)
+        )
         connection.execute(
             # Rename columns to replace period with underscore.
             # Period is a reserved character in SQL, which would force users to quote column names
@@ -130,7 +138,6 @@ def register_read_ymd(
     """Register function in DuckDB using SQL text."""
     pl = ProcessLogger("register_read_ymd")
     pl.log_start()
-
 
     # Rename columns to replace period with underscore.
     # Period is a reserved character in SQL, which would force users to quote column names
