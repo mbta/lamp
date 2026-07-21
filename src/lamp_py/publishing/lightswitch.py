@@ -83,7 +83,7 @@ def build_view(
 
     try:
         column_aliases = connection.sql(f"""
-            SELECT string_agg(path_in_schema || ' AS ' || REPLACE(path_in_schema, '.', '_'), ', ') 
+            SELECT DISTINCT string_agg('"' || STR_SPLIT(path_in_schema, ',')[1] || '" AS ' || REPLACE(STR_SPLIT(path_in_schema, ',')[1], '.', '_'), ', ') 
             FROM parquet_metadata('{view_target}')
         """).pl().item(0, 0)
         connection.execute(
@@ -134,33 +134,15 @@ def register_read_ymd(
 
     # Rename columns to replace period with underscore.
     # Period is a reserved character in SQL, which would force users to quote column names
-    column_aliases = connection.sql("""
-        SELECT string_agg(path_in_schema || ' AS ' || REPLACE(path_in_schema, '.', '_'), ', ') FROM parquet_metadata(
-                list_transform(
-                    range(
-                        start_date,
-                        end_date,
-                        INTERVAL 1 DAY
-                    ),
-                    lambda x : strftime(
-                        concat_ws(
-                            '/',
-                            bucket,
-                            'lamp',
-                            directory_name,
-                            'year=%Y/month=%-m/day=%-d/%xT%H:%M:%S.parquet'
-                        ),
-                        x
-                    )
-                )
-            )""").pl().item(0, 0)
     connection.sql(
-        f"""
+        """
         CREATE OR REPLACE MACRO read_ymd
 
             (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
              SELECT 
-                {column_aliases}
+                COLUMNS('^.*?(\\w+)\\.(\\w+)\\.(\\w+)$') AS '\\1_\\2_\\3',
+                COLUMNS('^(\\w+)\\.(\\w+)$') AS '\\1_\\2',
+                COLUMNS('^[^.]*$') AS '\\1'
              FROM read_parquet(
                 list_transform(
                     range(
