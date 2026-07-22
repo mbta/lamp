@@ -26,8 +26,8 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     stop_departure_seconds = dy.Int64(nullable=True)
     travel_time_seconds = dy.Int64(nullable=True)
     stopped_duration_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
-    direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
+    imputed_route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
+    imputed_direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
     is_full_trip = dy.Bool(nullable=True)
 
     @dy.rule()
@@ -206,6 +206,9 @@ def calculate_derived_bus_performance_metrics(
             .alias("gtfs_first_in_transit_seconds"),
             (pl.col("stop_arrival_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_arrival_seconds"),
             (pl.col("stop_departure_dt") - pl.col("service_date")).dt.total_seconds().alias("stop_departure_seconds"),
+            (pl.col("plan_stop_departure_dt") - pl.col("service_date"))
+            .dt.total_seconds()
+            .alias("plan_stop_departure_seconds"),
         )
         # add metrics columns to events
         .with_columns(
@@ -220,33 +223,45 @@ def calculate_derived_bus_performance_metrics(
             .alias("travel_time_seconds"),
             (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
-                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
-                - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
+                pl.coalesce(
+                    [
+                        "stop_departure_seconds",
+                        "stop_arrival_seconds",
+                        "plan_stop_departure_seconds",
+                    ]
+                )
+                - pl.coalesce(
+                    [
+                        "stop_departure_seconds",
+                        "stop_arrival_seconds",
+                        "plan_stop_departure_seconds",
+                    ]
+                )
                 .shift()
                 .over(
                     ["service_date", "stop_id", "direction_id", "route_id"],
                     order_by=pl.coalesce(
                         "stop_departure_dt",
                         "stop_arrival_dt",
-                        "gtfs_last_in_transit_dt",
+                        "plan_stop_departure_dt",
                     ),
                 )
-            ).alias("route_direction_headway_seconds"),
+            ).alias("imputed_route_direction_headway_seconds"),
             (
-                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
+                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds", "plan_stop_departure_seconds"])
                 - (
-                    pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
+                    pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds", "plan_stop_departure_seconds"])
                     .shift()
                     .over(
                         ["service_date", "stop_id", "direction_destination"],
                         order_by=pl.coalesce(
                             "stop_departure_dt",
                             "stop_arrival_dt",
-                            "gtfs_last_in_transit_dt",
+                            "plan_stop_departure_dt",
                         ),
                     )
                 )
-            ).alias("direction_destination_headway_seconds"),
+            ).alias("imputed_direction_destination_headway_seconds"),
         )
         # sort to reduce parquet file size
         .sort(["route_id", "vehicle_label", "stop_sequence"])

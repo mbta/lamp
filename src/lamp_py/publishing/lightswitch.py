@@ -2,6 +2,7 @@ import os
 from typing import List
 
 import duckdb
+import polars as plr
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
@@ -56,7 +57,7 @@ HIVE_VIEWS = {
 
 
 def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
-    "Register IAM credentials with duckdb."
+    """Register IAM credentials with duckdb."""
     connection.install_extension("aws")
     connection.load_extension("aws")
     return connection.sql("""
@@ -114,11 +115,22 @@ def register_read_ymd(
     """Register function in DuckDB using SQL text."""
     pl = ProcessLogger("register_read_ymd")
     pl.log_start()
-    connection.sql("""
+
+    # WARNING: The dynamic column aliasing here replaces periods (.) with underscores (_) in field names.
+    # There's a limitation in the COLUMNS function where you can't run REPLACE (or any function) on the
+    # column alias (the "AS clause"), so I had to hardcode each case of columns with no periods (foo),
+    # columns with one period (foo.bar) and columns with 2 or more periods (foo.bar.baz, foo.bar.baz.bop).
+    # Because of how binding works in DuckDB, this function will also blow up if there is any parquet dataset
+    # that doesn't have columns with zero periods, one period, and 2 or more periods.
+    connection.sql(
+        """
         CREATE OR REPLACE MACRO read_ymd
 
             (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
-             SELECT *
+             SELECT 
+                COLUMNS('^.*?(\\w+)\\.(\\w+)\\.(\\w+)$') AS '\\1_\\2_\\3',
+                COLUMNS('^(\\w+)\\.(\\w+)$') AS '\\1_\\2',
+                COLUMNS('^[^.]*$') AS '\\1'
              FROM read_parquet(
                 list_transform(
                     range(
@@ -193,8 +205,7 @@ def register_effective_gtfs_timestamps(
 def add_views_to_local_metastore(
     connection: duckdb.DuckDBPyConnection, views: dict[str, List[rf.S3Location]]
 ) -> List[str]:
-    "Add views of remote Parquet files to duckdb database."
-
+    """Add views of remote Parquet files to duckdb database."""
     built_views: List[str] = []
     for k in views.keys():
         for item in views[k]:
@@ -207,6 +218,39 @@ def add_views_to_local_metastore(
         raise EmptyDataStructureException
 
     return built_views
+
+
+def alter_columns_with_periods(
+    conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table_name: str, column_names: plr.Series
+) -> None:
+    """Alters columns in the views to replace periods with underscores"""
+    statement = ""
+    for column_name in column_names:
+        statement += (
+            f"ALTER TABLE {table_name} RENAME COLUMN \"{column_name}\" TO \"{column_name.replace('.', '_')}\"; "
+        )
+
+    try:
+        conn.sql(statement)
+    except duckdb.Error as e:
+        pl.log_failure(e)
+
+
+def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection) -> None:
+    """
+    Rename columns to replace period with underscore.
+    Period is a reserved character in SQL, which would force users to quote column names
+    """
+    pl = ProcessLogger("rename_columns_with_periods")
+    pl.log_start()
+    try:
+        all_tables = conn.sql("SELECT name, column_names FROM (SHOW ALL TABLES)").pl()
+
+        for row in all_tables.iter_rows():
+            alter_columns_with_periods(conn, pl, row[0], row[1])
+    except duckdb.Error as e:
+        pl.log_failure(e)
+    pl.log_complete()
 
 
 def pipeline(  # pylint: disable=dangerous-default-value
@@ -234,6 +278,7 @@ def pipeline(  # pylint: disable=dangerous-default-value
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
         register_effective_gtfs_timestamps(con)
+        rename_columns_with_periods(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)

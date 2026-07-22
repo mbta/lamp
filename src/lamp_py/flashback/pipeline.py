@@ -1,7 +1,8 @@
 import asyncio
-from datetime import timedelta
+from datetime import timedelta, datetime
 from os import environ
 from signal import SIGTERM, signal
+from zoneinfo import ZoneInfo
 
 import dataframely as dy
 
@@ -12,7 +13,10 @@ from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
-async def flashback(remote_events: dy.DataFrame[StopEvents], max_record_age: timedelta = timedelta(hours=2)) -> None:
+async def flashback(
+    remote_events: dy.DataFrame[StopEvents],
+    max_record_age: timedelta = timedelta(hours=2),
+) -> None:
     """Fetch, process, and store stop events."""
     existing_events = remote_events
     while True:
@@ -20,7 +24,12 @@ async def flashback(remote_events: dy.DataFrame[StopEvents], max_record_age: tim
         process_logger.log_start()
         new_records = await get_vehicle_positions()
 
-        stop_events = update_records(existing_events, unnest_vehicle_positions(new_records), max_record_age)
+        stop_events = update_records(
+            existing_events,
+            unnest_vehicle_positions(new_records),
+            datetime.now(ZoneInfo("America/New_York")),
+            max_record_age,
+        )
 
         existing_events = stop_events
 

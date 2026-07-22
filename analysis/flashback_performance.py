@@ -21,6 +21,8 @@ def _():
     import polars as pl
     import altair as alt
 
+    alt.data_transformers.enable("vegafusion")
+
     from lamp_py.flashback.events import StopEvents
     from lamp_py.aws.s3 import file_list_from_s3_with_details
 
@@ -30,18 +32,30 @@ def _():
 @app.cell
 def _(mo):
     refresher = mo.ui.refresh(options=[5, 10, 60], default_interval=10)
+    return (refresher,)
+
+
+@app.cell
+def _(refresher):
+    refresher
     return
 
 
 @app.cell
 def _(mo):
-    env = mo.ui.dropdown(options=["staging", "dev"], value="staging")
+    env = mo.ui.dropdown(options={"staging": "staging-", "dev": "dev-", "prod": ""}, value="staging")
     return (env,)
 
 
 @app.cell
 def _(env):
-    bucket_name = f"mbta-ctd-dataplatform-{env.value}-archive"
+    env
+    return
+
+
+@app.cell
+def _(env):
+    bucket_name = f"mbta-ctd-dataplatform-{env.value}archive"
     return (bucket_name,)
 
 

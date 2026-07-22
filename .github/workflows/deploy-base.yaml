@@ -90,7 +90,7 @@ jobs:
           echo "version=${FULL_VERSION}" >> $GITHUB_ENV
       - name: Build and Push Docker Image
         id: build-push
-        uses: mbta/actions/build-push-ecr@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/build-push-ecr@2c88be6542aa1b129d6a273cae070af9b1e7c076  # v2.22
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           docker-repo: ${{ secrets.DOCKER_REPO }}
@@ -98,7 +98,7 @@ jobs:
       - name: Deploy Ingestion Application
         id: deploy-ingestion
         if: ${{ inputs.deploy-ingestion }}
-        uses: mbta/actions/deploy-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -108,7 +108,7 @@ jobs:
       - name: Deploy Rail Performance Manager Application
         id: deploy-rail-performance-manager
         if: ${{ inputs.deploy-rail-pm }}
-        uses: mbta/actions/deploy-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -118,7 +118,7 @@ jobs:
       - name: Deploy Bus Performance Manager Application
         id: deploy-bus-performance-manager
         if: ${{ inputs.deploy-bus-pm }}
-        uses: mbta/actions/deploy-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -128,7 +128,7 @@ jobs:
       - name: Deploy TransitMaster Ingestion Application
         id: deploy-tm-ingestion
         if: ${{ inputs.deploy-tm-ingestion && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-scheduled-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -138,7 +138,7 @@ jobs:
       - name: Deploy Tableau Publisher Application
         id: deploy-tableau-publisher
         if: ${{ inputs.deploy-tableau-publisher && inputs.environment != 'dev' }}
-        uses: mbta/actions/deploy-scheduled-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-scheduled-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -148,7 +148,7 @@ jobs:
       - name: Deploy Flashback service
         id: deploy-flashback
         if: ${{ inputs.deploy-flashback }}
-        uses: mbta/actions/deploy-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -158,7 +158,7 @@ jobs:
       - name: Deploy Lightswitch catalog
         id: deploy-lightswitch
         if: ${{ inputs.deploy-lightswitch }}
-        uses: mbta/actions/deploy-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -169,7 +169,7 @@ jobs:
       - name: Deploy Ad-Hoc Process
         id: deploy-ad-hoc
         if: ${{ inputs.deploy-ad-hoc }}
-        uses: mbta/actions/deploy-ecs@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+        uses: mbta/actions/deploy-ecs@788f8e264e9ebb1b76b927c89e6466d5a162be80  # v2.24
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           ecs-cluster: lamp
@@ -177,7 +177,7 @@ jobs:
           ecs-task-definition: lamp-ad-hoc-${{ inputs.environment }}
           docker-tag: ${{ steps.build-push.outputs.docker-tag }}
           allow-zero-desired: true
-      - uses: mbta/actions/notify-slack-deploy@87d6b0891d9a26493f05f5803ec855387179f183  # v2
+      - uses: mbta/actions/notify-slack-deploy@2c88be6542aa1b129d6a273cae070af9b1e7c076  # v2.22
         if: ${{ !cancelled() }}
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK }}
