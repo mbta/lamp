@@ -1,1 +1,1 @@
-""" Suite of utilities for interacting with microsoft sql database """
+"""Suite of utilities for interacting with microsoft sql database"""

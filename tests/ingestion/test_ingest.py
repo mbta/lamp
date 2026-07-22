@@ -11,7 +11,6 @@ from lamp_py.runtime_utils.lamp_exception import NoImplException
 from lamp_py.runtime_utils.lamp_exception import IgnoreIngestion
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 
-
 TEST_FILE_DIR = os.path.join(os.path.dirname(__file__), "test_files")
 
 

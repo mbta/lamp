@@ -1,7 +1,7 @@
 """initial changes
 
 Revision ID: 07903947aabe
-Revises: 
+Revises:
 Create Date: 2023-12-11 15:12:47.261091
 
 """

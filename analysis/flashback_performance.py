@@ -6,13 +6,11 @@ app = marimo.App(layout_file="layouts/flashback_performance.grid.json")
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Flashback Usability Indicators
 
     Our users need to know what assumptions they should make about our data to use it effectively.
-    """
-    )
+    """)
     return
 
 
@@ -136,8 +134,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     If an event happens, will I see it?
 
     $$
@@ -155,8 +152,7 @@ def _(mo):
 
 
     We can approximate total events as the events that appear in our `VehiclePositions` archive with date, trip, route, and vehicle information. We expect arrivals for every stop after the first stop on a trip and departures for every stop before the last stop on a trip.
-    """
-    )
+    """)
     return
 
 
@@ -236,8 +232,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     When I see an event, does it have the correct arrival and departure times?
 
     $$
@@ -249,8 +244,7 @@ def _(mo):
     - ✅ if 99% of timestamps are within 15 seconds
     - ⚠️ if 99% of timestamps are within 30 seconds
     - ❌ if less than 99% of timestamps are within 30 seconds
-    """
-    )
+    """)
     return
 
 
@@ -297,8 +291,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     After an event occurs, how long do I need to wait before I see it?
 
     $$
@@ -310,8 +303,7 @@ def _(mo):
     - ✅ if 99% of events appear within 15 seconds
     - ⚠️ if 99% of events appear within 30 seconds
     - ❌ if less than 99% of events appear within 30 seconds
-    """
-    )
+    """)
     return
 
 
@@ -399,8 +391,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     How quickly can we process an event after it appears in `VehiclePositions`? Narrowly, this is our responsibility.
 
     $$
@@ -412,8 +403,7 @@ def _(mo):
     - ✅ if 99% of events are processed within 5 seconds
     - ⚠️ if 99% of events are processed within 10 seconds
     - ❌ if less than 99% of events are processed within 10 seconds
-    """
-    )
+    """)
     return
 
 

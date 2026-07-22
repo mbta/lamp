@@ -17,7 +17,6 @@ import sqlalchemy as sa
 
 from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 
-
 # revision identifiers, used by Alembic.
 revision = "587e2c484a7d"
 down_revision = "9b461d7aa53a"

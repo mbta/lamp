@@ -14,7 +14,6 @@ Details
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision = "cce8dfee767a"
 down_revision = "07903947aabe"

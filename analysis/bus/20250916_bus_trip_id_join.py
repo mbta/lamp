@@ -198,8 +198,7 @@ def _(pl):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     switching it up, to try to save the trip_id messing till the last possible moment. If i do nothing until join_rt_to_schedule...
 
 
@@ -355,8 +354,7 @@ def _(mo):
     df68245216.sort(by=["vehicle_label", "trip_id_gtfs", "tm_stop_sequence"]).select("trip_id_gtfs", "tm_stop_sequence", "stop_sequence", "timepoint_order", "plan_stop_departure_dt", "vehicle_label", "tm_actual_departure_dt")
     df68245216.sort(by=["vehicle_label", "trip_id_gtfs", "tm_stop_sequence"])
     ```
-    """
-    )
+    """)
     return
 
 
@@ -420,16 +418,14 @@ def _(mo, og, pl):
 
     all_1_2_in_tm_events = all_1_2.str.replace("_.*", "").is_in(og.tm_event["trip_id"].unique().implode()).all()
 
-    mo.md(
-        f"""
+    mo.md(f"""
 
     Are _1 _2 trip ids in TM schedule? {any_1_2_in_tm_sched}
 
     Are ALL _1 _2 trip ids in TM events? {all_1_2_in_tm_events}
 
     This might just be a staging artifact, because the tm_sched could be off
-    """
-    )
+    """)
     return (all_1_2,)
 
 
@@ -455,16 +451,14 @@ def _(mo, og, pl):
     all_OL_tm_events = all_ol.str.replace("-OL.*", "").is_in(og.tm_event["trip_id"].unique().implode()).all()
     # all_1_2_in_tm_events = og.gtfs_sched.filter(pl.col('plan_trip_id').str.contains('_1') | pl.col('plan_trip_id').str.contains('_2'))['plan_trip_id'].unique().str.replace("_.*", "").is_in(og.tm_event['trip_id'].unique().implode()).all()
 
-    mo.md(
-        f"""
+    mo.md(f"""
 
     Are ALL OL trip ids in TM schedule? {all_OL_in_tm_sched}
 
     Are ALL OL trip ids in TM events? {all_OL_tm_events}
 
     This might just be a staging artifact, because the tm_sched could be off
-    """
-    )
+    """)
     return (all_ol,)
 
 
@@ -603,16 +597,14 @@ def _(new_68162195, pl):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Schedule does not have OL. So they won't be in combined schedule, meaning they won't get joined in. The thing cory did to get 
 
     Schedule does have _1 _2. So those will be joined in by this method we have already. 
 
     GTFS Schedule - gives all pts. also gives _1 _2. missing OL
     TM Schedule - gives all non-rev timepoints. has prefix w/o _1 _2. OL
-    """
-    )
+    """)
     return
 
 

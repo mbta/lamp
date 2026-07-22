@@ -13,7 +13,6 @@ Backfill missing performance data from 2026-01-01 to 2026-01-04.
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "ab642034866f"
 down_revision = "26db393ea854"

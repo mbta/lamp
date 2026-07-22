@@ -133,8 +133,7 @@ class TMDailyTable(TMExport):
                         )
                     )
                 else:
-                    query = sa.text(
-                        f"""
+                    query = sa.text(f"""
                     SELECT
                         {table_columns}
                     FROM
@@ -142,8 +141,7 @@ class TMDailyTable(TMExport):
                     WHERE 
                         CALENDAR_ID = {date}
                     ;
-                    """
-                    )
+                    """)
 
                 s3_export_path = os.path.join(
                     self.s3_location.s3_uri,

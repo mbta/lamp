@@ -1,7 +1,7 @@
 """initial changes
 
 Revision ID: 07903947aabe
-Revises: 
+Revises:
 Create Date: 2023-12-11 15:12:47.261091
 
 """
@@ -59,7 +59,7 @@ def upgrade() -> None:
         with rpm_db_manager.session.begin() as session:
             result = session.execute(text("SELECT path, processed, process_fail FROM metadata_log"))
             for row in result:
-                (path, processed, process_fail) = row
+                path, processed, process_fail = row
                 insert_data.append(
                     {
                         "path": path,

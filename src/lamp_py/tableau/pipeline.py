@@ -40,7 +40,6 @@ from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns
 from lamp_py.tableau.jobs.glides import HyperGlidesTripUpdates
 from lamp_py.aws.ecs import check_for_parallel_tasks
 
-
 PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
     HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
     HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen

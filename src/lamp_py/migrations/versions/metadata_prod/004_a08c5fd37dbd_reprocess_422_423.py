@@ -1,14 +1,14 @@
 """backfill_rt_rail_data_0404_to_0422
 
-    Revision ID: a08c5fd37dbd
-    Revises: 26db393ea854
-    Create Date: 2025-05-01 00:00:00
+Revision ID: a08c5fd37dbd
+Revises: 26db393ea854
+Create Date: 2025-05-01 00:00:00
 
-    Details: Reprocess 4/22 because it is missing. Include 4/22 and 4/23 because of UTC vs EST
+Details: Reprocess 4/22 because it is missing. Include 4/22 and 4/23 because of UTC vs EST
 
-    * upgrade -> reset processed flags in metadata for 4/22 and 4/23
-    * downgrade -> None
-    """
+* upgrade -> reset processed flags in metadata for 4/22 and 4/23
+* downgrade -> None
+"""
 
 import logging
 import os
