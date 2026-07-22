@@ -1,6 +1,5 @@
 import dataframely as dy
 
-
 position = dy.Struct(
     inner={
         "bearing": dy.UInt16(nullable=True),

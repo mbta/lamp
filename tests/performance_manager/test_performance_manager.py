@@ -360,7 +360,7 @@ def check_logs(caplog: pytest.LogCaptureFixture) -> None:
 
         for part in message.replace(",", "").split(" "):
             try:
-                (key, value) = part.split("=", 1)
+                key, value = part.split("=", 1)
                 message_dict[key] = value
             except Exception as exception:
                 pytest.fail(f"Unable to parse log message {message}. Reason {exception}")

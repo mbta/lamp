@@ -1,15 +1,15 @@
 """regen-rail-perf-20260101-to-20260104
 
-    Revision ID: f138635d1338
-    Revises: 5e3066f113ff
-    Create Date: 2026-02-28 11:31:59.737856
+Revision ID: f138635d1338
+Revises: 5e3066f113ff
+Create Date: 2026-02-28 11:31:59.737856
 
-    Details: regen-rail-perf-20260101-to-20260104 - 
-    This will clean up missing data from RDS performance issues/outage from 1/1 to 1/4
-    Rerunning 1/1 - 1/5 just in case. 
-    * upgrade -> Delete all records from 1/1 to 1/5 in vehicle events and vehicle_trips
-              -> Set all flags to "unprocessed" in metadata log from 1/1 to 1/5
-    * downgrade -> Nothing
+Details: regen-rail-perf-20260101-to-20260104 -
+This will clean up missing data from RDS performance issues/outage from 1/1 to 1/4
+Rerunning 1/1 - 1/5 just in case.
+* upgrade -> Delete all records from 1/1 to 1/5 in vehicle events and vehicle_trips
+          -> Set all flags to "unprocessed" in metadata log from 1/1 to 1/5
+* downgrade -> Nothing
 """
 
 import logging

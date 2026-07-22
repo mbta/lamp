@@ -7,6 +7,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class VehiclePositions(dy.Schema):
     "All fields from VehiclePositions message."
+
     id = dy.String(nullable=True)
     trip_id = dy.String(nullable=True, alias="vehicle.trip.trip_id")
     route_id = dy.String(nullable=True, alias="vehicle.trip.route_id")
@@ -45,6 +46,7 @@ class VehiclePositions(dy.Schema):
 
 class LightRailTerminalVehiclePositions(dy.Schema):
     "Analytical VehiclePositions dataset for light rail terminal predictions."
+
     id = VehiclePositions.id
     route_id = VehiclePositions.route_id
     direction_id = VehiclePositions.direction_id
@@ -68,6 +70,7 @@ class LightRailTerminalVehiclePositions(dy.Schema):
 
 class HeavyRailTerminalVehiclePositions(VehiclePositions):
     "Analytical dataset for heavy rail and light rail midpoint dashboards."
+
     stop_id = dy.String(
         nullable=True,
         alias="vehicle.stop_id",

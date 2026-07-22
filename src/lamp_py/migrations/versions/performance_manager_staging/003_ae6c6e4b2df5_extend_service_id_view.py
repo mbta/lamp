@@ -17,7 +17,6 @@ from lamp_py.migrations.versions.performance_manager_staging.sql_strings.strings
     view_service_id_by_date_and_route,
 )
 
-
 # revision identifiers, used by Alembic.
 revision = "ae6c6e4b2df5"
 down_revision = "1b53fd278b10"

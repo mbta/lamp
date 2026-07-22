@@ -1,1 +1,1 @@
-""" Suite of utilities for interacting with postgres database """
+"""Suite of utilities for interacting with postgres database"""

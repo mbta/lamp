@@ -10,7 +10,6 @@ import pyarrow.compute as pc
 import polars as pl
 from lamp_py.aws.s3 import file_list_from_s3
 
-
 SPARE = "spare"
 SPARE_PROCESSED = os.path.join(SPARE, "processed")
 SPARE_TABLEAU = os.path.join(SPARE, "tableau")
@@ -123,13 +122,11 @@ def convert_spare_{name}_for_tableau() -> pyarrow.schema:
 with open("src/lamp_py/tableau/spare/autogen_03_spare_tableau_converters.py", "w+") as f:
     # create empty converters
 
-    f.write(
-        """
+    f.write("""
 # type: ignore
 # pylint: skip-file
 import pyarrow
-            """
-    )
+            """)
     for name in singles:
         print(filter_gen(name), file=f)
     for name in multis:
@@ -195,8 +192,7 @@ def read_schema_template(name) -> None:
 with open("src/lamp_py/tableau/spare/autogen_01_schema_printer.py", "w+") as f:
     # f.write("")
 
-    f.write(
-        """
+    f.write("""
 # type: ignore
 # pylint: skip-file
         
@@ -218,8 +214,7 @@ from lamp_py.runtime_utils.remote_files_spare import SPARE, SPARE_TABLEAU
 
 spare_resources = {}
 
-"""
-    )
+""")
 
     for name in singles:
         print(template_springboard_single_input(name), file=f)

@@ -59,14 +59,12 @@ def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
     "Register IAM credentials with duckdb."
     connection.install_extension("aws")
     connection.load_extension("aws")
-    return connection.sql(  # type: ignore[index]
-        """
+    return connection.sql("""
     CREATE SECRET IF NOT EXISTS secret (
         TYPE s3, 
         PROVIDER credential_chain
     );
-    """
-    ).fetchone()[0]
+    """).fetchone()[0]  # type: ignore[index]
 
 
 def build_view(
@@ -116,8 +114,7 @@ def register_read_ymd(
     """Register function in DuckDB using SQL text."""
     pl = ProcessLogger("register_read_ymd")
     pl.log_start()
-    connection.sql(
-        """
+    connection.sql("""
         CREATE OR REPLACE MACRO read_ymd
 
             (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
@@ -143,8 +140,7 @@ def register_read_ymd(
                 hive_partitioning = True
             )
             )
-        """
-    )
+        """)
 
     pl.log_complete()
 
@@ -159,8 +155,7 @@ def register_effective_gtfs_timestamps(
     schema_name = "gtfs_schedule"
     create_schemas(connection, [schema_name])
     try:
-        connection.sql(
-            f"""
+        connection.sql(f"""
             CREATE OR REPLACE TABLE {schema_name}.effective_timestamps AS
             SELECT
                 service_date,
@@ -188,8 +183,7 @@ def register_effective_gtfs_timestamps(
             ORDER BY
                 service_date
             )
-            """
-        )
+            """)
     except duckdb.Error as e:
         pl.log_failure(e)
 
