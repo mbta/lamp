@@ -24,7 +24,7 @@ from lamp_py.runtime_utils.lamp_exception import (
     NoImplException,
     IgnoreIngestion,
 )
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING, S3_SPRINGBOARD, S3Location
+from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING, converter_stages
 from lamp_py.ingestion.utils import group_sort_file_list
 from lamp_py.ingestion.compress_gtfs.gtfs_to_parquet import gtfs_to_parquet
 
@@ -100,10 +100,10 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                         converters[config_type] = GtfsRtFullPartitionConverter(
                             config_type,
                             metadata_queue,
-                            remote_output_location=S3Location(
-                                S3_SPRINGBOARD, os.path.join(LAMP, "FULLSET", str(config_type))
-                            ),
+                            remote_output_location=converter_stages[config_type]["stage0"],
                             move_source_on_completion=True,
+                            time_chunk_minutes=15,
+                            
                         )
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:

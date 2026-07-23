@@ -2,6 +2,8 @@ import os
 from dataclasses import dataclass
 from typing import Union
 
+from lamp_py.ingestion.converter import ConfigType
+
 # bucket constants
 S3_SPRINGBOARD: str = os.environ.get("SPRINGBOARD_BUCKET", "unset_SPRINGBOARD")
 S3_PUBLIC: str = os.environ.get("PUBLIC_ARCHIVE_BUCKET", "unset_PUBLIC")
@@ -33,7 +35,30 @@ class S3Location:
         return f"s3://{self.bucket}/{self.prefix}"
 
 
-# files ingested from delta
+# Stage 0 from delta - X minute chunks, raw messages. no uniqueing or filtering.
+# only contains the most recent 7 days of data, updated on a rolling basis.
+springboard_rt_vehicle_positions_timeseries_fullset_stage0 = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "RT_VEHICLE_POSITIONS_TIMESERIES_FULLSET"),
+)
+
+springboard_rt_trip_updates_timeseries_fullset_stage0 = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "RT_TRIP_UPDATES_TIMESERIES_FULLSET"),
+)
+
+# Stage 1 from delta - X minute chunks, uniqued on rolling 45min window basis.
+# only contains the most recent 7 days of data, updated on a rolling basis.
+springboard_rt_vehicle_positions_timeseries_unique_stage1 = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "RT_VEHICLE_POSITIONS_TIMESERIES_UNIQUE"),
+)
+springboard_rt_trip_updates_timeseries_unique_stage1 = S3Location(
+    bucket=S3_SPRINGBOARD,
+    prefix=os.path.join(LAMP, "RT_TRIP_UPDATES_TIMESERIES_UNIQUE"),
+)
+
+# files ingested from delta - unique, combined and partitioned into archival format. Long term storage
 springboard_rt_vehicle_positions = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_VEHICLE_POSITIONS"),
@@ -43,6 +68,21 @@ springboard_rt_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
     prefix=os.path.join(LAMP, "RT_TRIP_UPDATES"),
 )
+
+
+converter_stages = {
+    ConfigType.RT_TRIP_UPDATES: {
+        "stage0": springboard_rt_trip_updates_timeseries_fullset_stage0,
+        "stage1": springboard_rt_trip_updates_timeseries_unique_stage1,
+        "stage2": springboard_rt_trip_updates,
+    },
+    ConfigType.RT_VEHICLE_POSITIONS: {
+        "stage0": springboard_rt_vehicle_positions_timeseries_fullset_stage0,
+        "stage1": springboard_rt_vehicle_positions_timeseries_unique_stage1,
+        "stage2": springboard_rt_vehicle_positions,
+    },
+}
+
 ########################################################
 # files ingested from delta - DEVGREEN
 springboard_devgreen_rt_vehicle_positions = S3Location(

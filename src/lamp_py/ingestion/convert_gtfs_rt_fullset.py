@@ -1,6 +1,7 @@
 # pylint: disable=too-many-positional-arguments,too-many-arguments, too-many-locals, redefined-outer-name, R0801
 
 from concurrent.futures import ThreadPoolExecutor
+import math
 import os
 from datetime import datetime
 from pathlib import Path
@@ -71,7 +72,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         self.filter = polars_filter
         self.move_source_on_completion = move_source_on_completion
         self.time_chunk_minutes = time_chunk_minutes
-
+        self.rolling_window_queue = Queue(math.ceil(45/self.time_chunk_minutes))
     def convert(self) -> None:
         """
         Convert all files in self.files to time-chunked parquet partitions.
@@ -109,7 +110,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 local_path = os.path.join(self.tmp_folder, LAMP, str(self.config_type), path_suffix)
 
                 os.makedirs(Path(local_path).parent, exist_ok=True)
-
+                self.rolling_window_queue.put(table)
+                self.write_local_pq_partitssion_unique(table, local_path)
                 self.write_local_pq_partition(table, local_path)
 
                 # in backfill mode, we don't want to move files around in s3 -
