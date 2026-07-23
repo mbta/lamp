@@ -145,7 +145,7 @@ tm_pattern_geo_node_xref_file = S3Location(
 )
 
 # published by LAMP
-bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.2")
+bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.3")
 bus_operator_mapping = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0")
 
 # Kinesis stream glides events
@@ -185,8 +185,12 @@ tableau_rail_vehicle_trips = S3Location(
 )
 
 
-tableau_bus_recent = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_RECENT_Bus_Events.parquet"))
-tableau_bus_all = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_ALL_Bus_Events.parquet"))
+tableau_bus_recent = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_RECENT_Bus_Events.parquet"), version="1.1.0"
+)
+tableau_bus_all = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_ALL_Bus_Events.parquet"), version="1.1.0"
+)
 
 # archive to archive_pii
 tableau_bus_operator_mapping_recent = S3Location(
