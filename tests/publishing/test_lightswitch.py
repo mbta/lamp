@@ -94,7 +94,7 @@ def test_register_read_ymd(
     directory_name: str,
     raises: pytest.RaisesExc,
 ) -> None:
-    """It raises errors on directories that don't exist, and renames columns to have underscores instead of periods"""
+    """It raises errors on directories that don't exist and renames columns to have underscores instead of periods."""
     file_path = tmp_path.joinpath("lamp/RT_VEHICLE_POSITIONS/year=2024/month=6/day=1/2024-06-01T00:00:00.parquet")
     file_path.parent.mkdir(parents=True)
     pl.read_parquet("tests/test_files/SPRINGBOARD/RT_VEHICLE_POSITIONS/year=2024").write_parquet(file_path)
