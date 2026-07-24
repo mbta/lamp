@@ -189,7 +189,7 @@ def register_effective_gtfs_timestamps(
     try:
         connection.sql(
             f"""
-            CREATE OR REPLACE TABLE {schema_name}.effective_timestamps AS
+            CREATE OR REPLACE TABLE {schema_name}_effective_timestamps AS
             SELECT
                 service_date,
                 split_part(rating, ' ', 2) as rating_year,
