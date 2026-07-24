@@ -2,7 +2,6 @@ import os
 from typing import List
 
 import duckdb
-import polars as plr
 from lamp_py.runtime_utils import remote_files as rf
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
@@ -83,7 +82,29 @@ def build_view(
     pl.add_metadata(view_name=view_name, view_target=view_target)
 
     try:
-        connection.from_parquet(view_target, hive_partitioning=True).create_view(view_name)
+        column_aliases = (
+            connection.sql(
+                f"""
+            SELECT DISTINCT string_agg('"' || column_name || '" AS ' || REPLACE(column_name, '.', '_'), ', ') 
+            FROM (
+                DESCRIBE SELECT * FROM read_parquet('{view_target}')
+            )
+        """
+            )
+            .pl()
+            .item(0, 0)
+        )
+        connection.execute(
+            # Rename columns to replace period with underscore.
+            # Period is a reserved character in SQL, which would force users to quote column names
+            f"""
+            CREATE VIEW {view_name} AS
+            SELECT
+                {column_aliases}
+            FROM read_parquet('{view_target}', hive_partitioning=True)
+            """
+        )
+
         return True
     except Exception as e:
         pl.log_failure(e)
@@ -118,12 +139,8 @@ def register_read_ymd(
     pl = ProcessLogger("register_read_ymd")
     pl.log_start()
 
-    # WARNING: The dynamic column aliasing here replaces periods (.) with underscores (_) in field names.
-    # There's a limitation in the COLUMNS function where you can't run REPLACE (or any function) on the
-    # column alias (the "AS clause"), so I had to hardcode each case of columns with no periods (foo),
-    # columns with one period (foo.bar) and columns with 2 or more periods (foo.bar.baz, foo.bar.baz.bop).
-    # Because of how binding works in DuckDB, this function will also blow up if there is any parquet dataset
-    # that doesn't have columns with zero periods, one period, and 2 or more periods.
+    # Rename columns to replace period with underscore.
+    # Period is a reserved character in SQL, which would force users to quote column names
     connection.sql(
         """
         CREATE OR REPLACE MACRO read_ymd
@@ -172,7 +189,7 @@ def register_effective_gtfs_timestamps(
     try:
         connection.sql(
             f"""
-            CREATE OR REPLACE TABLE {schema_name}.effective_timestamps AS
+            CREATE OR REPLACE TABLE {schema_name}_effective_timestamps AS
             SELECT
                 service_date,
                 split_part(rating, ' ', 2) as rating_year,
@@ -225,39 +242,6 @@ def add_views_to_local_metastore(
     return built_views
 
 
-def alter_columns_with_periods(
-    conn: duckdb.DuckDBPyConnection, pl: ProcessLogger, table_name: str, column_names: plr.Series
-) -> None:
-    """Alters columns in the views to replace periods with underscores"""
-    statement = ""
-    for column_name in column_names:
-        statement += (
-            f"ALTER TABLE {table_name} RENAME COLUMN \"{column_name}\" TO \"{column_name.replace('.', '_')}\"; "
-        )
-
-    try:
-        conn.sql(statement)
-    except duckdb.Error as e:
-        pl.log_failure(e)
-
-
-def rename_columns_with_periods(conn: duckdb.DuckDBPyConnection) -> None:
-    """
-    Rename columns to replace period with underscore.
-    Period is a reserved character in SQL, which would force users to quote column names
-    """
-    pl = ProcessLogger("rename_columns_with_periods")
-    pl.log_start()
-    try:
-        all_tables = conn.sql("SELECT name, column_names FROM (SHOW ALL TABLES)").pl()
-
-        for row in all_tables.iter_rows():
-            alter_columns_with_periods(conn, pl, row[0], row[1])
-    except duckdb.Error as e:
-        pl.log_failure(e)
-    pl.log_complete()
-
-
 def pipeline(  # pylint: disable=dangerous-default-value
     views: dict[str, List[rf.S3Location]] = HIVE_VIEWS,
     local_location: str = "/tmp/lamp.db",
@@ -283,7 +267,6 @@ def pipeline(  # pylint: disable=dangerous-default-value
         add_views_to_local_metastore(con, views)
         register_read_ymd(con)
         register_effective_gtfs_timestamps(con)
-        rename_columns_with_periods(con)
 
     if remote_location:
         pl.add_metadata(remote_location=remote_location.s3_uri)

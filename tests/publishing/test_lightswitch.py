@@ -14,7 +14,6 @@ from lamp_py.publishing.lightswitch import (
     register_read_ymd,
     register_effective_gtfs_timestamps,
     create_schemas,
-    rename_columns_with_periods,
 )
 from lamp_py.runtime_utils.remote_files import S3Location
 from tests.test_resources import rt_vehicle_positions, tm_route_file
@@ -44,8 +43,13 @@ def fixture_duckdb_con(
 def test_build_view(
     duckdb_con: duckdb.DuckDBPyConnection, partition_strategy: str, data_location: S3Location, result: pytest.RaisesExc
 ) -> None:
-    """It gracefully creates the view using the specified partition strategy."""
+    """It gracefully creates the view using the specified partition strategy, and replaces periods with underscores in column names"""
     assert result == build_view(duckdb_con, "test", data_location, partition_strategy)
+
+    period_columns = duckdb_con.sql(
+        "SELECT * FROM duckdb_columns() WHERE table_name = 'test' AND column_name LIKE '%.%'"
+    )
+    assert len(period_columns) == 0
 
 
 # test if all views get built
@@ -90,7 +94,7 @@ def test_register_read_ymd(
     directory_name: str,
     raises: pytest.RaisesExc,
 ) -> None:
-    """It raises errors on directories that don't exist."""
+    """It raises errors on directories that don't exist, and renames columns to have underscores instead of periods"""
     file_path = tmp_path.joinpath("lamp/RT_VEHICLE_POSITIONS/year=2024/month=6/day=1/2024-06-01T00:00:00.parquet")
     file_path.parent.mkdir(parents=True)
     pl.read_parquet("tests/test_files/SPRINGBOARD/RT_VEHICLE_POSITIONS/year=2024").write_parquet(file_path)
@@ -98,9 +102,15 @@ def test_register_read_ymd(
     with raises:
         with duckdb_con:
             register_read_ymd(duckdb_con)
-            assert duckdb_con.sql(
+            res = duckdb_con.sql(
                 f"SELECT * FROM read_ymd('{directory_name}', '2024-06-01' :: DATE, '2024-06-02' :: DATE, '{tmp_path.resolve()}')"
             )
+
+            assert res
+
+            if len(res) > 0:
+                # no columns with periods
+                assert len([col for col in res.pl().columns if "." in col]) == 0
 
 
 def test_register_effective_gtfs_timestamps(
@@ -116,9 +126,9 @@ def test_register_effective_gtfs_timestamps(
 
     with duckdb_con:
         register_effective_gtfs_timestamps(duckdb_con, tmp_path.as_posix())
-        assert duckdb_con.sql("SELECT * FROM gtfs_schedule.effective_timestamps")
+        assert duckdb_con.sql("SELECT * FROM gtfs_schedule_effective_timestamps")
         result = duckdb_con.sql(
-            "SELECT count(*) FROM gtfs_schedule.effective_timestamps WHERE rating_season IS NULL"
+            "SELECT count(*) FROM gtfs_schedule_effective_timestamps WHERE rating_season IS NULL"
         ).fetchone()
         assert isinstance(result, tuple)
         assert result[0] == 0
@@ -144,11 +154,3 @@ def test_create_schemas(
     resultant_schemas = create_schemas(duckdb_con, schema_list)
     assert (ERROR in [t[1] for t in caplog.record_tuples]) == error_expected
     assert resultant_schemas == output_schemas
-
-
-def test_rename_columns_with_periods(duckdb_con: duckdb.DuckDBPyConnection) -> None:
-    with duckdb_con:
-        duckdb_con.sql('CREATE TABLE foo ("col.with.dots" INT, "other.col.with.dots" INT, no_dots INT)')
-        rename_columns_with_periods(duckdb_con)
-        new_col_names = list(duckdb_con.sql("SHOW foo").to_df()["column_name"])
-        assert set(new_col_names) == set(["col_with_dots", "other_col_with_dots", "no_dots"])
