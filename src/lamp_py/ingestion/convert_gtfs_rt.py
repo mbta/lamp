@@ -136,7 +136,12 @@ class GtfsRtConverter(Converter):
     https_mbta_integration.mybluemix.net_vehicleCount.gz
     """
 
-    def __init__(self, config_type: ConfigType, metadata_queue: Queue[Optional[str]], max_workers: int = 4) -> None:
+    def __init__(
+        self,
+        config_type: ConfigType,
+        metadata_queue: Queue[Optional[str]],
+        max_workers: int = 8,
+    ) -> None:
         Converter.__init__(self, config_type, metadata_queue)
 
         # Depending on filename, assign self.details to correct implementation
@@ -185,8 +190,10 @@ class GtfsRtConverter(Converter):
                     continue
 
                 self.continuous_pq_update(table)
-                pool = pyarrow.default_memory_pool()
-                pool.release_unused()
+
+                # try to get pyarrow to limit memory usage after each loop.
+                # this is a "ask nicely and pray" move...we can't manage memory directly in python.
+                pyarrow.default_memory_pool().release_unused()
                 table_count += 1
                 process_logger.add_metadata(table_count=table_count)
                 # limit number of tables produced on each event loop
@@ -204,7 +211,7 @@ class GtfsRtConverter(Converter):
 
     def thread_init(self) -> None:
         """
-        initialize the filesystem in each convert thread
+        Initialize the filesystem in each convert thread
 
         update the active fs to use the s3 filesystem for all loading if the
         first file starts with s3
@@ -217,11 +224,10 @@ class GtfsRtConverter(Converter):
 
     def process_files(self) -> Iterable[pyarrow.table]:
         """
-        iterate through all of the files to be converted
+        Iterate through all of the files to be converted
 
         only yield a new table when table size crosses over min_rows of yield_check
         """
-
         process_logger = ProcessLogger(
             "create_pyarrow_tables",
             config_type=str(self.config_type),
@@ -272,7 +278,7 @@ class GtfsRtConverter(Converter):
 
     def yield_check(self, process_logger: ProcessLogger, min_rows: int = 2_000_000) -> Iterable[pyarrow.table]:
         """
-        yield all tables in the data_parts map that have been sufficiently
+        Yield all tables in the data_parts map that have been sufficiently
         processed.
 
         @min_rows - how many rows the table must have to be yielded
@@ -378,7 +384,7 @@ class GtfsRtConverter(Converter):
 
     def partition_dt(self, table: pyarrow.Table) -> datetime:
         """
-        verify partition structure of pyarrow Table
+        Verify partition structure of pyarrow Table
 
         :param table: pyarrow Table to verify
 
@@ -430,7 +436,7 @@ class GtfsRtConverter(Converter):
 
     def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
-        create dataset, with hash column, that will be written to parquet file
+        Create dataset, with hash column, that will be written to parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
@@ -462,9 +468,9 @@ class GtfsRtConverter(Converter):
 
     # pylint: disable=R0914
     # pylint too many local variables (more than 15)
-    def write_local_pq(self, table: pyarrow.Table, local_path: str) -> None:
+    def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
-        merge pyarrow Table with existing local_path parquet file
+        Merge pyarrow Table with existing local_path parquet file
 
         :param table: pyarrow Table
         :param local_path: path to local parquet file
@@ -597,7 +603,7 @@ class GtfsRtConverter(Converter):
 
             log.add_metadata(local_path=local_path)
 
-            self.write_local_pq(table, local_path)
+            self.write_local_pq_partition(table, local_path)
             self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
 
             # record the number of rows in the final parquet file for logging
@@ -621,7 +627,7 @@ class GtfsRtConverter(Converter):
 
     def clean_local_folders(self) -> None:
         """
-        clean local temp folders
+        Clean local temp folders
         """
         days_to_keep = 2
         root_folder = os.path.join(
@@ -641,7 +647,7 @@ class GtfsRtConverter(Converter):
 
     def move_s3_files(self) -> None:
         """
-        move archive and error files to their respective s3 buckets.
+        Move archive and error files to their respective s3 buckets.
         """
         if len(self.error_files) > 0:
             self.error_files = move_s3_objects(
