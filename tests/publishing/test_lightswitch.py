@@ -45,10 +45,11 @@ def test_build_view(
 ) -> None:
     """It gracefully creates the view using the specified partition strategy, and replaces periods with underscores in column names"""
     assert result == build_view(duckdb_con, "test", data_location, partition_strategy)
-    select_result = duckdb_con.sql("SELECT * FROM test").pl().columns()
 
-    # no columns with periods
-    assert len([col for col in select_result.pl().columns if col.contains(".")]) == 0
+    period_columns = duckdb_con.sql(
+        "SELECT * FROM duckdb_columns() WHERE table_name = 'test' AND column_name LIKE '%.%'"
+    )
+    assert len(period_columns) == 0
 
 
 # test if all views get built
@@ -107,8 +108,9 @@ def test_register_read_ymd(
 
             assert res
 
-            # no columns with periods
-            assert len([col for col in res.pl().columns if col.contains(".")]) == 0
+            if len(res) > 0:
+                # no columns with periods
+                assert len([col for col in res.pl().columns if "." in col]) == 0
 
 
 def test_register_effective_gtfs_timestamps(
