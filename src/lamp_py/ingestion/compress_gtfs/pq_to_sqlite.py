@@ -10,7 +10,7 @@ from lamp_py.ingestion.utils import gzip_file
 
 def sqlite_type(pq_type: str) -> str:
     """
-    return SQLITE type from pyarrow Field type
+    Return SQLITE type from pyarrow Field type
     """
     if "int" in pq_type:
         return "INTEGER"
@@ -25,7 +25,7 @@ def sqlite_type(pq_type: str) -> str:
 
 def sqlite_table_query(table_name: str, schema: pyarrow.Schema) -> str:
     """
-    return CREATE TABLE query for sqlite table from pyarrow schema
+    Return CREATE TABLE query for sqlite table from pyarrow schema
     """
     logger = ProcessLogger("sqlite_create_table")
     logger.log_start()
@@ -44,7 +44,7 @@ def sqlite_table_query(table_name: str, schema: pyarrow.Schema) -> str:
 
 def pq_folder_to_sqlite(year_path: str) -> None:
     """
-    load all files from year_path folder into SQLITE3 db file
+    Load all files from year_path folder into SQLITE3 db file
     """
     logger = ProcessLogger("pq_to_sqlite", year_path=year_path)
     logger.log_start()

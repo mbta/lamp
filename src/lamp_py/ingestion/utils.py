@@ -22,7 +22,7 @@ GTFS_RT_HASH_COL = "lamp_record_hash"
 
 def group_sort_file_list(filepaths: List[str]) -> Dict[str, List[str]]:
     """
-    group and sort list of filepaths by filename
+    Group and sort list of filepaths by filename
 
     expects s3 file paths that can be split on timestamp:
 
@@ -41,7 +41,7 @@ def group_sort_file_list(filepaths: List[str]) -> Dict[str, List[str]]:
 
     def strip_timestamp(fileobject: str) -> str:
         """
-        utility for sorting pulling timestamp string out of file path.
+        Utility for sorting pulling timestamp string out of file path.
         assumption is that the objects will have a bunch of "directories" that
         pathlib can parse out, and the filename will start with a timestamp
         "YYY-MM-DDTHH:MM:SSZ" (20 char) format.
@@ -108,7 +108,7 @@ def date_from_feed_version(feed_version: str) -> datetime.datetime:
 
 def ordered_schedule_frame() -> pl.DataFrame:
     """
-    create de-duplicated and ordered frame of all MBTA gtfs schedules from
+    Create de-duplicated and ordered frame of all MBTA gtfs schedules from
     https://cdn.mbta.com/archive/archived_feeds.txt
 
     de-duplicated on: published_date
@@ -177,7 +177,7 @@ def file_as_bytes_buf(file: str) -> BytesIO:
 
 
 def flatten_table_schema(table: pyarrow.table) -> pyarrow.table:
-    """flatten pyarrow table if struct column type exists"""
+    """Flatten pyarrow table if struct column type exists"""
     for field in table.schema:
         if str(field.type).startswith("struct"):
             return flatten_table_schema(table.flatten())
@@ -185,7 +185,7 @@ def flatten_table_schema(table: pyarrow.table) -> pyarrow.table:
 
 
 def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
-    """explode list-like column of pyarrow table by creating rows for each list value"""
+    """Explode list-like column of pyarrow table by creating rows for each list value"""
     other_columns = list(table.schema.names)
     other_columns.remove(column)
     indices = pc.list_parent_indices(table[column])
@@ -205,7 +205,7 @@ def explode_table_column(table: pyarrow.table, column: str) -> pyarrow.table:
 
 def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
     """
-    add GTFS_RT_HASH_COL column to pyarrow table, if not already present
+    Add GTFS_RT_HASH_COL column to pyarrow table, if not already present
     """
     log = ProcessLogger(
         "hash_gtfs_rt_table", table_rows=table.num_rows, table_mbs=round(table.nbytes / (1024 * 1024), 2)
@@ -229,7 +229,7 @@ def hash_gtfs_rt_table(table: pyarrow.Table) -> pyarrow.Table:
 
 def hash_gtfs_rt_parquet(path: str) -> None:
     """
-    add GTFS_RT_HASH_COL to local parquet file, if not already present
+    Add GTFS_RT_HASH_COL to local parquet file, if not already present
     """
     ds = pq.ParquetFile(path)
     ds_schema = ds.schema.to_arrow_schema()
@@ -259,7 +259,7 @@ def hash_gtfs_rt_parquet(path: str) -> None:
 
 def gzip_file(path: str, keep_original: bool = False) -> None:
     """
-    gzip local file
+    Gzip local file
 
     :param path: local file path
     :param keep_original: keep original non-gzip file = False

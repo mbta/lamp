@@ -21,7 +21,7 @@ from lamp_py.ingestion.compress_gtfs.pq_to_sqlite import pq_folder_to_sqlite
 # pylint: disable=R0914
 def test_gtfs_to_parquet_compression() -> None:
     """
-    test gtfs -> parquet compression pipeline
+    Test gtfs -> parquet compression pipeline
 
     will test compression of 3 randomly selected schedules from the past year
     """

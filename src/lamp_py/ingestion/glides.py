@@ -213,7 +213,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         """Key in record['data'] that is unique to this event type"""
 
     def download_remote(self) -> None:
-        """download the remote parquet path for appending"""
+        """Download the remote parquet path for appending"""
         if os.path.exists(self.local_path):
             os.remove(self.local_path)
 
@@ -405,7 +405,7 @@ def ingest_glides_events(
     kinesis_reader: KinesisReader, metadata_queue: Queue[Optional[str]], upload: bool = False
 ) -> None:
     """
-    ingest glides records from the kinesis stream and add them to parquet files
+    Ingest glides records from the kinesis stream and add them to parquet files
     """
     process_logger = ProcessLogger(process_name="ingest_glides_events")
     process_logger.log_start()
