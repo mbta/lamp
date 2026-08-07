@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
@@ -22,7 +23,7 @@ from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns, HyperGlidesT
     ids=["operator_sign_ins", "trip_updates", "mismatched_schema"],
 )
 def test_glides_hyper_job(
-    job_cls: type[HyperJob],
+    job_cls: Callable[[], HyperJob],
     schema: GlidesRecord,
     raises: pytest.RaisesExc,
     mocker: MockerFixture,
