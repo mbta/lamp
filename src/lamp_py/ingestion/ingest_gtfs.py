@@ -95,8 +95,8 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                 config_type = ConfigType.from_filename(file_group[0])
                 # key is not in converters yet - create a new converter for this config type
                 if config_type not in converters:
-                    # partitioned converter for the large gtfs-rt file types. rest are handled by the normal 
-                    # non-partitioned converter. 
+                    # partitioned converter for the large gtfs-rt file types. rest are handled by the normal
+                    # non-partitioned converter.
                     if "TRIP_UPDATES" in str(config_type) or "VEHICLE_POSITIONS" in str(config_type):
                         converters[config_type] = GtfsRtFullPartitionConverter(
                             config_type,
@@ -106,9 +106,9 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                             ),
                             move_source_on_completion=True,
                         )
-                    else: 
+                    else:
                         converters[config_type] = GtfsConverter(config_type, metadata_queue)
-                    
+
                 # converter was already created, add the files to it
                 converters[config_type].add_files(file_group)
             except IgnoreIngestion:
