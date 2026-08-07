@@ -76,18 +76,17 @@ def validate_environment(
 
 def get_environment() -> str:
     """
-    Temp: Replace this when we make the tf change to just get "ENVIRONMENT" directly.  
+    Extracts environment string from ECS_TASK_GROUP variable. Returns one of "dev", "staging", or "prod".
+    Or ValueError if ECS_TASK_GROUP is not set correctly.
     """
-    validate_environment(required_variables=["ARCHIVE_BUCKET"])
+    abcabc = os.environ.get("ECS_TASK_GROUP", None)
+    print(f"HHH ECS_TASK_GROUP: {abcabc}")
 
-    # Extract environment from ARCHIVE_BUCKET
-    archive_bucket = os.environ.get("ARCHIVE_BUCKET", "")
-    if "dataplatform-archive" in archive_bucket:
-        environment = "prod"
-    elif "dataplatform-dev-archive" in archive_bucket:
-        environment = "dev"
-    elif "dataplatform-staging-archive" in archive_bucket:
-        environment = "staging"
-    else:
-        raise ValueError(f"Environment not detected. ARCHIVE_BUCKET variable is not set correctly: {archive_bucket}")
+    validate_environment(required_variables=["ECS_TASK_GROUP"])
+
+    # extracts one of "dev", "staging", or "prod" from the ECS_TASK_GROUP variable
+    environment = os.getenv("ECS_TASK_GROUP", "-").split("-")[-1]
+
+    if environment not in ["dev", "staging", "prod"]:
+        raise ValueError(f"Environment not detected. ECS_TASK_GROUP variable is not set correctly: {os.getenv('ECS_TASK_GROUP', '-')}")
     return environment
