@@ -18,6 +18,7 @@ from tableauhyperapi import (
     escape_string_literal,
 )
 
+from lamp_py.runtime_utils.env_validation import get_environment
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import (
@@ -46,7 +47,7 @@ class HyperJob(ABC):  # pylint: disable=R0902
     ) -> None:
 
         # extracts one of "dev", "staging", or "prod" from the ECS_TASK_GROUP variable
-        environment = os.getenv("ECS_TASK_GROUP", "-").split("-")[-1]
+        environment = get_environment()
         if environment != "prod":
             hyper_file_name = f"{hyper_file_name.replace('.hyper','')}_{environment}.hyper"
         self.hyper_file_name = hyper_file_name
@@ -220,49 +221,66 @@ class HyperJob(ABC):  # pylint: disable=R0902
         for retry_count in range(max_retries + 1):
             try:
                 process_log.add_metadata(retry_count=retry_count)
-                # get datasource from Tableau to check "updated_at" datetime
-                datasource = datasource_from_name(self.hyper_table_name, self.project_name)
 
-                # get file_info on remote parquet file to check "mtime" datetime
-                pq_file_info = self.remote_fs.get_file_info(self.remote_parquet_path)
-
-                # Parquet file does not exist, can not run upload
-                if pq_file_info.type == fs.FileType.NotFound:
-                    raise FileNotFoundError(f"{self.remote_parquet_path} does not exist")
-
-                process_log.add_metadata(
-                    parquet_last_mod=pq_file_info.mtime.isoformat(),
-                )
-
-                if datasource and datasource.updated_at:
+                if get_environment() == "dev":
+                    # do hyper file update in dev environment, but do not upload to Tableau server
                     process_log.add_metadata(
-                        hyper_last_mod=datasource.updated_at.isoformat(),
+                        update_hyper_file=False,
+                        reason="HyperFile upload skipped in non-prod/staging environment",
                     )
 
-                # if datasource exists and parquet file was not modified, skip HyperFile update
-                if datasource is not None and pq_file_info.mtime < datasource.updated_at:
-                    process_log.add_metadata(update_hyper_file=False)
+                    hyper_row_count = self.create_local_hyper()
+                    hyper_file_size = os.path.getsize(self.local_hyper_path) / (1024 * 1024)
+                    process_log.add_metadata(
+                        hyper_row_count=hyper_row_count,
+                        hyper_file_siz_mb=f"{hyper_file_size:.2f}",
+                        update_hyper_file=True,
+                    )
+                    os.remove(self.local_hyper_path)
                     process_log.log_complete()
-                    break
+                else:  # prod or staging
 
-                hyper_row_count = self.create_local_hyper()
-                hyper_file_size = os.path.getsize(self.local_hyper_path) / (1024 * 1024)
-                process_log.add_metadata(
-                    hyper_row_count=hyper_row_count,
-                    hyper_file_siz_mb=f"{hyper_file_size:.2f}",
-                    update_hyper_file=True,
-                )
+                    # get datasource from Tableau to check "updated_at" datetime
+                    datasource = datasource_from_name(self.hyper_table_name, self.project_name)
 
-                # Upload local HyperFile to Tableau server
-                overwrite_datasource(
-                    project_name=self.project_name,
-                    hyper_path=self.local_hyper_path,
-                )
-                os.remove(self.local_hyper_path)
+                    # get file_info on remote parquet file to check "mtime" datetime
+                    pq_file_info = self.remote_fs.get_file_info(self.remote_parquet_path)
 
-                process_log.log_complete()
+                    # Parquet file does not exist, can not run upload
+                    if pq_file_info.type == fs.FileType.NotFound:
+                        raise FileNotFoundError(f"{self.remote_parquet_path} does not exist")
 
-                break
+                    process_log.add_metadata(
+                        parquet_last_mod=pq_file_info.mtime.isoformat(),
+                    )
+
+                    if datasource and datasource.updated_at:
+                        process_log.add_metadata(
+                            hyper_last_mod=datasource.updated_at.isoformat(),
+                        )
+
+                    # if datasource exists and parquet file was not modified, skip HyperFile update
+                    if datasource is not None and pq_file_info.mtime < datasource.updated_at:
+                        process_log.add_metadata(update_hyper_file=False)
+                        process_log.log_complete()
+                        break
+
+                    hyper_row_count = self.create_local_hyper()
+                    hyper_file_size = os.path.getsize(self.local_hyper_path) / (1024 * 1024)
+                    process_log.add_metadata(
+                        hyper_row_count=hyper_row_count,
+                        hyper_file_siz_mb=f"{hyper_file_size:.2f}",
+                        update_hyper_file=True,
+                    )
+
+                    # Upload local HyperFile to Tableau server
+                    overwrite_datasource(
+                        project_name=self.project_name,
+                        hyper_path=self.local_hyper_path,
+                    )
+
+                    os.remove(self.local_hyper_path)
+                    process_log.log_complete()
 
             except Exception as exception:
                 if retry_count == max_retries:
@@ -376,15 +394,21 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     update_hyper_file=True,
                 )
 
-                # Upload local HyperFile to Tableau server
-                overwrite_datasource(
-                    project_name=self.project_name,
-                    hyper_path=self.local_hyper_path,
-                )
+                environment = get_environment()
+                if environment == "dev":
+                    process_log.add_metadata(
+                        update_hyper_file=False,
+                        reason="HyperFile upload skipped in non-prod/staging environment",
+                    )
+                else:
+                    # Upload local HyperFile to Tableau server
+                    overwrite_datasource(
+                        project_name=self.project_name,
+                        hyper_path=self.local_hyper_path,
+                    )
+
                 os.remove(self.local_hyper_path)
-
                 process_log.log_complete()
-
                 break
 
             except Exception as exception:
