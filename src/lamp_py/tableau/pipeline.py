@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lamp_py.runtime_utils.env_validation import get_environment, validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.lamp_jobs import (
