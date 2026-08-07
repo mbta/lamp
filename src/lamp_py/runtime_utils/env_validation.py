@@ -79,9 +79,6 @@ def get_environment() -> str:
     Extracts environment string from ECS_TASK_GROUP variable. Returns one of "dev", "staging", or "prod".
     Or ValueError if ECS_TASK_GROUP is not set correctly.
     """
-    abcabc = os.environ.get("ECS_TASK_GROUP", None)
-    print(f"HHH ECS_TASK_GROUP: {abcabc}")
-
     validate_environment(required_variables=["ECS_TASK_GROUP"])
 
     # extracts one of "dev", "staging", or "prod" from the ECS_TASK_GROUP variable
