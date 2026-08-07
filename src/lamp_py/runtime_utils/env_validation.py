@@ -88,5 +88,7 @@ def get_environment() -> str:
     environment = os.getenv("ECS_TASK_GROUP", "-").split("-")[-1]
 
     if environment not in ["dev", "staging", "prod"]:
-        raise ValueError(f"Environment not detected. ECS_TASK_GROUP variable is not set correctly: {os.getenv('ECS_TASK_GROUP', '-')}")
+        raise ValueError(
+            f"Environment not detected. ECS_TASK_GROUP variable is not set correctly: {os.getenv('ECS_TASK_GROUP', '-')}"
+        )
     return environment

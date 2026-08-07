@@ -239,9 +239,9 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     os.remove(self.local_hyper_path)
                     process_log.log_complete()
                     break
-                
-                else: # prod or staging
-                        
+
+                else:  # prod or staging
+
                     # get datasource from Tableau to check "updated_at" datetime
                     datasource = datasource_from_name(self.hyper_table_name, self.project_name)
 
