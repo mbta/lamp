@@ -148,9 +148,17 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
     def write_local_pq_partition(self, table: pyarrow.Table, local_path: str) -> None:
         """
-        Just write the file out..
+        Writes down current table to local_path.
 
-        this should be already sorted by timestamp based on how self.files is yielded.
+        If local_path already exists, that means that the previous loop iteration yielded an incomplete time chunk, 
+        and we are now filling in the remaining record that is part of that chunk. 
+        
+        In that case, read the existing parquet file, concat with the new table, and write it back out.
+       
+        Assumption: 
+            - the new data is distinct from the existing data in local path - no duplicate records
+            - It is expected that new data in table is later timestamp than the existing data in local_path
+            - The time-orderedness is maintained by the s3 file query and yielding function upstream. 
         """
         df: pl.DataFrame = pl.from_arrow(table).filter(self.filter)  # type: ignore[arg-type, assignment]
 
@@ -209,6 +217,9 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 if len(self.data_parts) > 1:
                     yield from self.yield_check_periodic(process_logger, result_dt)
 
+        # at the end of the executor, there are no files remaining. we flush=true
+        # the partial subset of a chunk (likely) - and writes the temporary to local, 
+        # Then on the next loop, it'll have a chance to finish fully and upload to s3.
         yield from self.yield_check_periodic(process_logger, flush=True)
 
         process_logger.add_metadata(file_count=0, number_of_rows=0)

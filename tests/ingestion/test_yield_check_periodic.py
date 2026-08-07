@@ -152,8 +152,7 @@ def test_yield_check_periodic_archives_files(move: bool) -> None:
 
 def test_clean_local_folders_removes_oldest_day(tmp_path: Path) -> None:
     """
-    clean_local_folders should keep only the two newest day partitions.
-    Handles case when ingestion is down for a duration exceeding a couple days
+    clean_local_folders should keep only the two newest day partitions
     """
     c = GtfsRtFullPartitionConverter(
         config_type=ConfigType.RT_TRIP_UPDATES,
