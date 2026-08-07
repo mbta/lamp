@@ -20,7 +20,7 @@ from lamp_py.tableau.jobs.lamp_jobs import (
     LAMP_API_PROJECT,
     Prod_VehiclePositions_LightRailTerminals_60Day,
     Prod_TripUpdates_LightRailTerminals_60Day,
-    Prod_VehiclePositions_HeavyRailTerminals_30Day,
+    Prod_VehiclePositions_HeavyRailTerminals_60Day,
     Prod_TripUpdates_HeavyRailTerminals_30Day,
     Prod_VehiclePositions_LightRail_7Day,
     DevGreen_VehiclePositions_LightRailTerminals_60Day,
@@ -37,7 +37,7 @@ from lamp_py.tableau.jobs.lamp_jobs import (
 
 TestProd_VehiclePositions_LightRailTerminals_60Day = Prod_VehiclePositions_LightRailTerminals_60Day
 TestProd_TripUpdates_LightRailTerminals_60Day = Prod_TripUpdates_LightRailTerminals_60Day
-TestProd_VehiclePositions_HeavyRailTerminals_30Day = Prod_VehiclePositions_HeavyRailTerminals_30Day
+TestProd_VehiclePositions_HeavyRailTerminals_60Day = Prod_VehiclePositions_HeavyRailTerminals_60Day
 TestProd_TripUpdates_HeavyRailTerminals_30Day = Prod_TripUpdates_HeavyRailTerminals_30Day
 TestProd_VehiclePositions_LightRail_7Day = Prod_VehiclePositions_LightRail_7Day
 TestDevGreen_VehiclePositions_LightRailTerminals_60Day = DevGreen_VehiclePositions_LightRailTerminals_60Day
@@ -57,7 +57,7 @@ TestHyperBusPerformanceAll = HyperBusPerformanceAll
 yesterday = 1
 TestProd_VehiclePositions_LightRailTerminals_60Day.num_days_ago = yesterday
 TestProd_TripUpdates_LightRailTerminals_60Day.num_days_ago = yesterday
-TestProd_VehiclePositions_HeavyRailTerminals_30Day.num_days_ago = yesterday
+TestProd_VehiclePositions_HeavyRailTerminals_60Day.num_days_ago = yesterday
 TestProd_TripUpdates_HeavyRailTerminals_30Day.num_days_ago = yesterday
 TestProd_VehiclePositions_LightRail_7Day.num_days_ago = yesterday
 TestDevGreen_VehiclePositions_LightRailTerminals_60Day.num_days_ago = yesterday
@@ -88,12 +88,12 @@ def start_hyper() -> None:
     """Run all HyperFile Update Jobs"""
 
     hyper_jobs: List[HyperJob] = [
-        DevGreen_TripUpdates_LightRailTerminals_60Day
+        # DevGreen_TripUpdates_LightRailTerminals_60Day
         # TestProd_VehiclePositions_LightRailTerminals_60Day,
         # TestProd_TripUpdates_LightRailTerminals_60Day,
-        # TestProd_VehiclePositions_HeavyRailTerminals_30Day,
+        # TestProd_VehiclePositions_HeavyRailTerminals_60Day,
         # TestProd_TripUpdates_HeavyRailTerminals_30Day,
-        # TestProd_VehiclePositions_LightRail_7Day,
+        TestProd_VehiclePositions_LightRail_7Day,
         # TestDevGreen_VehiclePositions_LightRailTerminals_60Day,
         # TestDevGreen_TripUpdates_LightRailTerminals_60Day,
         # TestDevGreen_VehiclePositions_HeavyRailTerminals_60Day,
@@ -109,10 +109,10 @@ def start_hyper() -> None:
         # TestProd_BusOperatorMapping_Fall2025Rating,
     ]
 
-    local_parquet = True
+    local_parquet = False
     run_pq_remote = False
     local_hyper = False
-    run_hyper_remote = False
+    run_hyper_remote = True
 
     if local_parquet:
         for job in hyper_jobs:
