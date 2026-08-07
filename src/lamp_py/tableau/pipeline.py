@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import get_environment, validate_environment
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.lamp_jobs import (
@@ -81,7 +81,9 @@ def start_hyper_updates() -> None:
             "TABLEAU_PASSWORD",
             "TABLEAU_SERVER",
             "TABLEAU_PROJECT",
+            "ARCHIVE_BUCKET",
             "PUBLIC_ARCHIVE_BUCKET",
+            "SPRINGBOARD_BUCKET",
             "ECS_CLUSTER",
             "ECS_TASK_GROUP",
         ],
