@@ -13,16 +13,16 @@ from lamp_py.tableau.jobs.glides import HyperGlidesOperatorSignIns, HyperGlidesT
 
 
 @pytest.mark.parametrize(
-    ["job", "schema", "raises"],
+    ["job_cls", "schema", "raises"],
     [
-        (HyperGlidesOperatorSignIns(), OperatorSignInsTable, nullcontext(False)),
-        (HyperGlidesTripUpdates(), TripUpdatesTable, nullcontext(False)),
-        (HyperGlidesTripUpdates(), OperatorSignInsTable, pytest.raises(pl.exceptions.ColumnNotFoundError)),
+        (HyperGlidesOperatorSignIns, OperatorSignInsTable, nullcontext(False)),
+        (HyperGlidesTripUpdates, TripUpdatesTable, nullcontext(False)),
+        (HyperGlidesTripUpdates, OperatorSignInsTable, pytest.raises(pl.exceptions.ColumnNotFoundError)),
     ],
     ids=["operator_sign_ins", "trip_updates", "mismatched_schema"],
 )
 def test_glides_hyper_job(
-    job: HyperJob,
+    job_cls: type[HyperJob],
     schema: GlidesRecord,
     raises: pytest.RaisesExc,
     mocker: MockerFixture,
@@ -31,6 +31,9 @@ def test_glides_hyper_job(
     num_records: int = 10,
 ) -> None:
     """It creates a compatible Parquet file."""
+    mocker.patch.dict("os.environ", {"ECS_TASK_GROUP": "tableau-dev"})
+    job = job_cls()
+
     springboard_path = tmp_path / "springboard.parquet"
     (
         schema.sample(
