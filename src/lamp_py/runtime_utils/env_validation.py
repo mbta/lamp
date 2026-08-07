@@ -72,3 +72,22 @@ def validate_environment(
         raise exception
 
     process_logger.log_complete()
+
+
+def get_environment() -> str:
+    """
+    Temp: Replace this when we make the tf change to just get "ENVIRONMENT" directly.  
+    """
+    validate_environment(required_variables=["ARCHIVE_BUCKET"])
+
+    # Extract environment from ARCHIVE_BUCKET
+    archive_bucket = os.environ.get("ARCHIVE_BUCKET", "")
+    if "dataplatform-archive" in archive_bucket:
+        environment = "prod"
+    elif "dataplatform-dev-archive" in archive_bucket:
+        environment = "dev"
+    elif "dataplatform-staging-archive" in archive_bucket:
+        environment = "staging"
+    else:
+        raise ValueError(f"Environment not detected. ARCHIVE_BUCKET variable is not set correctly: {archive_bucket}")
+    return environment
