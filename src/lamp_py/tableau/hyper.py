@@ -18,6 +18,7 @@ from tableauhyperapi import (
     escape_string_literal,
 )
 
+from lamp_py.runtime_utils.env_validation import get_environment
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import (
@@ -253,15 +254,21 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     update_hyper_file=True,
                 )
 
-                # Upload local HyperFile to Tableau server
-                overwrite_datasource(
-                    project_name=self.project_name,
-                    hyper_path=self.local_hyper_path,
-                )
+                environment = get_environment()
+                if environment == "dev":
+                    process_log.add_metadata(
+                        update_hyper_file=False,
+                        reason="HyperFile upload skipped in non-prod/staging environment",
+                    )
+                else:
+                    # Upload local HyperFile to Tableau server
+                    overwrite_datasource(
+                        project_name=self.project_name,
+                        hyper_path=self.local_hyper_path,
+                    )
+
                 os.remove(self.local_hyper_path)
-
                 process_log.log_complete()
-
                 break
 
             except Exception as exception:
@@ -376,15 +383,21 @@ class HyperJob(ABC):  # pylint: disable=R0902
                     update_hyper_file=True,
                 )
 
-                # Upload local HyperFile to Tableau server
-                overwrite_datasource(
-                    project_name=self.project_name,
-                    hyper_path=self.local_hyper_path,
-                )
+                environment = get_environment()
+                if environment == "dev":
+                    process_log.add_metadata(
+                        update_hyper_file=False,
+                        reason="HyperFile upload skipped in non-prod/staging environment",
+                    )
+                else:
+                    # Upload local HyperFile to Tableau server
+                    overwrite_datasource(
+                        project_name=self.project_name,
+                        hyper_path=self.local_hyper_path,
+                    )
+
                 os.remove(self.local_hyper_path)
-
                 process_log.log_complete()
-
                 break
 
             except Exception as exception:
