@@ -124,6 +124,7 @@ class TripUpdatesRecord(GlidesRecord):
                         "previousTripKey": trip_key,
                         "type": dy.String(),
                         "tripKey": trip_key,
+                        "nextTripKey": trip_key,
                         "comment": dy.String(nullable=True),
                         "startLocation": location,
                         "endLocation": location,

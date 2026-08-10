@@ -25,6 +25,7 @@ class TripUpdatesTableau(TripUpdatesTable):  # type: ignore[misc, valid-type]
     input_timestamp = dy.Datetime(time_unit="ms", alias="data.metadata.inputTimestamp", nullable=True)
     previous_trip_service_date = dy.Date(alias="data.tripUpdates.previousTripKey.serviceDate", nullable=True)
     trip_service_date = dy.Date(alias="data.tripUpdates.tripKey.serviceDate", nullable=True)
+    next_trip_service_date = dy.Date(alias="data.tripUpdates.nextTripKey.serviceDate", nullable=True)
 
 
 class OperatorSignInsTableau(OperatorSignInsTable):  # type: ignore[misc, valid-type]
@@ -54,6 +55,7 @@ def create_trips_updated_glides_parquet(job: HyperJob, num_files: Optional[int])
             pl.col("time").dt.convert_time_zone(time_zone="US/Eastern").dt.replace_time_zone(None),
             pl.col("data.tripUpdates.previousTripKey.serviceDate").str.to_date("%Y-%m-%d", strict=False),
             pl.col("data.tripUpdates.tripKey.serviceDate").str.to_date("%Y-%m-%d", strict=False),
+            pl.col("data.tripUpdates.nextTripKey.serviceDate").str.to_date("%Y-%m-%d", strict=False),
         )
         .select(TripUpdatesTableau.column_names())
     )
