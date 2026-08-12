@@ -110,6 +110,9 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
                 os.makedirs(Path(local_path).parent, exist_ok=True)
 
+                
+                table = table.drop_columns(["year", "month", "day"])
+                
                 self.write_local_pq_partition(table, local_path)
 
                 # in backfill mode, we don't want to move files around in s3 -
