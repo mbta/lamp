@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import pyarrow
 import polars as pl
 
-from lamp_py.aws.s3 import upload_file
+from lamp_py.aws.s3 import replace_remote_parquet
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter, TableData
 from lamp_py.ingestion.converter import ConfigType
 
@@ -95,7 +95,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
         table_count = 0
         try:
-            for table, partition_dt in self.process_files():
+            for table, partition_dt, was_flushed in self.process_files():
                 if table.num_rows == 0:
                     continue
 
@@ -122,12 +122,15 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
                 # mirror on s3 if remote output location is provided
                 if self.remote_output_location is not None:
-                    s3_path = os.path.join(self.remote_output_location.s3_uri, path_suffix)
-                    upload_file(local_path, s3_path)
 
-                    # update the metadata table with the new s3 path for the converted file,
-                    # so it can be picked up by the next stage of the pipeline
-                    self.send_metadata(s3_path)
+                    s3_path = os.path.join(self.remote_output_location.s3_uri, path_suffix)
+                    replace_remote_parquet(local_path, s3_path)
+
+                    if not was_flushed:
+                        # if this is a flush, don't mark it as ready for RPM to process via metadata
+                        # update the metadata table with the new s3 path for the converted file,
+                        # so it can be picked up by the next stage of the pipeline
+                        self.send_metadata(s3_path)
 
                 # try to get pyarrow to limit memory usage after each loop.
                 # this is a "ask nicely and pray" move...we can't manage memory directly in python.
@@ -243,7 +246,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         process_logger: ProcessLogger,
         current_ts: datetime = datetime.now(),
         flush: bool = False,
-    ) -> Iterable[Tuple[pyarrow.table, datetime]]:
+    ) -> Iterable[Tuple[pyarrow.table, datetime, bool]]:
         """
         Yield completed time-chunk intervals from data_parts.
 
@@ -251,6 +254,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
 
         @current_ts - the feed timestamp of the file just processed
         @flush - if True, yield everything remaining
+
+        Returns an iterable of tuples: (table, interval_start, flush)
         """
         current_interval = assign_datetime_to_binned_interval(current_ts, self.time_chunk_minutes)
         for iter_ts in list(self.data_parts.keys()):
@@ -272,6 +277,6 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
                 process_logger.log_start()
 
-                yield (table, iter_ts)
+                yield (table, iter_ts, flush)
 
                 del self.data_parts[iter_ts]
