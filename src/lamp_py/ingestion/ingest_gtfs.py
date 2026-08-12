@@ -24,7 +24,7 @@ from lamp_py.runtime_utils.lamp_exception import (
     NoImplException,
     IgnoreIngestion,
 )
-from lamp_py.runtime_utils.remote_files import LAMP, S3_ERROR, S3_INCOMING, S3_SPRINGBOARD, S3Location
+from lamp_py.runtime_utils.remote_files import DELTA, LAMP, S3_ERROR, S3_INCOMING, S3_SPRINGBOARD, S3Location
 from lamp_py.ingestion.utils import group_sort_file_list
 from lamp_py.ingestion.compress_gtfs.gtfs_to_parquet import gtfs_to_parquet
 
@@ -63,7 +63,7 @@ def ingest_gtfs_archive(metadata_queue: Queue[Optional[str]]) -> None:
     logger.log_complete()
 
 
-def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
+def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = DELTA) -> None:
     """
     Get all of the filepaths currently in the incoming bucket, sort them into
     batches of similar gtfs-rt files, convert each batch into tables, write the
@@ -146,7 +146,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
     logger.log_complete()
 
 
-def ingest_gtfs(metadata_queue: Queue[Optional[str]], bucket_filter: str = LAMP) -> None:
+def ingest_gtfs(metadata_queue: Queue[Optional[str]], bucket_filter: str = DELTA) -> None:
     """
     Ingest all gtfs file types
 

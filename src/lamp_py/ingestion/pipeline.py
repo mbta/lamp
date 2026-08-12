@@ -14,7 +14,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.ingestion.ingest_gtfs import ingest_gtfs
 from lamp_py.ingestion.glides import ingest_glides_events
 
-from lamp_py.runtime_utils.remote_files import LAMP
+from lamp_py.runtime_utils.remote_files import DELTA
 from lamp_py.utils.clear_folder import clear_folder
 
 logging.getLogger().setLevel("INFO")
@@ -45,7 +45,7 @@ def main() -> None:
     while True:
         process_logger = ProcessLogger(process_name="main")
         process_logger.log_start()
-        bucket_filter = LAMP
+        bucket_filter = DELTA
         check_for_sigterm(metadata_queue, rds_process)
 
         ingest_gtfs(metadata_queue, bucket_filter=bucket_filter)
