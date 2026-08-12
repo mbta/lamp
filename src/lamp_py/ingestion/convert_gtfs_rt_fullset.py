@@ -2,7 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from queue import Queue
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -36,6 +36,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         max_workers: int = 8,
         time_chunk_minutes: int = 15,
         move_source_on_completion: bool = False,
+        unique_config: tuple[bool, int] = (True, 3),
     ) -> None:
         """
         Initialize GTFS-RT fullset converter with time-chunked partitioning.
@@ -48,6 +49,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             polars_filter: Polars expression to filter data at conversion time; defaults to no filtering.
             max_workers: Number of worker threads for parallel processing.
             time_chunk_minutes: Minutes for time-based partitioning (e.g., 15 min intervals).
+            unique_config: Tuple indicating whether uniqueness is enforced and the lookback chunk count.
             move_source_on_completion: If True, move source files to archive after completion.
                 For the LAMP usecase, `source` in this context refers to the `delta` or `archive`
                 bucket, for ingestion or backfill respectively. The output is uploaded regardless,
@@ -71,6 +73,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         self.filter = polars_filter
         self.move_source_on_completion = move_source_on_completion
         self.time_chunk_minutes = time_chunk_minutes
+        self.unique_config = unique_config
 
     def convert(self) -> None:
         """
@@ -243,6 +246,21 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             ("trip_update.vehicle.id", "ascending"),
         ]
 
+    def interval_keys(self, anchor: datetime, lookback_count: int) -> List[datetime]:
+        """
+        Return the anchor interval key followed by lookback_count prior interval keys.
+
+        The first element (index 0) is the anchor's own binned interval.
+        Subsequent elements step backwards by self.time_chunk_minutes each.
+        """
+        return [
+            assign_datetime_to_binned_interval(
+                anchor - timedelta(minutes=self.time_chunk_minutes * i),
+                self.time_chunk_minutes,
+            )
+            for i in range(lookback_count + 1)
+        ]
+
     def yield_check_periodic(
         self,
         process_logger: ProcessLogger,
@@ -279,6 +297,31 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
                 process_logger.log_start()
 
+                if self.unique_config[0]:
+                    keys = self.interval_keys(iter_ts, self.unique_config[1])
+                    lookback_tables = [
+                        self.data_parts[k].table
+                        for k in keys
+                        if k in self.data_parts and self.data_parts[k].table is not None
+                    ]
+
+                    if lookback_tables:
+                        combined = pl.from_arrow(pyarrow.concat_tables(lookback_tables))
+                        dedup_cols = [c for c in combined.columns if c != "feed_timestamp"]
+                        combined = combined.unique(subset=dedup_cols, keep="first")
+                        table = (
+                            combined.filter(pl.col("feed_timestamp") >= int(iter_ts.timestamp()))
+                            .to_arrow()
+                            .cast(table.schema)
+                        )
+
+                    # evict chunks that have fallen out of the lookback window
+                    oldest_keep = keys[-1]
+                    for old_key in [k for k in self.data_parts if k < oldest_keep]:
+                        del self.data_parts[old_key]
+
                 yield (table, iter_ts, flush)
 
-                del self.data_parts[iter_ts]
+                # only delete the yielded chunk immediately when uniqueing is off
+                if not self.unique_config[0]:
+                    del self.data_parts[iter_ts]
