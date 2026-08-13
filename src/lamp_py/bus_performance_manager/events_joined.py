@@ -13,23 +13,83 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     "Stop events from GTFS-RT, TransitMaster, and GTFS Schedule."
 
-    trip_id = dy.String(primary_key=True)
-    vehicle_label = dy.String(primary_key=True)
-    tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    stop_count = dy.UInt32(nullable=True)
-    start_time = dy.Int64(nullable=True)
-    start_dt = dy.Datetime(nullable=True)
-    direction_id = dy.Int8(nullable=True)
-    direction = dy.String(nullable=True)
-    gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    latitude = dy.Float64(nullable=True)
-    longitude = dy.Float64(nullable=True)
-    trip_id_gtfs = dy.String(nullable=True)
-    public_operator_id = dy.Int64(nullable=True)
+    trip_id = dy.String(
+        primary_key=True, metadata={"definition": "[`trip_id`](https://gtfs.org/reference/static/#tripstxt)"}
+    )
+    vehicle_label = dy.String(
+        primary_key=True,
+        metadata={
+            "definition": "[`vehicle.label`](https://gtfs.org/documentation/realtime/reference/#message-tripdescriptor)"
+        },
+    )
+    tm_stop_sequence = dy.Int64(
+        nullable=True,
+        primary_key=False,
+        metadata={"definition": "Rank of stop crossing for a given TransitMaster trip."},
+    )
+    gtfs_stop_sequence = dy.Int64(
+        nullable=True,
+        primary_key=False,
+        metadata={"definition": "[`stop_sequence`](https://gtfs.org/documentation/schedule/reference/#stop_timestxt)"},
+    )
+    stop_count = dy.UInt32(nullable=True, metadata={"definition": "Total number of stops for a given trip."})
+    start_time = dy.Int64(
+        nullable=True, metadata={"definition": "[`start_time`](https://gtfs.org/reference/static/#tripstxt)"}
+    )
+    start_dt = dy.Datetime(nullable=True, metadata={"definition": "`service_date` + `start_time`"})
+    direction_id = dy.Int8(
+        nullable=True, metadata={"definition": "[`direction_id`](https://gtfs.org/reference/static/#tripstxt)"}
+    )
+    direction = dy.String(nullable=True, metadata={"definition": "Human readable direction of travel for the trip."})
+    gtfs_first_in_transit_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "earliest 'IN_TRANSIT_TO' status `timestamp` for vehicle from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)"
+        },
+    )
+    gtfs_last_in_transit_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "latest 'IN_TRANSIT_TO' status `timestamp` for vehicle from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)"
+        },
+    )
+    gtfs_arrival_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "Timestamp of earliest `STOPPED_AT` message for vehicle from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)"
+        },
+    )
+    gtfs_departure_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "Timestamp of latest `STOPPED_AT` message for vehicle from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)"
+        },
+    )
+    latitude = dy.Float64(
+        nullable=True,
+        metadata={
+            "definition": "Earliest `IN_TRANSIT_TO` latitude for vehicle from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)."
+        },
+    )
+    longitude = dy.Float64(
+        nullable=True,
+        metadata={
+            "definition": "Earliest `IN_TRANSIT_TO` longitude for vehicle from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)."
+        },
+    )
+    trip_id_gtfs = dy.String(
+        nullable=True,
+        metadata={
+            "definition": "GTFS-RT trip_id before removing overload and rare variant suffixes. Artifact of MBTA's GTFS-RT feed."
+        },
+    )
+    public_operator_id = dy.Int64(
+        nullable=True, metadata={"definition": "Anonymized operator ID joinable to other internal datasets."}
+    )
 
     @dy.rule()
     def final_stop_has_arrival_dt(cls) -> pl.Expr:
