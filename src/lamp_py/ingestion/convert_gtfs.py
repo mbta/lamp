@@ -26,7 +26,7 @@ from .converter import Converter
 
 def gtfs_files_to_convert() -> List[Tuple[str, int]]:
     """
-    create list of Tuple[GTFS url, version_key] for GtfsConverter
+    Create list of Tuple[GTFS url, version_key] for GtfsConverter
 
     version_key is based on published_dt
     """
@@ -75,7 +75,7 @@ class GtfsConverter(Converter):
 
     def process_schedule(self, url: str, version_key: int) -> None:
         """
-        convert a schedule gtfs zip file into tables. the zip file is
+        Convert a schedule gtfs zip file into tables. the zip file is
         essentially a small database with each contained file (outside of feed
         info) acting as its own table. info on the gtfs scheduling standard can
         be found at http://gtfs.org/schedule/
@@ -99,7 +99,7 @@ class GtfsConverter(Converter):
 
     def create_table(self, gtfs_zip: zipfile.ZipFile, table_filename: str, version_key: int) -> None:
         """
-        read a csv table out of a gtfs static schedule file, add a timestamp
+        Read a csv table out of a gtfs static schedule file, add a timestamp
         column to each row, and write it as a parquet file on s3, partitioned
         by the timestamp
 
