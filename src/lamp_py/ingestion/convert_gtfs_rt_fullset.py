@@ -229,7 +229,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 # this relies on self.files being sorted - enforced by add_files(),
                 # and ThreadPoolExecutor/map yields __next__ iterator, i.e. returns in the right order
 
-                needs_yield = any(not self.data_parts[k].yielded for k in self.data_parts)
+                needs_yield = any(not v.yielded for v in self.data_parts.values())
 
                 if len(self.data_parts) > 1 and needs_yield:
                     yield from self.yield_check_periodic(process_logger, result_dt)
