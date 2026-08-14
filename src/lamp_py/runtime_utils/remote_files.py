@@ -11,6 +11,7 @@ S3_ERROR: str = os.environ.get("ERROR_BUCKET", "unset_ERROR")
 
 # prefix constants
 LAMP = "lamp"
+DELTA = os.path.join(LAMP, "delta")
 TM = os.path.join(LAMP, "TM")
 TABLEAU = os.path.join(LAMP, "tableau")
 
