@@ -2,7 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from queue import Queue
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -36,6 +36,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         max_workers: int = 8,
         time_chunk_minutes: int = 15,
         move_source_on_completion: bool = False,
+        unique_config: bool = True,
+        lookback_count: int = 0,
     ) -> None:
         """
         Initialize GTFS-RT fullset converter with time-chunked partitioning.
@@ -48,6 +50,10 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             polars_filter: Polars expression to filter data at conversion time; defaults to no filtering.
             max_workers: Number of worker threads for parallel processing.
             time_chunk_minutes: Minutes for time-based partitioning (e.g., 15 min intervals).
+            unique_config: Boolean indicating whether uniqueness is enforced.
+            lookback_count: Number of previous time chunks to maintain for uniqueness checks; used with unique_config
+                - if set to zero, does not apply unique
+                - if set to 1, applies unique to the current chunk and the previous chunk, etc.
             move_source_on_completion: If True, move source files to archive after completion.
                 For the LAMP usecase, `source` in this context refers to the `delta` or `archive`
                 bucket, for ingestion or backfill respectively. The output is uploaded regardless,
@@ -71,6 +77,8 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         self.filter = polars_filter
         self.move_source_on_completion = move_source_on_completion
         self.time_chunk_minutes = time_chunk_minutes
+        self.unique_output_flag = unique_config
+        self.lookback_count = lookback_count
 
     def convert(self) -> None:
         """
@@ -207,6 +215,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 if dt_part not in self.data_parts:
                     self.data_parts[dt_part] = TableData()
                     self.data_parts[dt_part].table = self.detail.transform_for_write(rt_data)
+                    self.data_parts[dt_part].yielded = False
                 else:
                     self.data_parts[dt_part].table = pyarrow.concat_tables(
                         [self.data_parts[dt_part].table, self.detail.transform_for_write(rt_data)]
@@ -219,7 +228,10 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 # can start yielding tables for the intervals that are complete.
                 # this relies on self.files being sorted - enforced by add_files(),
                 # and ThreadPoolExecutor/map yields __next__ iterator, i.e. returns in the right order
-                if len(self.data_parts) > 1:
+
+                needs_yield = any(not v.yielded for v in self.data_parts.values())
+
+                if len(self.data_parts) > 1 and needs_yield:
                     yield from self.yield_check_periodic(process_logger, result_dt)
 
         # at the end of the executor, there are no files remaining. we flush=true
@@ -243,6 +255,21 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
             ("trip_update.vehicle.id", "ascending"),
         ]
 
+    def interval_keys(self, anchor: datetime, lookback_count: int) -> List[datetime]:
+        """
+        Return the anchor interval key followed by lookback_count prior interval keys.
+
+        The first element (index 0) is the anchor's own binned interval.
+        Subsequent elements step backwards by self.time_chunk_minutes each.
+        """
+        return [
+            assign_datetime_to_binned_interval(
+                anchor - timedelta(minutes=self.time_chunk_minutes * i),
+                self.time_chunk_minutes,
+            )
+            for i in range(lookback_count + 1)
+        ]
+
     def yield_check_periodic(
         self,
         process_logger: ProcessLogger,
@@ -260,25 +287,57 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
         Returns an iterable of tuples: (table, interval_start, flush)
         """
         current_interval = assign_datetime_to_binned_interval(current_ts, self.time_chunk_minutes)
+
         for iter_ts in list(self.data_parts.keys()):
             table = self.data_parts[iter_ts].table
 
-            # yield if we've moved past this interval
-            # or if flushing all remaining data
+            if self.data_parts[iter_ts].yielded:
+                continue
+
+            # yield if we've moved past this interval or flushing
             if flush or current_interval > iter_ts:
-                # only populate archive_files if we're in live ingestion mode
-                if self.move_source_on_completion:
-                    self.archive_files += self.data_parts[iter_ts].files
 
                 process_logger.add_metadata(
                     file_count=len(self.data_parts[iter_ts].files),
                     number_of_rows=table.num_rows,
                     interval_start=iter_ts.isoformat(),
                 )
-                process_logger.log_complete()
                 process_logger.add_metadata(file_count=0, number_of_rows=0, print_log=False)
-                process_logger.log_start()
+
+                if self.unique_output_flag and self.lookback_count > 0:
+                    keys = self.interval_keys(iter_ts, self.lookback_count)
+                    lookback_tables = [
+                        self.data_parts[k].table
+                        for k in keys
+                        if k in self.data_parts and self.data_parts[k].table is not None
+                    ]
+                    combined = pl.DataFrame(pyarrow.concat_tables(lookback_tables))
+                    dedup_cols = [c for c in combined.columns if c != "feed_timestamp"]
+
+                    # keep="first" is very important here to keep the chunks stable
+                    # otherwise we will delete non-deterministic records from the
+                    # current chunk or previous chunks, changing the record that is
+                    # stored off between calls.
+                    combined = combined.unique(subset=dedup_cols, keep="first")
+
+                    table = (
+                        combined.filter(pl.col("feed_timestamp") >= int(iter_ts.timestamp()))
+                        .to_arrow()
+                        .cast(table.schema)
+                    )
 
                 yield (table, iter_ts, flush)
+                self.data_parts[iter_ts].yielded = True
 
-                del self.data_parts[iter_ts]
+                if self.unique_output_flag and self.lookback_count > 0:
+                    # evict chunks that have fallen out of the lookback window
+                    oldest_keep = keys[-1]
+                    for old_key in [k for k in self.data_parts if k < oldest_keep]:
+                        if self.move_source_on_completion:
+                            self.archive_files += self.data_parts[old_key].files
+                        del self.data_parts[old_key]
+                else:
+                    # no lookback needed — delete immediately after yield
+                    if self.move_source_on_completion:
+                        self.archive_files += self.data_parts[iter_ts].files
+                    del self.data_parts[iter_ts]

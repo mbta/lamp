@@ -118,10 +118,12 @@ class TableData:
 
     tables: list of pyarrow tables that will joined together for final table yield
     files: list of files that make up tables
+    yielded: bool indicating if this table has been yielded (and written to disk)
     """
 
     table: Optional[pyarrow.Table] = None
     files: List[str] = field(default_factory=list)
+    yielded: bool = False
 
 
 class GtfsRtConverter(Converter):
