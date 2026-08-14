@@ -17,18 +17,67 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     "Bus events enriched with derived operational metrics."
 
-    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "earliest 'STOPPED_AT' status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)"
+        },
+    )
     previous_stop_id = dy.String(nullable=True)
-    stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_first_in_transit_seconds = dy.Int64(nullable=True)
-    stop_arrival_seconds = dy.Int64(nullable=True)
-    stop_departure_seconds = dy.Int64(nullable=True)
-    travel_time_seconds = dy.Int64(nullable=True)
-    stopped_duration_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
-    direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
-    is_full_trip = dy.Bool(nullable=True)
+    stop_arrival_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "Estimate of when bus arrived at stop area. Uses `gtfs_arrival_dt` if available, then TransitMaster `actual_arrival_dt` and adjusts time to ensure `stop_sequence` order implies arrival order."
+        },
+    )
+    stop_departure_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "Estimate of when bus departed from stop area. Uses `gtfs_departure_dt` if available, then TransitMaster `actual_departure_dt` and adjusts time to ensure `stop_sequence` order implies departure order."
+        },
+    )
+    gtfs_first_in_transit_seconds = dy.Int64(
+        nullable=True, metadata={"definition": "`gtfs_first_in_transit_dt` minus `service_date` in seconds."}
+    )
+    stop_arrival_seconds = dy.Int64(
+        nullable=True, metadata={"definition": "`stop_arrival_dt` minus `service_date` in seconds."}
+    )
+    stop_departure_seconds = dy.Int64(
+        nullable=True, metadata={"definition": "`stop_departure_dt` minus `service_date` in seconds."}
+    )
+    travel_time_seconds = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "Time in seconds between the previous stop's departure and the current stop's arrival. Uses `stop_departure_dt` and `stop_arrival_dt`."
+        },
+    )
+    stopped_duration_seconds = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "Time in seconds the bus spent stopped at the current stop. Uses `stop_arrival_dt` and `stop_departure_dt`. As estimates, `travel_time_seconds` does not indicate door events or dwell time."
+        },
+    )
+    route_direction_headway_seconds = dy.Int64(
+        nullable=True,
+        min=0,
+        metadata={
+            "definition": "Time in seconds between the previous bus and the current bus at the same stop, route, and direction. Uses `stop_arrival_dt` and `stop_departure_dt`."
+        },
+    )
+    direction_destination_headway_seconds = dy.Int64(
+        nullable=True,
+        min=0,
+        metadata={
+            "definition": "Time in seconds between the previous bus and the current bus at the same stop, direction, and destination. Uses `stop_arrival_dt` and `stop_departure_dt`."
+        },
+    )
+    is_full_trip = dy.Bool(
+        nullable=True,
+        metadata={"definition": "True if the trip has both a start and end point, otherwise False. Uses `point_type`."},
+    )
 
     @dy.rule()
     def departure_after_arrival(cls) -> pl.Expr:

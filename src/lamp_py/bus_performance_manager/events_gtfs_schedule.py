@@ -11,32 +11,91 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 class BusBaseSchema(dy.Schema):
     """Common schema for bus schedule and event datasets."""
 
-    trip_id = dy.String(primary_key=True, nullable=False)
-    stop_id = dy.String(nullable=False)
-    route_id = dy.String(primary_key=True)
+    trip_id = dy.String(
+        primary_key=True,
+        nullable=False,
+        metadata={"definition": "[`trip_id`](https://gtfs.org/reference/static/#tripstxt)"},
+    )
+    stop_id = dy.String(
+        nullable=False, metadata={"definition": "[`stop_id`](https://gtfs.org/reference/static/#stopstxt)"}
+    )
+    route_id = dy.String(
+        primary_key=True, metadata={"definition": "[`route_id`](https://gtfs.org/reference/static/#routesxt)"}
+    )
 
 
 class GTFSBusSchedule(BusBaseSchema):
     """Joined table of scheduled GTFS trips."""
 
     gtfs_stop_sequence = dy.Int64(primary_key=True)
-    checkpoint_id = dy.String(nullable=True)
-    block_id = dy.String(nullable=True)
-    service_id = dy.String(nullable=True)
-    route_pattern_id = dy.String(nullable=True)
-    route_pattern_typicality = dy.Int64(nullable=True)
+    checkpoint_id = dy.String(
+        nullable=True,
+        metadata={
+            "definition": "[`checkpoint_id`](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#checkpointstxt)"
+        },
+    )
+    block_id = dy.String(
+        nullable=True,
+        metadata={"definition": "[`block_id`](https://gtfs.org/documentation/schedule/reference/#tripstxt)"},
+    )
+    service_id = dy.String(
+        nullable=True,
+        metadata={"definition": "[`service_id`](https://gtfs.org/documentation/schedule/reference/#tripstxt)"},
+    )
+    route_pattern_id = dy.String(
+        nullable=True,
+        metadata={
+            "definition": "[`route_pattern_id`](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#route_patternstxt)"
+        },
+    )
+    route_pattern_typicality = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "[`route_pattern_typicality`](https://github.com/mbta/gtfs-documentation/blob/master/reference/gtfs.md#route_patternstxt)"
+        },
+    )
     direction_id = dy.Int8(nullable=True)
     direction = dy.String(nullable=True)
-    direction_destination = dy.String(nullable=True)
-    stop_name = dy.String(nullable=True)
-    plan_stop_count = dy.UInt32(nullable=True)
-    plan_start_time = dy.Int64(nullable=True)
-    plan_travel_time_seconds = dy.Int64(nullable=True)
-    plan_route_direction_headway_seconds = dy.Int64(nullable=True)
-    plan_direction_destination_headway_seconds = dy.Int64(nullable=True)
-    plan_start_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    plan_stop_departure_dt = dy.Datetime(nullable=False, time_zone="UTC")
-    service_date = dy.Date(primary_key=True)
+    direction_destination = dy.String(nullable=True, metadata={"definition": "Terminus of trip."})
+    stop_name = dy.String(
+        nullable=True,
+        metadata={"definition": "[`stop_name`](https://gtfs.org/documentation/schedule/reference/#stopstxt)"},
+    )
+    plan_stop_count = dy.UInt32(nullable=True, metadata={"definition": "Total number of scheduled stops for trip."})
+    plan_start_time = dy.Int64(
+        nullable=True,
+        metadata={"definition": "[`start_time`](https://gtfs.org/documentation/schedule/reference/#stop_timestxt)"},
+    )
+    plan_travel_time_seconds = dy.Int64(
+        nullable=True,
+        metadata={"definition": "Total travel time since previous stop based on scheduled departure times."},
+    )
+    plan_route_direction_headway_seconds = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "Headway, based on planned departure times, between the current trip and the next trip in the same route and direction."
+        },
+    )
+    plan_direction_destination_headway_seconds = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "Headway, based on planned departure times, between the current trip and the next trip in the same direction and destination."
+        },
+    )
+    plan_start_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={"definition": "[]`start_date`](https://gtfs.org/documentation/schedule/reference/#stop_timestxt)"},
+    )
+    plan_stop_departure_dt = dy.Datetime(
+        nullable=False, time_zone="UTC", metadata={"definition": "Scheduled departure time at stop."}
+    )
+    service_date = dy.Date(
+        primary_key=True,
+        metadata={
+            "definition": "One scheduled day of service starting at 3am and possibly extending into the next calendar day."
+        },
+    )
 
 
 def service_ids_for_date(service_date: date) -> pl.DataFrame:

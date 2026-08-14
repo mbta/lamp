@@ -21,17 +21,46 @@ class TransitMasterSchedule(BusBaseSchema):
     """TransitMaster scheduled events."""
 
     vehicle_label = dy.String(nullable=True)
-    pattern_id = dy.Int64(nullable=True)
+    pattern_id = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "TransitMaster pattern_id for a given trip_id and service_date. Joinable to TransitMaster schedule and timepoint datasets."
+        },
+    )
     tm_stop_sequence = dy.Int64(primary_key=True)
-    timepoint_id = dy.Int64(nullable=True)
-    timepoint_abbr = dy.String(nullable=True)
-    timepoint_name = dy.String(nullable=True)
-    tm_planned_sequence_end = dy.Int64(nullable=True)
-    tm_planned_sequence_start = dy.Int64(nullable=True)
+    timepoint_id = dy.Int64(
+        nullable=True, metadata={"definition": "TransitMaster timepoint_id for a given trip_id and service_date."}
+    )
+    timepoint_abbr = dy.String(
+        nullable=True, metadata={"definition": "TransitMaster timepoint_abbr for a given trip_id and service_date."}
+    )
+    timepoint_name = dy.String(
+        nullable=True, metadata={"definition": "TransitMaster timepoint_name for a given trip_id and service_date."}
+    )
+    tm_planned_sequence_end = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "TransitMaster single tm_stop_sequence of the planned end timepoint for a given trip-route-pattern."
+        },
+    )
+    tm_planned_sequence_start = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "TransitMaster single tm_stop_sequence of the planned start timepoint for a given trip-route-pattern."
+        },
+    )
     service_date = dy.Date(nullable=True)
     tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone="UTC")
-    timepoint_order = dy.UInt32(nullable=True)
-    waiver_remark = dy.String(nullable=True, regex=r"^([[:alpha:]]{1,5}|Unrecognized Code)$")
+    timepoint_order = dy.UInt32(
+        nullable=True, metadata={"definition": "Ranked order of planned timepoints for a given trip-route-pattern."}
+    )
+    waiver_remark = dy.String(
+        nullable=True,
+        regex=r"^([[:alpha:]]{1,5}|Unrecognized Code)$",
+        metadata={
+            "definition": "Bus Ops waiver code; free text entries are removed to avoid exposing identifying information."
+        },
+    )
     STOP_CROSSING_ID = dy.Int64(nullable=False)
     PULLOUT_ID = dy.Int64(primary_key=True)
 

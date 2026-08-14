@@ -21,13 +21,30 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 class TransitMasterEvents(BusBaseSchema):
     "Scheduled and actual stops in TransitMaster."
 
-    tm_actual_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    tm_actual_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    tm_actual_arrival_time_sam = dy.Int64(nullable=True)
-    tm_actual_departure_time_sam = dy.Int64(nullable=True)
+    tm_actual_arrival_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={"definition": "Actual arrival time at stop from TransitMaster STOP_CROSSING table."},
+    )
+    tm_actual_departure_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={"definition": "Actual departure time at stop from TransitMaster STOP_CROSSING table."},
+    )
+    tm_actual_arrival_time_sam = dy.Int64(
+        nullable=True, metadata={"definition": "`tm_actual_arrival_dt` expressed as seconds after `service_date`."}
+    )
+    tm_actual_departure_time_sam = dy.Int64(
+        nullable=True, metadata={"definition": "`tm_actual_departure_dt` expressed as seconds after `service_date`."}
+    )
     vehicle_label = dy.String(nullable=True)
     tm_stop_sequence = dy.Int64(primary_key=True)
-    tm_pullout_id = dy.String(primary_key=True)
+    tm_pullout_id = dy.String(
+        primary_key=True,
+        metadata={
+            "definition": "Unique identifier for a trip & vehicle in TransitMaster. Distinguishes multiple vehicles on the same trip_id."
+        },
+    )
 
 
 class TMDailyWorkPiece(dy.Schema):

@@ -14,6 +14,7 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 class GTFSEvents(BusBaseSchema):
     "GTFS-RT vehicle position states transformed into bus stop events."
+
     service_date = dy.Date(nullable=False, primary_key=True)
     start_time = dy.Int64(nullable=True)
     start_dt = dy.Datetime(nullable=True)
