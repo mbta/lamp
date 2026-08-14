@@ -97,7 +97,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = D
                 if config_type not in converters:
                     # partitioned converter for the large gtfs-rt file types. rest are handled by the normal
                     # non-partitioned converter.
-                    if "TRIP_UPDATES" in str(config_type) or "VEHICLE_POSITIONS" in str(config_type):
+                    if "BUS_TRIP_UPDATES" in str(config_type) or "BUS_VEHICLE_POSITIONS" in str(config_type):
                         converters[config_type] = GtfsRtFullPartitionConverter(
                             config_type,
                             metadata_queue,
