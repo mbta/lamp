@@ -311,7 +311,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                         for k in keys
                         if k in self.data_parts and self.data_parts[k].table is not None
                     ]
-                    combined = pl.from_arrow(pyarrow.concat_tables(lookback_tables))
+                    combined = pl.DataFrame(pyarrow.concat_tables(lookback_tables))
                     dedup_cols = [c for c in combined.columns if c != "feed_timestamp"]
 
                     # keep="first" is very important here to keep the chunks stable
