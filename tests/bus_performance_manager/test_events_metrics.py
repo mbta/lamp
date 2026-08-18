@@ -94,8 +94,8 @@ def test_dy_final_stop_has_arrival_dt(
     ],
     ids=[
         "departure_equal_arrival",
-        "departure_after_arrival",
         "arrival_after_departure",
+        "departure_after_arrival",
         "arrival_null",
         "departure_null",
     ],
@@ -114,6 +114,10 @@ def test_dy_departure_after_arrival(
         stop_departure_dt=stop_departure_dt,
         travel_time_seconds=travel_time_seconds,
         stopped_duration_seconds=stopped_duration_seconds,
+        gtfs_arrival_dt=None,
+        gtfs_departure_dt=None,
+        gtfs_first_in_transit_dt=None,
+        gtfs_last_in_transit_dt=None,
     )
 
     with num_rows:
