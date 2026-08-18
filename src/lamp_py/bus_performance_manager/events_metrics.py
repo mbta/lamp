@@ -127,7 +127,7 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
         """
         The bus should have an arrival time if we have any GTFS-RT data for that stop.
         """
-        return pl.col("gtfs_last_in_transit_dt").is_not_null().eq(pl.col("stop_arrival_dt").is_not_null())
+        return pl.when(pl.col("gtfs_last_in_transit_dt").is_not_null()).then(pl.col("stop_arrival_dt").is_not_null())
 
 
 def run_bus_performance_pipeline(
