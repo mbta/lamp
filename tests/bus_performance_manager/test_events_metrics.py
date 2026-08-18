@@ -11,17 +11,19 @@ from dataframely.random import Generator
 from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
 
 @pytest.mark.parametrize(
-    ["point_type", "gtfs_last_in_transit_dt", "gtfs_arrival_dt", "num_rows"],
+    ["point_type", "gtfs_last_in_transit_dt", "stop_arrival_dt", "travel_time_seconds", "num_rows"],
     [
         (
             "end",
             None,
             None,
+            3600,
             nullcontext(3),
         ),
         (
             "end",
             datetime(2000, 1, 1, 2),
+            None,
             None,
             pytest.raises(ValidationError, match="has_arrival_dt"),
         ),
@@ -29,6 +31,7 @@ from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
             "end",
             datetime(2000, 1, 1, 2),
             datetime(2000, 1, 1, 2),
+            7200,
             nullcontext(3),
         ),
     ],
@@ -41,12 +44,19 @@ from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
 def test_dy_final_stop_has_arrival_dt(
     dy_gen: Generator,
     point_type: str,
-    gtfs_last_in_transit_dt: datetime,
-    gtfs_arrival_dt: list[datetime],
+    gtfs_last_in_transit_dt: datetime | None,
+    stop_arrival_dt: datetime | None,
+    travel_time_seconds: int | None,
     num_rows: pytest.RaisesExc,
 ) -> None:
     "It returns false if the last TM stop or, if not available, GTFS stop, has in-transit data but not a gtfs_arrival_dt."
-    df = BusPerformanceMetrics.sample(num_rows=3, generator=dy_gen).with_columns(
+    df = BusPerformanceMetrics.sample(
+        num_rows=3,
+        generator=dy_gen,
+        overrides={
+            "stop_arrival_dt": [datetime(2000, 1, 1), datetime(2000, 1, 1, 1), stop_arrival_dt]
+        },
+    ).with_columns(
         trip_id=pl.lit("1"),
         tm_pullout_id=pl.lit("0"),
         route_id=pl.lit("a"),
@@ -55,11 +65,13 @@ def test_dy_final_stop_has_arrival_dt(
         tm_stop_sequence=pl.Series(values=[1, 2, 3]),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         point_type=pl.Series(values=["start", "mid", point_type]),
-        stop_departure_dt=pl.lit(None),
+        travel_time_seconds=pl.Series(
+            values=[None, None, travel_time_seconds]
+        ),
+        stopped_duration_seconds=pl.lit(None),
         gtfs_last_in_transit_dt=pl.Series(
             values=[datetime(2000, 1, 1), datetime(2000, 1, 1, 1), gtfs_last_in_transit_dt]
         ),
-        gtfs_arrival_dt=pl.Series(values=[datetime(2000, 1, 1), datetime(2000, 1, 1, 1), gtfs_arrival_dt]),
     )
 
     with num_rows:
