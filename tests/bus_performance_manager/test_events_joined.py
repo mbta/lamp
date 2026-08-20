@@ -10,7 +10,6 @@ from dataframely.exc import ValidationError
 from lamp_py.bus_performance_manager.events_joined import BusEvents
 
 
-
 @pytest.mark.parametrize(
     ["passes", "tm_stop_sequence"],
     [

@@ -10,6 +10,7 @@ from dataframely.random import Generator
 
 from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
 
+
 @pytest.mark.parametrize(
     ["point_type", "gtfs_last_in_transit_dt", "stop_arrival_dt", "travel_time_seconds", "num_rows"],
     [
@@ -53,9 +54,7 @@ def test_dy_final_stop_has_arrival_dt(
     df = BusPerformanceMetrics.sample(
         num_rows=3,
         generator=dy_gen,
-        overrides={
-            "stop_arrival_dt": [datetime(2000, 1, 1), datetime(2000, 1, 1, 1), stop_arrival_dt]
-        },
+        overrides={"stop_arrival_dt": [datetime(2000, 1, 1), datetime(2000, 1, 1, 1), stop_arrival_dt]},
     ).with_columns(
         trip_id=pl.lit("1"),
         tm_pullout_id=pl.lit("0"),
@@ -65,9 +64,7 @@ def test_dy_final_stop_has_arrival_dt(
         tm_stop_sequence=pl.Series(values=[1, 2, 3]),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         point_type=pl.Series(values=["start", "mid", point_type]),
-        travel_time_seconds=pl.Series(
-            values=[None, None, travel_time_seconds]
-        ),
+        travel_time_seconds=pl.Series(values=[None, None, travel_time_seconds]),
         stopped_duration_seconds=pl.lit(None),
         gtfs_last_in_transit_dt=pl.Series(
             values=[datetime(2000, 1, 1), datetime(2000, 1, 1, 1), gtfs_last_in_transit_dt]
@@ -76,6 +73,7 @@ def test_dy_final_stop_has_arrival_dt(
 
     with num_rows:
         assert BusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
+
 
 @pytest.mark.parametrize(
     ["stop_arrival_dt", "stop_departure_dt", "travel_time_seconds", "stopped_duration_seconds", "num_rows"],

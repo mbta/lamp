@@ -211,22 +211,34 @@ def calculate_derived_bus_performance_metrics(
             .alias("is_full_trip"),
             (  # for departure times
                 pl.when(pl.col("stop_sequence").eq(pl.lit(1)))  # startpoints
-                .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt", pl.col("gtfs_first_in_transit_dt").shift(-1).over(partition_by = ["trip_id", "tm_pullout_id"], order_by = "stop_sequence")))  # use the first in transit dt from the previous stop)
+                .then(
+                    pl.coalesce(
+                        "gtfs_departure_dt",
+                        "tm_actual_departure_dt",
+                        pl.col("gtfs_first_in_transit_dt")
+                        .shift(-1)
+                        .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
+                    )
+                )  # use the first in transit dt from the previous stop)
                 .otherwise(  # midpoints + endpoints
                     pl.coalesce(
                         pl.min_horizontal(
                             pl.col("tm_actual_departure_dt"),
                             pl.col("gtfs_departure_dt"),
-                            pl.col("gtfs_first_in_transit_dt").shift(-1).over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
+                            pl.col("gtfs_first_in_transit_dt")
+                            .shift(-1)
+                            .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
                         ),
-                        pl.col("gtfs_first_in_transit_dt")
+                        pl.col("gtfs_first_in_transit_dt"),
                     ),
                 )
             ).alias("stop_departure_dt"),
         )
         .with_columns(
             pl.min_horizontal(  # for arrival times
-                pl.max_horizontal(pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt"), pl.col("gtfs_last_in_transit_dt")),  # take the later
+                pl.max_horizontal(
+                    pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt"), pl.col("gtfs_last_in_transit_dt")
+                ),  # take the later
                 pl.col("stop_departure_dt"),  # unless that conflicts with the departure time
             ).alias("stop_arrival_dt"),
             pl.col("stop_id")
