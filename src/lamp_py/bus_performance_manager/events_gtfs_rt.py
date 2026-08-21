@@ -36,7 +36,7 @@ class GTFSEvents(BusBaseSchema):
         return pl.when(pl.col("gtfs_stop_sequence").eq(pl.lit(1))).then(pl.col("gtfs_departure_dt").is_not_null())
 
 
-def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
+def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.LazyFrame:
     """
     Read RT_VEHICLE_POSITIONS parquet files with polars engine
 
@@ -79,85 +79,13 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             .cast(pl.String)
             .alias("current_status"),
         )
-        .collect()
     )
 
     return vehicle_positions
 
 
-def _read_with_pyarrow(service_date: date, gtfs_rt_files: List[str], bus_routes: List[str]) -> pl.DataFrame:
-    """
-    Read RT_VEHICLE_POSITIONS parquet files with pyarrow engine, instead of polars engine
 
-    the polars implmentation of parquet reader sometimes has issues with files in staging bucket
-    pyarrow engine is more forgiving in reading some parquet file formats at the cost of read speed
-    and memory usage, compared to polars native parquet reader/scanner
-    """
-    gtfs_rt_files = [uri.replace("s3://", "") for uri in gtfs_rt_files]
-    columns = [
-        "vehicle.trip.route_id",
-        "vehicle.trip.trip_id",
-        "vehicle.trip.direction_id",
-        "vehicle.trip.start_time",
-        "vehicle.trip.start_date",
-        "vehicle.vehicle.id",
-        "vehicle.vehicle.label",
-        "vehicle.stop_id",
-        "vehicle.current_stop_sequence",
-        "vehicle.current_status",
-        "vehicle.timestamp",
-        "vehicle.position.latitude",
-        "vehicle.position.longitude",
-    ]
-    # pyarrow_exp filter expression is used to limit memory usage during read operation
-    pyarrow_exp = pc.field("vehicle.trip.route_id").isin(bus_routes)
-    vehicle_positions = (
-        pl.read_parquet(
-            gtfs_rt_files,
-            columns=columns,
-            use_pyarrow=True,
-            pyarrow_options={"filesystem": S3FileSystem(), "filters": pyarrow_exp},
-        )
-        .filter(
-            (pl.col("vehicle.trip.route_id").is_in(bus_routes))
-            & (pl.col("vehicle.trip.start_date") == service_date.strftime("%Y%m%d"))
-            & pl.col("vehicle.current_status").is_not_null()
-            & pl.col("vehicle.stop_id").is_not_null()
-            & pl.col("vehicle.trip.trip_id").is_not_null()
-            & pl.col("vehicle.vehicle.id").is_not_null()
-            & pl.col("vehicle.timestamp").is_not_null()
-            & pl.col("vehicle.trip.start_time").is_not_null()
-        )
-        .select(
-            pl.col("vehicle.trip.route_id").cast(pl.String).alias("route_id"),
-            pl.col("vehicle.trip.trip_id").cast(pl.String).alias("trip_id"),
-            pl.col("vehicle.stop_id").cast(pl.String).alias("stop_id"),
-            pl.col("vehicle.current_stop_sequence").cast(pl.Int64).alias("stop_sequence"),
-            pl.col("vehicle.trip.direction_id").cast(pl.Int8).alias("direction_id"),
-            pl.col("vehicle.trip.start_time").cast(pl.String).alias("start_time"),
-            pl.col("vehicle.trip.start_date").cast(pl.String).alias("service_date"),
-            pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
-            pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
-            pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
-            pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
-            pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),
-            pl.from_epoch("vehicle.timestamp").alias("vehicle_timestamp"),
-        )
-        # We only care if the bus is IN_TRANSIT_TO or STOPPED_AT, wso we're replacing the INCOMING_TO enum from this column
-        # https://github.com/google/transit/blob/master/gtfs-realtime/spec/en/reference.md?plain=1#L270
-        .with_columns(
-            pl.when(pl.col("current_status") == "INCOMING_AT")
-            .then(pl.lit("IN_TRANSIT_TO"))
-            .otherwise(pl.col("current_status"))
-            .cast(pl.String)
-            .alias("current_status"),
-        )
-    )
-
-    return vehicle_positions
-
-
-def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.DataFrame:
+def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.LazyFrame:
     """
     Read gtfs realtime vehicle position files and pull out unique bus vehicle
     positions for a given service day.
@@ -192,15 +120,14 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
     # as of 7/15/25, the pyarrow reader was faster on my local machine
     try:
         vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
-    except Exception as _:
-        logger.add_metadata(reader_engine="pyarrow")
-        vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
+    except Exception as e:
+        logger.log_failure(e)
 
     logger.log_complete()
     return vehicle_positions
 
 
-def positions_to_events(vehicle_positions: pl.DataFrame) -> dy.DataFrame[GTFSEvents]:
+def positions_to_events(vehicle_positions: pl.LazyFrame) -> dy.DataFrame[GTFSEvents]:
     """
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.
@@ -295,7 +222,6 @@ def generate_gtfs_rt_events(service_date: date, gtfs_rt_files: List[str]) -> dy.
         gtfs_rt_files = [f for f in gtfs_rt_files if f == year_file or not f.startswith(prefix)]
 
     vehicle_positions = read_vehicle_positions(service_date=service_date, gtfs_rt_files=gtfs_rt_files)
-    logger.add_metadata(rows_from_parquet=vehicle_positions.shape[0])
     vehicle_events = positions_to_events(vehicle_positions=vehicle_positions)
     logger.add_metadata(events_for_day=vehicle_events.shape[0])
 
