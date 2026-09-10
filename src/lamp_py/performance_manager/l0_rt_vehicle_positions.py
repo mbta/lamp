@@ -1,4 +1,4 @@
-from typing import List, Union, Dict, Tuple
+from typing import Iterable, List, Union, Dict, Tuple
 
 import numpy
 import pandas
@@ -123,6 +123,32 @@ def transform_vp_datatypes(
     return vehicle_positions
 
 
+def occupancy_from_carriage_details(
+    carriage_details: Iterable[Dict[str, Union[str, int, None]]],
+) -> Tuple[Union[str, None], Union[str, None]]:
+    """
+    project multi_carriage_details into pipe delimited occupancy strings
+
+    emitted in array order, matching vehicle_consist. non-reporting carriages
+    leave an empty slot to keep that alignment; all non-reporting returns None.
+
+    @return Tuple[str | None, str | None] - (occupancy_status, occupancy_percentage)
+    """
+    statuses = []
+    percentages = []
+
+    for carriage in carriage_details:
+        status = carriage["occupancy_status"]
+        percentage = carriage["occupancy_percentage"]
+        statuses.append("" if status is None else str(status))
+        percentages.append("" if percentage is None else str(percentage))
+
+    return (
+        "|".join(statuses) if any(statuses) else None,
+        "|".join(percentages) if any(percentages) else None,
+    )
+
+
 def transform_vp_timestamps(
     vehicle_positions: pandas.DataFrame,
 ) -> pandas.DataFrame:
@@ -132,6 +158,8 @@ def transform_vp_timestamps(
     this method will add
     * "vp_move_timestamp" - when the vehicle begins moving towards the event parent_staion
     * "vp_stop_timestamp" - when the vehicle arrives at the event parent_station
+    * "occupancy_status" - carriage occupancy reported on arrival at the event parent_station
+    * "occupancy_percentage" - carriage occupancy percentage reported on that same arrival
 
     this method will remove "is_moving" and "vehicle_timestamp"
     """
@@ -161,6 +189,29 @@ def transform_vp_timestamps(
     for column in ("vp_stop_timestamp", "vp_move_timestamp"):
         if column not in vp_timestamps.columns:
             vp_timestamps[column] = None
+
+    # take occupancy from the earliest "STOPPED_AT" record, the same one that
+    # sets vp_stop_timestamp, so it describes the vehicle as it arrived
+    vp_arrivals = (
+        vehicle_positions[~vehicle_positions["is_moving"]]
+        .sort_values(by="vehicle_timestamp", ascending=True)
+        .drop_duplicates(subset=trip_stop_columns, keep="first")
+        .loc[:, trip_stop_columns + ["multi_carriage_details"]]
+        .copy()
+    )
+    occupancy = vp_arrivals.pop("multi_carriage_details").map(
+        occupancy_from_carriage_details,
+        na_action="ignore",
+    )
+    vp_arrivals["occupancy_status"] = occupancy.map(lambda o: o[0], na_action="ignore")
+    vp_arrivals["occupancy_percentage"] = occupancy.map(lambda o: o[1], na_action="ignore")
+
+    vp_timestamps = vp_timestamps.merge(
+        vp_arrivals,
+        how="left",
+        on=trip_stop_columns,
+        validate="one_to_one",
+    )
 
     # we no longer need is moving or vehicle timestamp as those are all
     # stored in the vp_timestamps dataframe. drop duplicated trip-stop events
