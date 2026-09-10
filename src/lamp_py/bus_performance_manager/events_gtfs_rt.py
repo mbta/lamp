@@ -22,7 +22,7 @@ class GTFSEvents(BusBaseSchema):
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
-    vehicle_label = dy.String(primary_key=True)
+    vehicle_label = dy.String(primary_key=True, regex=r"[0-9]+")
     gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -197,6 +197,9 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.D
         vehicle_positions = _read_with_pyarrow(service_date, gtfs_rt_files, bus_routes)
 
     logger.log_complete()
+
+    vehicle_positions = vehicle_positions.with_columns(vehicle_label=pl.col("vehicle_label").str.replace_all(r"\D", ""))
+
     return vehicle_positions
 
 
