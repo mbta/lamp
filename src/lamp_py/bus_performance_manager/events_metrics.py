@@ -122,6 +122,13 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
             )
         )
 
+    @dy.rule()
+    def has_arrival_dt(cls) -> pl.Expr:
+        """
+        The bus should have an arrival time if we have any GTFS-RT data for that stop.
+        """
+        return pl.when(pl.col("gtfs_last_in_transit_dt").is_not_null()).then(pl.col("stop_arrival_dt").is_not_null())
+
 
 def run_bus_performance_pipeline(
     service_date: date,
@@ -204,15 +211,36 @@ def calculate_derived_bus_performance_metrics(
             .alias("is_full_trip"),
             (  # for departure times
                 pl.when(pl.col("stop_sequence").eq(pl.lit(1)))  # startpoints
-                .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
-                .otherwise(  # midpoints + endpoints
-                    pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
+                .then(
+                    pl.coalesce(
+                        "gtfs_departure_dt",
+                        "tm_actual_departure_dt",
+                        pl.col("gtfs_first_in_transit_dt")
+                        .shift(-1)
+                        .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
+                    )
+                )  # use the first in transit dt from the next stop
+                .when(pl.col("point_type").eq(pl.lit("end")))  # endpoints
+                .then(pl.lit(None))  # no departure time
+                .otherwise(  # midpoints
+                    pl.coalesce(
+                        pl.min_horizontal(
+                            pl.col("tm_actual_departure_dt"),
+                            pl.col("gtfs_departure_dt"),
+                        ),
+                        pl.col("gtfs_first_in_transit_dt")
+                        .shift(-1)
+                        .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
+                        pl.col("gtfs_last_in_transit_dt"),
+                    ),
                 )
             ).alias("stop_departure_dt"),
         )
         .with_columns(
             pl.min_horizontal(  # for arrival times
-                pl.max_horizontal(pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt")),  # take the later
+                pl.max_horizontal(
+                    pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt"), pl.col("gtfs_last_in_transit_dt")
+                ),  # take the later
                 pl.col("stop_departure_dt"),  # unless that conflicts with the departure time
             ).alias("stop_arrival_dt"),
             pl.col("stop_id")

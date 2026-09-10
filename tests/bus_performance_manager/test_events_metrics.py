@@ -12,6 +12,70 @@ from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
 
 
 @pytest.mark.parametrize(
+    ["point_type", "gtfs_last_in_transit_dt", "stop_arrival_dt", "travel_time_seconds", "num_rows"],
+    [
+        (
+            "end",
+            None,
+            None,
+            3600,
+            nullcontext(3),
+        ),
+        (
+            "end",
+            datetime(2000, 1, 1, 2),
+            None,
+            None,
+            pytest.raises(ValidationError, match="has_arrival_dt"),
+        ),
+        (
+            "end",
+            datetime(2000, 1, 1, 2),
+            datetime(2000, 1, 1, 2),
+            7200,
+            nullcontext(3),
+        ),
+    ],
+    ids=[
+        "missing-GTFS-stop-data",  # pass
+        "final-stop-but-no-gtfs-arrival",  # fail
+        "all-data-present",  # pass
+    ],
+)
+def test_dy_final_stop_has_arrival_dt(
+    dy_gen: Generator,
+    point_type: str,
+    gtfs_last_in_transit_dt: datetime | None,
+    stop_arrival_dt: datetime | None,
+    travel_time_seconds: int | None,
+    num_rows: pytest.RaisesExc,
+) -> None:
+    "It returns false if the final stop has GTFS-RT in-transit data but no derived stop_arrival_dt."
+    df = BusPerformanceMetrics.sample(
+        num_rows=3,
+        generator=dy_gen,
+        overrides={"stop_arrival_dt": [datetime(2000, 1, 1), datetime(2000, 1, 1, 1), stop_arrival_dt]},
+    ).with_columns(
+        trip_id=pl.lit("1"),
+        tm_pullout_id=pl.lit("0"),
+        route_id=pl.lit("a"),
+        vehicle_label=pl.lit("x"),
+        service_date=pl.lit(date(2000, 1, 1)),
+        tm_stop_sequence=pl.Series(values=[1, 2, 3]),
+        stop_sequence=pl.Series(values=[1, 2, 3]),
+        point_type=pl.Series(values=["start", "mid", point_type]),
+        travel_time_seconds=pl.Series(values=[None, None, travel_time_seconds]),
+        stopped_duration_seconds=pl.lit(None),
+        gtfs_last_in_transit_dt=pl.Series(
+            values=[datetime(2000, 1, 1), datetime(2000, 1, 1, 1), gtfs_last_in_transit_dt]
+        ),
+    )
+
+    with num_rows:
+        assert BusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
     ["stop_arrival_dt", "stop_departure_dt", "travel_time_seconds", "stopped_duration_seconds", "num_rows"],
     [
         (datetime(2000, 1, 1), datetime(2000, 1, 1), None, 0, nullcontext(1)),
@@ -28,8 +92,8 @@ from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
     ],
     ids=[
         "departure_equal_arrival",
-        "departure_after_arrival",
         "arrival_after_departure",
+        "departure_after_arrival",
         "arrival_null",
         "departure_null",
     ],
@@ -48,6 +112,10 @@ def test_dy_departure_after_arrival(
         stop_departure_dt=stop_departure_dt,
         travel_time_seconds=travel_time_seconds,
         stopped_duration_seconds=stopped_duration_seconds,
+        gtfs_arrival_dt=None,
+        gtfs_departure_dt=None,
+        gtfs_first_in_transit_dt=None,
+        gtfs_last_in_transit_dt=None,
     )
 
     with num_rows:
@@ -184,6 +252,7 @@ def test_dy_travel_time_plus_stopped_duration_equals_total_trip(
         trip_id=pl.lit("1"),
         vehicle_label=pl.lit("x"),
         service_date=pl.lit(date(2000, 1, 1)),
+        gtfs_last_in_transit_dt=pl.lit(None),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         stop_arrival_dt=pl.Series(values=stop_arrival_dt),
         stop_departure_dt=pl.Series(values=stop_departure_dt),
