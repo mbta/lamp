@@ -252,6 +252,7 @@ def test_dy_travel_time_plus_stopped_duration_equals_total_trip(
         trip_id=pl.lit("1"),
         vehicle_label=pl.lit("x"),
         service_date=pl.lit(date(2000, 1, 1)),
+        gtfs_last_in_transit_dt=pl.lit(None),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         stop_arrival_dt=pl.Series(values=stop_arrival_dt),
         stop_departure_dt=pl.Series(values=stop_departure_dt),
