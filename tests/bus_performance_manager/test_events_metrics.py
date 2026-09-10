@@ -50,7 +50,7 @@ def test_dy_final_stop_has_arrival_dt(
     travel_time_seconds: int | None,
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if the last TM stop or, if not available, GTFS stop, has in-transit data but not a gtfs_arrival_dt."
+    "It returns false if the final stop has GTFS-RT in-transit data but no derived stop_arrival_dt."
     df = BusPerformanceMetrics.sample(
         num_rows=3,
         generator=dy_gen,
