@@ -3,8 +3,6 @@ from typing import List
 
 import dataframely as dy
 import polars as pl
-from pyarrow.fs import S3FileSystem
-import pyarrow.compute as pc
 
 from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
 from lamp_py.utils.gtfs_utils import bus_route_ids_for_service_date
@@ -84,7 +82,6 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
     return vehicle_positions
 
 
-
 def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.LazyFrame:
     """
     Read gtfs realtime vehicle position files and pull out unique bus vehicle
@@ -127,7 +124,7 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.L
     return vehicle_positions
 
 
-def positions_to_events(vehicle_positions: pl.LazyFrame) -> dy.DataFrame[GTFSEvents]:
+def positions_to_events(vehicle_positions: pl.LazyFrame | pl.DataFrame) -> dy.DataFrame[GTFSEvents]:
     """
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.

@@ -220,18 +220,18 @@ def calculate_derived_bus_performance_metrics(
                         .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
                     )
                 )  # use the first in transit dt from the previous stop)
-                .when(pl.col("point_type").eq(pl.lit("end"))) # endpoints
-                .then(pl.lit(None)) # no departure time
+                .when(pl.col("point_type").eq(pl.lit("end")))  # endpoints
+                .then(pl.lit(None))  # no departure time
                 .otherwise(  # midpoints
                     pl.coalesce(
                         pl.min_horizontal(
                             pl.col("tm_actual_departure_dt"),
                             pl.col("gtfs_departure_dt"),
-                            pl.col("gtfs_first_in_transit_dt")
-                            .shift(-1)
-                            .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
                         ),
-                        pl.col("gtfs_first_in_transit_dt"),
+                        pl.col("gtfs_first_in_transit_dt")
+                        .shift(-1)
+                        .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
+                        pl.col("gtfs_last_in_transit_dt"),
                     ),
                 )
             ).alias("stop_departure_dt"),
