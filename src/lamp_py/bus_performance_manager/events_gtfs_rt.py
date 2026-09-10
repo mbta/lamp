@@ -38,8 +38,7 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
     """
     Read RT_VEHICLE_POSITIONS parquet files with polars engine
 
-    Polars engine appears to be faster and use less memory than pyarrow enginer, but is not as
-    compatible with all parquet file formats as pyarrow engine
+    Polars engine appears to be faster and use less memory than pyarrow engine.
     """
     vehicle_positions = (
         pl.scan_parquet(gtfs_rt_files)
@@ -113,18 +112,13 @@ def read_vehicle_positions(service_date: date, gtfs_rt_files: List[str]) -> pl.L
     logger.log_start()
     bus_routes = bus_route_ids_for_service_date(service_date)
 
-    # need to investigate which is actually faster/works.
-    # as of 7/15/25, the pyarrow reader was faster on my local machine
-    try:
-        vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
-    except Exception as e:
-        logger.log_failure(e)
+    vehicle_positions = _read_with_polars(service_date, gtfs_rt_files, bus_routes)
 
     logger.log_complete()
     return vehicle_positions
 
 
-def positions_to_events(vehicle_positions: pl.LazyFrame | pl.DataFrame) -> dy.DataFrame[GTFSEvents]:
+def positions_to_events(vehicle_positions: pl.LazyFrame) -> dy.DataFrame[GTFSEvents]:
     """
     using the vehicle positions dataframe, create a row for each event by
     pivoting and mapping the current status onto arrivals and departures.

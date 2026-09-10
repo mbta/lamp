@@ -122,7 +122,12 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
             )
         )
 
-        return pl.when(pl.col("gtfs_last_in_transit_dt").is_not_null()).then(pl.col("stop_arrival_dt").is_not_null()).otherwise(pl.lit(True))
+    @dy.rule()
+    def has_arrival_dt(cls) -> pl.Expr:
+        """
+        The bus should have an arrival time if we have any GTFS-RT data for that stop.
+        """
+        return pl.when(pl.col("gtfs_last_in_transit_dt").is_not_null()).then(pl.col("stop_arrival_dt").is_not_null())
 
 
 def run_bus_performance_pipeline(
@@ -214,7 +219,7 @@ def calculate_derived_bus_performance_metrics(
                         .shift(-1)
                         .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
                     )
-                )  # use the first in transit dt from the previous stop)
+                )  # use the first in transit dt from the next stop
                 .when(pl.col("point_type").eq(pl.lit("end")))  # endpoints
                 .then(pl.lit(None))  # no departure time
                 .otherwise(  # midpoints
