@@ -20,7 +20,7 @@ class GTFSEvents(BusBaseSchema):
     stop_count = dy.UInt32(nullable=True)
     direction_id = dy.Int8(nullable=True)
     vehicle_id = dy.String(nullable=True)
-    vehicle_label = dy.String(primary_key=True)
+    vehicle_label = dy.String(primary_key=True, regex=r"^[0-9]+$")
     gtfs_first_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_last_in_transit_dt = dy.Datetime(nullable=True, time_zone="UTC")
     gtfs_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
@@ -61,7 +61,7 @@ def _read_with_polars(service_date: date, gtfs_rt_files: List[str], bus_routes: 
             pl.col("vehicle.trip.start_time").cast(pl.String).alias("start_time"),
             pl.col("vehicle.trip.start_date").cast(pl.String).alias("service_date"),
             pl.col("vehicle.vehicle.id").cast(pl.String).alias("vehicle_id"),
-            pl.col("vehicle.vehicle.label").cast(pl.String).alias("vehicle_label"),
+            pl.col("vehicle.vehicle.label").cast(pl.String).str.replace_all(r"[^0-9]", "").alias("vehicle_label"),
             pl.col("vehicle.current_status").cast(pl.String).alias("current_status"),
             pl.col("vehicle.position.latitude").cast(pl.Float64).alias("latitude"),
             pl.col("vehicle.position.longitude").cast(pl.Float64).alias("longitude"),

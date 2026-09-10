@@ -50,7 +50,7 @@ def schema_as_frame(schema: dy.Schema) -> pl.DataFrame:
                 "Is primary key": col.primary_key,
                 "Is nullable": col.nullable,
                 "Definition": col.metadata.get("definition", None) if col.metadata else None,
-                "Constraints": "\n".join(
+                "Constraints": "<br>".join(
                     [
                         f"- `{k}`: `{v}`"
                         for k, v in col.as_dict(pl.col(name)).items()
