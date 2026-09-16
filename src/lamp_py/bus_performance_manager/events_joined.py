@@ -92,16 +92,6 @@ class BusEvents(CombinedBusSchedule, TransitMasterEvents):
     )
 
     @dy.rule()
-    def final_stop_has_arrival_dt(cls) -> pl.Expr:
-        """
-        The bus should have an arrival time to the final stop on the route if we have any GTFS-RT data for that stop.
-        """
-        return pl.when(
-            pl.col("point_type").eq(pl.lit("end")),
-            pl.col("gtfs_last_in_transit_dt").is_not_null(),
-        ).then(pl.col("gtfs_arrival_dt").is_not_null())
-
-    @dy.rule()
     def monotonic_tm_stop_sequence(cls) -> pl.Expr:
         """Remove records with tm_stop_sequences that are less than the previous record."""
         return pl.col("tm_stop_sequence").ge(
@@ -236,12 +226,6 @@ def join_rt_to_schedule(
         .with_columns(vehicle_label=pl.coalesce("vehicle_label", "vehicle_label_gtfs", pl.lit("____")))
         .with_columns(
             pl.col("stop_sequence").max().over(partition_by=["trip_id", "tm_pullout_id"]).alias("stop_count"),
-            pl.coalesce(
-                pl.col("gtfs_arrival_dt"),  # if gtfs_arrival_dt is null
-                pl.when(pl.col("point_type").eq(pl.lit("end"))).then(  # and it's the last stop on the route
-                    pl.col("gtfs_last_in_transit_dt")
-                ),  # use the last IN_TRANSIT_TO datetime
-            ).alias("gtfs_arrival_dt"),
         )
         # brings in public_operator_id
         .join(
