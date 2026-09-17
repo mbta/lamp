@@ -296,6 +296,8 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
                 "dwell_time_seconds",
                 "headway_trunk_seconds",
                 "headway_branch_seconds",
+                "occupancy_status",
+                "occupancy_percentage",
                 "service_date",
                 "route_id",
                 "direction_id",

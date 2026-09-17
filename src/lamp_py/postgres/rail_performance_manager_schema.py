@@ -47,6 +47,10 @@ class VehicleEvents(RpmSqlBase):  # pylint: disable=too-few-public-methods
     headway_trunk_seconds = sa.Column(sa.Integer, nullable=True)
     headway_branch_seconds = sa.Column(sa.Integer, nullable=True)
 
+    # pipe delimited per-carriage occupancy, aligned with vehicle_consist
+    occupancy_status = sa.Column(sa.String(), nullable=True)
+    occupancy_percentage = sa.Column(sa.String(), nullable=True)
+
     updated_on = sa.Column(sa.TIMESTAMP, server_default=now())
 
 
@@ -162,6 +166,9 @@ class TempEventCompare(RpmSqlBase):  # pylint: disable=too-few-public-methods
     vp_move_timestamp = sa.Column(sa.Integer, nullable=True)
     vp_stop_timestamp = sa.Column(sa.Integer, nullable=True)
     tu_stop_timestamp = sa.Column(sa.Integer, nullable=True)
+
+    occupancy_status = sa.Column(sa.String(), nullable=True)
+    occupancy_percentage = sa.Column(sa.String(), nullable=True)
 
     # extra trip information
     direction_id = sa.Column(sa.Boolean, nullable=False)
