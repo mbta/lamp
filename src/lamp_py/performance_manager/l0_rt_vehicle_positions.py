@@ -132,14 +132,17 @@ def occupancy_from_carriage_details(
     emitted in array order, matching vehicle_consist. non-reporting carriages
     leave an empty slot to keep that alignment; all non-reporting returns None.
 
+    occupancy fields are absent entirely from older records, which carry only a
+    carriage label, so they are read with .get rather than indexed.
+
     @return Tuple[str | None, str | None] - (occupancy_status, occupancy_percentage)
     """
     statuses = []
     percentages = []
 
     for carriage in carriage_details:
-        status = carriage["occupancy_status"]
-        percentage = carriage["occupancy_percentage"]
+        status = carriage.get("occupancy_status")
+        percentage = carriage.get("occupancy_percentage")
         statuses.append("" if status is None else str(status))
         percentages.append("" if percentage is None else str(percentage))
 

@@ -37,6 +37,8 @@ def carriage(status: Optional[str] = None, percentage: Optional[int] = None) -> 
             [carriage("NO_DATA_AVAILABLE"), carriage("NO_DATA_AVAILABLE")],
             ("NO_DATA_AVAILABLE|NO_DATA_AVAILABLE", None),
         ),
+        # older records carry only a label, with no occupancy fields at all
+        ([{"label": "1501"}, {"label": "1500"}], (None, None)),
         ([], (None, None)),
     ],
 )
