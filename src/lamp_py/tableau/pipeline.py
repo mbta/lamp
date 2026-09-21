@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.lamp_jobs import (
@@ -74,6 +74,8 @@ def start_hyper_updates() -> None:
     """
     # configure the environment
     os.environ["SERVICE_NAME"] = "tableau_hyper_update"
+
+    initialize_sentry()
 
     validate_environment(
         required_variables=[

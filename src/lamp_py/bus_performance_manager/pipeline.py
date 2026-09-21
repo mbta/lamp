@@ -10,7 +10,7 @@ import time
 from typing import List
 
 from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.bus_performance_manager.write_events import regenerate_bus_metrics_recent, write_bus_metrics
 from lamp_py.tableau.jobs import bus_performance
@@ -67,14 +67,18 @@ def main(args: argparse.Namespace) -> None:
 
 def start() -> None:
     """configure and start the bus performance manager process"""
+    # configure the environment
+    os.environ["SERVICE_NAME"] = "bus_performance_manager"
+
+    initialize_sentry()
+
     # parse arguments from the command line
     parsed_args = parse_args(sys.argv[1:])
 
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
 
-    # configure the environment
-    os.environ["SERVICE_NAME"] = "bus_performance_manager"
+
     validate_environment(
         required_variables=[
             "SPRINGBOARD_BUCKET",

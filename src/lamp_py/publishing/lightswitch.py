@@ -3,7 +3,7 @@ from typing import List
 
 import duckdb
 from lamp_py.runtime_utils import remote_files as rf
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 from lamp_py.runtime_utils.lamp_exception import EmptyDataStructureException
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.aws.s3 import upload_file
@@ -248,10 +248,11 @@ def pipeline(  # pylint: disable=dangerous-default-value
     remote_location: rf.S3Location | None = rf.lightswitch,
 ) -> None:
     """Create duckdb metastore and upload to specified location."""
+    os.environ["SERVICE_NAME"] = "lightswitch"
+    initialize_sentry()
+
     pl = ProcessLogger("lightswitch.pipeline", local_location=local_location)
     pl.log_start()
-
-    os.environ["SERVICE_NAME"] = "lightswitch"
 
     validate_environment(
         required_variables=[

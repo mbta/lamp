@@ -1,6 +1,8 @@
 import os
 from typing import Iterable, List, Optional
 
+import sentry_sdk
+
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.__version__ import VERSION
 
@@ -24,7 +26,7 @@ def validate_environment(
     metadata = {"lamp_version": VERSION}
 
     # every pipeline needs a service name for logging
-    required_variables.append("SERVICE_NAME")
+    required_variables += ["SERVICE_NAME", "SENTRY_DSN", "ECS_TASK_GROUP"]
 
     # add required database variables
     for prefix in db_prefixes:
@@ -88,3 +90,14 @@ def get_environment(env_var: str = "ECS_TASK_GROUP") -> str:
             f"{env_var} variable not set correctly: {os.getenv(env_var, '-')}. Environment must be one of `dev`, `staging`, or `prod`."
         )
     return environment
+
+def initialize_sentry() -> None:
+    """Initializes Sentry SDK with environment and release information."""
+    sentry_sdk.init(
+        environment=get_environment(),
+        release=VERSION,
+        send_default_pii=False,
+        server_name=os.environ.get("SERVICE_NAME"),
+    )
+    
+    assert sentry_sdk.api.is_initialized(), "Sentry SDK failed to initialize."

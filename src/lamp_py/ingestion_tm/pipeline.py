@@ -4,7 +4,7 @@ import logging
 import os
 
 from lamp_py.aws.ecs import check_for_parallel_tasks
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 
 from lamp_py.ingestion_tm.ingest import ingest_tables
 
@@ -16,6 +16,8 @@ def start() -> None:
     """configure and start the transitmaster ingestion process"""
     # configure the environment
     os.environ["SERVICE_NAME"] = "ingestion_tm"
+
+    initialize_sentry()
 
     validate_environment(
         required_variables=[

@@ -9,7 +9,7 @@ import dataframely as dy
 from lamp_py.aws.ecs import handle_ecs_sigterm
 from lamp_py.flashback.events import StopEvents, unnest_vehicle_positions, update_records
 from lamp_py.flashback.io import get_remote_events, get_vehicle_positions, write_stop_events
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
@@ -42,13 +42,13 @@ async def flashback(
 
 def pipeline() -> None:
     """Entry point for flashback stop events pipeline."""
+    # configure the environment
+    environ["SERVICE_NAME"] = "flashback"
+    initialize_sentry()
     process_logger = ProcessLogger("main")
     process_logger.log_start()
 
     signal(SIGTERM, handle_ecs_sigterm)
-
-    # configure the environment
-    environ["SERVICE_NAME"] = "flashback"
 
     validate_environment(
         required_variables=[

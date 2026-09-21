@@ -13,7 +13,7 @@ from lamp_py.aws.ecs import check_for_sigterm, handle_ecs_sigterm
 from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 from lamp_py.publishing.performancedata import publish_performance_index
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.pipeline import PERFORMANCE_MANAGER_JOBS
@@ -117,13 +117,16 @@ def start() -> None:
     # parse arguments from the command line
     parsed_args = parse_args(sys.argv[1:])
 
+    # configure the environment
+    os.environ["SERVICE_NAME"] = "performance_manager"
+
+    initialize_sentry()
+
     clear_folder("/tmp")
 
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
 
-    # configure the environment
-    os.environ["SERVICE_NAME"] = "performance_manager"
     validate_environment(
         required_variables=[
             "SPRINGBOARD_BUCKET",

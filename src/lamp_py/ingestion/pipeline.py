@@ -9,12 +9,10 @@ from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.postgres.postgres_utils import start_rds_writer_process
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-
 from lamp_py.ingestion.ingest_gtfs import ingest_gtfs
 from lamp_py.ingestion.glides import ingest_glides_events
-
 from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.utils.clear_folder import clear_folder
 
@@ -57,12 +55,14 @@ def main() -> None:
 
 def start() -> None:
     """configure and start the ingestion process"""
+    # configure the environment
+    os.environ["SERVICE_NAME"] = "ingestion"
+
+    initialize_sentry()
+    
     clear_folder("/tmp")
     # setup handling shutdown commands
     signal.signal(signal.SIGTERM, handle_ecs_sigterm)
-
-    # configure the environment
-    os.environ["SERVICE_NAME"] = "ingestion"
 
     validate_environment(
         required_variables=[
