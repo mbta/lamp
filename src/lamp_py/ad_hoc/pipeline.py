@@ -4,7 +4,7 @@ import logging
 import os
 
 from lamp_py.aws.ecs import check_for_parallel_tasks
-from lamp_py.runtime_utils.env_validation import validate_environment
+from lamp_py.runtime_utils.env_validation import validate_environment, initialize_sentry
 
 from lamp_py.ad_hoc.runner_004 import runner
 
@@ -16,7 +16,7 @@ def start() -> None:
     """configure and start the ad-hoc runner"""
     # configure the environment
     os.environ["SERVICE_NAME"] = "ad_hoc"
-
+    initialize_sentry()
     validate_environment(
         required_variables=[
             "ARCHIVE_BUCKET",
