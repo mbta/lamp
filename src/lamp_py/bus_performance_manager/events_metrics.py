@@ -1,15 +1,14 @@
-from typing import List, Tuple
 from datetime import date
+from typing import List, Tuple
 
 import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
+from lamp_py.bus_performance_manager.events_joined import BusEvents, TMDailyWorkPiece, join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events, get_daily_work_pieces
-from lamp_py.bus_performance_manager.events_joined import BusEvents, join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -215,11 +214,8 @@ def calculate_derived_bus_performance_metrics(
                     pl.coalesce(
                         "gtfs_departure_dt",
                         "tm_actual_departure_dt",
-                        pl.col("gtfs_first_in_transit_dt")
-                        .shift(-1)
-                        .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
                     )
-                )  # use the first in transit dt from the next stop
+                )
                 .when(pl.col("point_type").eq(pl.lit("end")))  # endpoints
                 .then(pl.lit(None))  # no departure time
                 .otherwise(  # midpoints
@@ -228,10 +224,6 @@ def calculate_derived_bus_performance_metrics(
                             pl.col("tm_actual_departure_dt"),
                             pl.col("gtfs_departure_dt"),
                         ),
-                        pl.col("gtfs_first_in_transit_dt")
-                        .shift(-1)
-                        .over(partition_by=["trip_id", "tm_pullout_id"], order_by="stop_sequence"),
-                        pl.col("gtfs_last_in_transit_dt"),
                     ),
                 )
             ).alias("stop_departure_dt"),
@@ -239,7 +231,11 @@ def calculate_derived_bus_performance_metrics(
         .with_columns(
             pl.min_horizontal(  # for arrival times
                 pl.max_horizontal(
-                    pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt"), pl.col("gtfs_last_in_transit_dt")
+                    pl.col("gtfs_arrival_dt"),
+                    pl.col("tm_actual_arrival_dt"),
+                    pl.when(pl.col("point_type").is_null()).then(
+                        pl.col("gtfs_last_in_transit_dt")
+                    ),  # fill in endpoint arrival times
                 ),  # take the later
                 pl.col("stop_departure_dt"),  # unless that conflicts with the departure time
             ).alias("stop_arrival_dt"),
@@ -250,12 +246,6 @@ def calculate_derived_bus_performance_metrics(
                 order_by="stop_sequence",
             )
             .alias("previous_stop_id"),
-        )
-        .with_columns(
-            pl.when(pl.col("stop_sequence").eq(pl.col("stop_count")))  # for endpoints
-            .then(pl.col("stop_arrival_dt"))  # set departure equal to arrival
-            .otherwise(pl.col("stop_departure_dt"))
-            .alias("stop_departure_dt"),
         )
         .with_columns(
             *[  # force the stop_departure_dt & stop_arrival_dt in order with other stops in the trip by
