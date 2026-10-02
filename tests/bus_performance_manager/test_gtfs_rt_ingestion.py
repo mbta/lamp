@@ -173,7 +173,7 @@ def test_read_vehicle_positions(exists_patch: mock.MagicMock) -> None:
         assert VP_SCHEMA[col] == data_type
 
 
-def route_one() -> pl.DataFrame:
+def route_one() -> pl.LazyFrame:
     """
     straight forward vehicle positions dataframe
     """
@@ -203,10 +203,10 @@ def route_one() -> pl.DataFrame:
         "longitude": [-71.0668, -71.0668, -71.0668, -71.0668],
     }
 
-    return pl.DataFrame(data, schema=VP_SCHEMA)
+    return pl.LazyFrame(data, schema=VP_SCHEMA)
 
 
-def route_two() -> pl.DataFrame:
+def route_two() -> pl.LazyFrame:
     """
     multiple in transit to and stopped positions per stop
     """
@@ -268,10 +268,10 @@ def route_two() -> pl.DataFrame:
         ],
     }
 
-    return pl.DataFrame(data, schema=VP_SCHEMA)
+    return pl.LazyFrame(data, schema=VP_SCHEMA)
 
 
-def route_three() -> pl.DataFrame:
+def route_three() -> pl.LazyFrame:
     """
     No In Transit To data, only stopped at
     """
@@ -333,10 +333,10 @@ def route_three() -> pl.DataFrame:
         ],
     }
 
-    return pl.DataFrame(data, schema=VP_SCHEMA)
+    return pl.LazyFrame(data, schema=VP_SCHEMA)
 
 
-def route_four() -> pl.DataFrame:
+def route_four() -> pl.LazyFrame:
     """
     No Stopped At data, only In Transit To
     """
@@ -398,7 +398,7 @@ def route_four() -> pl.DataFrame:
         ],
     }
 
-    return pl.DataFrame(data, schema=VP_SCHEMA)
+    return pl.LazyFrame(data, schema=VP_SCHEMA)
 
 
 def test_positions_to_events() -> None:
@@ -422,7 +422,7 @@ def test_positions_to_events() -> None:
     route_four_events = positions_to_events(vehicle_positions=route_four_positions)
     assert len(route_four_events) == 2
 
-    empty_positions = pl.DataFrame(schema=VP_SCHEMA)
+    empty_positions = pl.LazyFrame(schema=VP_SCHEMA)
     empty_events = positions_to_events(vehicle_positions=empty_positions)
     assert len(empty_events) == 0
 
