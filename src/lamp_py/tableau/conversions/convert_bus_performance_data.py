@@ -50,8 +50,12 @@ def apply_bus_analysis_conversions(polars_df: pl.DataFrame) -> pl.DataFrame:
         pl.col("tm_actual_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("gtfs_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
         pl.col("gtfs_arrival_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
-        pl.col("plan_start_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
-        pl.col("plan_stop_departure_dt").dt.convert_time_zone(time_zone="America/New_York").dt.replace_time_zone(None),
+        # Schedule builders tag local wall-clock values as UTC; these are not
+        # UTC instants like the actual event timestamps above. Preserve their
+        # clock values so they remain aligned with plan_start_time and
+        # plan_stop_departure_sam, including schedules beyond 24:00.
+        pl.col("plan_start_dt").dt.replace_time_zone(None),
+        pl.col("plan_stop_departure_dt").dt.replace_time_zone(None),
     )
 
     # Convert seconds columns to be aligned with Eastern Time
