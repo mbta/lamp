@@ -109,8 +109,19 @@ def combine_events(vp_events: pandas.DataFrame, tu_events: pandas.DataFrame) -> 
     trip_stop_columns = unique_trip_stop_columns()
 
     # merge together the trip_stop_columns and the timestamps
+    #
+    # occupancy rides along here rather than in `details_columns` below to keep
+    # it tied to the record it was sampled from
     events = pandas.merge(
-        vp_events[trip_stop_columns + ["vp_stop_timestamp", "vp_move_timestamp"]],
+        vp_events[
+            trip_stop_columns
+            + [
+                "vp_stop_timestamp",
+                "vp_move_timestamp",
+                "occupancy_status",
+                "occupancy_percentage",
+            ]
+        ],
         tu_events[
             trip_stop_columns
             + [
@@ -370,12 +381,15 @@ def update_events_from_temp(db_manager: DatabaseManager) -> None:
     db_manager.execute(insert_update_vp_move_events)
 
     # update vehicle_events records with vp_stop_timestamp, if required
+    # occupancy is written here so it stays consistent with that timestamp
     update_vp_stop_events = (
         sa.update(VehicleEvents.__table__)
         .values(
             vp_stop_timestamp=TempEventCompare.vp_stop_timestamp,
             stop_sequence=TempEventCompare.stop_sequence,
             stop_id=TempEventCompare.stop_id,
+            occupancy_status=TempEventCompare.occupancy_status,
+            occupancy_percentage=TempEventCompare.occupancy_percentage,
         )
         .where(
             VehicleEvents.service_date == TempEventCompare.service_date,
@@ -491,6 +505,8 @@ def process_gtfs_rt_files(
             events = tu_events
             events["vp_move_timestamp"] = None
             events["vp_stop_timestamp"] = None
+            events["occupancy_status"] = None
+            events["occupancy_percentage"] = None
 
         # continue events processing if records exist
         if events.shape[0] > 0:

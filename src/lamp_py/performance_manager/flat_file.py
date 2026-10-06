@@ -43,7 +43,7 @@ class S3Archive:
     RAIL_PERFORMANCE_PREFIX = os.path.join(LAMP, "subway-on-time-performance-v1")
     INDEX_FILENAME = "index.csv"
     VERSION_KEY = "rpm_version"
-    RPM_VERSION = "1.2.3"
+    RPM_VERSION = "1.3.0"
 
 
 def dates_to_update(db_manager: DatabaseManager) -> Set[datetime]:
@@ -274,6 +274,8 @@ def write_daily_table(db_manager: DatabaseManager, service_date: datetime) -> py
             VehicleEvents.dwell_time_seconds,
             VehicleEvents.headway_trunk_seconds,
             VehicleEvents.headway_branch_seconds,
+            VehicleEvents.occupancy_status,
+            VehicleEvents.occupancy_percentage,
             VehicleEvents.service_date,
             VehicleTrips.route_id,
             VehicleTrips.direction_id,
@@ -340,6 +342,8 @@ def write_daily_table(db_manager: DatabaseManager, service_date: datetime) -> py
             ("dwell_time_seconds", pyarrow.int64()),
             ("headway_trunk_seconds", pyarrow.int64()),
             ("headway_branch_seconds", pyarrow.int64()),
+            ("occupancy_status", pyarrow.string()),
+            ("occupancy_percentage", pyarrow.string()),
             ("service_date", pyarrow.int64()),
             ("route_id", pyarrow.string()),
             ("direction_id", pyarrow.bool_()),
