@@ -31,6 +31,16 @@ def make_dummy_table(num_rows: int = 10) -> pyarrow.Table:
     return pyarrow.table({"col": list(range(num_rows))})
 
 
+def test_process_files_tracks_failed_conversions() -> None:
+    """Failed input files are queued for error handling."""
+    converter = make_converter()
+    converter.add_files(["badfile"])
+
+    list(converter.process_files())
+
+    assert converter.error_files == ["badfile"]
+
+
 @pytest.mark.parametrize(
     "chunk_minutes, input_ts, expected_ts",
     [

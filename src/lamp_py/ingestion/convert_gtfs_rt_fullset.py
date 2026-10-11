@@ -195,6 +195,7 @@ class GtfsRtFullPartitionConverter(GtfsRtConverter):
                 # the error and move on to the next file.
 
                 if result_dt is None:
+                    self.error_files.append(result_filename)
                     process_logger.add_metadata(result=result_dt, file=result_filename)
                     continue
 
