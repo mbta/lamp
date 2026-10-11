@@ -11,6 +11,7 @@ from lamp_py.aws.s3 import (
     move_s3_objects,
     file_list_from_s3,
 )
+from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.convert_gtfs_rt_fullset import GtfsRtFullPartitionConverter
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -110,7 +111,7 @@ def ingest_s3_files(metadata_queue: Queue[Optional[str]], bucket_filter: str = L
                             move_source_on_completion=True,
                         )
                     else:
-                        converters[config_type] = GtfsConverter(config_type, metadata_queue)
+                        converters[config_type] = GtfsRtConverter(config_type, metadata_queue)
 
                 # converter was already created, add the files to it
                 converters[config_type].add_files(file_group)
