@@ -296,6 +296,8 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
                 "dwell_time_seconds",
                 "headway_trunk_seconds",
                 "headway_branch_seconds",
+                "occupancy_status",
+                "occupancy_percentage",
                 "service_date",
                 "route_id",
                 "direction_id",
@@ -549,7 +551,7 @@ def test_gtfs_rt_processing(
     assert position_size == positions.shape[0]
 
     positions = transform_vp_timestamps(positions)
-    assert positions.shape[1] == 15
+    assert positions.shape[1] == 17
     assert position_size > positions.shape[0]
 
     trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"], route_ids)
