@@ -37,7 +37,7 @@ pyodbc = "^5.2.0"
 duckdb = "^1.4.2"
 aiohttp = "^3.13.3"
 dataframely = "^2.7"
-polars = "^1.39"
+polars = {extras = ["deltalake"], version = "^2.0.0"}
 
 [tool.poetry.group.tableau]
 optional = false
