@@ -417,7 +417,7 @@ def test_convert(
             for ts in set(ts.date() for ts in timestamp)
         ],
         use_pyarrow=True,
-        pyarrow_options={"partitioning": None}
+        pyarrow_options={"partitioning": None},
     )
 
     expected_records = pl.concat(
