@@ -1,14 +1,13 @@
 from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
 from lamp_py.tableau.conversions.convert_bus_performance_data import apply_bus_analysis_conversions
 from lamp_py.tableau.jobs.bus_performance import bus_schema
-import polars as pl
 
 
 def test_bus_parquet_convertible_to_bus_tableau_columns() -> None:
     bus_df = bus_schema.empty_table()
     sample = BusPerformanceMetrics.sample(1)
 
-    polars_df = pl.from_arrow(sample).select(bus_schema.names)
+    polars_df = sample.select(bus_schema.names)
 
     excluded_columns = {
         "tm_planned_sequence_start",

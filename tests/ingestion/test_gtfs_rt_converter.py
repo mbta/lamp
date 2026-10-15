@@ -415,7 +415,9 @@ def test_convert(
                 ts.strftime("year=%Y/month=%-m/day=%-d/%Y-%m-%dT00:00:00.parquet"),
             ).as_posix()
             for ts in set(ts.date() for ts in timestamp)
-        ]
+        ],
+        use_pyarrow=True,
+        pyarrow_options={"partitioning": None}
     )
 
     expected_records = pl.concat(
