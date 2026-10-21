@@ -31,7 +31,7 @@ def start() -> None:
     check_for_parallel_tasks()
 
     # run the main method
-    runner(dry_run=False)
+    runner(dry_run=True)
 
 
 if __name__ == "__main__":
