@@ -61,6 +61,17 @@ class FilteredHyperJob(HyperJob):
         self.parquet_filter = parquet_filter  # level 2 | by column and simple filter
         self.dataframe_filter = dataframe_filter  # level 3 | complex filter
 
+        logger = ProcessLogger("tableau_filtered_hyper_job_parameters")
+        logger.log_start()
+        logger.add_metadata(
+            remote_input_location=self.remote_input_location.s3_uri,
+            remote_output_location=self.remote_output_location.s3_uri,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            num_days_ago=self.num_days_ago,
+        )
+        logger.log_complete()
+
     @property
     def output_processed_schema(self) -> pyarrow.schema:
         return self.processed_schema

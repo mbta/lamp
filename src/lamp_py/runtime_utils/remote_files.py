@@ -57,17 +57,17 @@ springboard_devgreen_rt_trip_updates = S3Location(
 ########################################################
 
 ########################################################
-# LRTP extracts - only light rail, but contains all records
+# TP extracts - only light & heavy rail, but contains all records
 # Not uniqued/filtered down.
 
-springboard_devgreen_lrtp_trip_updates = S3Location(
+springboard_devgreen_tp_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
-    prefix=os.path.join(LAMP, "DEV_GREEN_LRTP_TRIP_UPDATES"),
+    prefix=os.path.join(LAMP, "DEV_GREEN_TERMINAL_PREDICTIONS_TRIP_UPDATES"),
 )
 
-springboard_lrtp_trip_updates = S3Location(
+springboard_tp_trip_updates = S3Location(
     bucket=S3_SPRINGBOARD,
-    prefix=os.path.join(LAMP, "LRTP_TRIP_UPDATES"),
+    prefix=os.path.join(LAMP, "TERMINAL_PREDICTIONS_TRIP_UPDATES"),
 )
 ########################################################
 
@@ -145,7 +145,7 @@ tm_pattern_geo_node_xref_file = S3Location(
 )
 
 # published by LAMP
-bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.2")
+bus_events = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "bus_vehicle_events"), version="1.3")
 bus_operator_mapping = S3Location(bucket=S3_ARCHIVE, prefix=os.path.join(LAMP, "bus_operator_mapping"), version="1.0")
 
 # Kinesis stream glides events
@@ -155,6 +155,12 @@ glides_trips_updated = S3Location(
 glides_operator_signed_in = S3Location(
     bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/operator_sign_ins.parquet"), version="1.0"
 )
+glides_vehicle_assignment = S3Location(
+    bucket=S3_SPRINGBOARD, prefix=os.path.join(LAMP, "GLIDES/vehicle_trip_assignment.parquet")
+)
+
+# Light Rail GPS data - only stored until April 2025
+light_rail_gps = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(LAMP, "light_rail_gps"), version="1.0")
 
 public_alerts_file = S3Location(
     bucket=S3_PUBLIC,
@@ -170,6 +176,17 @@ tableau_rail_commuter = S3Location(
     bucket=S3_ARCHIVE,
     prefix=os.path.join(TABLEAU, "rail"),
 )
+
+tableau_rail_vehicle_events = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "rail", "LAMP_RAIL_VEHICLE_EVENTS.parquet"),
+)
+
+tableau_rail_vehicle_trips = S3Location(
+    bucket=S3_ARCHIVE,
+    prefix=os.path.join(TABLEAU, "rail", "LAMP_RAIL_VEHICLE_TRIPS.parquet"),
+)
+
 
 tableau_bus_recent = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_RECENT_Bus_Events.parquet"))
 tableau_bus_all = S3Location(bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "bus", "LAMP_ALL_Bus_Events.parquet"))
@@ -187,7 +204,7 @@ tableau_glides_all_operator_signed_in = S3Location(
     bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_operator_sign_ins.parquet")
 )
 tableau_glides_all_trips_updated = S3Location(
-    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_trip_updates.parquet")
+    bucket=S3_ARCHIVE, prefix=os.path.join(TABLEAU, "glides", "LAMP_ALL_Glides_trip_updates.parquet"), version="1.1.0"
 )
 
 #### GTFS-RT TO TABLEAU
@@ -204,8 +221,8 @@ tableau_rt_trip_updates_lightrail_60_day = S3Location(
 )
 
 # heavy rail output file - to be converted to .hyper
-tableau_rt_vehicle_positions_heavyrail_30_day = S3Location(
-    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_HR_30_day.parquet")
+tableau_rt_vehicle_positions_heavyrail_60_day = S3Location(
+    bucket=S3_PUBLIC, prefix=os.path.join(TABLEAU, "gtfs-rt", "LAMP_RT_VehiclePositions_HR_60_day.parquet")
 )
 # heavy rail output file - to be converted to .hyper
 tableau_rt_trip_updates_heavyrail_30_day = S3Location(
@@ -276,7 +293,7 @@ compressed_gtfs = GTFSArchive(
 )
 
 stop_events = S3Location(
-    bucket=S3_ARCHIVE,
-    prefix=f"{LAMP}/stop_events/stop_events_v0.parquet",
+    bucket=S3_PUBLIC,
+    prefix=f"{LAMP}/stop_events/stop_events_v0.json.gz",
     version="0.1.0",
 )

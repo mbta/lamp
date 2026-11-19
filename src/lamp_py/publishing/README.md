@@ -14,7 +14,7 @@ that used to look like this:
 ``` sql
 SELECT *
 FROM read_parquet('s3://mbta-ctd-dataplatform-springboard/lamp/BUS_VEHICLE_POSITIONS/year=2025/month=9/day=26/2025-09-26T00:00:00.parquet')
-LIMIT 10
+LIMIT 10;
 ```
 
 Now can be written as:
@@ -25,7 +25,7 @@ FROM lamp.BUS_VEHICLE_POSITIONS
 WHERE year = 2025
 AND month = 9
 AND day = 26
-LIMIT 10
+LIMIT 10;
 ```
 
 ## Configuration
@@ -113,7 +113,7 @@ CREATE SECRET (
     `RT_VEHICLE_POSITIONS` file in LAMP’s springboard bucket.
 
 ``` sql
-ATTACH 's3://mbta-ctd-dataplatform-staging-archive/lamp/catalog.db' AS lamp
+ATTACH 's3://mbta-ctd-dataplatform-staging-archive/lamp/catalog.db' AS lamp;
 ```
 
 And that’s it! You’re all set up.
@@ -123,7 +123,7 @@ And that’s it! You’re all set up.
 Get familiar with what’s available by listing the database’s views:
 
 ``` sql
-SHOW TABLES FROM lamp
+SHOW TABLES FROM lamp;
 ```
 
 Note: to reference any of these tables, you must insert `lamp.` at the
@@ -151,7 +151,7 @@ the view by the partition is key to performance. Let’s take
 `rt_vehicle_positions` for instance.
 
 ``` sql
-DESCRIBE lamp.rt_vehicle_positions
+DESCRIBE lamp.rt_vehicle_positions;
 ```
 
 | column_name                        | column_type | null | key | default | extra |
@@ -176,7 +176,7 @@ SELECT *
 FROM lamp.rt_vehicle_positions
 WHERE year = 2025
 AND month = 10
-AND day BETWEEN 1 AND 9
+AND day BETWEEN 1 AND 9;
 ```
 
 | id | vehicle.trip.trip_id | vehicle.trip.route_id | vehicle.trip.direction_id | vehicle.trip.start_time | vehicle.trip.start_date | vehicle.trip.schedule_relationship | vehicle.trip.route_pattern_id | vehicle.trip.tm_trip_id | vehicle.trip.overload_id | vehicle.trip.overload_offset | vehicle.trip.revenue | vehicle.vehicle.id | vehicle.vehicle.label | vehicle.vehicle.license_plate | vehicle.vehicle.consist | vehicle.vehicle.assignment_status | vehicle.position.bearing | vehicle.position.latitude | vehicle.position.longitude | vehicle.position.speed | vehicle.position.odometer | vehicle.current_stop_sequence | vehicle.stop_id | vehicle.current_status | vehicle.timestamp | vehicle.congestion_level | vehicle.occupancy_status | vehicle.occupancy_percentage | vehicle.multi_carriage_details | feed_timestamp | day | month | year |
@@ -200,7 +200,7 @@ composing a date, so this query won’t work:
 ``` sql
 SELECT *
 FROM lamp.rt_vehicle_positions
-WHERE file_date BETWEEN '2025-10-01' and '2025-10-09'
+WHERE file_date BETWEEN '2025-10-01' and '2025-10-09';
 ```
 
 In addition, the native syntax is rather slow. To more efficiently query
@@ -214,7 +214,7 @@ FROM lamp.read_ymd(
     DATE '2025-10-01',
     DATE '2025-10-10' -- end date is not inclusive
 )
-LIMIT 10
+LIMIT 10;
 ```
 
 | id | vehicle.trip.trip_id | vehicle.trip.route_id | vehicle.trip.direction_id | vehicle.trip.start_time | vehicle.trip.start_date | vehicle.trip.schedule_relationship | vehicle.trip.route_pattern_id | vehicle.trip.tm_trip_id | vehicle.trip.overload_id | vehicle.trip.overload_offset | vehicle.trip.revenue | vehicle.trip.last_trip | vehicle.vehicle.id | vehicle.vehicle.label | vehicle.vehicle.license_plate | vehicle.vehicle.consist | vehicle.vehicle.assignment_status | vehicle.position.bearing | vehicle.position.latitude | vehicle.position.longitude | vehicle.position.speed | vehicle.position.odometer | vehicle.current_stop_sequence | vehicle.stop_id | vehicle.current_status | vehicle.timestamp | vehicle.congestion_level | vehicle.occupancy_status | vehicle.occupancy_percentage | vehicle.multi_carriage_details | feed_timestamp | day | month | year |

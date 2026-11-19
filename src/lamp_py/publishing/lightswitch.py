@@ -14,8 +14,8 @@ HIVE_VIEWS = {
         rf.springboard_rt_trip_updates,
         rf.springboard_devgreen_rt_vehicle_positions,
         rf.springboard_devgreen_rt_trip_updates,
-        rf.springboard_devgreen_lrtp_trip_updates,
-        rf.springboard_lrtp_trip_updates,
+        rf.springboard_devgreen_tp_trip_updates,
+        rf.springboard_tp_trip_updates,
         rf.rt_alerts,
         rf.bus_vehicle_positions,
         rf.bus_trip_updates,
@@ -25,6 +25,7 @@ HIVE_VIEWS = {
         rf.tm_daily_work_piece,
         rf.tm_daily_logged_message,
     ],
+    "/*/*.parquet": [rf.light_rail_gps],
     "": [  # files
         rf.tm_daily_sched_adherence_waiver_file,
         rf.tm_geo_node_file,
@@ -46,12 +47,16 @@ HIVE_VIEWS = {
         rf.tableau_rt_trip_updates_heavyrail_30_day,
         rf.tableau_devgreen_rt_trip_updates_lightrail_60_day,
         rf.tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
+        rf.tableau_rail_vehicle_events,
+        rf.tableau_rail_vehicle_trips,
+        rf.tableau_rail_commuter,
+        rf.tableau_rail_subway,
     ],
 }
 
 
 def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
-    "Register IAM credentials with duckdb."
+    """Register IAM credentials with duckdb."""
     connection.install_extension("aws")
     connection.load_extension("aws")
     return connection.sql(  # type: ignore[index]
@@ -77,7 +82,29 @@ def build_view(
     pl.add_metadata(view_name=view_name, view_target=view_target)
 
     try:
-        connection.from_parquet(view_target, hive_partitioning=True).create_view(view_name)
+        column_aliases = (
+            connection.sql(
+                f"""
+            SELECT DISTINCT string_agg('"' || column_name || '" AS ' || REPLACE(column_name, '.', '_'), ', ') 
+            FROM (
+                DESCRIBE SELECT * FROM read_parquet('{view_target}')
+            )
+        """
+            )
+            .pl()
+            .item(0, 0)
+        )
+        connection.execute(
+            # Rename columns to replace period with underscore.
+            # Period is a reserved character in SQL, which would force users to quote column names
+            f"""
+            CREATE VIEW {view_name} AS
+            SELECT
+                {column_aliases}
+            FROM read_parquet('{view_target}', hive_partitioning=True)
+            """
+        )
+
         return True
     except Exception as e:
         pl.log_failure(e)
@@ -111,12 +138,18 @@ def register_read_ymd(
     """Register function in DuckDB using SQL text."""
     pl = ProcessLogger("register_read_ymd")
     pl.log_start()
+
+    # Rename columns to replace period with underscore.
+    # Period is a reserved character in SQL, which would force users to quote column names
     connection.sql(
         """
         CREATE OR REPLACE MACRO read_ymd
 
             (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
-             SELECT *
+             SELECT 
+                COLUMNS('^.*?(\\w+)\\.(\\w+)\\.(\\w+)$') AS '\\1_\\2_\\3',
+                COLUMNS('^(\\w+)\\.(\\w+)$') AS '\\1_\\2',
+                COLUMNS('^[^.]*$') AS '\\1'
              FROM read_parquet(
                 list_transform(
                     range(
@@ -156,7 +189,7 @@ def register_effective_gtfs_timestamps(
     try:
         connection.sql(
             f"""
-            CREATE OR REPLACE TABLE {schema_name}.effective_timestamps AS
+            CREATE OR REPLACE TABLE {schema_name}_effective_timestamps AS
             SELECT
                 service_date,
                 split_part(rating, ' ', 2) as rating_year,
@@ -194,8 +227,7 @@ def register_effective_gtfs_timestamps(
 def add_views_to_local_metastore(
     connection: duckdb.DuckDBPyConnection, views: dict[str, List[rf.S3Location]]
 ) -> List[str]:
-    "Add views of remote Parquet files to duckdb database."
-
+    """Add views of remote Parquet files to duckdb database."""
     built_views: List[str] = []
     for k in views.keys():
         for item in views[k]:

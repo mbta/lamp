@@ -72,3 +72,19 @@ def validate_environment(
         raise exception
 
     process_logger.log_complete()
+
+
+def get_environment(env_var: str = "ECS_TASK_GROUP") -> str:
+    """
+    Extracts environment string from ECS_TASK_GROUP variable. Returns one of "dev", "staging", or "prod".
+    Or ValueError if ECS_TASK_GROUP is not set correctly.
+    """
+
+    # extracts one of "dev", "staging", or "prod" from the ECS_TASK_GROUP variable
+    environment = os.getenv(env_var, "-").split("-")[-1]
+
+    if environment not in ["dev", "staging", "prod"]:
+        raise ValueError(
+            f"{env_var} variable not set correctly: {os.getenv(env_var, '-')}. Environment must be one of `dev`, `staging`, or `prod`."
+        )
+    return environment

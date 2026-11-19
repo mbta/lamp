@@ -296,6 +296,8 @@ def fixture_flat_file_s3_patch(monkeypatch: MonkeyPatch) -> Iterator[None]:
                 "dwell_time_seconds",
                 "headway_trunk_seconds",
                 "headway_branch_seconds",
+                "occupancy_status",
+                "occupancy_percentage",
                 "service_date",
                 "route_id",
                 "direction_id",
@@ -406,6 +408,7 @@ def check_logs(caplog: pytest.LogCaptureFixture) -> None:
 
 
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(1)
 def test_static_tables(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -442,14 +445,14 @@ def test_static_tables(
     # processing the static tables our db tables should have these many record
     # counts.
     row_counts = {
-        StaticTrips: 11709,
-        StaticRoutes: 24,
+        StaticTrips: 10993,
+        StaticRoutes: 21,
         StaticStops: 9743,
-        StaticStopTimes: 186618,
+        StaticStopTimes: 185104,
         StaticCalendar: 102,
         StaticCalendarDates: 85,
         StaticDirections: 378,
-        StaticRoutePatterns: 141,
+        StaticRoutePatterns: 124,
     }
 
     with rpm_db_manager.session.begin() as session:
@@ -471,6 +474,7 @@ def test_static_tables(
 
 
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(2)
 def test_good_empty_static_table(caplog: pytest.LogCaptureFixture) -> None:
     """
     test that empty/missing static calendar_dates can be turned into dataframe
@@ -483,6 +487,7 @@ def test_good_empty_static_table(caplog: pytest.LogCaptureFixture) -> None:
 
 
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(3)
 def test_bad_empty_static_table() -> None:
     """
     test that empty/missing static parquet (that should have data) raises KeyError
@@ -497,6 +502,7 @@ def test_bad_empty_static_table() -> None:
 # pylint: disable=R0915
 # pylint Too many statements (51/50) (too-many-statements)
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(4)
 def test_gtfs_rt_processing(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -545,7 +551,7 @@ def test_gtfs_rt_processing(
     assert position_size == positions.shape[0]
 
     positions = transform_vp_timestamps(positions)
-    assert positions.shape[1] == 15
+    assert positions.shape[1] == 17
     assert position_size > positions.shape[0]
 
     trip_updates = get_and_unwrap_tu_dataframe(files["tu_paths"], route_ids)
@@ -611,6 +617,7 @@ def test_gtfs_rt_processing(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(5)
 def test_vp_only(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -637,6 +644,7 @@ def test_vp_only(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(6)
 def test_tu_only(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -663,6 +671,7 @@ def test_tu_only(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(7)
 def test_vp_and_tu(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -689,6 +698,7 @@ def test_vp_and_tu(
     "lamp_py.performance_manager.l1_cte_statements.GTFS_ARCHIVE", "https://performancedata.mbta.com/lamp/gtfs_archive"
 )
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(8)
 def test_missing_start_time(
     rpm_db_manager: DatabaseManager,
     md_db_manager: DatabaseManager,
@@ -745,6 +755,7 @@ def test_missing_start_time(
 
 
 @pytest.mark.xdist_group(name="rdb_group")
+@pytest.mark.order(9)
 def test_process_vp_files(
     rpm_db_manager: DatabaseManager,
     caplog: pytest.LogCaptureFixture,

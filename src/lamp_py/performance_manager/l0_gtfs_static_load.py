@@ -352,9 +352,9 @@ def drop_bus_records(static_tables: Dict[str, StaticTableDetails]) -> None:
     )
     process_logger.log_start()
 
-    # remove bus routes (route_type == 3) from routes table
+    # remove bus routes and ferries (route_types 3 and 4) from routes table
     routes = static_tables["routes"].data_table
-    routes = routes[(routes["route_type"] != 3)]
+    routes = routes[(routes["route_type"] < 3)]
     # save non-bus route_id's to be joined with other dataframes
     no_bus_route_ids = routes[["route_id"]]
 

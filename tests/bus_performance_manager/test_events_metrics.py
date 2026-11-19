@@ -1,12 +1,78 @@
-# pylint: disable=too-many-positional-arguments,too-many-arguments
+# pylint: disable=too-many-positional-arguments,too-many-arguments,too-many-ancestors
 from contextlib import nullcontext
-from datetime import datetime, date
+from datetime import date, datetime
 
+import dataframely as dy
 import polars as pl
 import pytest
-from dataframely.random import Generator
 from dataframely.exc import ValidationError
+from dataframely.random import Generator
+
 from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
+
+
+@pytest.mark.parametrize(
+    ["point_type", "gtfs_last_in_transit_dt", "stop_arrival_dt", "travel_time_seconds", "num_rows"],
+    [
+        (
+            "end",
+            None,
+            None,
+            3600,
+            nullcontext(3),
+        ),
+        (
+            "end",
+            datetime(2000, 1, 1, 2),
+            None,
+            None,
+            pytest.raises(ValidationError, match="has_arrival_dt"),
+        ),
+        (
+            "end",
+            datetime(2000, 1, 1, 2),
+            datetime(2000, 1, 1, 2),
+            7200,
+            nullcontext(3),
+        ),
+    ],
+    ids=[
+        "missing-GTFS-stop-data",  # pass
+        "final-stop-but-no-gtfs-arrival",  # fail
+        "all-data-present",  # pass
+    ],
+)
+def test_dy_final_stop_has_arrival_dt(
+    dy_gen: Generator,
+    point_type: str,
+    gtfs_last_in_transit_dt: datetime | None,
+    stop_arrival_dt: datetime | None,
+    travel_time_seconds: int | None,
+    num_rows: pytest.RaisesExc,
+) -> None:
+    "It returns false if the final stop has GTFS-RT in-transit data but no derived stop_arrival_dt."
+    df = BusPerformanceMetrics.sample(
+        num_rows=3,
+        generator=dy_gen,
+        overrides={"stop_arrival_dt": [datetime(2000, 1, 1), datetime(2000, 1, 1, 1), stop_arrival_dt]},
+    ).with_columns(
+        trip_id=pl.lit("1"),
+        tm_pullout_id=pl.lit("0"),
+        route_id=pl.lit("a"),
+        vehicle_label=pl.lit("x"),
+        service_date=pl.lit(date(2000, 1, 1)),
+        tm_stop_sequence=pl.Series(values=[1, 2, 3]),
+        stop_sequence=pl.Series(values=[1, 2, 3]),
+        point_type=pl.Series(values=["start", "mid", point_type]),
+        travel_time_seconds=pl.Series(values=[None, None, travel_time_seconds]),
+        stopped_duration_seconds=pl.lit(None),
+        gtfs_last_in_transit_dt=pl.Series(
+            values=[datetime(2000, 1, 1), datetime(2000, 1, 1, 1), gtfs_last_in_transit_dt]
+        ),
+    )
+
+    with num_rows:
+        assert BusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize(
@@ -26,8 +92,8 @@ from lamp_py.bus_performance_manager.events_metrics import BusPerformanceMetrics
     ],
     ids=[
         "departure_equal_arrival",
-        "departure_after_arrival",
         "arrival_after_departure",
+        "departure_after_arrival",
         "arrival_null",
         "departure_null",
     ],
@@ -40,12 +106,16 @@ def test_dy_departure_after_arrival(
     stopped_duration_seconds: int | None,
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if the departure dt is earlier than the arrival dt."
+    """It returns false if the departure dt is earlier than the arrival dt."""
     df = BusPerformanceMetrics.sample(num_rows=1, generator=dy_gen).with_columns(
         stop_arrival_dt=stop_arrival_dt,
         stop_departure_dt=stop_departure_dt,
         travel_time_seconds=travel_time_seconds,
         stopped_duration_seconds=stopped_duration_seconds,
+        gtfs_arrival_dt=None,
+        gtfs_departure_dt=None,
+        gtfs_first_in_transit_dt=None,
+        gtfs_last_in_transit_dt=None,
     )
 
     with num_rows:
@@ -111,7 +181,7 @@ def test_dy_stop_sequence_implies_time_order(
     stopped_duration_seconds: list[int],
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if any departure or arrival time is earlier than the preceding record."
+    """It returns false if any departure or arrival time is earlier than the preceding record."""
     df = BusPerformanceMetrics.sample(
         num_rows=2,
         generator=dy_gen,
@@ -177,11 +247,12 @@ def test_dy_travel_time_plus_stopped_duration_equals_total_trip(
     stopped_duration_seconds: list[int],
     num_rows: pytest.RaisesExc,
 ) -> None:
-    "It returns false if the travel times and stopped durations don't add up to the total trip duration."
+    """It returns false if the travel times and stopped durations don't add up to the total trip duration."""
     df = BusPerformanceMetrics.sample(num_rows=3, generator=dy_gen).with_columns(
         trip_id=pl.lit("1"),
         vehicle_label=pl.lit("x"),
         service_date=pl.lit(date(2000, 1, 1)),
+        gtfs_last_in_transit_dt=pl.lit(None),
         stop_sequence=pl.Series(values=[1, 2, 3]),
         stop_arrival_dt=pl.Series(values=stop_arrival_dt),
         stop_departure_dt=pl.Series(values=stop_departure_dt),
@@ -191,3 +262,71 @@ def test_dy_travel_time_plus_stopped_duration_equals_total_trip(
 
     with num_rows:
         assert BusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]
+
+
+class TestBusPerformanceMetrics(BusPerformanceMetrics):
+    """Production schema plus test-only rules."""
+
+    @dy.rule()
+    def headways_if_planned_or_actual_departure(cls) -> pl.Expr:
+        """Headways aren't null if there is a planned or actual departure time."""
+        return pl.all_horizontal(
+            pl.coalesce("stop_departure_dt", "plan_stop_departure_dt").is_not_null(),
+            pl.coalesce("stop_departure_dt", "plan_stop_departure_dt").shift().is_not_null(),
+        ) == pl.all_horizontal(pl.selectors.contains("headway").is_not_null())
+
+
+@pytest.mark.parametrize(
+    [
+        "stop_departure_dt",
+        "plan_stop_departure_dt",
+        "route_direction_headway_seconds",
+        "direction_destination_headway_seconds",
+        "num_rows",
+    ],
+    [
+        (
+            [None, None],
+            [datetime(2000, 1, 1), datetime(2000, 1, 1, 1)],
+            [None, None],
+            [None, None],
+            pytest.raises(ValidationError, match="headways_if_planned_or_actual_departure"),
+        ),
+        (
+            [None, None],
+            [datetime(2000, 1, 1), datetime(2000, 1, 1, 1)],
+            [None, 60 * 60],
+            [None, 60 * 60],
+            nullcontext(2),
+        ),
+    ],
+    ids=[
+        "planned_departure_no_headways",
+        "departure_with_headways",
+    ],
+)
+def test_dy_headways_if_planned_or_actual_departure(
+    dy_gen: Generator,
+    stop_departure_dt: list[datetime],
+    plan_stop_departure_dt: list[datetime],
+    route_direction_headway_seconds: list[int],
+    direction_destination_headway_seconds: list[int],
+    num_rows: pytest.RaisesExc,
+) -> None:
+    """It returns false if there is a planned or actual departure time, but the route_direction_headway_seconds or direction_destination_headway_seconds are null."""
+    df = TestBusPerformanceMetrics.sample(num_rows=2, generator=dy_gen).with_columns(
+        route_id=pl.lit("1"),
+        service_date=pl.lit(date(2000, 1, 1)),
+        stop_id=pl.lit("a"),
+        direction_id=pl.lit(0),
+        direction_destination=pl.lit("b"),
+        travel_time_seconds=pl.lit(None),
+        stopped_duration_seconds=pl.lit(None),
+        stop_departure_dt=pl.Series(values=stop_departure_dt),
+        plan_stop_departure_dt=pl.Series(values=plan_stop_departure_dt),
+        route_direction_headway_seconds=pl.Series(values=route_direction_headway_seconds),
+        direction_destination_headway_seconds=pl.Series(values=direction_destination_headway_seconds),
+    )
+
+    with num_rows:
+        assert TestBusPerformanceMetrics.validate(df, cast=True).height == num_rows.enter_result  # type: ignore[attr-defined]

@@ -2,6 +2,7 @@ from datetime import date, timedelta
 import os
 import tempfile
 from typing import Optional
+from polars.exceptions import ComputeError
 
 import pyarrow.parquet as pq
 
@@ -110,6 +111,10 @@ def write_bus_metrics(
         except LampInvalidProcessingError as exception:
             # num service date > 1 = InvalidProcessing (this should never happen)
             day_logger.log_failure(exception)
+        except (OSError, ComputeError) as exception:
+            # common errors related to processing remote files
+            day_logger.log_failure(exception)
+            continue
         except Exception as exception:
             day_logger.log_failure(exception)
 

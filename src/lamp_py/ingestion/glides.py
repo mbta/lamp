@@ -10,23 +10,25 @@ import polars as pl
 import pyarrow
 import pyarrow.parquet as pq
 
-from lamp_py.aws.s3 import download_file, upload_file
+from lamp_py.aws.s3 import download_file, replace_remote_parquet
 from lamp_py.aws.kinesis import KinesisReader
 from lamp_py.ingestion.utils import explode_table_column, flatten_table_schema
-from lamp_py.utils.dataframely import unnest_columns, with_nullable
+from lamp_py.utils.dataframely import unnest_columns
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
     LAMP,
     S3_SPRINGBOARD,
 )
 
-RFC3339_DATE_REGEX = r"^20(?:([1-3][0-9]-[0-1][0-9]-[0-3][0-9]))"  # up to 2039-19-39
-RFC3339_DATETIME_REGEX = RFC3339_DATE_REGEX + r"[T ]([0-2][0-9]:[0-5][0-9]:[0-5][0-9](?:\.\d+)?)(Z|[\+-]\d{2}:\d{2})?$"
+RFC3339_DATE_REGEX = r"^[0-9]{4}-[01][0-9]-[0-3][0-9]"
+RFC3339_DATETIME_REGEX = (
+    RFC3339_DATE_REGEX + r"[T ][012][0-9]:[0-5][0-9]:[0-6][0-9](.[0-9]*)?(Z|[+-][012][0-9]:[0-5][0-9])$$"
+)
 GTFS_TIME_REGEX = r"^([0-9]{2}):([0-5][0-9]):([0-5][0-9])$"  # clock can be greater than 24 hours
 
 user = dy.Struct(
     {
-        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}),
+        "emailAddress": dy.String(metadata={"reader_roles": ["GlidesUserEmail"]}, nullable=True),
         "badgeNumber": dy.String(nullable=True),
     },
     nullable=True,
@@ -40,7 +42,9 @@ metadata = dy.Struct(
         "author": user,
         "inputType": dy.String(),
         "inputTimestamp": dy.String(nullable=True, regex=RFC3339_DATETIME_REGEX),  # coercable to datetime
-    }
+        "uiVersion": dy.String(nullable=True),
+    },
+    nullable=True,
 )
 
 trip_key = dy.Struct(
@@ -57,6 +61,8 @@ trip_key = dy.Struct(
     nullable=True,
 )
 
+start_end_time = dy.String(nullable=True, regex=r"unset|" + GTFS_TIME_REGEX)
+
 
 class GlidesRecord(dy.Schema):
     """Base schema for all Glides records."""
@@ -64,7 +70,7 @@ class GlidesRecord(dy.Schema):
     id = dy.String()
     type = dy.String()
     time = dy.Datetime(  # in %Y-%m-%dT%H:%M:%S%:z format before serialization
-        min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="ms"  # within Python's serializable range
+        time_unit="ms",  # within Python's serializable range
     )
     source = dy.String()
     specversion = dy.String()
@@ -76,7 +82,7 @@ class EditorChangesRecord(GlidesRecord):
 
     data = dy.Struct(
         {
-            "metadata": with_nullable(metadata, True),
+            "metadata": metadata,
             "changes": dy.List(
                 dy.Struct(
                     {
@@ -118,17 +124,21 @@ class TripUpdatesRecord(GlidesRecord):
                         "previousTripKey": trip_key,
                         "type": dy.String(),
                         "tripKey": trip_key,
+                        "nextTripKey": trip_key,
                         "comment": dy.String(nullable=True),
                         "startLocation": location,
                         "endLocation": location,
-                        "startTime": dy.String(nullable=True),  # can be "unset" string :(
-                        "endTime": dy.String(nullable=True),  # can be "unset" string :(
+                        "startTime": start_end_time,
+                        "endTime": start_end_time,
+                        "automaticStartTime": start_end_time,
+                        "automaticEndTime": start_end_time,
                         "cars": dy.String(nullable=True),  # an array of objects
                         "revenue": dy.String(nullable=True),
                         "dropped": dy.String(nullable=True),
                         "scheduled": dy.String(),  # an object with an array of objects
-                    }
-                )
+                    },
+                ),
+                min_length=1,
             ),
         }
     )
@@ -148,6 +158,7 @@ class VehicleTripAssignmentRecord(GlidesRecord):
                 },
                 nullable=True,
             ),
+            "revenue": dy.String(regex="(non)?revenue", nullable=True),
         }
     )
 
@@ -232,7 +243,6 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
         )
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-
             new_path = os.path.join(tmp_dir, self.base_filename)
             sorted_ds = joined_ds.unique().sort("time")
             valid = process_logger.log_dataframely_filter_results(*self.table_schema.filter(sorted_ds))
@@ -245,7 +255,7 @@ class GlidesConverter(ABC):  # pylint: disable=too-many-instance-attributes
 
     def upload_records(self) -> None:
         """Upload local parquet file to remote storage."""
-        upload_file(file_name=self.local_path, object_path=self.remote_path)
+        replace_remote_parquet(file_name=self.local_path, object_path=self.remote_path)
 
 
 class EditorChanges(GlidesConverter):

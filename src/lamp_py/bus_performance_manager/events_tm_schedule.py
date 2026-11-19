@@ -1,5 +1,5 @@
-from datetime import date
 import os
+from datetime import date
 
 import dataframely as dy
 import polars as pl
@@ -7,12 +7,13 @@ import polars as pl
 from lamp_py.bus_performance_manager.events_gtfs_schedule import BusBaseSchema
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 from lamp_py.runtime_utils.remote_files import (
+    tm_daily_sched_adherence_waiver_file,
     tm_geo_node_file,
     tm_route_file,
+    tm_stop_crossing,
+    tm_time_point_file,
     tm_trip_file,
     tm_vehicle_file,
-    tm_time_point_file,
-    tm_stop_crossing,
 )
 
 
@@ -20,16 +21,46 @@ class TransitMasterSchedule(BusBaseSchema):
     """TransitMaster scheduled events."""
 
     vehicle_label = dy.String(nullable=True)
-    pattern_id = dy.Int64(nullable=True)
+    pattern_id = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "TransitMaster pattern_id for a given trip_id and service_date. Joinable to TransitMaster schedule and timepoint datasets."
+        },
+    )
     tm_stop_sequence = dy.Int64(primary_key=True)
-    timepoint_id = dy.Int64(nullable=True)
-    timepoint_abbr = dy.String(nullable=True)
-    timepoint_name = dy.String(nullable=True)
-    tm_planned_sequence_end = dy.Int64(nullable=True)
-    tm_planned_sequence_start = dy.Int64(nullable=True)
+    timepoint_id = dy.Int64(
+        nullable=True, metadata={"definition": "TransitMaster timepoint_id for a given trip_id and service_date."}
+    )
+    timepoint_abbr = dy.String(
+        nullable=True, metadata={"definition": "TransitMaster timepoint_abbr for a given trip_id and service_date."}
+    )
+    timepoint_name = dy.String(
+        nullable=True, metadata={"definition": "TransitMaster timepoint_name for a given trip_id and service_date."}
+    )
+    tm_planned_sequence_end = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "TransitMaster single tm_stop_sequence of the planned end timepoint for a given trip-route-pattern."
+        },
+    )
+    tm_planned_sequence_start = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "TransitMaster single tm_stop_sequence of the planned start timepoint for a given trip-route-pattern."
+        },
+    )
     service_date = dy.Date(nullable=True)
-    tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone=None)
-    timepoint_order = dy.UInt32(nullable=True)
+    tm_stop_departure_dt = dy.Datetime(nullable=False, time_zone="UTC")
+    timepoint_order = dy.UInt32(
+        nullable=True, metadata={"definition": "Ranked order of planned timepoints for a given trip-route-pattern."}
+    )
+    waiver_remark = dy.String(
+        nullable=True,
+        regex=r"^([[:alpha:]]{1,5}|Unrecognized Code)$",
+        metadata={
+            "definition": "Bus Ops waiver code; free text entries are removed to avoid exposing identifying information."
+        },
+    )
     STOP_CROSSING_ID = dy.Int64(nullable=False)
     PULLOUT_ID = dy.Int64(primary_key=True)
 
@@ -37,7 +68,7 @@ class TransitMasterSchedule(BusBaseSchema):
 def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedule]:
     """
 
-    non service tiemepoints
+    Non service tiemepoints
     vs all timepoints that havent joined
     where avl is bad
     there are places where gtfs is bad at getting stop records
@@ -107,14 +138,30 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
         "TIME_PT_NAME",
     )
 
+    waivers = (
+        pl.scan_parquet(tm_daily_sched_adherence_waiver_file.s3_uri)
+        .filter(pl.col("MISSED_ALLOWED_FLAG").eq(pl.lit(1)))
+        .select(
+            "WAIVER_ID",
+            pl.coalesce(
+                pl.col("REMARK").str.extract(r"^([[:alpha:]]{1,5})\b[ -:]*").alias("waiver_remark"),
+                pl.lit("Unrecognized Code"),
+            ).alias("waiver_remark"),
+        )  # remove freetext entries to avoid exposing operator IDs
+    )
+
     stop_crossings = (
-        pl.scan_parquet(os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime('%Y%m%d')}.parquet"))
+        pl.scan_parquet(
+            os.path.join(tm_stop_crossing.s3_uri, f"1{service_date.strftime('%Y%m%d')}.parquet"),
+            storage_options={"max_retries": 5},
+        )
         .filter(
             pl.col("ROUTE_ID").is_not_null(),
             pl.col("GEO_NODE_ID").is_not_null(),
             pl.col("TRIP_ID").is_not_null(),
             # by allowing null `VEHICLE_ID`, we get all scheduled and actual trips for the day
         )
+        .join(waivers, on="WAIVER_ID", how="left")
         .join(tm_trips, on="TRIP_ID", how="left")
         .join(tm_geo_nodes, on="GEO_NODE_ID", how="left")
         .join(tm_time_points, on="TIME_POINT_ID", how="left")
@@ -133,7 +180,9 @@ def generate_tm_schedule(service_date: date) -> dy.DataFrame[TransitMasterSchedu
                 (
                     pl.col("CALENDAR_ID").cast(pl.String).str.to_datetime("1%Y%m%d", time_unit="us")
                     + pl.duration(seconds=pl.col("SCHEDULED_TIME"))
-                ).alias("tm_stop_departure_dt"),
+                )
+                .dt.replace_time_zone("UTC")
+                .alias("tm_stop_departure_dt"),
                 pl.col(["PATTERN_GEO_NODE_SEQ"]).rank(method="dense").over(["PATTERN_ID"]).alias("timepoint_order"),
                 pl.col("ROUTE_ABBR").str.strip_chars_start(pl.lit("0")).alias("route_id"),
                 pl.col("PATTERN_GEO_NODE_SEQ").max().over(["TRIP_SERIAL_NUMBER"]).alias("tm_planned_sequence_end"),

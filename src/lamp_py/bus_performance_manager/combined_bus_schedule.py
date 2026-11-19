@@ -11,22 +11,39 @@ class CombinedBusSchedule(GTFSBusSchedule):
     """Union of GTFS and TransitMaster bus schedules."""
 
     gtfs_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    stop_sequence = dy.UInt32(primary_key=True, min=1)
+    stop_sequence = dy.UInt32(
+        primary_key=True,
+        min=1,
+        metadata={
+            "definition": "Rank of stop crossing for a given `trip_id`, `tm_pullout_id`, and `service_date`. Differs from GTFS and TM variants when sequences do not align."
+        },
+    )
     tm_pullout_id = dy.String(primary_key=True)
     vehicle_label = dy.String(nullable=True)
-    schedule_joined = dy.String(nullable=False)
-    tm_planned_sequence_start = dy.Int64(nullable=True)
+    schedule_joined = dy.String(
+        nullable=False,
+        metadata={
+            "definition": "Indicates which dataset(s) were used to form the schedule for a given trip_id, tm_pullout_id, and service_date. `GTFS` indicates GTFS-only data was used. `TM` indicates TransitMaster-only data was used. `JOIN` indicates both datasets were used."
+        },
+    )
     tm_stop_sequence = dy.Int64(nullable=True, primary_key=False)
-    tm_planned_sequence_end = dy.Int64(nullable=True)
     pattern_id = TransitMasterSchedule.pattern_id
-    point_type = dy.String(nullable=True)
+    point_type = dy.String(
+        nullable=True,
+        metadata={
+            "definition": "Indicates whether a given stop is the first stop on the route (`start`), the last stop on the route (`end`), or a mid-route stop (`mid`)."
+        },
+    )
     timepoint_id = TransitMasterSchedule.timepoint_id
     timepoint_abbr = TransitMasterSchedule.timepoint_abbr
     timepoint_name = TransitMasterSchedule.timepoint_name
     tm_planned_sequence_end = TransitMasterSchedule.tm_planned_sequence_end
     tm_planned_sequence_start = TransitMasterSchedule.tm_planned_sequence_start
     timepoint_order = TransitMasterSchedule.timepoint_order
-    plan_stop_departure_sam = dy.Int64(nullable=False)
+    plan_stop_departure_sam = dy.Int64(
+        nullable=False, metadata={"definition": "`plan_stop_departure_dt` expressed as seconds after `service_date`."}
+    )
+    waiver_remark = TransitMasterSchedule.waiver_remark
 
 
 # pylint: disable=R0801
@@ -144,7 +161,7 @@ def join_tm_schedule_to_gtfs_schedule(
         )
         .with_columns(
             pl.col("plan_stop_departure_dt")
-            .sub(pl.col("service_date").cast(pl.Datetime))
+            .sub(pl.col("service_date").cast(pl.Datetime(time_zone="UTC")))
             .dt.total_seconds()
             .alias("plan_stop_departure_sam"),
             pl.struct("plan_stop_departure_dt", "tm_stop_sequence", "gtfs_stop_sequence", "plan_start_dt")

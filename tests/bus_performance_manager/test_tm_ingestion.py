@@ -15,6 +15,7 @@ from ..test_resources import (
     tm_stop_crossings,
     tm_daily_logged_message,
     tm_time_point_file,
+    tm_daily_sched_adherence_waiver_file,
 )
 
 
@@ -45,6 +46,10 @@ def test_tm_to_bus_events(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "lamp_py.bus_performance_manager.events_tm_schedule.tm_stop_crossing",
         tm_stop_crossings,
+    )
+    monkeypatch.setattr(
+        "lamp_py.bus_performance_manager.events_tm_schedule.tm_daily_sched_adherence_waiver_file",
+        tm_daily_sched_adherence_waiver_file,
     )
     tm_sc_dir = tm_stop_crossings.s3_uri
     print(tm_sc_dir)

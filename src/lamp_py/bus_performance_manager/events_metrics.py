@@ -1,15 +1,14 @@
-from typing import List, Tuple
 from datetime import date
+from typing import List, Tuple
 
 import dataframely as dy
 import polars as pl
 
-from lamp_py.bus_performance_manager.events_joined import TMDailyWorkPiece
 from lamp_py.bus_performance_manager.combined_bus_schedule import join_tm_schedule_to_gtfs_schedule
 from lamp_py.bus_performance_manager.events_gtfs_rt import generate_gtfs_rt_events
 from lamp_py.bus_performance_manager.events_gtfs_schedule import bus_gtfs_schedule_events_for_date
+from lamp_py.bus_performance_manager.events_joined import BusEvents, TMDailyWorkPiece, join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm import generate_tm_events, get_daily_work_pieces
-from lamp_py.bus_performance_manager.events_joined import BusEvents, join_rt_to_schedule
 from lamp_py.bus_performance_manager.events_tm_schedule import generate_tm_schedule
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
@@ -17,18 +16,67 @@ from lamp_py.runtime_utils.process_logger import ProcessLogger
 class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
     "Bus events enriched with derived operational metrics."
 
-    gtfs_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
+    gtfs_departure_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "earliest 'STOPPED_AT' status `timestamp` for a trip-stop pair from GTFS-RT [VehiclePosition](https://gtfs.org/realtime/reference/#message-vehicleposition)"
+        },
+    )
     previous_stop_id = dy.String(nullable=True)
-    stop_arrival_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    stop_departure_dt = dy.Datetime(nullable=True, time_zone="UTC")
-    gtfs_first_in_transit_seconds = dy.Int64(nullable=True)
-    stop_arrival_seconds = dy.Int64(nullable=True)
-    stop_departure_seconds = dy.Int64(nullable=True)
-    travel_time_seconds = dy.Int64(nullable=True)
-    stopped_duration_seconds = dy.Int64(nullable=True)
-    route_direction_headway_seconds = dy.Int64(nullable=True, min=0)
-    direction_destination_headway_seconds = dy.Int64(nullable=True, min=0)
-    is_full_trip = dy.Bool(nullable=True)
+    stop_arrival_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "Estimate of when bus arrived at stop area. Uses `gtfs_arrival_dt` if available, then TransitMaster `actual_arrival_dt` and adjusts time to ensure `stop_sequence` order implies arrival order."
+        },
+    )
+    stop_departure_dt = dy.Datetime(
+        nullable=True,
+        time_zone="UTC",
+        metadata={
+            "definition": "Estimate of when bus departed from stop area. Uses `gtfs_departure_dt` if available, then TransitMaster `actual_departure_dt` and adjusts time to ensure `stop_sequence` order implies departure order."
+        },
+    )
+    gtfs_first_in_transit_seconds = dy.Int64(
+        nullable=True, metadata={"definition": "`gtfs_first_in_transit_dt` minus `service_date` in seconds."}
+    )
+    stop_arrival_seconds = dy.Int64(
+        nullable=True, metadata={"definition": "`stop_arrival_dt` minus `service_date` in seconds."}
+    )
+    stop_departure_seconds = dy.Int64(
+        nullable=True, metadata={"definition": "`stop_departure_dt` minus `service_date` in seconds."}
+    )
+    travel_time_seconds = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "Time in seconds between the previous stop's departure and the current stop's arrival. Uses `stop_departure_dt` and `stop_arrival_dt`."
+        },
+    )
+    stopped_duration_seconds = dy.Int64(
+        nullable=True,
+        metadata={
+            "definition": "Time in seconds the bus spent stopped at the current stop. Uses `stop_arrival_dt` and `stop_departure_dt`. As estimates, `travel_time_seconds` does not indicate door events or dwell time."
+        },
+    )
+    route_direction_headway_seconds = dy.Int64(
+        nullable=True,
+        min=0,
+        metadata={
+            "definition": "Time in seconds between the previous bus and the current bus at the same stop, route, and direction. Uses `stop_arrival_dt` and `stop_departure_dt`."
+        },
+    )
+    direction_destination_headway_seconds = dy.Int64(
+        nullable=True,
+        min=0,
+        metadata={
+            "definition": "Time in seconds between the previous bus and the current bus at the same stop, direction, and destination. Uses `stop_arrival_dt` and `stop_departure_dt`."
+        },
+    )
+    is_full_trip = dy.Bool(
+        nullable=True,
+        metadata={"definition": "True if the trip has both a start and end point, otherwise False. Uses `point_type`."},
+    )
 
     @dy.rule()
     def departure_after_arrival(cls) -> pl.Expr:
@@ -72,6 +120,16 @@ class BusPerformanceMetrics(BusEvents):  # pylint: disable=too-many-ancestors
                 ).dt.total_seconds()
             )
         )
+
+    @dy.rule()
+    def has_arrival_dt(cls) -> pl.Expr:
+        """
+        The bus should have an arrival time if we have any GTFS-RT data for that stop.
+        """
+        return pl.when(
+            pl.col("gtfs_last_in_transit_dt").is_not_null(),
+            pl.col("point_type").eq("end"),
+        ).then(pl.col("stop_arrival_dt").is_not_null())
 
 
 def run_bus_performance_pipeline(
@@ -155,15 +213,33 @@ def calculate_derived_bus_performance_metrics(
             .alias("is_full_trip"),
             (  # for departure times
                 pl.when(pl.col("stop_sequence").eq(pl.lit(1)))  # startpoints
-                .then(pl.coalesce("gtfs_departure_dt", "tm_actual_departure_dt"))
-                .otherwise(  # midpoints + endpoints
-                    pl.min_horizontal(pl.col("tm_actual_departure_dt"), pl.col("gtfs_departure_dt")),
+                .then(
+                    pl.coalesce(
+                        "gtfs_departure_dt",
+                        "tm_actual_departure_dt",
+                    )
+                )
+                .when(pl.col("point_type").eq(pl.lit("end")))  # endpoints
+                .then(pl.lit(None))  # no departure time
+                .otherwise(  # midpoints
+                    pl.coalesce(
+                        pl.min_horizontal(
+                            pl.col("tm_actual_departure_dt"),
+                            pl.col("gtfs_departure_dt"),
+                        ),
+                    ),
                 )
             ).alias("stop_departure_dt"),
         )
         .with_columns(
             pl.min_horizontal(  # for arrival times
-                pl.max_horizontal(pl.col("gtfs_arrival_dt"), pl.col("tm_actual_arrival_dt")),  # take the later
+                pl.max_horizontal(
+                    pl.col("gtfs_arrival_dt"),
+                    pl.col("tm_actual_arrival_dt"),
+                    pl.when(pl.col("point_type").eq("end")).then(
+                        pl.col("gtfs_last_in_transit_dt")
+                    ),  # fill in endpoint arrival times
+                ),  # take the later
                 pl.col("stop_departure_dt"),  # unless that conflicts with the departure time
             ).alias("stop_arrival_dt"),
             pl.col("stop_id")
@@ -173,12 +249,6 @@ def calculate_derived_bus_performance_metrics(
                 order_by="stop_sequence",
             )
             .alias("previous_stop_id"),
-        )
-        .with_columns(
-            pl.when(pl.col("stop_sequence").eq(pl.col("stop_count")))  # for endpoints
-            .then(pl.col("stop_arrival_dt"))  # set departure equal to arrival
-            .otherwise(pl.col("stop_departure_dt"))
-            .alias("stop_departure_dt"),
         )
         .with_columns(
             *[  # force the stop_departure_dt & stop_arrival_dt in order with other stops in the trip by
@@ -220,8 +290,18 @@ def calculate_derived_bus_performance_metrics(
             .alias("travel_time_seconds"),
             (pl.col("stop_departure_seconds") - pl.col("stop_arrival_seconds")).alias("stopped_duration_seconds"),
             (
-                pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
-                - pl.coalesce(["stop_departure_seconds", "stop_arrival_seconds"])
+                pl.coalesce(
+                    [
+                        "stop_departure_seconds",
+                        "stop_arrival_seconds",
+                    ]
+                )
+                - pl.coalesce(
+                    [
+                        "stop_departure_seconds",
+                        "stop_arrival_seconds",
+                    ]
+                )
                 .shift()
                 .over(
                     ["service_date", "stop_id", "direction_id", "route_id"],

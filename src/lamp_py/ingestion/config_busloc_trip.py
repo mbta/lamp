@@ -43,11 +43,11 @@ class RtBusTripDetail(GTFSRTDetail):
                             ),  # Not currently provided by Busloc
                             (
                                 "trip",
-                                trip_descriptor,
+                                trip_descriptor.pyarrow_dtype,
                             ),  # Busloc currently only provides trip_id, route_id and schedule_relationship
                             (
                                 "vehicle",
-                                vehicle_descriptor,
+                                vehicle_descriptor.pyarrow_dtype,
                             ),  # Busloc currently only provides id and label
                             (
                                 "stop_time_update",
@@ -56,8 +56,8 @@ class RtBusTripDetail(GTFSRTDetail):
                                         [
                                             ("stop_sequence", pyarrow.uint32()),
                                             ("stop_id", pyarrow.string()),
-                                            ("arrival", stop_time_event),
-                                            ("departure", stop_time_event),
+                                            ("arrival", stop_time_event.pyarrow_dtype),
+                                            ("departure", stop_time_event.pyarrow_dtype),
                                             (
                                                 "schedule_relationship",
                                                 pyarrow.string(),

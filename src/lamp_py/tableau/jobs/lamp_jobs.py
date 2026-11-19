@@ -13,14 +13,12 @@ from lamp_py.runtime_utils.remote_files import (
     S3Location,
     springboard_rt_vehicle_positions,
     springboard_devgreen_rt_vehicle_positions,
-    springboard_rt_trip_updates,  # main feed, all lines, unique records
-    springboard_devgreen_rt_trip_updates,
-    springboard_devgreen_lrtp_trip_updates,  # dev green feed, green line only, all records
-    springboard_lrtp_trip_updates,  # main feed, green line only, all records
+    springboard_devgreen_tp_trip_updates,  # dev green feed, heavy & light rail terminals only, all records
+    springboard_tp_trip_updates,  # main feed, heavy & light rail terminals only, all records
     bus_operator_mapping,
     tableau_rt_vehicle_positions_lightrail_60_day,
     tableau_rt_trip_updates_lightrail_60_day,
-    tableau_rt_vehicle_positions_heavyrail_30_day,
+    tableau_rt_vehicle_positions_heavyrail_60_day,
     tableau_rt_trip_updates_heavyrail_30_day,
     tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     tableau_devgreen_rt_trip_updates_lightrail_60_day,
@@ -31,10 +29,12 @@ from lamp_py.runtime_utils.remote_files import (
     tableau_bus_operator_mapping_all,
     tableau_rail_commuter,
     tableau_rail_subway,
+    tableau_rail_vehicle_events,
+    tableau_rail_vehicle_trips,
 )
 
 from lamp_py.tableau.jobs.filtered_hyper import FilteredHyperJob
-from lamp_py.tableau.jobs.rt_rail import HyperRtCommuterRail, HyperRtRail
+from lamp_py.tableau.jobs.rt_rail import HyperRtCommuterRail, HyperRtRail, HyperRtVehicleEvents, HyperRtVehicleTrips
 
 from lamp_py.runtime_utils.remote_files import (
     bus_events,
@@ -47,7 +47,11 @@ from lamp_py.utils.filter_bank import FilterBankRtTripUpdates, FilterBankRtVehic
 GTFS_RT_TABLEAU_PROJECT = "GTFS-RT"
 LAMP_API_PROJECT = "LAMP API"
 # LAMP_API = "LAMP API"
-HyperGtfsRtVehiclePositions = FilteredHyperJob(
+
+# naming convention: Environment_Schema_{ContentSubset_}TimeSubset
+# example: Prod_VehiclePositions_LightRailTerminals_60Day
+
+Prod_VehiclePositions_LightRailTerminals_60Day = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_lightrail_60_day,
     num_days_ago=60,
@@ -57,8 +61,8 @@ HyperGtfsRtVehiclePositions = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperGtfsRtTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_lrtp_trip_updates,
+Prod_TripUpdates_LightRailTerminals_60Day = FilteredHyperJob(
+    remote_input_location=springboard_tp_trip_updates,
     remote_output_location=tableau_rt_trip_updates_lightrail_60_day,
     num_days_ago=60,
     processed_schema=convert_gtfs_rt_trip_updates.LightRailTerminalTripUpdates.to_pyarrow_schema(),
@@ -67,18 +71,18 @@ HyperGtfsRtTripUpdates = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperGtfsRtVehiclePositionsHeavyRail = FilteredHyperJob(
+Prod_VehiclePositions_HeavyRailTerminals_60Day = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
-    remote_output_location=tableau_rt_vehicle_positions_heavyrail_30_day,
-    num_days_ago=30,
+    remote_output_location=tableau_rt_vehicle_positions_heavyrail_60_day,
+    num_days_ago=60,
     processed_schema=convert_gtfs_rt_vehicle_position.HeavyRailTerminalVehiclePositions.to_pyarrow_schema(),
     dataframe_filter=convert_gtfs_rt_vehicle_position.heavyrail,
     parquet_filter=FilterBankRtVehiclePositions.ParquetFilter.heavy_rail,
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
-    remote_input_location=springboard_rt_trip_updates,
+Prod_TripUpdates_HeavyRailTerminals_30Day = FilteredHyperJob(
+    remote_input_location=springboard_tp_trip_updates,
     remote_output_location=tableau_rt_trip_updates_heavyrail_30_day,
     num_days_ago=30,
     processed_schema=convert_gtfs_rt_trip_updates.HeavyRailTerminalTripUpdates.to_pyarrow_schema(),
@@ -87,7 +91,7 @@ HyperGtfsRtTripUpdatesHeavyRail = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
+Prod_VehiclePositions_LightRail_7Day = FilteredHyperJob(
     remote_input_location=springboard_rt_vehicle_positions,
     remote_output_location=tableau_rt_vehicle_positions_all_light_rail_7_day,
     num_days_ago=7,
@@ -97,7 +101,7 @@ HyperGtfsRtVehiclePositionsAllLightRail = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperDevGreenGtfsRtLightRailVehiclePositions = FilteredHyperJob(
+DevGreen_VehiclePositions_LightRailTerminals_60Day = FilteredHyperJob(
     remote_input_location=springboard_devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_lightrail_60_day,
     num_days_ago=60,
@@ -107,8 +111,8 @@ HyperDevGreenGtfsRtLightRailVehiclePositions = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperDevGreenGtfsRtLightRailTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_devgreen_lrtp_trip_updates,
+DevGreen_TripUpdates_LightRailTerminals_60Day = FilteredHyperJob(
+    remote_input_location=springboard_devgreen_tp_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_lightrail_60_day,
     num_days_ago=60,
     processed_schema=convert_gtfs_rt_trip_updates.LightRailTerminalTripUpdates.to_pyarrow_schema(),
@@ -117,7 +121,7 @@ HyperDevGreenGtfsRtLightRailTripUpdates = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperDevGreenGtfsRtHeavyRailVehiclePositions = FilteredHyperJob(
+DevGreen_VehiclePositions_HeavyRailTerminals_60Day = FilteredHyperJob(
     remote_input_location=springboard_devgreen_rt_vehicle_positions,
     remote_output_location=tableau_devgreen_rt_vehicle_positions_heavyrail_60_day,
     num_days_ago=60,
@@ -127,8 +131,8 @@ HyperDevGreenGtfsRtHeavyRailVehiclePositions = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperDevGreenGtfsRtHeavyRailTripUpdates = FilteredHyperJob(
-    remote_input_location=springboard_devgreen_rt_trip_updates,
+DevGreen_TripUpdates_HeavyRailTerminals_60Day = FilteredHyperJob(
+    remote_input_location=springboard_devgreen_tp_trip_updates,
     remote_output_location=tableau_devgreen_rt_trip_updates_heavyrail_60_day,
     num_days_ago=60,
     processed_schema=convert_gtfs_rt_trip_updates.HeavyRailTerminalTripUpdates.to_pyarrow_schema(),
@@ -137,7 +141,7 @@ HyperDevGreenGtfsRtHeavyRailTripUpdates = FilteredHyperJob(
     tableau_project_name=GTFS_RT_TABLEAU_PROJECT,
 )
 
-HyperBusOperatorMappingRecent = FilteredHyperJob(
+Prod_BusOperatorMapping_Recent = FilteredHyperJob(
     remote_input_location=bus_operator_mapping,
     remote_output_location=tableau_bus_operator_mapping_recent,
     num_days_ago=7,
@@ -148,7 +152,7 @@ HyperBusOperatorMappingRecent = FilteredHyperJob(
     partition_template="operator_map_pii_{yy}{mm:02d}{dd:02d}.parquet",
 )
 
-HyperBusOperatorMappingAll = FilteredHyperJob(
+Prod_BusOperatorMapping_LongTerm = FilteredHyperJob(
     remote_input_location=bus_operator_mapping,
     remote_output_location=tableau_bus_operator_mapping_all,
     num_days_ago=60,
@@ -159,7 +163,7 @@ HyperBusOperatorMappingAll = FilteredHyperJob(
     partition_template="operator_map_pii_{yy}{mm:02d}{dd:02d}.parquet",
 )
 
-HyperBusFall2025 = FilteredHyperJob(
+Prod_BusMetrics_Fall2025Rating = FilteredHyperJob(
     remote_input_location=bus_events,
     remote_output_location=S3Location(
         bucket=S3_ARCHIVE,
@@ -175,7 +179,7 @@ HyperBusFall2025 = FilteredHyperJob(
     partition_template="{yy}{mm:02d}{dd:02d}.parquet",
 )
 
-HyperBusOperatorFall2025 = FilteredHyperJob(
+Prod_BusOperatorMapping_Fall2025Rating = FilteredHyperJob(
     remote_input_location=bus_operator_mapping,
     remote_output_location=S3Location(
         bucket=S3_ARCHIVE,
@@ -192,19 +196,31 @@ HyperBusOperatorFall2025 = FilteredHyperJob(
 )
 
 # light rail and heavy rail - Enum Types < 2 == 0, 1
-HyperRtRailSubway = HyperRtRail(
+Prod_RailMetrics_Subway_LongTerm = HyperRtRail(
     route_type_operator="<",
     route_type_operand=RouteType.COMMUTER_RAIL,
     hyper_file_name="LAMP_ALL_RT_fields.hyper",
     remote_parquet_path=os.path.join(tableau_rail_subway.s3_uri, "LAMP_ALL_RT_fields.parquet"),
-    lamp_version="1.2.3",
+    lamp_version="1.2.4",
 )
 
 # commuter rail - Enum types == 2 == COMMUTER_RAIL
-HyperRtRailCommuter = HyperRtCommuterRail(
+Prod_RailMetrics_CommuterRail_LongTerm = HyperRtCommuterRail(
     route_type_operator="=",
     route_type_operand=RouteType.COMMUTER_RAIL,
     hyper_file_name="LAMP_COMMUTER_RAIL_RT_fields.hyper",
     remote_parquet_path=os.path.join(tableau_rail_commuter.s3_uri, "LAMP_COMMUTER_RAIL_RT_fields.parquet"),
     lamp_version="1.1.1",
+)
+
+Prod_RailMetrics_VehicleEvents_LongTerm = HyperRtVehicleEvents(
+    hyper_file_name="LAMP_RAIL_VEHICLE_EVENTS.hyper",
+    remote_parquet_path=tableau_rail_vehicle_events.s3_uri,
+    lamp_version="1.0.0",
+)
+
+Prod_RailMetrics_VehicleTrips_LongTerm = HyperRtVehicleTrips(
+    hyper_file_name="LAMP_RAIL_VEHICLE_TRIPS.hyper",
+    remote_parquet_path=tableau_rail_vehicle_trips.s3_uri,
+    lamp_version="1.0.0",
 )

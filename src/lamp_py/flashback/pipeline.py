@@ -1,19 +1,21 @@
 import asyncio
-from datetime import timedelta
+from datetime import timedelta, datetime
 from os import environ
 from signal import SIGTERM, signal
+from zoneinfo import ZoneInfo
 
 import dataframely as dy
 
 from lamp_py.aws.ecs import handle_ecs_sigterm
-from lamp_py.flashback.events import StopEventsTable, structure_stop_events, unnest_vehicle_positions, update_records
+from lamp_py.flashback.events import StopEvents, unnest_vehicle_positions, update_records
 from lamp_py.flashback.io import get_remote_events, get_vehicle_positions, write_stop_events
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
 
 async def flashback(
-    remote_events: dy.DataFrame[StopEventsTable], max_record_age: timedelta = timedelta(hours=2)
+    remote_events: dy.DataFrame[StopEvents],
+    max_record_age: timedelta = timedelta(hours=2),
 ) -> None:
     """Fetch, process, and store stop events."""
     existing_events = remote_events
@@ -22,11 +24,16 @@ async def flashback(
         process_logger.log_start()
         new_records = await get_vehicle_positions()
 
-        stop_events = update_records(existing_events, unnest_vehicle_positions(new_records), max_record_age)
+        stop_events = update_records(
+            existing_events,
+            unnest_vehicle_positions(new_records),
+            datetime.now(ZoneInfo("America/New_York")),
+            max_record_age,
+        )
 
         existing_events = stop_events
 
-        await asyncio.to_thread(lambda: write_stop_events(structure_stop_events(stop_events)))
+        await asyncio.to_thread(lambda: write_stop_events(stop_events))
 
         process_logger.log_complete()
 
@@ -41,11 +48,11 @@ def pipeline() -> None:
     signal(SIGTERM, handle_ecs_sigterm)
 
     # configure the environment
-    environ["SERVICE_NAME"] = "ingestion"
+    environ["SERVICE_NAME"] = "flashback"
 
     validate_environment(
         required_variables=[
-            "ARCHIVE_BUCKET",
+            "PUBLIC_ARCHIVE_BUCKET",
         ],
     )
 

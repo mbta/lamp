@@ -39,9 +39,10 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
         num_rows=num_rows,
         generator=dy_gen,
         overrides={
+            "id": [str(i) for i in range(num_rows)],
             "time": dy_gen.sample_datetime(
                 num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
-            ).cast(pl.Datetime(time_unit="ms"))
+            ).cast(pl.Datetime(time_unit="ms")),
         },
     ).to_dicts()
 
@@ -53,14 +54,26 @@ def test_convert_records(dy_gen: dy.random.Generator, converter: GlidesConverter
 
 
 @pytest.mark.parametrize(
-    ["column_transformations"],
+    ["remote_records_transformations", "new_records_transformations"],
     [
-        ({},),
-        ({"id": pl.col("id")},),
-        ({"new_col": pl.lit(1)},),
-        ({"time": pl.col("time").cast(pl.Datetime(time_unit="us")).dt.offset_by("1us")},),
+        ({}, {}),
+        ({"id": pl.col("id")}, {}),
+        ({"new_col": pl.lit(1)}, {}),
+        (
+            {},
+            {"id": pl.col("id")},
+        ),
+        ({"time": pl.col("time").cast(pl.Datetime(time_unit="us")).dt.offset_by("1us")}, {}),
+        ({}, {"time": pl.col("time").cast(pl.Datetime(time_unit="us")).dt.offset_by("1us")}),
     ],
-    ids=["no-remote-records", "same-schema", "dropped-column", "truncated-timestamp"],
+    ids=[
+        "no-remote-records",
+        "same-schema",
+        "extra-remote-field",
+        "extra-new-field",
+        "acceptable-remote-difference",
+        "acceptable-new-difference",
+    ],
 )
 @pytest.mark.parametrize(
     [
@@ -78,35 +91,43 @@ def test_append_records(
     dy_gen: dy.random.Generator,
     converter: GlidesConverter,
     tmp_path: Path,
-    column_transformations: dict[str, pl.Expr],
-    num_rows: int = 5,
+    remote_records_transformations: dict[str, pl.Expr],
+    new_records_transformations: dict[str, pl.Expr],
 ) -> None:
     """It writes all records locally using the table schema."""
-    converter.records = converter.record_schema.sample(
-        num_rows=num_rows,
-        generator=dy_gen,
-        overrides={
-            "time": dy_gen.sample_datetime(
-                num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
-            ).cast(pl.Datetime(time_unit="ms"))
-        },
-    ).to_dicts()
+    num_rows: int = 5
+
+    converter.records = (
+        converter.record_schema.sample(
+            num_rows=num_rows,
+            generator=dy_gen,
+            overrides={
+                "id": [str(i) for i in range(num_rows)],
+                "time": dy_gen.sample_datetime(
+                    num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
+                ).cast(pl.Datetime(time_unit="ms")),
+            },
+        )
+        .with_columns(**new_records_transformations)
+        .to_dicts()
+    )
 
     converter.local_path = tmp_path.joinpath(converter.base_filename).as_posix()
 
     expectation = converter.convert_records()
 
     remote_records_height = 0
-    if column_transformations:
+    if remote_records_transformations:
         remote_records = converter.table_schema.sample(
             num_rows,
             generator=dy_gen,
             overrides={
+                "id": [str(i) for i in range(num_rows)],
                 "time": dy_gen.sample_datetime(
                     num_rows, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
-                ).cast(pl.Datetime(time_unit="ms"))
+                ).cast(pl.Datetime(time_unit="ms")),
             },
-        ).with_columns(**column_transformations)
+        ).with_columns(**remote_records_transformations)
         remote_records.write_parquet(converter.local_path)
         remote_records_height = remote_records.height
 
@@ -137,9 +158,10 @@ def test_ingest_glides_events(
             num_rows=events_per_converter,
             generator=dy_gen,
             overrides={
+                "id": [str(i) for i in range(events_per_converter)],
                 "time": dy_gen.sample_datetime(
                     events_per_converter, min=datetime(2024, 1, 1), max=datetime(2039, 12, 31), time_unit="us"
-                ).cast(pl.Datetime(time_unit="ms"))
+                ).cast(pl.Datetime(time_unit="ms")),
             },
         )
         .with_columns(
@@ -152,7 +174,7 @@ def test_ingest_glides_events(
     kinesis_reader.get_records.return_value = sample(test_records, len(test_records))
 
     mock_upload = mocker.Mock(return_value=True)
-    mocker.patch("lamp_py.ingestion.glides.upload_file", mock_upload)
+    mocker.patch("lamp_py.ingestion.glides.replace_remote_parquet", mock_upload)
 
     ingest_glides_events(kinesis_reader, Queue(), upload=True)
     assert Path(converter.local_path).exists()

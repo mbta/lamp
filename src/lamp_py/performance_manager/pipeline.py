@@ -1,29 +1,28 @@
 #!/usr/bin/env python
-
 import argparse
 import logging
 import os
 import sched
+import signal
 import sys
 import time
-import signal
+from itertools import cycle
 from typing import List
 
-from lamp_py.aws.ecs import handle_ecs_sigterm, check_for_sigterm
-from lamp_py.postgres.postgres_utils import DatabaseManager, DatabaseIndex
+from lamp_py.aws.ecs import check_for_sigterm, handle_ecs_sigterm
+from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
+from lamp_py.publishing.performancedata import publish_performance_index
 from lamp_py.runtime_utils.alembic_migration import alembic_upgrade_to_head
 from lamp_py.runtime_utils.env_validation import validate_environment
 from lamp_py.runtime_utils.process_logger import ProcessLogger
-
-from lamp_py.tableau.pipeline import start_parquet_updates
-
-from lamp_py.publishing.performancedata import publish_performance_index
+from lamp_py.tableau.hyper import HyperJob
+from lamp_py.tableau.pipeline import PERFORMANCE_MANAGER_JOBS
 from lamp_py.utils.clear_folder import clear_folder
 
+from .alerts import process_alerts
 from .flat_file import write_flat_files
 from .l0_gtfs_rt_events import process_gtfs_rt_files
 from .l0_gtfs_static_load import process_static_tables
-from .alerts import process_alerts
 
 logging.getLogger().setLevel("INFO")
 
@@ -72,10 +71,12 @@ def main(args: argparse.Namespace) -> None:
     # schedule object that will control the "event loop"
     scheduler = sched.scheduler(time.monotonic, time.sleep)
 
-    def fast_iter() -> None:
-        """function to invoke a fast scheduled routine"""
+    tableau_cycle = cycle(PERFORMANCE_MANAGER_JOBS)
+
+    def writes() -> None:
+        """Write new data to the database."""
         check_for_sigterm()
-        process_logger = ProcessLogger("fast_event_loop")
+        process_logger = ProcessLogger("writes")
         process_logger.log_start()
         try:
             process_static_tables(rpm_db_manager, md_db_manager)
@@ -87,26 +88,27 @@ def main(args: argparse.Namespace) -> None:
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            scheduler.enter(int(args.interval), 2, fast_iter)
+            scheduler.enter(int(args.interval), 2, writes)
 
-    def slow_iter() -> None:
-        """function to invoke a slow scheduled routine"""
+    def reads() -> None:
+        """Update parquet files with the latest data."""
         check_for_sigterm()
-        process_logger = ProcessLogger("slow_event_loop")
+        job: HyperJob = next(tableau_cycle)
+        process_logger = ProcessLogger("reads", output_path=job.remote_parquet_path)
         process_logger.log_start()
         try:
-            start_parquet_updates(rpm_db_manager)
+            job.run_parquet(rpm_db_manager)
 
             process_logger.log_complete()
         except Exception as exception:
             process_logger.log_failure(exception)
         finally:
-            # re-schedule every 30 minutes
-            scheduler.enter(60 * 30, 1, slow_iter)
+            # schedule next job in 10 seconds
+            scheduler.enter(10, 1, reads)
 
     # schedule the initial loop and start the scheduler
-    scheduler.enter(0, 1, fast_iter)
-    scheduler.enter(0, 2, slow_iter)
+    scheduler.enter(0, 1, writes)
+    scheduler.enter(0, 2, reads)
     scheduler.run()
 
 

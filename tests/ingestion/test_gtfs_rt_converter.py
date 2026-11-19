@@ -1,23 +1,73 @@
+# pylint: disable=[R0913, R0917]
 import os
+from datetime import datetime
+from pathlib import Path
 from queue import Queue
+from shutil import copy2
+from typing import (
+    Callable,
+    Optional,
+)
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
-from pyarrow import fs
+import dataframely as dy
 import pandas
+import polars as pl
+import pytest
+from polars.testing import assert_frame_equal
+from pyarrow import fs
 
+from lamp_py.ingestion.gtfs_rt_detail import FeedMessage
+from lamp_py.ingestion.config_busloc_vehicle import BusLocVehicleRecord
+from lamp_py.ingestion.config_rt_alerts import AlertsRecord, ProposedAlertsRecord
 from lamp_py.ingestion.convert_gtfs_rt import GtfsRtConverter
 from lamp_py.ingestion.converter import ConfigType
 from lamp_py.ingestion.utils import flatten_table_schema
+from lamp_py.runtime_utils.remote_files import LAMP, S3_SPRINGBOARD
 
-from ..test_resources import (
+from tests.test_resources import (
     incoming_dir,
     test_files_dir,
 )
 
 
+def create_mock_upload_file(tmp_path: Path) -> Callable[[str, str, Optional[dict]], bool]:
+    """Create a mock upload_file function that copies files to tmp_path instead of S3."""
+
+    def mock_upload_file(file_name: str, object_path: str, _: dict | None = None) -> bool:
+        """Copy file to tmp_path instead of uploading to S3."""
+        dest = tmp_path / Path(object_path.replace("s3://", ""))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        copy2(file_name, dest)
+        return True
+
+    return mock_upload_file
+
+
+def gtfs_rt_factory(
+    schema: type[FeedMessage], dy_gen: dy.random.Generator, timestamp: datetime
+) -> dy.DataFrame[FeedMessage]:
+    """Generate a GTFS-RT dataframe with a specified timestamp."""
+    df = schema.sample(
+        overrides={
+            "header": {"timestamp": timestamp.timestamp(), "gtfs_realtime_version": "2.0", "incrementality": 0},
+            "entity": schema.entity.sample(dy_gen),
+        }
+    )
+    return df
+
+
+def unnest_all_structs(table: pl.DataFrame) -> pl.DataFrame:
+    """Flatten all struct types recursively."""
+    while pl.Struct in table.dtypes:
+        table = table.unnest(pl.selectors.struct(), separator=".")
+    return table
+
+
 def test_bad_conversion_local() -> None:
     """
-    test that a bad filename will result in an empty table and the filename will
+    Test that a bad filename will result in an empty table and the filename will
     be added to the error files list
     """
     # dummy config to avoid mypy errors
@@ -35,7 +85,7 @@ def test_bad_conversion_local() -> None:
 
 def test_bad_conversion_s3() -> None:
     """
-    test that a bad s3 filename will result in an empty table and the filename
+    Test that a bad s3 filename will result in an empty table and the filename
     will be added to the error files list
     """
     with patch("pyarrow.fs.S3FileSystem", return_value=fs.LocalFileSystem):
@@ -52,7 +102,7 @@ def test_bad_conversion_s3() -> None:
 
 
 def test_empty_files() -> None:
-    """test that empty files produce empty tables"""
+    """Test that empty files produce empty tables"""
     configs_to_test = (
         ConfigType.RT_VEHICLE_POSITIONS,
         ConfigType.RT_ALERTS,
@@ -82,7 +132,7 @@ def test_empty_files() -> None:
 
 def drop_list_columns(table: pandas.DataFrame) -> pandas.DataFrame:
     """
-    drop any columns with list objects to perform dataframe compare
+    Drop any columns with list objects to perform dataframe compare
     """
     list_columns = (
         "hour",
@@ -159,44 +209,6 @@ def test_vehicle_positions_file_conversion() -> None:
     assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
-def test_rt_alert_file_conversion() -> None:
-    """
-    TODO - convert a dummy json data to parquet and check that the new file
-    matches expectations
-    """
-    gtfs_rt_file = os.path.join(
-        incoming_dir,
-        "2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz",
-    )
-
-    config_type = ConfigType.from_filename(gtfs_rt_file)
-    assert config_type == ConfigType.RT_ALERTS
-
-    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
-    converter.thread_init()
-    timestamp, filename, table = converter.gz_to_pyarrow(gtfs_rt_file)
-
-    assert timestamp.month == 5
-    assert timestamp.year == 2022
-    assert timestamp.day == 4
-
-    assert filename == gtfs_rt_file
-
-    # 144 records in 'entity' for 2022-05-04T15:59:48Z_https_cdn.mbta.com_realtime_Alerts_enhanced.json.gz
-    assert table.num_rows == 144
-    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
-
-    np_df = flatten_table_schema(table).to_pandas()
-    np_df = drop_list_columns(np_df)
-
-    parquet_file = os.path.join(test_files_dir, "ingestion_GTFS-RT_ALERT.parquet")
-    parquet_df = pandas.read_parquet(parquet_file)
-    parquet_df = drop_list_columns(parquet_df)
-
-    compare_result = np_df.compare(parquet_df, align_axis=1)
-    assert compare_result.shape[0] == 0, f"{compare_result}"
-
-
 def test_rt_trip_file_conversion() -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
@@ -256,42 +268,64 @@ def test_rt_trip_file_conversion() -> None:
     assert compare_result.shape[0] == 0, f"{compare_result}"
 
 
-def test_bus_vehicle_positions_file_conversion() -> None:
+@pytest.mark.parametrize(
+    ["expected_config", "filepath_stub"],
+    [
+        (
+            ConfigType.BUS_VEHICLE_POSITIONS,
+            "https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced",
+        ),
+        (
+            ConfigType.RT_ALERTS,
+            "https_cdn.mbta.com_realtime_Alerts_enhanced",
+        ),
+    ],
+    ids=["BUS_VEHICLE_POSITIONS", "RT_ALERTS"],
+)
+def test_file_conversion(
+    expected_config: ConfigType, filepath_stub: str, dy_gen: dy.random.Generator, tmp_path: Path
+) -> None:
     """
     TODO - convert a dummy json data to parquet and check that the new file
     matches expectations
     """
-    gtfs_rt_file = os.path.join(
-        incoming_dir,
-        "2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz",
+    expected_converter = GtfsRtConverter(expected_config, metadata_queue=Queue())
+    timestamp = datetime(2024, 1, 1, tzinfo=ZoneInfo("America/New_York"))
+
+    df = expected_converter.detail.record_schema.sample(
+        overrides={
+            "header": {"timestamp": timestamp.timestamp(), "gtfs_realtime_version": "2.0", "incrementality": 0},
+            "entity": expected_converter.detail.record_schema.entity.sample(dy_gen),
+        }
     )
 
-    config_type = ConfigType.from_filename(gtfs_rt_file)
-    assert config_type == ConfigType.BUS_VEHICLE_POSITIONS
+    incoming_file = tmp_path / (timestamp.isoformat() + filepath_stub + ".json.gz")
 
-    converter = GtfsRtConverter(config_type, metadata_queue=Queue())
-    converter.thread_init()
-    timestamp, filename, table = converter.gz_to_pyarrow(gtfs_rt_file)
+    df.write_ndjson(incoming_file, compression="gzip")
 
-    assert timestamp.month == 5
-    assert timestamp.year == 2022
-    assert timestamp.day == 5
+    config_type = ConfigType.from_filename(str(incoming_file))
+    assert config_type == expected_config
 
-    assert filename == gtfs_rt_file
+    actual_converter = GtfsRtConverter(config_type, metadata_queue=Queue())
+    actual_converter.thread_init()
+    file_timestamp, filename, table = actual_converter.gz_to_pyarrow(str(incoming_file))
 
-    # 844 records in 'entity' for 2022-05-05T16_00_15Z_https_mbta_busloc_s3.s3.amazonaws.com_prod_VehiclePositions_enhanced.json.gz
-    assert table.num_rows == 844
-    assert table.num_columns == len(converter.detail.import_schema) + 4  # add 4 for header timestamp columns
+    assert file_timestamp
+    assert file_timestamp.month == timestamp.month
+    assert file_timestamp.year == timestamp.year
+    assert file_timestamp.day == timestamp.day
 
-    np_df = flatten_table_schema(table).to_pandas()
-    np_df = drop_list_columns(np_df)
+    assert filename == str(incoming_file)
 
-    parquet_file = os.path.join(test_files_dir, "ingestion_BUSLOC_VP.parquet")
-    parquet_df = pandas.read_parquet(parquet_file)
-    parquet_df = drop_list_columns(parquet_df)
-
-    compare_result = np_df.compare(parquet_df, align_axis=1)
-    assert compare_result.shape[0] == 0, f"{compare_result}"
+    assert table
+    table = pl.DataFrame(flatten_table_schema(table))
+    assert (
+        df.select(pl.col("entity").explode().struct.field("id").alias("id"))
+        .unique()
+        .join(table.select("id").unique(), on="id", how="anti")
+        .height
+        == 0
+    ), "Some ids in the original message are missing from the converted table."
 
 
 def test_bus_trip_updates_file_conversion() -> None:
@@ -330,3 +364,72 @@ def test_bus_trip_updates_file_conversion() -> None:
 
     compare_result = np_df.compare(parquet_df, align_axis=1)
     assert compare_result.shape[0] == 0, f"{compare_result}"
+
+
+@pytest.mark.parametrize(
+    [
+        "config_type",
+        "input_schemas",
+    ],
+    [
+        (ConfigType.BUS_VEHICLE_POSITIONS, [BusLocVehicleRecord, BusLocVehicleRecord]),
+        (ConfigType.RT_ALERTS, [AlertsRecord, AlertsRecord]),
+        (ConfigType.RT_ALERTS, [AlertsRecord, ProposedAlertsRecord]),
+    ],
+)
+@pytest.mark.parametrize(
+    "timestamp",
+    [[datetime(2024, 1, 1, 0, 0, 1, tzinfo=ZoneInfo("UTC")), datetime(2024, 1, 1, 0, 0, 2, tzinfo=ZoneInfo("UTC"))]],
+)
+def test_convert(
+    config_type: ConfigType,
+    input_schemas: list[type[FeedMessage]],
+    timestamp: list[datetime],
+    dy_gen: dy.random.Generator,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """It ingests correctly with and without existing files."""
+    monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.move_s3_objects", lambda files, __: files)
+    monkeypatch.setattr("lamp_py.ingestion.convert_gtfs_rt.upload_file", create_mock_upload_file(tmp_path))
+    dfs = []
+    for i, ts in enumerate(timestamp):
+        converter = GtfsRtConverter(config_type, Queue())
+        df = gtfs_rt_factory(input_schemas[i], dy_gen, ts)
+
+        incoming_file = tmp_path / f"{ts.isoformat()}.json.gz"
+
+        df.write_ndjson(incoming_file, compression="gzip")
+
+        monkeypatch.setattr(converter, "tmp_folder", tmp_path.as_posix())
+        converter.add_files([str(incoming_file)])
+        converter.convert()
+        dfs.append(df)
+
+    converted_records = pl.read_parquet(
+        [
+            tmp_path.joinpath(
+                S3_SPRINGBOARD,
+                LAMP,
+                str(config_type),
+                ts.strftime("year=%Y/month=%-m/day=%-d/%Y-%m-%dT00:00:00.parquet"),
+            ).as_posix()
+            for ts in set(ts.date() for ts in timestamp)
+        ]
+    )
+
+    expected_records = pl.concat(
+        [
+            unnest_all_structs(
+                df.select("entity", pl.col("header").struct.field("timestamp").alias("feed_timestamp"))
+                .explode("entity")
+                .unnest("entity")
+            )
+            for df in dfs
+        ]
+        + [converter.detail.table_schema.create_empty()],
+        how="diagonal_relaxed",
+    )
+
+    assert_frame_equal(converted_records, expected_records, check_row_order=False, check_column_order=False)
+    converter.detail.table_schema.validate(converted_records)

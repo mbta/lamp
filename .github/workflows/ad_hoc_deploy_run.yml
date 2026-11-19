@@ -23,16 +23,24 @@ jobs:
       # converted to strings, so flip them back using fromJson function
       environment: ${{ github.event.inputs.environment }}
       deploy-ad-hoc: true
-    secrets: inherit
+    secrets:
+      DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+    permissions:
+      contents: read
+      id-token: write
   run_ad_hoc_task:
     needs: deploy
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
+      id-token: write
     steps:
       - name: Checkout Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
       - name: Run Ad-Hoc Task
         uses: ./.github/actions/run_task
         with:

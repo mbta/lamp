@@ -2,12 +2,33 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Optional, List, Tuple
 
+import dataframely as dy
 import pyarrow
 
 from lamp_py.ingestion.utils import flatten_table_schema
 
 
-class GTFSRTDetail(ABC):
+class FeedMessage(dy.Schema):
+    """GTFS Realtime message containing aheader and entity list: one of TripUpdates, VehiclePositions, or Alerts."""
+
+    header = dy.Struct(
+        inner={
+            "gtfs_realtime_version": dy.String(),
+            "incrementality": dy.String(),
+            "timestamp": dy.UInt64(),
+        }
+    )
+    entity = dy.List(inner=dy.Any())
+
+
+class FeedEntityTable(dy.Schema):
+    """Flattened entity list from GTFS Realtime feed messages."""
+
+    id = dy.String(primary_key=True)
+    feed_timestamp = dy.UInt64(primary_key=True)
+
+
+class GTFSRTDetail[T: FeedEntityTable, M: FeedMessage](ABC):
     """
     Abstract Base Class for all GTFSRTDetail implementations.
 
@@ -18,6 +39,16 @@ class GTFSRTDetail(ABC):
     def transform_for_write(self, table: pyarrow.table) -> pyarrow.table:
         """modify table schema before write to parquet"""
         return flatten_table_schema(table)
+
+    @property
+    def table_schema(self) -> Optional[type[T]]:
+        """Schema for the flattened table representation of this GTFS-RT data."""
+        return None
+
+    @property
+    def record_schema(self) -> Optional[type[M]]:
+        """Schema for the raw GTFS-RT record structure."""
+        return None
 
     @property
     @abstractmethod

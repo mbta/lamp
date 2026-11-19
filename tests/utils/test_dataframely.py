@@ -1,4 +1,4 @@
-from typing import Type, Callable
+from typing import Type
 
 import dataframely as dy
 import pytest
@@ -22,10 +22,12 @@ from lamp_py.utils.dataframely import with_alias, with_nullable, unnest_columns
     ],
 )
 def test_with_alias(alias: str) -> None:
-    """It replaces the alias with the specified string."""
-    new_col = with_alias(dy.Struct(inner={"test": dy.String()}), alias)
+    """It replaces the alias with the specified string but does not modify the original column."""
+    col = dy.Struct(inner={"test": dy.String()})
+    new_col = with_alias(col, alias)
 
     assert alias == new_col.alias
+    assert col.alias is None
 
 
 @pytest.mark.parametrize(
@@ -69,9 +71,10 @@ def test_with_alias(alias: str) -> None:
     ],
 )
 def test_with_nullable(dtype: Type[dy.Column], input_nullability: bool, desired_nullability: bool) -> None:
-    """It always sets the specified nullability."""
+    """It always sets the specified nullability without modifying the original column."""
     new_column = dtype(nullable=input_nullability)
     assert desired_nullability == with_nullable(new_column, desired_nullability).nullable
+    assert new_column.nullable == input_nullability
 
 
 @pytest.mark.parametrize(

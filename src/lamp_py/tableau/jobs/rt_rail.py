@@ -1,18 +1,18 @@
-import os
 import datetime
+import os
 from typing import Any
 
 import pyarrow
-import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import pyarrow.dataset as pd
+import pyarrow.parquet as pq
 import sqlalchemy as sa
 
-from lamp_py.common.gtfs_types import RouteType
-from lamp_py.tableau.hyper import HyperJob
 from lamp_py.aws.s3 import download_file
+from lamp_py.common.gtfs_types import RouteType
 from lamp_py.postgres.postgres_utils import DatabaseManager
 from lamp_py.runtime_utils.process_logger import ProcessLogger
+from lamp_py.tableau.hyper import HyperJob
 
 
 class HyperRtRail(HyperJob):
@@ -20,8 +20,8 @@ class HyperRtRail(HyperJob):
 
     def __init__(
         self,
-        route_type_operator: str,
-        route_type_operand: RouteType,
+        route_type_operator: str | None = None,
+        route_type_operand: RouteType | None = None,
         **hyper_job_args: Any,
     ) -> None:
         HyperJob.__init__(
@@ -29,8 +29,12 @@ class HyperRtRail(HyperJob):
             **hyper_job_args,
         )
 
-        operator_set = {">", ">=", "=", "<", "<="}
-        assert route_type_operator in operator_set
+        route_type_filter = "1=1"  # default to no filter if not specified
+
+        if route_type_operand is not None and route_type_operator is not None:
+            operator_set = {">", ">=", "=", "<", "<="}
+            assert route_type_operator in operator_set
+            route_type_filter = f"sr.route_type {route_type_operator} {str(route_type_operand.value)}"
 
         self.table_query = f"""SELECT
                date(vt.service_date::text) as service_date
@@ -105,7 +109,8 @@ class HyperRtRail(HyperJob):
                vt.route_id = sr.route_id
                AND vt.static_version_key = sr.static_version_key
              WHERE 
-               sr.route_type {route_type_operator}{str(route_type_operand.value)}
+               1 = 1
+               AND {route_type_filter}
                AND (
                    ve.canonical_stop_sequence > 1
                    OR ve.canonical_stop_sequence IS NULL
@@ -486,5 +491,154 @@ class HyperRtCommuterRail(HyperRtRail):
                 ("scheduled_travel_time", pyarrow.int64()),
                 ("scheduled_headway_branch", pyarrow.int64()),
                 ("scheduled_headway_trunk", pyarrow.int64()),
+            ]
+        )
+
+
+class HyperRtVehicleEvents(HyperRtRail):
+    """Export the table `vehicle_events` as a Parquet to migrate off database."""
+
+    def __init__(
+        self,
+        **hyper_job_args: Any,
+    ) -> None:
+        HyperRtRail.__init__(
+            self,
+            **hyper_job_args,
+        )
+
+        self.table_query = """
+        SELECT
+          ve.pm_event_id,
+          date(vt.service_date::text) as service_date,
+          ve.pm_trip_id,
+          ve.stop_id,
+          ve.stop_sequence,
+          ve.canonical_stop_sequence,
+          ve.sync_stop_sequence,
+          ve.parent_station,
+          ve.previous_trip_stop_pm_event_id,
+          ve.next_trip_stop_pm_event_id,
+          TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_move_timestamp)) AS vp_move_timestamp,
+          TIMEZONE('America/New_York', TO_TIMESTAMP(ve.vp_stop_timestamp)) AS vp_stop_timestamp,
+          TIMEZONE('America/New_York', TO_TIMESTAMP(ve.tu_stop_timestamp)) AS tu_stop_timestamp,
+          ve.travel_time_seconds,
+          ve.dwell_time_seconds,
+          ve.headway_trunk_seconds,
+          ve.headway_branch_seconds,
+          ve.updated_on
+        FROM vehicle_events ve
+        INNER JOIN vehicle_trips vt
+        ON
+          ve.pm_trip_id = vt.pm_trip_id
+        WHERE
+          1 = 1
+          %s
+        ;
+        """
+
+        self.ds_batch_size = 1024 * 256
+
+        # /tmp/db_local_RAIL_xyz.parquet
+        self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
+
+    @property
+    def output_processed_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("pm_event_id", pyarrow.int64()),
+                ("service_date", pyarrow.date32()),
+                ("pm_trip_id", pyarrow.int64()),
+                ("stop_id", pyarrow.string()),
+                ("stop_sequence", pyarrow.int16()),
+                ("canonical_stop_sequence", pyarrow.int16()),
+                ("sync_stop_sequence", pyarrow.int16()),
+                ("parent_station", pyarrow.string()),
+                ("previous_trip_stop_pm_event_id", pyarrow.int64()),
+                ("next_trip_stop_pm_event_id", pyarrow.int64()),
+                ("vp_move_timestamp", pyarrow.timestamp("us")),
+                ("vp_stop_timestamp", pyarrow.timestamp("us")),
+                ("tu_stop_timestamp", pyarrow.timestamp("us")),
+                ("travel_time_seconds", pyarrow.int32()),
+                ("dwell_time_seconds", pyarrow.int32()),
+                ("headway_trunk_seconds", pyarrow.int32()),
+                ("headway_branch_seconds", pyarrow.int32()),
+                ("updated_on", pyarrow.timestamp("us")),
+            ]
+        )
+
+
+class HyperRtVehicleTrips(HyperRtRail):
+    """Export the table `vehicle_trips` as a Parquet to migrate off database."""
+
+    def __init__(
+        self,
+        **hyper_job_args: Any,
+    ) -> None:
+        HyperRtRail.__init__(
+            self,
+            **hyper_job_args,
+        )
+
+        self.table_query = """
+        SELECT
+          pm_trip_id,
+          direction_id,
+          route_id,
+          branch_route_id,
+          trunk_route_id,
+          date(vt.service_date::text) as service_date,
+          start_time,
+          vehicle_id,
+          stop_count,
+          trip_id,
+          vehicle_label,
+          vehicle_consist,
+          direction,
+          direction_destination,
+          revenue,
+          static_trip_id_guess,
+          static_start_time,
+          static_stop_count,
+          first_last_station_match,
+          static_version_key,
+          updated_on
+        FROM vehicle_trips vt
+        WHERE
+          1 = 1
+          %s 
+        ;
+        """
+
+        self.ds_batch_size = 1024 * 256
+
+        # /tmp/db_local_RAIL_xyz.parquet
+        self.db_parquet_path = os.path.join("/tmp", "db_local_" + os.path.basename(self.remote_parquet_path))
+
+    @property
+    def output_processed_schema(self) -> pyarrow.schema:
+        return pyarrow.schema(
+            [
+                ("pm_trip_id", pyarrow.int64()),
+                ("direction_id", pyarrow.bool_()),
+                ("route_id", pyarrow.string()),
+                ("branch_route_id", pyarrow.string()),
+                ("trunk_route_id", pyarrow.string()),
+                ("service_date", pyarrow.date32()),
+                ("start_time", pyarrow.int64()),
+                ("vehicle_id", pyarrow.string()),
+                ("stop_count", pyarrow.int16()),
+                ("trip_id", pyarrow.string()),
+                ("vehicle_label", pyarrow.string()),
+                ("vehicle_consist", pyarrow.string()),
+                ("direction", pyarrow.string()),
+                ("direction_destination", pyarrow.string()),
+                ("revenue", pyarrow.bool_()),
+                ("static_trip_id_guess", pyarrow.string()),
+                ("static_start_time", pyarrow.int64()),
+                ("static_stop_count", pyarrow.int16()),
+                ("first_last_station_match", pyarrow.bool_()),
+                ("static_version_key", pyarrow.int64()),
+                ("updated_on", pyarrow.timestamp("us")),
             ]
         )

@@ -15,7 +15,7 @@ from lamp_py.ingestion_tm.jobs.whole_table import (
     TMMainTimePoint,
     TMDailyLogDailySchedAdhereWaiver,
 )
-from lamp_py.ingestion_tm.jobs.parition_table import (
+from lamp_py.ingestion_tm.jobs.partition_table import (
     TMDailyLogStopCrossing,
     TMDailyLogDailyWorkPiece,
     TMDailyLogLoggedMessage,

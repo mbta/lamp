@@ -24,9 +24,9 @@ class RtVehicleDetail(GTFSRTDetail):
                     "vehicle",
                     pyarrow.struct(
                         [
-                            ("trip", trip_descriptor),
-                            ("vehicle", vehicle_descriptor),
-                            ("position", position),
+                            ("trip", trip_descriptor.pyarrow_dtype),
+                            ("vehicle", vehicle_descriptor.pyarrow_dtype),
+                            ("position", position.pyarrow_dtype),
                             ("current_stop_sequence", pyarrow.uint32()),
                             ("stop_id", pyarrow.string()),
                             ("current_status", pyarrow.string()),

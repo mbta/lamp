@@ -1,17 +1,20 @@
+from copy import deepcopy
 import dataframely as dy
+import polars as pl
 
 
 def with_alias(column: dy.Column, new_alias: str) -> dy.Column:
     """Return the input column with a new alias."""
-    column.alias = new_alias
-
-    return column
+    new_column = deepcopy(column)
+    new_column.alias = new_alias
+    return new_column
 
 
 def with_nullable(column: dy.Column, nullable: bool) -> dy.Column:
     """Return the input column and set its nullability."""
-    column.nullable = nullable
-    return column
+    new_column = deepcopy(column)
+    new_column.nullable = nullable
+    return new_column
 
 
 def unnest_columns(columns: dict[str, dy.Column]) -> dict[str, dy.Column]:
@@ -34,3 +37,27 @@ def unnest_columns(columns: dict[str, dy.Column]) -> dict[str, dy.Column]:
         else:
             new_schema.update({name: col})
     return new_schema
+
+
+def schema_as_frame(schema: dy.Schema) -> pl.DataFrame:
+    """Print the schema as a Markdown table."""
+    data = []
+    for name, col in schema.columns().items():
+        data.append(
+            {
+                "Column Name": "`" + name + "`",
+                "Arrow type": col.pyarrow_dtype,
+                "Is primary key": col.primary_key,
+                "Is nullable": col.nullable,
+                "Definition": col.metadata.get("definition", None) if col.metadata else None,
+                "Constraints": "<br>".join(
+                    [
+                        f"- `{k}`: `{v}`"
+                        for k, v in col.as_dict(pl.col(name)).items()
+                        if k not in ["column_type", "nullable", "primary_key", "metadata", "time_unit", "time_zone"]
+                        and v is not None
+                    ]
+                ),
+            }
+        )
+    return pl.DataFrame(data)

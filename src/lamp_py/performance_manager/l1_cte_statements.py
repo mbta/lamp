@@ -77,7 +77,7 @@ def static_trips_subquery_pl(service_date: int) -> pl.DataFrame:
     routes_lf = pl.scan_parquet(f"{static_prefix}/routes.parquet").filter(
         pl.col("gtfs_active_date") <= service_date,
         pl.col("gtfs_end_date") >= service_date,
-        pl.col("route_type") != 3,
+        pl.col("route_type") < 3,
     )
 
     def get_red_branch(trip_stop_ids: set) -> str:
@@ -255,7 +255,7 @@ def static_trips_subquery(static_version_key: int, service_date: int) -> sa.sql.
             StaticStops.static_version_key == int(static_version_key),
             ServiceIdDates.static_version_key == int(static_version_key),
             StaticRoutes.static_version_key == int(static_version_key),
-            StaticRoutes.route_type != 3,
+            StaticRoutes.route_type < 3,
             ServiceIdDates.service_date == int(service_date),
         )
         .subquery(name="static_trips_sub")

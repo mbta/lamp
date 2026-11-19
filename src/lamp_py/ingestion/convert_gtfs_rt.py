@@ -39,7 +39,7 @@ from lamp_py.aws.s3 import (
 )
 from lamp_py.runtime_utils.process_logger import ProcessLogger
 
-from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail
+from lamp_py.ingestion.config_rt_alerts import RtAlertsDetail, ProposedAlertsRecord
 from lamp_py.ingestion.config_busloc_trip import RtBusTripDetail
 from lamp_py.ingestion.config_busloc_vehicle import RtBusVehicleDetail
 from lamp_py.ingestion.config_rt_trip import RtTripDetail
@@ -107,7 +107,7 @@ class VehiclePositions(dy.Schema):
             },
             alias="vehicle",
         ),
-        nullable=False,
+        min_length=1,
     )
 
 
@@ -334,7 +334,18 @@ class GtfsRtConverter(Converter):
             feed_timestamp = json_data["header"]["timestamp"]
             timestamp = datetime.fromtimestamp(feed_timestamp, timezone.utc)
 
-            table = pyarrow.Table.from_pylist(json_data["entity"], schema=self.detail.import_schema)
+            try:
+                table = pyarrow.Table.from_pylist(json_data["entity"], schema=self.detail.import_schema)
+            except pyarrow.ArrowTypeError as e:
+                if self.config_type == ConfigType.RT_ALERTS:
+                    table = pyarrow.Table.from_pylist(
+                        json_data["entity"],
+                        schema=pyarrow.schema(
+                            [v.pyarrow_field(k) for k, v in ProposedAlertsRecord.entity.inner.inner.items()]  # type: ignore[attr-defined]
+                        ),
+                    )
+                else:
+                    raise e
 
             table = table.append_column(
                 "year",
@@ -417,7 +428,7 @@ class GtfsRtConverter(Converter):
 
         return False
 
-    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pyarrow.dataset:
+    def make_hash_dataset(self, table: pyarrow.Table, local_path: str) -> pd.Dataset:
         """
         create dataset, with hash column, that will be written to parquet file
 
@@ -440,13 +451,11 @@ class GtfsRtConverter(Converter):
                 out_ds = pd.dataset(
                     [
                         pd.dataset(table),
-                        pd.dataset(local_path),
-                    ]
+                        pd.dataset(local_path, schema=table.schema),
+                    ],
                 )
             except pyarrow.ArrowTypeError as exception:
-                if self.config_type == ConfigType.RT_ALERTS:
-                    out_ds = pd.dataset(table)
-                else:
+                if self.config_type != ConfigType.RT_ALERTS:
                     raise exception
         log.log_complete()
         return out_ds
@@ -469,7 +478,7 @@ class GtfsRtConverter(Converter):
         with tempfile.TemporaryDirectory() as temp_dir:
             hash_pq_path = os.path.join(temp_dir, "hash.parquet")
             upload_path = os.path.join(temp_dir, "upload.parquet")
-            light_rail_full_set_path = os.path.join(temp_dir, "light_rail_full_set.parquet")
+            rail_full_set_path = os.path.join(temp_dir, "rail_full_set.parquet")
 
             hash_writer = pq.ParquetWriter(hash_pq_path, schema=out_ds.schema, compression="zstd", compression_level=3)
             upload_writer = pq.ParquetWriter(
@@ -477,8 +486,8 @@ class GtfsRtConverter(Converter):
             )
 
             # include the hash column for debug
-            light_rail_full_set_writer = pq.ParquetWriter(
-                light_rail_full_set_path, schema=out_ds.schema, compression="zstd", compression_level=3
+            rail_full_set_writer = pq.ParquetWriter(
+                rail_full_set_path, schema=out_ds.schema, compression="zstd", compression_level=3
             )
 
             partitions = pc.unique(
@@ -493,7 +502,6 @@ class GtfsRtConverter(Converter):
 
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
-
                 write_table = (
                     pl.from_arrow(
                         out_ds.to_table(
@@ -513,10 +521,13 @@ class GtfsRtConverter(Converter):
                         filter=(
                             (pc.field(self.detail.partition_column) == part)
                             & (pc.field("feed_timestamp") < unique_ts_min)
-                            & (FilterBankRtTripUpdates.ParquetFilter.light_rail)
+                            & (
+                                FilterBankRtTripUpdates.ParquetFilter.light_rail
+                                | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
+                            )
                         )
                     )
-                    light_rail_full_set_writer.write_table(lr_write_table)
+                    rail_full_set_writer.write_table(lr_write_table)
 
                     lr_write_table = (
                         pl.from_arrow(
@@ -524,7 +535,10 @@ class GtfsRtConverter(Converter):
                                 filter=(
                                     (pc.field(self.detail.partition_column) == part)
                                     & (pc.field("feed_timestamp") >= unique_ts_min)
-                                    & (FilterBankRtTripUpdates.ParquetFilter.light_rail)
+                                    & (
+                                        FilterBankRtTripUpdates.ParquetFilter.light_rail
+                                        | FilterBankRtTripUpdates.ParquetFilter.heavy_rail
+                                    )
                                 )
                             )
                         )
@@ -532,14 +546,14 @@ class GtfsRtConverter(Converter):
                         .to_arrow()
                         .cast(out_ds.schema)
                     )
-                    light_rail_full_set_writer.write_table(lr_write_table)
+                    rail_full_set_writer.write_table(lr_write_table)
 
                 hash_writer.write_table(write_table)
                 upload_writer.write_table(write_table.drop_columns(GTFS_RT_HASH_COL))
 
             hash_writer.close()
             upload_writer.close()
-            light_rail_full_set_writer.close()
+            rail_full_set_writer.close()
 
             # overwrite existing hashed parquet path
             os.replace(hash_pq_path, local_path)
@@ -552,8 +566,10 @@ class GtfsRtConverter(Converter):
             )
             if self.config_type in [ConfigType.DEV_GREEN_RT_TRIP_UPDATES, ConfigType.RT_TRIP_UPDATES]:
                 upload_file(
-                    light_rail_full_set_path,
-                    local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace("RT_TRIP_UPDATES", "LRTP_TRIP_UPDATES"),
+                    rail_full_set_path,
+                    local_path.replace(self.tmp_folder, S3_SPRINGBOARD).replace(
+                        "RT_TRIP_UPDATES", "TERMINAL_PREDICTIONS_TRIP_UPDATES"
+                    ),
                 )
 
     # pylint: enable=R0914
@@ -583,6 +599,10 @@ class GtfsRtConverter(Converter):
 
             self.write_local_pq(table, local_path)
             self.send_metadata(local_path.replace(self.tmp_folder, S3_SPRINGBOARD))
+
+            # record the number of rows in the final parquet file for logging
+            metadata = pq.read_metadata(local_path)
+            log.add_metadata(number_of_rows=metadata.num_rows, file_size=metadata.serialized_size)
 
             log.log_complete()
 
