@@ -19,6 +19,7 @@ transit_master_ingestion = 'lamp_py.ingestion_tm.pipeline:start'
 ad_hoc = 'lamp_py.ad_hoc.pipeline:start'
 lightswitch = 'lamp_py.publishing.lightswitch:pipeline'
 flashback = 'lamp_py.flashback.pipeline:pipeline'
+ingestion_cloudevents = 'lamp_py.ingestion_cloudevents.pipeline:main'
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -168,8 +169,8 @@ ignore = [
     "D100",  # "missing-module-docstring",
     #"C0302", # "too-many-lines" - l1_rt_trips.py over 1000 lines
     "D100", # Missing docstring in public module
-    "D203", # conflicts with (D211) `no-blank-line-before-class` 
-    "D212", # conflicts with (D213) `multi-line-summary-second-line` 
+    "D203", # conflicts with (D211) `no-blank-line-before-class`
+    "D212", # conflicts with (D213) `multi-line-summary-second-line`
     "D400", # First line should end with a period
     "D415", # First line should end with a period, question mark, or exclamation point
     "D413", # conflicts with (D412)

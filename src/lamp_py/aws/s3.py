@@ -301,7 +301,7 @@ def file_list_from_s3(
             return []
 
 
-def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[Dict]:
+def file_list_from_s3_with_details(bucket_name: str, file_prefix: str, max_list_size: int = 250_000) -> List[Dict]:
     """
     Get a list of s3 objects with additional details
 
@@ -342,6 +342,9 @@ def file_list_from_s3_with_details(bucket_name: str, file_prefix: str) -> List[D
                         "last_modified": obj["LastModified"],
                     }
                 )
+
+            if len(filepaths) > max_list_size:
+                break
 
         process_logger.add_metadata(list_size=len(filepaths))
         process_logger.log_complete()

@@ -1,6 +1,9 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Union
+
+import polars as pl
+
 
 # bucket constants
 S3_SPRINGBOARD: str = os.environ.get("SPRINGBOARD_BUCKET", "unset_SPRINGBOARD")
@@ -293,4 +296,45 @@ stop_events = S3Location(
     bucket=S3_PUBLIC,
     prefix=f"{LAMP}/stop_events/stop_events_v0.json.gz",
     version="0.1.0",
+)
+
+# RailDS
+asset_event_source = S3Location(bucket=S3_INCOMING, prefix=f"{LAMP}/railds/com.mbta.railds.asset.event/")
+
+control_system_variables_source = S3Location(
+    bucket=S3_INCOMING, prefix=f"{LAMP}/railds/com.mbta.railds.control-system.variables/"
+)
+
+io_frame_source = S3Location(bucket=S3_INCOMING, prefix=f"{LAMP}/railds/com.mbta.railds.io.frame/")
+
+@dataclass
+class S3DeltaTable(S3Location):
+    """Extension of S3Location to assign partitions to delta tables."""
+
+    partitions: dict[str, pl.Expr] = field(kw_only=True)
+
+
+asset_event_table = S3DeltaTable(
+    bucket=S3_SPRINGBOARD,
+    prefix=f"{LAMP}/RAILDS/asset_event",
+    partitions={
+        "month": pl.col("time").dt.truncate("1mo").cast(pl.Date),
+    },
+)
+
+
+control_system_variables_table = S3DeltaTable(
+    bucket=S3_SPRINGBOARD,
+    prefix=f"{LAMP}/RAILDS/control_system_variables",
+    partitions={
+        "month": pl.col("time").dt.truncate("1mo").cast(pl.Date),
+    },
+)
+
+io_frame_table = S3DeltaTable(
+    bucket=S3_SPRINGBOARD,
+    prefix=f"{LAMP}/RAILDS/io_frame",
+    partitions={
+        "date": pl.col("time").dt.date(),
+    },
 )
