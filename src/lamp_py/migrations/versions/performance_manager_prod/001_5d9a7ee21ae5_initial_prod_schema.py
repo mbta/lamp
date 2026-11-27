@@ -1,7 +1,7 @@
 """initial prod schema
 
 Revision ID: 5d9a7ee21ae5
-Revises: 
+Revises:
 Create Date: 2023-07-25 13:52:06.082838
 
 """
@@ -21,7 +21,6 @@ from lamp_py.migrations.versions.performance_manager_prod.sql_strings.strings_00
     view_service_id_by_date_and_route,
     view_static_service_id_lookup,
 )
-
 
 # revision identifiers, used by Alembic.
 revision = "5d9a7ee21ae5"

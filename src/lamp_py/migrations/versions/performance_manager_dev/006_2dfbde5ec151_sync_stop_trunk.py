@@ -4,8 +4,8 @@ Revision ID: 2dfbde5ec151
 Revises: 96187da84955
 Create Date: 2024-05-09 08:52:01.675273
 
-sync_stop_sequence values were previously based on joining generated values to 
-a coalesce of branch and trunk route id's this migration will make all 
+sync_stop_sequence values were previously based on joining generated values to
+a coalesce of branch and trunk route id's this migration will make all
 sync_stop_sequence values join to generated values based on trunk_route_id
 
 Details

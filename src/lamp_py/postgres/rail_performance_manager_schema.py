@@ -4,7 +4,6 @@ import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql.functions import now
 
-
 RpmSqlBase: Any = declarative_base()
 
 

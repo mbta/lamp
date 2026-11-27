@@ -1,1 +1,1 @@
-""" Suite of utilities used when running data pipelines """
+"""Suite of utilities used when running data pipelines"""

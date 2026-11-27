@@ -1,1 +1,1 @@
-""" Suite of utilities for dealing with AWS infrastructure """
+"""Suite of utilities for dealing with AWS infrastructure"""

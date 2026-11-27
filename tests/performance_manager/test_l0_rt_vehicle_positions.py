@@ -9,7 +9,6 @@ from lamp_py.performance_manager.l0_rt_vehicle_positions import (
     transform_vp_timestamps,
 )
 
-
 Carriage = Dict[str, Union[str, int, None]]
 VehiclePosition = Dict[str, Union[str, int, bool, None, List[Carriage], float]]
 

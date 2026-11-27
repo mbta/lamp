@@ -21,7 +21,6 @@ from .rail_performance_manager_schema import (
 from .metadata_schema import MetadataLog
 from .postgres_utils import DatabaseManager, DatabaseIndex, seed_metadata
 
-
 logging.getLogger().setLevel("INFO")
 
 DESCRIPTION = """Interact with Performance Manager RDS for Testing"""

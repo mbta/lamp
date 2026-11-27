@@ -246,7 +246,7 @@ def get_zip_buffer(filename: str) -> IO[bytes]:
     """
     # inspired by
     # https://betterprogramming.pub/unzip-and-gzip-incoming-s3-files-with-aws-lambda-f7bccf0099c9
-    (bucket, file) = filename.split("/", 1)
+    bucket, file = filename.split("/", 1)
     s3_resource = boto3.resource("s3")
     zipped_file = s3_resource.Object(bucket_name=bucket, key=file)
 
