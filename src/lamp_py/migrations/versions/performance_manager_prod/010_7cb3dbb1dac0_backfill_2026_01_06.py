@@ -1,14 +1,14 @@
 """backfill_2026_01_06
 
-    Revision ID: 7cb3dbb1dac0
-    Revises: f138635d1338
-    Create Date: 2026-03-01 09:05:04.036779
+Revision ID: 7cb3dbb1dac0
+Revises: f138635d1338
+Create Date: 2026-03-01 09:05:04.036779
 
-    Details: Query of metadata table revealed that 1/6 also failed processing, so generating that again
+Details: Query of metadata table revealed that 1/6 also failed processing, so generating that again
 
-    * upgrade -> same as previous migration but for 1/6
-    * downgrade -> None
-    """
+* upgrade -> same as previous migration but for 1/6
+* downgrade -> None
+"""
 
 import logging
 import os

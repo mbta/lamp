@@ -16,7 +16,6 @@ this condition was introduced by 3 schedules in Dec 2023:
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "45dedc21086e"
 down_revision = "ae6c6e4b2df5"

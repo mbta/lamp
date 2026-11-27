@@ -18,7 +18,6 @@ from lamp_py.postgres.postgres_utils import DatabaseIndex, DatabaseManager
 from lamp_py.runtime_utils.remote_files import LAMP
 from lamp_py.aws.s3 import upload_file
 
-
 # pylint: disable=R0801
 
 

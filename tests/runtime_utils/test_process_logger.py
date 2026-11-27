@@ -13,6 +13,7 @@ from lamp_py.aws.ecs import running_in_aws
 
 class Schema(dy.Schema):
     "Trivial schema to test how dataframely reports errors."
+
     key = dy.Int64(primary_key=True, min=0)
     value1 = dy.Float64(nullable=False)
 

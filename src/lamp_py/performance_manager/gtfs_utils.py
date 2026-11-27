@@ -41,7 +41,7 @@ def start_time_to_seconds(
         return time
 
     try:
-        (hour, minute, second) = time.split(":")
+        hour, minute, second = time.split(":")
         return int(hour) * 3600 + int(minute) * 60 + int(second)
     except ValueError:
         # some older files have the start time already formatted as seconds

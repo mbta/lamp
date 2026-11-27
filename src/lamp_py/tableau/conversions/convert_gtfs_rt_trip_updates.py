@@ -6,6 +6,7 @@ from lamp_py.utils.filter_bank import HeavyRailFilter, LightRailFilter
 
 class TripUpdates(dy.Schema):
     "Intersection of descendant rail schemas."
+
     id = dy.String(nullable=True)
     trip_id = dy.String(nullable=True, alias="trip_update.trip.trip_id")
     route_id = dy.String(nullable=True, alias="trip_update.trip.route_id")
@@ -42,6 +43,7 @@ class TripUpdates(dy.Schema):
 
 class LightRailTerminalTripUpdates(dy.Schema):
     "Analytical dataset for LRTP dashboards."
+
     stop_id = dy.String(
         nullable=True,
         alias="trip_update.stop_time_update.stop_id",
@@ -70,6 +72,7 @@ class LightRailTerminalTripUpdates(dy.Schema):
 
 class HeavyRailTerminalTripUpdates(TripUpdates):
     "Analytical dataset for heavy rail and light rail midpoint dashboards."
+
     departure_time = dy.Datetime(
         nullable=True,
         alias="trip_update.stop_time_update.departure.time",

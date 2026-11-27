@@ -277,6 +277,7 @@ def delta_reingestion_runner(
 
     class MinimalSchema(dy.Schema):
         "Intersection of descendant rail schemas."
+
         trip_id = dy.String(nullable=True, alias="trip_update.trip.trip_id")
         start_date = dy.String(nullable=True, alias="trip_update.trip.start_date")
         feed_timestamp = dy.Datetime(nullable=True)

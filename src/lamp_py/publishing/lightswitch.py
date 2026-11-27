@@ -59,14 +59,12 @@ def authenticate(connection: duckdb.DuckDBPyConnection) -> bool:
     """Register IAM credentials with duckdb."""
     connection.install_extension("aws")
     connection.load_extension("aws")
-    return connection.sql(  # type: ignore[index]
-        """
+    return connection.sql("""
     CREATE SECRET IF NOT EXISTS secret (
         TYPE s3, 
         PROVIDER credential_chain
     );
-    """
-    ).fetchone()[0]
+    """).fetchone()[0]  # type: ignore[index]
 
 
 def build_view(
@@ -82,18 +80,12 @@ def build_view(
     pl.add_metadata(view_name=view_name, view_target=view_target)
 
     try:
-        column_aliases = (
-            connection.sql(
-                f"""
+        column_aliases = connection.sql(f"""
             SELECT DISTINCT string_agg('"' || column_name || '" AS ' || REPLACE(column_name, '.', '_'), ', ') 
             FROM (
                 DESCRIBE SELECT * FROM read_parquet('{view_target}')
             )
-        """
-            )
-            .pl()
-            .item(0, 0)
-        )
+        """).pl().item(0, 0)
         connection.execute(
             # Rename columns to replace period with underscore.
             # Period is a reserved character in SQL, which would force users to quote column names
@@ -141,8 +133,7 @@ def register_read_ymd(
 
     # Rename columns to replace period with underscore.
     # Period is a reserved character in SQL, which would force users to quote column names
-    connection.sql(
-        """
+    connection.sql("""
         CREATE OR REPLACE MACRO read_ymd
 
             (directory_name, start_date, end_date, bucket := 's3://mbta-ctd-dataplatform-springboard') AS TABLE (
@@ -171,8 +162,7 @@ def register_read_ymd(
                 hive_partitioning = True
             )
             )
-        """
-    )
+        """)
 
     pl.log_complete()
 
@@ -187,8 +177,7 @@ def register_effective_gtfs_timestamps(
     schema_name = "gtfs_schedule"
     create_schemas(connection, [schema_name])
     try:
-        connection.sql(
-            f"""
+        connection.sql(f"""
             CREATE OR REPLACE TABLE {schema_name}_effective_timestamps AS
             SELECT
                 service_date,
@@ -216,8 +205,7 @@ def register_effective_gtfs_timestamps(
             ORDER BY
                 service_date
             )
-            """
-        )
+            """)
     except duckdb.Error as e:
         pl.log_failure(e)
 
