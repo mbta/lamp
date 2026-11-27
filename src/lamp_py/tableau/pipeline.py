@@ -5,23 +5,23 @@ from lamp_py.runtime_utils.env_validation import validate_environment
 
 from lamp_py.tableau.hyper import HyperJob
 from lamp_py.tableau.jobs.lamp_jobs import (
-    Prod_VehiclePositions_LightRailTerminals_60Day,
-    Prod_TripUpdates_LightRailTerminals_60Day,
-    Prod_VehiclePositions_HeavyRailTerminals_60Day,
-    Prod_TripUpdates_HeavyRailTerminals_30Day,
-    Prod_VehiclePositions_LightRail_7Day,
-    DevGreen_VehiclePositions_LightRailTerminals_60Day,
-    DevGreen_TripUpdates_LightRailTerminals_60Day,
-    DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
-    DevGreen_TripUpdates_HeavyRailTerminals_60Day,
-    Prod_BusOperatorMapping_Recent,
-    Prod_BusOperatorMapping_LongTerm,
-    Prod_BusMetrics_Fall2025Rating,
-    Prod_BusOperatorMapping_Fall2025Rating,
-    Prod_RailMetrics_Subway_LongTerm,
-    Prod_RailMetrics_CommuterRail_LongTerm,
-    Prod_RailMetrics_VehicleEvents_LongTerm,
-    Prod_RailMetrics_VehicleTrips_LongTerm,
+    PROD_VEHICLE_POSITIONS_LIGHT_RAIL_TERMINALS_60_DAY,
+    PROD_TRIP_UPDATES_LIGHT_RAIL_TERMINALS_60_DAY,
+    PROD_VEHICLE_POSITIONS_HEAVY_RAIL_TERMINALS_60_DAY,
+    PROD_TRIP_UPDATES_HEAVY_RAIL_TERMINALS_30_DAY,
+    PROD_VEHICLE_POSITIONS_LIGHT_RAIL_7_DAY,
+    DEV_GREEN_VEHICLE_POSITIONS_LIGHT_RAIL_TERMINALS_60_DAY,
+    DEV_GREEN_TRIP_UPDATES_LIGHT_RAIL_TERMINALS_60_DAY,
+    DEV_GREEN_VEHICLE_POSITIONS_HEAVY_RAIL_TERMINALS_60_DAY,
+    DEV_GREEN_TRIP_UPDATES_HEAVY_RAIL_TERMINALS_60_DAY,
+    PROD_BUS_OPERATOR_MAPPING_RECENT,
+    PROD_BUS_OPERATOR_MAPPING_LONG_TERM,
+    PROD_BUS_METRICS_FALL2025_RATING,
+    PROD_BUS_OPERATOR_MAPPING_FALL2025_RATING,
+    PROD_RAIL_METRICS_SUBWAY_LONG_TERM,
+    PROD_RAIL_METRICS_COMMUTER_RAIL_LONG_TERM,
+    PROD_RAIL_METRICS_VEHICLE_EVENTS_LONG_TERM,
+    PROD_RAIL_METRICS_VEHICLE_TRIPS_LONG_TERM,
 )
 from lamp_py.tableau.jobs.rt_alerts import HyperRtAlerts
 from lamp_py.tableau.jobs.gtfs_rail import (
@@ -44,8 +44,8 @@ from lamp_py.aws.ecs import check_for_parallel_tasks
 PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
     HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
     HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
-    Prod_RailMetrics_Subway_LongTerm,
-    Prod_RailMetrics_CommuterRail_LongTerm,
+    PROD_RAIL_METRICS_SUBWAY_LONG_TERM,
+    PROD_RAIL_METRICS_COMMUTER_RAIL_LONG_TERM,
     HyperServiceIdByRoute(),
     HyperStaticCalendar(),
     HyperStaticCalendarDates(),
@@ -54,17 +54,17 @@ PERFORMANCE_MANAGER_JOBS: List[HyperJob] = [
     HyperStaticStops(),
     HyperStaticStopTimes(),
     HyperStaticTrips(),
-    Prod_TripUpdates_LightRailTerminals_60Day,
-    Prod_VehiclePositions_HeavyRailTerminals_60Day,
-    Prod_TripUpdates_HeavyRailTerminals_30Day,
-    Prod_VehiclePositions_LightRailTerminals_60Day,
-    Prod_VehiclePositions_LightRail_7Day,
-    DevGreen_VehiclePositions_LightRailTerminals_60Day,
-    DevGreen_TripUpdates_LightRailTerminals_60Day,
-    DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
-    DevGreen_TripUpdates_HeavyRailTerminals_60Day,
-    Prod_RailMetrics_VehicleEvents_LongTerm,
-    Prod_RailMetrics_VehicleTrips_LongTerm,
+    PROD_TRIP_UPDATES_LIGHT_RAIL_TERMINALS_60_DAY,
+    PROD_VEHICLE_POSITIONS_HEAVY_RAIL_TERMINALS_60_DAY,
+    PROD_TRIP_UPDATES_HEAVY_RAIL_TERMINALS_30_DAY,
+    PROD_VEHICLE_POSITIONS_LIGHT_RAIL_TERMINALS_60_DAY,
+    PROD_VEHICLE_POSITIONS_LIGHT_RAIL_7_DAY,
+    DEV_GREEN_VEHICLE_POSITIONS_LIGHT_RAIL_TERMINALS_60_DAY,
+    DEV_GREEN_TRIP_UPDATES_LIGHT_RAIL_TERMINALS_60_DAY,
+    DEV_GREEN_VEHICLE_POSITIONS_HEAVY_RAIL_TERMINALS_60_DAY,
+    DEV_GREEN_TRIP_UPDATES_HEAVY_RAIL_TERMINALS_60_DAY,
+    PROD_RAIL_METRICS_VEHICLE_EVENTS_LONG_TERM,
+    PROD_RAIL_METRICS_VEHICLE_TRIPS_LONG_TERM,
 ]
 
 
@@ -103,8 +103,8 @@ def start_hyper_updates() -> None:
     hyper_jobs: List[HyperJob] = [
         HyperGlidesTripUpdates(),  # glides have operational usage, run these first to ensure timely report gen
         HyperGlidesOperatorSignIns(),  # glides have operational usage, run these first to ensure timely report gen
-        Prod_RailMetrics_Subway_LongTerm,
-        Prod_RailMetrics_CommuterRail_LongTerm,
+        PROD_RAIL_METRICS_SUBWAY_LONG_TERM,
+        PROD_RAIL_METRICS_COMMUTER_RAIL_LONG_TERM,
         HyperServiceIdByRoute(),
         HyperStaticCalendar(),
         HyperStaticCalendarDates(),
@@ -116,19 +116,19 @@ def start_hyper_updates() -> None:
         HyperRtAlerts(),
         HyperBusPerformanceAll(),
         HyperBusPerformanceRecent(),
-        Prod_BusOperatorMapping_Recent,
-        Prod_BusOperatorMapping_LongTerm,
-        Prod_TripUpdates_LightRailTerminals_60Day,
-        Prod_VehiclePositions_HeavyRailTerminals_60Day,
-        Prod_TripUpdates_HeavyRailTerminals_30Day,
-        Prod_VehiclePositions_LightRailTerminals_60Day,
-        Prod_VehiclePositions_LightRail_7Day,
-        DevGreen_VehiclePositions_LightRailTerminals_60Day,
-        DevGreen_TripUpdates_LightRailTerminals_60Day,
-        DevGreen_VehiclePositions_HeavyRailTerminals_60Day,
-        DevGreen_TripUpdates_HeavyRailTerminals_60Day,
-        Prod_BusMetrics_Fall2025Rating,
-        Prod_BusOperatorMapping_Fall2025Rating,
+        PROD_BUS_OPERATOR_MAPPING_RECENT,
+        PROD_BUS_OPERATOR_MAPPING_LONG_TERM,
+        PROD_TRIP_UPDATES_LIGHT_RAIL_TERMINALS_60_DAY,
+        PROD_VEHICLE_POSITIONS_HEAVY_RAIL_TERMINALS_60_DAY,
+        PROD_TRIP_UPDATES_HEAVY_RAIL_TERMINALS_30_DAY,
+        PROD_VEHICLE_POSITIONS_LIGHT_RAIL_TERMINALS_60_DAY,
+        PROD_VEHICLE_POSITIONS_LIGHT_RAIL_7_DAY,
+        DEV_GREEN_VEHICLE_POSITIONS_LIGHT_RAIL_TERMINALS_60_DAY,
+        DEV_GREEN_TRIP_UPDATES_LIGHT_RAIL_TERMINALS_60_DAY,
+        DEV_GREEN_VEHICLE_POSITIONS_HEAVY_RAIL_TERMINALS_60_DAY,
+        DEV_GREEN_TRIP_UPDATES_HEAVY_RAIL_TERMINALS_60_DAY,
+        PROD_BUS_METRICS_FALL2025_RATING,
+        PROD_BUS_OPERATOR_MAPPING_FALL2025_RATING,
     ]
 
     for job in hyper_jobs:
@@ -142,11 +142,11 @@ def start_bus_parquet_updates() -> None:
 
     parquet_update_jobs: List[HyperJob] = [
         HyperBusPerformanceRecent(),
-        Prod_BusOperatorMapping_Recent,
+        PROD_BUS_OPERATOR_MAPPING_RECENT,
         HyperBusPerformanceAll(),
-        Prod_BusOperatorMapping_LongTerm,
-        Prod_BusMetrics_Fall2025Rating,
-        Prod_BusOperatorMapping_Fall2025Rating,
+        PROD_BUS_OPERATOR_MAPPING_LONG_TERM,
+        PROD_BUS_METRICS_FALL2025_RATING,
+        PROD_BUS_OPERATOR_MAPPING_FALL2025_RATING,
     ]
 
     for job in parquet_update_jobs:
