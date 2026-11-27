@@ -1,5 +1,6 @@
 import os
 import tempfile
+from abc import abstractmethod
 
 import pyarrow
 import sqlalchemy as sa
@@ -26,6 +27,11 @@ from lamp_py.aws.s3 import upload_file
 
 class TMWholeTable(TMExport):
     """Export Whole TM Table"""
+
+    @property
+    @abstractmethod
+    def export_schema(self) -> pyarrow.Schema:
+        """Schema for the whole table export."""
 
     def __init__(
         self,

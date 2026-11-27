@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+from abc import abstractmethod
 from typing import (
     List,
     Optional,
@@ -29,6 +30,11 @@ from lamp_py.aws.s3 import (
 
 class TMDailyTable(TMExport):
     """Export Daily table from TMDailyLog"""
+
+    @property
+    @abstractmethod
+    def export_schema(self) -> pyarrow.Schema:
+        """Schema for the daily table export."""
 
     def __init__(
         self, s3_location: S3Location, tm_table: str, lamp_version: str, specialized_template: Optional[str] = None
